@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+
+{% block title %}Деконструктор отчётов{% endblock %}
+
+{% block content %}
+	<!-- Заголовок страницы -->
+    <header class="hero">
+        <div class="container">
+            <h1 class="display-4">Деконструктор Отчётов</h1>
+            <p class="lead">Выберите файл и нажмите кнопку для деконструкции.</p>
+        </div>
+    </header>
+
+    <!-- Секция загрузки файла -->
+    <div class="container upload-section">
+        <h2 class="text-center">Загрузите файл</h2>
+        <form class="text-center" action="/your-upload-url/" method="post" enctype="multipart/form-data">
+            <div class="form-group">
+                <input type="file" class="form-control-file" id="fileInput" name="uploaded_file" required>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg">Деконструировать</button>
+        </form>
+    </div>
+{% endblock %}
