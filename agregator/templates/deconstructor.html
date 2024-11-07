@@ -14,11 +14,17 @@
     <!-- Секция загрузки файла -->
     <div class="container upload-section">
         <h2 class="text-center">Загрузите файл</h2>
-        <form class="text-center" action="/your-upload-url/" method="post" enctype="multipart/form-data">
-            <div class="form-group">
-                <input type="file" class="form-control-file" id="fileInput" name="uploaded_file" required>
-            </div>
-            <button type="submit" class="btn btn-primary btn-lg">Деконструировать</button>
-        </form>
+        <form method="post" enctype="multipart/form-data">
+			{% csrf_token %}
+			{{ form.as_p }}
+			<button type="submit">Загрузить</button>
+		</form>
+
+		{% if table %}
+            <h2>Считанные данные:</h2>
+			<div class="table-responsive">
+				{{ table|safe }}  <!-- Безопасное отображение HTML -->
+			</div>
+        {% endif %}
     </div>
 {% endblock %}

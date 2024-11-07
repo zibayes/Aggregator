@@ -31,16 +31,16 @@
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav">
                 <li class="nav-item">
+					<a class="nav-link" href="{% url 'constructor' %}">Конструктор отчётов</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="{% url 'deconstructor' %}">Деконструктор отчётов</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="{% url 'constructor' %}">Конструктор отчётов</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'interactive_map' %}">Интерактивная карта</a>
-                </li>
-                <li class="nav-item">
                     <a class="nav-link" href="{% url 'demonstrator' %}">Демонстратор</a>
+                </li>
+                <li class="nav-item">
+				<a class="nav-link" href="{% url 'interactive_map' %}">Интерактивная карта</a>
                 </li>
             </ul>
         </div>
