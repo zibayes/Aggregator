@@ -13,6 +13,9 @@ import time
 from datetime import datetime, date
 import math
 import numpy as np
+from celery import shared_task
+from celery_progress.backend import ProgressRecorder
+from time import sleep
 
 
 SQUARE_RESERVE = []
@@ -59,6 +62,41 @@ def get_gike_object_size(text_to_write: str, table_info: dict) -> None:
         if square_line:
             square_line = re.search(r'\d* *\d+[,]*\d*[ \n]+[а-яА-ЯёЁ]+', square_line.group(0), re.IGNORECASE).group(0)
             table_info['Площадь, протяжённость и/или др. параменты объекта'] += ' (S лин. ЗУ = ' + square_line + ')'
+
+
+@shared_task(bind=True)
+def test_task(self, duration):
+    progress_recorder = ProgressRecorder(self)
+    for i in range(5):
+        sleep(duration)
+        progress_recorder.set_progress(i+1, 5, f'On iter {i}')
+    return 'Done'
+
+@shared_task(bind=True)
+def save_and_process_files(self, uploaded_files):
+    table = None
+    progress_recorder = ProgressRecorder(self)
+    i = 0
+    for file in uploaded_files:
+        # Сохраняем файл во временную директорию
+        with open('uploaded_files/' + file.name, 'wb+') as destination:
+            for chunk in file.chunks():
+                destination.write(chunk)
+
+        # Обработка файла PDF
+        pdf_text = ""
+        with fitz.open('uploaded_files/' + file.name) as pdf_doc:
+            for page in pdf_doc:
+                pdf_text += page.get_text()
+                
+        new_table = extract_text_and_images('uploaded_files/' + file.name)
+        i += 1
+        progress_recorder.set_progress(i, len(uploaded_files), f'On iter {i}')
+        if table is not None:
+            table = table._append(new_table, ignore_index=True)
+        else:
+            table = new_table
+    return table
 
 
 def extract_text_and_images(pdf_file):

@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Деконструктор отчётов{% endblock %}
 
@@ -17,6 +18,28 @@
         <form method="post" enctype="multipart/form-data">
 			{% csrf_token %}
 			{{ form.as_p }}
+			
+			<!--
+			<div class="progress">
+			  <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 25%;" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">25%</div>
+			</div>
+			<br>
+			-->
+			
+			{% if task_id %}
+				<div class='progress-wrapper'>
+				  <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
+				</div>
+				<div id="progress-bar-message">Ожидание загрузки файла...</div>
+				<script src="{% static 'celery_progress/celery_progress.js' %}"></script>
+				<script>
+					document.addEventListener("DOMContentLoaded", function () {
+					  var progressUrl = "{% url 'celery_progress:task_status' task_id %}";
+					  CeleryProgressBar.initProgressBar(progressUrl);
+					});
+				</script>
+			{% endif %}
+			
 			<button type="submit">Загрузить</button>
 		</form>
 

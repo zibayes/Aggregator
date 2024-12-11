@@ -1,9 +1,24 @@
 from django.shortcuts import render
 from .forms import UploadFileForm
-from .acts_processing import extract_text_and_images
+from .acts_processing import extract_text_and_images, save_and_process_files, test_task
 import fitz
 import os
 import pandas as pd
+from rest_framework import viewsets
+from .models import Item
+from .serializers import ItemSerializer
+
+import asyncio
+from django.http import JsonResponse
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
+from celery import shared_task
+from celery.result import AsyncResult
+from celery_progress.backend import ProgressRecorder
+
+class ItemViewSet(viewsets.ModelViewSet):
+    queryset = Item.objects.all()
+    serializer_class = ItemSerializer
 
 def index(request):
     return render(request, 'index.html')
@@ -14,29 +29,13 @@ def deconstructor(request):
         if form.is_valid():
             # Получаем загруженный файл
             uploaded_files = form.cleaned_data['files']
-            table = None
-            for file in uploaded_files:
-                # Сохраняем файл во временную директорию
-                with open('uploaded_files/' + file.name, 'wb+') as destination:
-                    for chunk in file.chunks():
-                        destination.write(chunk)
-
-                # Обработка файла PDF
-                pdf_text = ""
-                with fitz.open('uploaded_files/' + file.name) as pdf_doc:
-                    for page in pdf_doc:
-                        pdf_text += page.get_text()
-                        
-                new_table = extract_text_and_images('uploaded_files/' + file.name)
-                if table is not None:
-                    table = table._append(new_table, ignore_index=True)
-                else:
-                    table = new_table
-            return render(request, 'deconstructor.html', {'form': form, 'table': table.to_html(classes='table table-striped')})
+            # table = save_and_process_files(uploaded_files)
+            task = test_task.delay(1)
+            return render(request, 'deconstructor.html', {'form': form, 'task_id': task.task_id}) # 'table': table.to_html(classes='table table-striped'), 
 
     else:
         form = UploadFileForm()
-    return render(request, 'deconstructor.html', {'form': form})
+    return render(request, 'deconstructor.html', {'form': form, 'task_id': None})
 
 def constructor(request):
     return render(request, 'constructor.html')
