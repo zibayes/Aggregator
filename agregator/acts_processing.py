@@ -63,43 +63,32 @@ def get_gike_object_size(text_to_write: str, table_info: dict) -> None:
             square_line = re.search(r'\d* *\d+[,]*\d*[ \n]+[а-яА-ЯёЁ]+', square_line.group(0), re.IGNORECASE).group(0)
             table_info['Площадь, протяжённость и/или др. параменты объекта'] += ' (S лин. ЗУ = ' + square_line + ')'
 
-
 @shared_task(bind=True)
-def test_task(self, duration):
-    progress_recorder = ProgressRecorder(self)
-    for i in range(5):
-        sleep(duration)
-        progress_recorder.set_progress(i+1, 5, f'On iter {i}')
-    return 'Done'
-
-@shared_task(bind=True)
-def save_and_process_files(self, uploaded_files):
+def save_and_process_files(self, uploaded_files, pages_count):
     table = None
     progress_recorder = ProgressRecorder(self)
-    i = 0
+    # progress_recorder.set_progress(i, len(uploaded_files), f'On iter {i}')
+    total_processed = [0]
+    already_uploaded = []
+    progress_recorder.set_progress(total_processed[0], 100, uploaded_files)
     for file in uploaded_files:
-        # Сохраняем файл во временную директорию
-        with open('uploaded_files/' + file.name, 'wb+') as destination:
-            for chunk in file.chunks():
-                destination.write(chunk)
-
-        # Обработка файла PDF
-        pdf_text = ""
-        with fitz.open('uploaded_files/' + file.name) as pdf_doc:
-            for page in pdf_doc:
-                pdf_text += page.get_text()
-                
-        new_table = extract_text_and_images('uploaded_files/' + file.name)
-        i += 1
-        progress_recorder.set_progress(i, len(uploaded_files), f'On iter {i}')
-        if table is not None:
-            table = table._append(new_table, ignore_index=True)
+        new_table = extract_text_and_images('uploaded_files/' + file, progress_recorder, pages_count,
+                                            total_processed, uploaded_files)
+        if new_table != 'Already have this file':
+            if table is not None:
+                table = table._append(new_table, ignore_index=True)
+            else:
+                table = new_table
         else:
-            table = new_table
+            already_uploaded.append(file)
+    if isinstance(table, pd.DataFrame):
+        table = table['Номер (если имеется) и наименование Акта ГИКЭ'].tolist()
     return table
+    # return table
+    # return uploaded_files
 
 
-def extract_text_and_images(pdf_file):
+def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_processed, uploaded_files):
     # Открываем PDF-файл
     document = fitz.open(pdf_file)
     folder = pdf_file[:pdf_file.rfind(".")]
@@ -127,6 +116,7 @@ def extract_text_and_images(pdf_file):
                      'Объекты расположенные в непосредственной близости. Для границ']
     months = {'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04', 'мая': '05', 'июня': '06', 'июля': '07',
               'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12',}
+    table_path = "uploaded_files/РЕЕСТР актов ГИКЭ.xlsx"
     broken_structure = False
     exploration_object= False
     sectors_square = []
@@ -140,6 +130,7 @@ def extract_text_and_images(pdf_file):
         extracted_images = []
         current_part = 0
         for page_number in range(len(document)):
+            progress_recorder.set_progress(int((total_processed[0] + page_number) / pages_count * 100), 100, uploaded_files)
             page = document[page_number]
             # Извлечение текста
             text = page.get_text()
@@ -156,6 +147,13 @@ def extract_text_and_images(pdf_file):
                 current_part += 1
                 if '№' not in text_to_write:
                     text_to_write += " б/н"
+
+                if os.path.exists(table_path):
+                    df_existing = pd.read_excel(table_path)
+                    for num in df_existing['Номер (если имеется) и наименование Акта ГИКЭ'].tolist():
+                        if text_to_write[:text_to_write.find('\n')].replace('\r', '') in num[:num.find('\n')].replace('\r', ''):
+                            return 'Already have this file'
+
                 table_info['Номер (если имеется) и наименование Акта ГИКЭ'] = text_to_write
 
             while True:
@@ -567,6 +565,7 @@ def extract_text_and_images(pdf_file):
                     current_part += 2
                     continue
                 break
+        total_processed[0] += len(document)
 
     if ('Площадь, протяжённость и/или др. параменты объекта' not in table_info.keys() or \
             'Общ. S' not in table_info['Площадь, протяжённость и/или др. параменты объекта']) and len(SQUARE_RESERVE) > 0:
@@ -574,7 +573,6 @@ def extract_text_and_images(pdf_file):
     document.close()
 
     # pd.DataFrame(table_info,columns=table_columns,index=[0]).to_excel(folder + "/" + "table.xlsx", index=False, engine='openpyxl')
-    table_path = "uploaded_files/РЕЕСТР актов ГИКЭ.xlsx"
     df_new = pd.DataFrame(table_info, columns=table_columns, index=[0])
     table_data = df_new
     if os.path.exists(table_path):
