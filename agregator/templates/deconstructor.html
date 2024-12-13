@@ -33,9 +33,40 @@
 				<div id="progress-bar-message">Ожидание загрузки файла...</div>
 				<script src="{% static 'celery_progress/celery_progress.js' %}"></script>
 				<script>
+					function redirectPost(url, data) {
+						var form = document.createElement('form');
+						document.body.appendChild(form);
+						form.method = 'post';
+						form.action = url;
+						var input = document.createElement('input');
+						input.type = 'hidden';
+						input.name = 'acts';
+						input.value = data;
+						var csrf = document.createElement('input');
+						csrf.type = 'hidden';
+						csrf.name = 'csrfmiddlewaretoken';
+						csrf.value = `{{ csrf_token }}`;
+						form.appendChild(input);
+						form.appendChild(csrf);
+						form.submit();
+					}
+
+					function customSuccess(progressBarElement, progressBarMessageElement, result) {
+					    result = this.getMessageDetails(result);
+						if (progressBarElement) {
+							progressBarElement.style.backgroundColor = this.barColors.success;
+						}
+						if (progressBarMessageElement) {
+							progressBarMessageElement.textContent = "Success! " + result;
+						}
+
+						let url = "/deconstructor/";
+						setTimeout(() => { redirectPost(url, result);}, 1000)
+					}
+
 					document.addEventListener("DOMContentLoaded", function () {
 					  var progressUrl = "{% url 'celery_progress:task_status' task_id %}";
-					  CeleryProgressBar.initProgressBar(progressUrl);
+					  CeleryProgressBar.initProgressBar(progressUrl, {onSuccess: customSuccess});
 					});
 				</script>
 			{% endif %}

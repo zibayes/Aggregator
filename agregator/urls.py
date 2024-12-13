@@ -11,6 +11,7 @@ urlpatterns = [
     path('constructor/', views.constructor, name='constructor'),
     path('interactive_map/', views.interactive_map, name='interactive_map'),
     path('demonstrator/', views.demonstrator, name='demonstrator'),
+    path('processing_status/', views.processing_status, name='processing_status'),
     path('api/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
 ]
