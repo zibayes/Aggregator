@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Отчёты с внешних источников{% endblock %}
+
+{% block content %}
+	<!-- Заголовок страницы -->
+    <header class="hero">
+        <div class="container">
+            <h1 class="display-4">Отчёты с внешних источников</h1>
+        </div>
+    </header>
+
+    <!-- Секция загрузки файла -->
+    <div class="container upload-section">
+        <h2>Сайт службы по государственной охране объектов культурного наследия Красноярского края</h2>
+        <form method="post" action="/external_sources/">
+			{% csrf_token %}
+			<button type="submit">Загрузить файлы</button>
+		</form>
+
+
+		{% if is_processing %}
+            <h4>Загрузка файлов с сайта ООКН началась - прогресс вы можете посмотреть в разделе <a href="{% url 'processing_status' %}">«Обработка отчётов»</a></h4>
+        {% endif %}
+    </div>
+{% endblock %}

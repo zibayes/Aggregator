@@ -63,6 +63,34 @@ def get_gike_object_size(text_to_write: str, table_info: dict) -> None:
             square_line = re.search(r'\d* *\d+[,]*\d*[ \n]+[а-яА-ЯёЁ]+', square_line.group(0), re.IGNORECASE).group(0)
             table_info['Площадь, протяжённость и/или др. параменты объекта'] += ' (S лин. ЗУ = ' + square_line + ')'
 
+def external_storage_acts_processing(uploaded_files):
+    pages_count = 0
+    for file in uploaded_files:
+        if not file.lower().endswith('.pdf'):
+            continue
+        with fitz.open('uploaded_files/' + file) as pdf_doc:
+            pages_count += len(pdf_doc)
+    # table = save_and_process_files.delay(files)
+    task = save_and_process_files.delay(uploaded_files, pages_count)
+    # task = test_task.delay(1)
+    return task
+
+def local_storage_acts_processing(uploaded_files):
+    files = []
+    pages_count = 0
+    for file in uploaded_files:
+        files.append(file.name)
+        # Сохраняем файл во временную директорию
+        with open('uploaded_files/' + file.name, 'wb+') as destination:
+            for chunk in file.chunks():
+                destination.write(chunk)
+        with fitz.open('uploaded_files/' + file.name) as pdf_doc:
+            pages_count += len(pdf_doc)
+    # table = save_and_process_files.delay(files)
+    task = save_and_process_files.delay(files, pages_count)
+    # task = test_task.delay(1)
+    return task
+
 @shared_task(bind=True)
 def save_and_process_files(self, uploaded_files, pages_count):
     table = None
@@ -72,9 +100,11 @@ def save_and_process_files(self, uploaded_files, pages_count):
     already_uploaded = []
     progress_recorder.set_progress(total_processed[0], 100, uploaded_files)
     for file in uploaded_files:
+        if not file.lower().endswith('.pdf'):
+            continue
         new_table = extract_text_and_images('uploaded_files/' + file, progress_recorder, pages_count,
                                             total_processed, uploaded_files)
-        if new_table != 'Already have this file':
+        if isinstance(new_table, pd.DataFrame):
             if table is not None:
                 table = table._append(new_table, ignore_index=True)
             else:
@@ -183,7 +213,9 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                         interval_type = 'dots'
 
                 if act_parts[current_part] == 'Дата окончания' or full_time_interval:
-                    text_to_write = text[re.search(r'Дата начала', text, re.IGNORECASE).end():]
+                    start_date = re.search(r'Дата начала', text, re.IGNORECASE)
+                    if start_date:
+                        text_to_write = text[start_date.end():]
                     if full_time_interval and interval_type == 'dots':
                         date = full_time_interval
                         current_part += 2
@@ -236,7 +268,11 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                             else:
                                 date = date[0]
                         else:
-                            date = re.findall(r'«*\d+»*[ \n]+[А-Яа-яёЁ]+[ \n]+\d+ г\.*', text, re.IGNORECASE)[1].replace('  ', ' ')
+                            date = re.findall(r'«*\d+»*[ \n]+[А-Яа-яёЁ]+[ \n]+\d+ г\.*', text, re.IGNORECASE)
+                            if len(date) > 1:
+                                date = date[1].replace('  ', ' ')
+                            else:
+                                date = date[0].replace('  ', ' ')
                         date = date.replace('«', '').replace('»', '')
                         date = date[:date.rfind(' ')]
                         month = re.search(r'[а-яА-ЯёЁ]+', date).group(0)

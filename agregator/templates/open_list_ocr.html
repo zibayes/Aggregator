@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Обработка отчётов{% endblock %}
+{% block title %}OCR для документов{% endblock %}
 
 {% block content %}
 	<!-- Заголовок страницы -->
     <header class="hero">
         <div class="container">
-            <h1 class="display-4">Обработка Отчётов</h1>
+            <h1 class="display-4">OCR для документов</h1>
         </div>
     </header>
 
@@ -16,21 +16,9 @@
         <h2 class="text-center">Загрузите файл</h2>
         <form method="post" enctype="multipart/form-data">
 			{% csrf_token %}
-			<p>Выберите тип документа:</p>
-			<input required id="file_type_act" type="radio" name="file_type" value="act">
-			<label style="padding-right: 8px;" for="file_type_act">Акт</label>
-			<input required id="file_type_report" type="radio" name="file_type" value="report">
-			<label style="padding-right: 8px;" for="file_type_report">Научный отчёт</label>
 			{{ form.as_p }}
-			
-			<!--
-			<div class="progress">
-			  <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 25%;" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">25%</div>
-			</div>
-			<br>
-			-->
-			
-			{% if task_id %}
+
+            {% if task_id %}
 				<div class='progress-wrapper'>
 				  <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
 				</div>
@@ -44,7 +32,7 @@
 						form.action = url;
 						var input = document.createElement('input');
 						input.type = 'hidden';
-						input.name = 'acts';
+						input.name = 'open_lists';
 						input.value = data;
 						var csrf = document.createElement('input');
 						csrf.type = 'hidden';
@@ -64,7 +52,7 @@
 							progressBarMessageElement.textContent = "Success! " + result;
 						}
 
-						let url = "/deconstructor/";
+						let url = "/open_list_ocr/";
 						setTimeout(() => { redirectPost(url, result);}, 1000)
 					}
 
@@ -74,7 +62,7 @@
 					});
 				</script>
 			{% endif %}
-			
+
 			<button type="submit">Загрузить</button>
 		</form>
 

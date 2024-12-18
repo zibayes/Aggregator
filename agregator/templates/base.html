@@ -37,13 +37,22 @@
                     <a class="nav-link" href="{% url 'deconstructor' %}">Обработка отчётов</a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link" href="{% url 'external_sources' %}">Отчёты с внешних источников</a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" href="{% url 'processing_status' %}">Файлы в обработке</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'demonstrator' %}">Реестр актов</a>
                 </li>
                 <li class="nav-item">
-				<a class="nav-link" href="{% url 'interactive_map' %}">Интерактивная карта</a>
+				    <a class="nav-link" href="{% url 'interactive_map' %}">Интерактивная карта</a>
+                </li>
+                <li class="nav-item">
+				    <a class="nav-link" href="{% url 'open_list_ocr' %}">OCR для документов</a>
+                </li>
+                <li class="nav-item">
+				    <a class="nav-link" href="{% url 'gpt_chat' %}">Нейросеть</a>
                 </li>
             </ul>
         </div>
