@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2>Редактирование профиля</h2>
+        <form method="post" enctype="multipart/form-data" class="mt-4">
+            {% csrf_token %}
+            <div class="form-group">
+                <img src="{{ user.avatar.url }}" class="rounded-circle" alt="User Avatar" style="width: 150px; height: 150px; object-fit: cover;">
+                <input type="file" class="form-control-file" id="avatar" name="avatar">
+                <small class="form-text text-muted">Загрузите новый аватар (оставьте пустым для сохранения без изменений).</small>
+            </div>
+            <div class="form-group">
+                <label for="first_name">Имя</label>
+                <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}" required>
+            </div>
+            <div class="form-group">
+                <label for="last_name">Фамилия</label>
+                <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}" required>
+            </div>
+            <div class="form-group">
+                <label for="username">Имя пользователя</label>
+                <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}" required>
+            </div>
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+            </div>
+            <div class="form-group">
+                <label for="password">Пароль (оставьте пустым для сохранения без изменений)</label>
+                <input type="password" class="form-control" id="password" name="password">
+            </div>
+            <button type="submit" class="btn btn-success">Сохранить изменения</button>
+        </form>
+    </div>
+{% endblock %}

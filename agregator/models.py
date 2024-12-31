@@ -1,8 +1,126 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+from archeology.settings import AUTH_USER_MODEL
+from django.core.files.storage import default_storage
 
-class Item(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField()
+# Модель для пользователей
+class User(AbstractUser):
+    avatar = models.ImageField(upload_to='avatars/', default='avatars/default.png')
+
+    def __str__(self):
+        return self.user.username
+
+    class Meta:
+        db_table = 'users'
+
+    def save(self, *args, **kwargs):
+        # Если у нас есть старый аватар и он не является значением по умолчанию
+        if self.pk:  # Проверяем, что объект уже существует
+            old_avatar = User.objects.get(pk=self.pk).avatar
+            if old_avatar and old_avatar.name != 'avatars/default.png' and \
+                    self.avatar and self.avatar.name != old_avatar.name:
+                # Удаляем старый файл
+                if default_storage.exists(old_avatar.name):
+                    default_storage.delete(old_avatar.name)
+
+        # Сохраняем новый аватар
+        super().save(*args, **kwargs)
+
+# Модель для ролей
+class Role(models.Model):
+    name = models.CharField(max_length=50)
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        db_table = 'roles'
+
+# Модель для связи пользователей и ролей
+class UserRole(models.Model):
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'users_roles'
+
+# Модель для приложений
+class Supplement(models.Model):
+    maps = models.TextField()
+    object_fotos = models.TextField()
+    pits_fotos = models.TextField()
+    plans = models.TextField()
+    material_fotos = models.TextField()
+    heritage_info = models.TextField()
+
+    def __str__(self):
+        return f"Supplement {self.id}"
+
+    class Meta:
+        db_table = 'supplements'
+
+# Модель для актов
+class Act(models.Model):
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+    supplement = models.ForeignKey(Supplement, on_delete=models.CASCADE, null=True, blank=True)
+    object = models.TextField()
+    place = models.TextField()
+    area = models.TextField()
+    pits = models.TextField()
+    coordinates = models.TextField()
+    expert = models.TextField()
+    customer = models.TextField()
+    open_list = models.TextField()
+    conclusion = models.TextField()
+
+    def __str__(self):
+        return f"Act {self.id} by {self.user.username}"
+
+    class Meta:
+        db_table = 'acts'
+
+# Модель для научных отчетов
+class ScientificReport(models.Model):
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+    supplement = models.ForeignKey(Supplement, on_delete=models.CASCADE, null=True, blank=True)
+    name = models.TextField()
+    organization = models.TextField()
+    author = models.TextField()
+    open_list = models.TextField()
+    writing_date = models.TextField()
+    introduction = models.TextField()
+    contractors = models.TextField()
+    place = models.TextField()
+    area_info = models.TextField()
+    research_history = models.TextField()
+    results = models.TextField()
+    conclusion = models.TextField()
+
+    def __str__(self):
+        return f"Scientific Report {self.id} by {self.user.username}"
+
+    class Meta:
+        db_table = 'scientific_reports'
+
+# Модель для научно-технических отчетов
+class TechReport(models.Model):
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+    supplement = models.ForeignKey(Supplement, on_delete=models.CASCADE, null=True, blank=True)
+    name = models.TextField()
+    organization = models.TextField()
+    author = models.TextField()
+    open_list = models.TextField()
+    writing_date = models.TextField()
+    introduction = models.TextField()
+    contractors = models.TextField()
+    place = models.TextField()
+    area_info = models.TextField()
+    research_history = models.TextField()
+    results = models.TextField()
+    conclusion = models.TextField()
+
+    def __str__(self):
+        return f"Tech Report {self.id} by {self.user.username}"
+
+    class Meta:
+        db_table = 'tech_reports'

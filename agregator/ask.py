@@ -23,7 +23,7 @@ def ask_question_with_context(query_text: str) -> str:
     # Мы будем использовать 3 чанка из БД, которые наиболее похожи на наш вопрос
     # c этим количеством можете экспериментировать как угодно, главное, не переборщите, ваша LLM
     # должна поддерживать такое количество контекста, чтобы уместить весь полученный промпт
-    results = db.similarity_search_with_relevance_scores(query_text, k=3)
+    results = db.similarity_search_with_relevance_scores(query_text, k=5)
     if len(results) == 0 or results[0][1] < 0.7:
         response = f"Нет фрагментов текста, на которые можно опираться для ответа."
         print(response)

@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+
+{% block title %}Профиль{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2>Профиль пользователя</h2>
+        <div class="card mt-4">
+            <div class="card-body">
+                <h5 class="card-title">{{ user.username }}</h5>
+                <img src="{{ user.avatar.url }}" class="rounded-circle" alt="User Avatar" style="width: 150px; height: 150px; object-fit: cover;">
+                <!-- <img src="{{ user.userprofile.avatar.url }}" alt="User Avatar" style="width: 150px; height: auto;"> -->
+                <p class="card-text">
+                    <strong>Имя:</strong> {{ user.first_name }} <br>
+                    <strong>Фамилия:</strong> {{ user.last_name }} <br>
+                    <strong>Роль:</strong> {% if user.is_superuser %} Администратор {% else %} Пользователь {% endif %} <br>
+                    <strong>Email:</strong> {{ user.email }} <br>
+                    <strong>Последний вход:</strong> {{ user.last_login|date:"d M Y H:i" }} <br>
+                    <strong>Дата регистрации:</strong> {{ user.date_joined|date:"d M Y H:i" }} <br>
+                </p>
+                <a href="{% url 'settings' %}" class="btn btn-primary">Редактировать профиль</a>
+            </div>
+        </div>
+    </div>
+{% endblock %}

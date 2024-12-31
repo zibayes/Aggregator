@@ -7,6 +7,7 @@ import pdfplumber
 import pandas as pd
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
+from .models import ScientificReport, Supplement, User
 
 
 def choose_file() -> str:
@@ -15,7 +16,7 @@ def choose_file() -> str:
     if file_path:
         return file_path
 
-def local_storage_reports_processing(uploaded_files):
+def local_storage_reports_processing(uploaded_files, user):
     files = []
     pages_count = 0
     for file in uploaded_files:
@@ -26,11 +27,11 @@ def local_storage_reports_processing(uploaded_files):
                 destination.write(chunk)
         with fitz.open('uploaded_files/' + file.name) as pdf_doc:
             pages_count += len(pdf_doc)
-    task = extract_text_and_images.delay(files, pages_count)
+    task = extract_text_and_images.delay(files, pages_count, user)
     return task
 
 @shared_task(bind=True)
-def extract_text_and_images(self, uploaded_files, pages_count) -> None:
+def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
     progress_recorder = ProgressRecorder(self)
     total_processed = [0]
     progress_recorder.set_progress(total_processed[0], 100, uploaded_files)
@@ -187,6 +188,34 @@ def extract_text_and_images(self, uploaded_files, pages_count) -> None:
                         img_file.write(image_bytes)
             total_processed[0] += len(document)
         document.close()
+
+        supplement = Supplement(
+            maps='Map data',
+            object_fotos='Object photos data',
+            pits_fotos='Pits photos data',
+            plans='Plans data',
+            material_fotos='Material photos data',
+            heritage_info='Heritage information'
+        )
+        supplement.save()
+
+        scientific_report = ScientificReport(
+            user=user,
+            supplement=supplement,
+            name='Scientific Report Title',
+            organization='Organization Name',
+            author='Author Name',
+            open_list='Open List Data',
+            writing_date='2023-10-01',
+            introduction='Introduction text',
+            contractors='Contractors information',
+            place='Research place',
+            area_info='Area information',
+            research_history='Research history text',
+            results='Results text',
+            conclusion='Conclusion text'
+        )
+        scientific_report.save()
 
 
 if __name__ == "__main__":

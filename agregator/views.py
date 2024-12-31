@@ -1,4 +1,4 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from .forms import UploadFileForm
 from .acts_processing import local_storage_acts_processing
 from .reports_processing import local_storage_reports_processing
@@ -9,29 +9,32 @@ import fitz
 import os
 import pandas as pd
 from rest_framework import viewsets
-from .models import Item
-from .serializers import ItemSerializer
 import json
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth import logout
+from django.contrib import messages
+from django.contrib.auth import update_session_auth_hash
 
 import asyncio
 from django.http import JsonResponse
+from django.contrib.auth import login, authenticate
+from .forms import UserRegisterForm
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from celery import shared_task
 from celery.result import AsyncResult
 from celery_progress.backend import ProgressRecorder
 from django_celery_results.models import TaskResult
-
-
-class ItemViewSet(viewsets.ModelViewSet):
-    queryset = Item.objects.all()
-    serializer_class = ItemSerializer
+from .forms import UserProfileForm
+from .models import User
+import base64
 
 
 def index(request):
     return render(request, 'index.html')
 
 
+@login_required
 def deconstructor(request):
     if request.method == 'POST':
         if 'acts' in request.POST:
@@ -62,6 +65,7 @@ def deconstructor(request):
         else:
             form = UploadFileForm(request.POST, request.FILES)
             if form.is_valid():
+                user = request.user
                 # Получаем загруженный файл
                 uploaded_files = form.cleaned_data['files']
                 if 'file_type' in request.POST:
@@ -69,9 +73,9 @@ def deconstructor(request):
                 else:
                     return render(request, 'deconstructor.html', {'form': form, 'task_id': None})
                 if file_type == 'act':
-                    task = local_storage_acts_processing(uploaded_files)
+                    task = local_storage_acts_processing(uploaded_files, user)
                 elif file_type == 'report':
-                    task = local_storage_reports_processing(uploaded_files)
+                    task = local_storage_reports_processing(uploaded_files, user)
                 else:
                     task = None
                 return render(request, 'deconstructor.html', {'form': form,
@@ -82,6 +86,7 @@ def deconstructor(request):
     return render(request, 'deconstructor.html', {'form': form, 'task_id': None})
 
 
+@login_required
 def external_sources(request):
     is_processing = False
     if request.method == 'POST':
@@ -90,6 +95,7 @@ def external_sources(request):
     return render(request, 'external_sources.html', {'is_processing': is_processing})
 
 
+@login_required
 def processing_status(request):
     tasks_id = list(TaskResult.objects.values_list('task_id', flat=True))
     return render(request, 'processing_status.html', {'tasks_id': tasks_id})
@@ -111,6 +117,7 @@ def demonstrator(request):
     return render(request, 'demonstrator.html', {'table': df_existing})
 
 
+@login_required
 def open_list_ocr(request):
     if request.method == 'POST':
         form = UploadFileForm()
@@ -165,3 +172,70 @@ def ask_gpt(request):
         body_data = json.loads(body_unicode)
         answer = ask_question_with_context(body_data['messages'][1]['content'])
         return JsonResponse({'choices': [{'message': {'content': answer}}]})
+
+
+def user_register(request):
+    if request.method == 'POST':
+        form = UserRegisterForm(request.POST)
+        if form.is_valid():
+            user = form.save()
+            login(request, user)  # Автоматически авторизуем пользователя после регистрации
+            return redirect('index')  # Перенаправление на домашнюю страницу
+        else:
+            return render(request, 'register.html', {'error': 'Неверные учетные данные'})
+    else:
+        form = UserRegisterForm()
+    return render(request, 'register.html', {'form': form})
+
+
+def user_login(request):
+    if request.method == 'POST':
+        username = request.POST['username']
+        password = request.POST['password']
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect('index')
+        else:
+            return render(request, 'login.html', {'error': 'Неверные учетные данные'})
+    return render(request, 'login.html')
+
+
+@login_required
+def custom_logout(request):
+    logout(request)
+    return redirect('index')
+
+
+@login_required
+def profile(request):
+    return render(request, 'profile.html')
+
+
+@login_required
+def settings(request):
+    if request.method == 'POST':
+        user = request.user
+        user.avatar = request.FILES['avatar']
+        user.first_name = request.POST['first_name']
+        user.last_name = request.POST['last_name']
+        user.username = request.POST['username']
+        user.email = request.POST['email']
+        password = request.POST['password']
+
+        if password:
+            user.set_password(password)  # Хешируйте новый пароль
+            update_session_auth_hash(request, user)  # Убедитесь, что сеанс остается активным
+        user.save()
+        messages.success(request, 'Профиль успешно обновлен.')
+        return redirect('profile')  # Перенаправление на страницу профиля
+
+    return render(request, 'settings.html')
+
+
+def open_lists_register(request):
+    table_path = "uploaded_files/Открытые листы.xlsx"
+    df_existing = None
+    if os.path.exists(table_path):
+        df_existing = pd.read_excel(table_path, engine='openpyxl').to_html(classes='table table-striped')
+    return render(request, 'open_lists_register.html', {'table': df_existing})

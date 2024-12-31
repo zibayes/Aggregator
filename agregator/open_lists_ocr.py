@@ -587,5 +587,5 @@ if __name__ == "__main__":
             if not file.lower().endswith('.pdf'):
                 continue
             print(file)
-            pdf_path = os.path.join(root, file)
+            pdf_path = os.path.join(f, file)
             open_list_ocr(file_path, pdf_path)

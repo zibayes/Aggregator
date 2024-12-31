@@ -16,6 +16,7 @@ import numpy as np
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
 from time import sleep
+from .models import Act, Supplement, User
 
 
 SQUARE_RESERVE = []
@@ -75,7 +76,7 @@ def external_storage_acts_processing(uploaded_files):
     # task = test_task.delay(1)
     return task
 
-def local_storage_acts_processing(uploaded_files):
+def local_storage_acts_processing(uploaded_files, user):
     files = []
     pages_count = 0
     for file in uploaded_files:
@@ -87,12 +88,12 @@ def local_storage_acts_processing(uploaded_files):
         with fitz.open('uploaded_files/' + file.name) as pdf_doc:
             pages_count += len(pdf_doc)
     # table = save_and_process_files.delay(files)
-    task = save_and_process_files.delay(files, pages_count)
+    task = save_and_process_files.delay(files, pages_count, user.id)
     # task = test_task.delay(1)
     return task
 
 @shared_task(bind=True)
-def save_and_process_files(self, uploaded_files, pages_count):
+def save_and_process_files(self, uploaded_files, pages_count, user):
     table = None
     progress_recorder = ProgressRecorder(self)
     # progress_recorder.set_progress(i, len(uploaded_files), f'On iter {i}')
@@ -103,7 +104,7 @@ def save_and_process_files(self, uploaded_files, pages_count):
         if not file.lower().endswith('.pdf'):
             continue
         new_table = extract_text_and_images('uploaded_files/' + file, progress_recorder, pages_count,
-                                            total_processed, uploaded_files)
+                                            total_processed, uploaded_files, user)
         if isinstance(new_table, pd.DataFrame):
             if table is not None:
                 table = table._append(new_table, ignore_index=True)
@@ -118,7 +119,7 @@ def save_and_process_files(self, uploaded_files, pages_count):
     # return uploaded_files
 
 
-def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_processed, uploaded_files):
+def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_processed, uploaded_files, user):
     # Открываем PDF-файл
     document = fitz.open(pdf_file)
     folder = pdf_file[:pdf_file.rfind(".")]
@@ -136,6 +137,8 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                     #              'справочной литературы', 'Обоснования вывода экспертизы',
                     'Вывод экспертизы', 'Перечень приложений']
     act_sub_parts = ['Характеристика объекта']
+    object_info = ''
+    place_info = ''
 
     table_info = {}
     table_columns = ['ГОД',	'Дата окончания проведения ГИКЭ', 'Вид ГИКЭ', 'Номер (если имеется) и наименование Акта ГИКЭ',
@@ -284,6 +287,7 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                         if full_time_interval:
                             continue
                 elif act_parts[current_part] == r'\d*\.*.*Место проведения [экспертизы]*:*':
+                    place_info += text_to_write
                     if not text_to_write.strip() or re.search(r'«*\d+»*[ \n]+[А-Яа-яёЁ]+[ \n]+\d+ г\.* *\n.[^0-9]+\n', text_to_write, re.IGNORECASE):
                         text_to_write = re.search(r'«*\d+»*[ \n]+[А-Яа-яёЁ]+[ \n]+\d+ г\.* *\n.[^0-9]+\n', text, re.IGNORECASE).group(0)
                         text_to_write = re.search(r'\n.[^0-9]+?(?=\n)', text_to_write, re.IGNORECASE).group(0)
@@ -349,6 +353,7 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                                             0] == 'ФИО эксперта':
                                             table_info['Эксперт (физ. или юр.лицо)'] = page_tables[0][4][1]
                 elif act_parts[current_part] == 'Объект .*?[экспертизы]*:*':
+                    object_info += text_to_write
                     if re.search(r'земли', text_to_write, re.IGNORECASE):
                         table_info['Вид ГИКЭ'] = 'ЗУ'
                     elif re.search(r'раздел', text_to_write, re.IGNORECASE):
@@ -610,6 +615,32 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
 
     # pd.DataFrame(table_info,columns=table_columns,index=[0]).to_excel(folder + "/" + "table.xlsx", index=False, engine='openpyxl')
     df_new = pd.DataFrame(table_info, columns=table_columns, index=[0])
+
+    supplement = Supplement(
+        maps='Map data',
+        object_fotos='Object photos data',
+        pits_fotos='Pits photos data',
+        plans='Plans data',
+        material_fotos='Material photos data',
+        heritage_info='Heritage information'
+    )
+    supplement.save()
+
+    act = Act(
+        user_id=user,
+        supplement_id=supplement.id,
+        object=object_info,
+        place=place_info,
+        area='Area description',
+        pits='Pits description',
+        coordinates='Coordinates data',
+        expert=df_new['Эксперт (физ. или юр.лицо)'][0],
+        customer=df_new['Заказчик работ (*если не указан, то заказчик экспертизы)'][0],
+        open_list=df_new['ОЛ'][0],
+        conclusion=df_new['Заключение. Выявленые объекты.'][0]
+    )
+    act.save()
+
     table_data = df_new
     if os.path.exists(table_path):
         df_existing = pd.read_excel(table_path)

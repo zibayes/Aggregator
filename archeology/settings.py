@@ -46,6 +46,12 @@ INSTALLED_APPS = [
     'celery_progress',
 ]
 
+SITE_ID = 1
+LOGIN_URL = 'login'
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
+AUTH_USER_MODEL = 'agregator.User'
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",  # URL Angular
 ]
@@ -102,10 +108,23 @@ WSGI_APPLICATION = 'archeology.wsgi.application'
 
 DATABASES = {
     'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'postgres',
+        'USER': 'agregator',
+        'PASSWORD': 'agregator',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
+
+'''
+DATABASES = {
+    'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+'''
 
 
 # Password validation

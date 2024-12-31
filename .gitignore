@@ -162,3 +162,5 @@ cython_debug/
 #.idea/
 
 uploaded_files/
+chroma/
+media/
