@@ -3,42 +3,37 @@
 {% block title %}Демонстратор{% endblock %}
 
 {% block content %}
-	<!-- Подключение CSS Leaflet -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-	<style>
-        #map {
-            height: 500px; /* Высота карты */
-            width: 100%; /* Ширина карты */
-        }
-    </style>
-	
-	<!-- Заголовок страницы -->
-    <header class="hero">
-        <div class="container">
-            <h1 class="display-4">Интерактивная Карта</h1>
-            <p class="lead">Исследуйте мир с помощью интерактивной карты.</p>
-        </div>
-    </header>
+<!-- Подключение CSS Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<style>
+    #map {
+        height: 500px; /* Высота карты */
+        width: 100%; /* Ширина карты */
+    }
+</style>
 
-    <!-- Секция карты -->
-    <div class="container mt-5">
-        <div id="map"></div>
-    </div>
+<br>
+<h2 align="center">Интерактивная Карта</h2>
 
-    <!-- Подключение JS Leaflet -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script>
-        // Инициализация карты
-        var map = L.map('map').setView([55.7558, 37.6173], 10); // Москва
+<!-- Секция карты -->
+<div class="container mt-5">
+    <div id="map"></div>
+</div>
 
-        // Добавление слоя с OpenStreetMap
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-        }).addTo(map);
+<!-- Подключение JS Leaflet -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+    // Инициализация карты
+    var map = L.map('map').setView([55.7558, 37.6173], 10); // Москва
 
-        // Добавление маркера
-        var marker = L.marker([55.7558, 37.6173]).addTo(map);
-        marker.bindPopup("<b>Москва</b><br>Столица России").openPopup();
-    </script>
+    // Добавление слоя с OpenStreetMap
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
+
+    // Добавление маркера
+    var marker = L.marker([55.7558, 37.6173]).addTo(map);
+    marker.bindPopup("<b>Москва</b><br>Столица России").openPopup();
+</script>
 {% endblock %}

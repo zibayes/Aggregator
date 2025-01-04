@@ -3,75 +3,209 @@
 {% block title %}Реестр открытых листов{% endblock %}
 
 {% block content %}
-	<!-- Заголовок страницы -->
-    <header class="hero">
-        <div class="container">
-            <h1 class="display-4">Реестр открытых листов</h1>
+
+<br>
+<h2 align="center">Реестр открытых листов</h2>
+<br>
+
+<div class="container upload-section">
+    {% if table %}
+    <div class="table-responsive">
+        <!-- {{ table|safe }} -->
+    </div>
+    {% endif %}
+</div>
+
+<div class="accordion" id="accordionColumns">
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseColumns" aria-expanded="false" aria-controls="collapseColumns">
+                Отображение колонок
+            </button>
+        </h2>
+        <div id="collapseColumns" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+            <div class="accordion-body">
+                <label><input type="checkbox" class="column-toggle" data-column="0" checked> Номер листа</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="1" checked> Держатель</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="2" checked> Объект</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="3" checked> Работы</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="4" checked> Начало строки</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="5" checked> Конец срока</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="6" checked> Владелец
+                    документа</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="7" checked> Формализованный
+                    документ</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="8" checked> Исходный
+                    документ</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="9" checked> Редактирование</label><br>
+            </div>
         </div>
-    </header>
-
-    <!-- Секция загрузки файла -->
-    <div class="container upload-section">
-		{% if table %}
-			<div class="table-responsive">
-				<!-- {{ table|safe }} -->
-			</div>
-        {% endif %}
     </div>
 
-    <a href="/open_lists_register_download/">
-        Скачать реестр в формате .xlxs
-    </a>
-
-    <div class="table-responsive overflow-auto">
-        <table class="table table-striped w-100">
-            <thead>
-                <tr>
-                    <th>Номер листа</th>
-                    <th>Держатель</th>
-                    <th>Объект</th>
-                    <th>Работы</th>
-                    <th>Начало строка</th>
-                    <th>Конец срока</th>
-                    <th>Владелец документа</th>
-                    <th>Исходный документ</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for open_list in open_lists %}
-                    <tr>
-                        <td>
-                            {{ open_list.number }}
-                        </td>
-                        <td>
-                            {{ open_list.holder }}
-                        </td>
-                        <td>
-                            {{ open_list.object }}
-                        </td>
-                        <td>
-                            {{ open_list.works }}
-                        </td>
-                        <td>
-                            {{ open_list.start_date }}
-                        </td>
-                        <td>
-                            {{ open_list.end_date }}
-                        </td>
-                        <td>
-                            <a href="/users/{{ open_list.user.id }}">
-                                <img src="{{ open_list.user.avatar.url }}" class="rounded-circle" height="25" width="25" loading="lazy" style="object-fit: cover;" alt=""/>
-                                {{ open_list.user.username }}
-                            </a>
-                        </td>
-                        <td>
-                            <a href="/{{ open_list.source }}">
-                                <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Просмотр</button>
-                            </a>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
+                Фильтры
+            </button>
+        </h2>
+        <div id="collapseFilters" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+            <div class="accordion-body">
+                <form id="filterForm">
+                    <div class="mb-3">
+                        <label for="filterHolder" class="form-label">Держатель</label>
+                        <input type="text" class="form-control" id="filterHolder" placeholder="Введите держателя">
+                    </div>
+                    <div class="mb-3">
+                        <label for="filterObject" class="form-label">Объект</label>
+                        <input type="text" class="form-control" id="filterObject" placeholder="Введите объект">
+                    </div>
+                    <div class="mb-3">
+                        <label for="filterWorks" class="form-label">Работы</label>
+                        <input type="text" class="form-control" id="filterWorks" placeholder="Введите работы">
+                    </div>
+                    <div class="mb-3">
+                        <label for="filterStartDate" class="form-label">Начало срока</label>
+                        <input type="text" class="form-control" id="filterStartDate" placeholder="Введите начало срока">
+                    </div>
+                    <div class="mb-3">
+                        <label for="filterEndDate" class="form-label">Конец срока</label>
+                        <input type="text" class="form-control" id="filterEndDate" placeholder="Введите конец срока">
+                    </div>
+                    <div class="mb-3">
+                        <label>
+                            <input type="checkbox" id="showMyDocs"/> Показать только свои документы
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Применить фильтры</button>
+                </form>
+            </div>
+        </div>
     </div>
+</div>
+
+<a href="/open_lists_register_download/">
+    Скачать реестр в формате .xlsx
+</a>
+
+<div class="table-responsive overflow-auto">
+    <table class="table table-striped w-100">
+        <thead>
+        <tr>
+            <th>Номер листа</th>
+            <th>Держатель</th>
+            <th>Объект</th>
+            <th>Работы</th>
+            <th>Начало строка</th>
+            <th>Конец срока</th>
+            <th>Владелец документа</th>
+            <th>Формализованный документ</th>
+            <th>Исходный документ</th>
+            <th>Редактирование</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for open_list in open_lists %}
+        <tr data-act-id="{{ open_list.id }}" data-user-id="{{ open_list.user.id }}" data-holder="{{ open_list.holder }}"
+            data-object="{{ open_list.object }}" data-works="{{ open_list.works }}"
+            data-start_date="{{ open_list.start_date }}"
+            data-end_date="{{ open_list.end_date }}">
+            <td>
+                {{ open_list.number }}
+            </td>
+            <td>
+                {{ open_list.holder }}
+            </td>
+            <td>
+                {{ open_list.object }}
+            </td>
+            <td>
+                {{ open_list.works }}
+            </td>
+            <td>
+                {{ open_list.start_date }}
+            </td>
+            <td>
+                {{ open_list.end_date }}
+            </td>
+            <td>
+                <a href="/users/{{ open_list.user.id }}">
+                    <img src="{{ open_list.user.avatar.url }}" class="rounded-circle" height="25" width="25"
+                         loading="lazy" style="object-fit: cover;" alt=""/>
+                    {{ open_list.user.username }}
+                </a>
+            </td>
+            <td>
+                <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+                   href="/open_lists/{{ open_list.id }}">Просмотр</a>
+            </td>
+            <td>
+                <a href="/uploaded_files/{{ open_list.source }}">
+                    <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">
+                        Просмотр
+                    </button>
+                </a>
+            </td>
+            <td>
+                {% if open_list.user.id == user.id or user.is_superuser %}
+                <a href="/open_lists_edit/{{ open_list.id }}">
+                    <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">
+                        Редактировать
+                    </button>
+                </a>
+                <form method="POST" action="{% url 'open_lists_delete' open_list.id %}" class="mt-3">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger" style="border-radius: 12px; margin-right:10px;"
+                            onclick="return confirm('Вы уверены, что хотите удалить этот открытый лист?');">Удалить
+                    </button>
+                </form>
+                {% else %}
+                Нет доступа
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    document.getElementById('filterForm').addEventListener('submit', function (e) {
+        e.preventDefault(); // Отменяем стандартное действие формы
+
+        const holderFilter = document.getElementById('filterHolder').value.toLowerCase();
+        const objectFilter = document.getElementById('filterObject').value.toLowerCase();
+        const worksFilter = document.getElementById('filterWorks').value.toLowerCase();
+        const startDateFilter = document.getElementById('filterStartDate').value.toLowerCase();
+        const endDateFilter = document.getElementById('filterEndDate').value.toLowerCase();
+        const showMyDocs = document.getElementById('showMyDocs').checked;
+
+        const rows = document.querySelectorAll('.table tbody tr');
+        rows.forEach(row => {
+            const holderText = row.dataset.holder.toLowerCase();
+            const objectText = row.dataset.object.toLowerCase();
+            const worksText = row.dataset.works.toLowerCase();
+            const startDateText = row.dataset.start_date.toLowerCase();
+            const endDateText = row.dataset.end_date.toLowerCase();
+            const userId = row.dataset.userId;
+
+            const isHolderMatch = holderText.includes(holderFilter);
+            const isObjectMatch = objectText.includes(objectFilter);
+            const isWorksMatch = worksText.includes(worksFilter);
+            const isStartDateMatch = startDateText.includes(startDateFilter);
+            const isEndDateMatch = endDateText.includes(endDateFilter);
+            const isOwnerMatch = userId === "{{ user.id }}";
+
+            const showRow = (isHolderMatch && isObjectMatch && isWorksMatch && isStartDateMatch && isEndDateMatch) &&
+                (!showMyDocs || isOwnerMatch);
+
+            if (showRow) {
+                row.style.display = ''; // показываем строку
+            } else {
+                row.style.display = 'none'; // скрываем строку
+            }
+        });
+    });
+</script>
 {% endblock %}

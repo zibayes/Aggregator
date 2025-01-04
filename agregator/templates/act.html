@@ -3,77 +3,93 @@
 {% block title %}Акт{% endblock %}
 
 {% block content %}
-	<!-- Заголовок страницы -->
-    <header class="hero">
-        <div class="container">
-            <h1 class="display-4">Акт</h1>
-        </div>
-    </header>
 
-    <hr>
-        <h2>Содержание</h2>
-        <ul>
-            <li><a href="#act">Акт</a></li>
-            <li><a href="#start_date">Дата начала</a></li>
-            <li><a href="#end_date">Дата окончания</a></li>
-            <li><a href="#exp_place">Место провидения</a></li>
-            <li><a href="#exp_customer">Заказчик</a></li>
-            <li><a href="#exp_expert">Эксперт</a></li>
-            <li><a href="#relationship">Отношение</a></li>
-            <li><a href="#goal">Цель</a></li>
-            <li><a href="#object">Объект</a></li>
-            <li><a href="#docs">Документы</a></li>
-            <li><a href="#exp_info">Информация</a></li>
-            <li><a href="#exp_facts">Факты</a></li>
-            <li><a href="#literature">Литература</a></li>
-            <li><a href="#exp_conclusion">Заключение</a></li>
-        </ul>
-        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;" href="/{{ act.source }}">Просмотр исходного документа</a>
-    <hr>
+<br>
+<h2>Акт</h2>
 
-    <h2 id="act">Акт</h2>
-    {% if act.act %}
-        <p>{{ act.act }}</p>
-    {% else %}
-        <p>{{ act.name_number }}</p>
+<div>
+    <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px; margin-top: 15px;"
+       href="/uploaded_files/{{ act.source }}">Просмотр
+        исходного документа</a>
+    <br>
+    {% if act.user.id == user.id or user.is_superuser %}
+    <a href="/acts_edit/{{ act.id }}">
+        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+            Редактировать
+        </button>
+    </a>
+    <form method="POST" action="{% url 'acts_delete' act.id %}" class="mt-3">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger" style="border-radius: 12px; margin-right:10px;"
+                onclick="return confirm('Вы уверены, что хотите удалить этот акт?');">Удалить
+        </button>
+    </form>
     {% endif %}
+</div>
 
-    <h2 id="start_date">Дата начала</h2>
-    <p>{{ act.start_date }}</p>
+<hr>
+<h2>Содержание</h2>
+<ul>
+    <li><a href="#act">Акт</a></li>
+    <li><a href="#start_date">Дата начала</a></li>
+    <li><a href="#end_date">Дата окончания</a></li>
+    <li><a href="#exp_place">Место провидения</a></li>
+    <li><a href="#exp_customer">Заказчик</a></li>
+    <li><a href="#exp_expert">Эксперт</a></li>
+    <li><a href="#relationship">Отношение</a></li>
+    <li><a href="#goal">Цель</a></li>
+    <li><a href="#object">Объект</a></li>
+    <li><a href="#docs">Документы</a></li>
+    <li><a href="#exp_info">Информация</a></li>
+    <li><a href="#exp_facts">Факты</a></li>
+    <li><a href="#literature">Литература</a></li>
+    <li><a href="#exp_conclusion">Заключение</a></li>
+</ul>
+<hr>
 
-    <h2 id="end_date">Дата окончания</h2>
-    <p>{{ act.end_date }}</p>
+<h2 id="act">Акт</h2>
+{% if act.act %}
+<p>{{ act.act }}</p>
+{% else %}
+<p>{{ act.name_number }}</p>
+{% endif %}
 
-    <h2 id="exp_place">Место провидения</h2>
-    <p>{{ act.exp_place }}</p>
+<h2 id="start_date">Дата начала</h2>
+<p>{{ act.start_date }}</p>
 
-    <h2 id="exp_customer">Заказчик</h2>
-    <p>{{ act.exp_customer }}</p>
+<h2 id="end_date">Дата окончания</h2>
+<p>{{ act.end_date }}</p>
 
-    <h2 id="exp_expert">Эксперт</h2>
-    <p>{{ act.exp_expert }}</p>
+<h2 id="exp_place">Место провидения</h2>
+<p>{{ act.exp_place }}</p>
 
-    <h2 id="relationship">Отношение</h2>
-    <p>{{ act.relationship }}</p>
+<h2 id="exp_customer">Заказчик</h2>
+<p>{{ act.exp_customer }}</p>
 
-    <h2 id="goal">Цель</h2>
-    <p>{{ act.goal }}</p>
+<h2 id="exp_expert">Эксперт</h2>
+<p>{{ act.exp_expert }}</p>
 
-    <h2 id="object">Объект</h2>
-    <p>{{ act.object }}</p>
+<h2 id="relationship">Отношение</h2>
+<p>{{ act.relationship }}</p>
 
-    <h2 id="docs">Документы</h2>
-    <p>{{ act.docs }}</p>
+<h2 id="goal">Цель</h2>
+<p>{{ act.goal }}</p>
 
-    <h2 id="exp_info">Информация</h2>
-    <p>{{ act.exp_info }}</p>
+<h2 id="object">Объект</h2>
+<p>{{ act.object }}</p>
 
-    <h2 id="exp_facts">Факты</h2>
-    <p>{{ act.exp_facts }}</p>
+<h2 id="docs">Документы</h2>
+<p>{{ act.docs }}</p>
 
-    <h2 id="literature">Литература</h2>
-    <p>{{ act.literature }}</p>
+<h2 id="exp_info">Информация</h2>
+<p>{{ act.exp_info }}</p>
 
-    <h2 id="exp_conclusion">Заключение</h2>
-    <p>{{ act.exp_conclusion }}</p>
+<h2 id="exp_facts">Факты</h2>
+<p>{{ act.exp_facts }}</p>
+
+<h2 id="literature">Литература</h2>
+<p>{{ act.literature }}</p>
+
+<h2 id="exp_conclusion">Заключение</h2>
+<p>{{ act.exp_conclusion }}</p>
 {% endblock %}

@@ -30,6 +30,7 @@ from django_celery_results.models import TaskResult
 from .models import User, Act, ScientificReport, TechReport, Supplement, OpenLists
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
+from .decorators import owner_or_admin_required
 
 
 def index(request):
@@ -112,12 +113,8 @@ def interactive_map(request):
 
 
 def acts_register(request):
-    table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
-    df_existing = None
     acts = Act.objects.all()
-    if os.path.exists(table_path):
-        df_existing = pd.read_excel(table_path, engine='openpyxl').to_html(classes='table table-striped')
-    return render(request, 'acts_register.html', {'table': df_existing, 'acts': acts})
+    return render(request, 'acts_register.html', {'acts': acts})
 
 
 @login_required
@@ -153,18 +150,17 @@ def open_list_ocr(request):
             if form.is_valid():
                 uploaded_files = form.cleaned_data['files']
                 files = []
+                open_lists_ids = []
                 for file in uploaded_files:
-                    last_id = OpenLists.objects.last()
-                    if not last_id:
-                        last_id = 0
-                    else:
-                        last_id = last_id.id
-                    file.name = str(last_id + 1) + '_open_list.pdf'
+                    open_list = OpenLists(user_id=request.user.id)
+                    open_list.save()
+                    open_lists_ids.append(open_list.id)
+                    file.name = str(open_list.id) + '_open_list.pdf'
                     files.append(file.name)
                     with open('uploaded_files/open_lists/' + file.name, 'wb+') as destination:
                         for chunk in file.chunks():
                             destination.write(chunk)
-                task = process_open_lists.delay(files, request.user.id)
+                task = process_open_lists.delay(files, open_lists_ids)
                 return render(request, 'open_list_ocr.html', {'form': form, 'task_id': task.task_id})
     else:
         form = UploadFileForm()
@@ -243,17 +239,15 @@ def settings(request):
 
 
 def open_lists_register(request):
-    table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
     open_lists = OpenLists.objects.all()
-    df_existing = None
-    if os.path.exists(table_path):
-        df_existing = pd.read_excel(table_path, engine='openpyxl').to_html(classes='table table-striped')
-    return render(request, 'open_lists_register.html', {'table': df_existing, 'open_lists': open_lists})
+    return render(request, 'open_lists_register.html', {'open_lists': open_lists})
 
 
 def open_lists_register_download(request):
     table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
     open_lists = OpenLists.objects.all()
+    if not open_lists:
+        return redirect(open_lists_register)
     df_existing = None
     for list in open_lists:
         list_data = {'Номер листа': '', 'Держатель': '', 'Объект': '', 'Работы': '', 'Начало срока': '',
@@ -304,13 +298,15 @@ def open_lists_register_download(request):
 
 def acts_register_download(request):
     table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
-    act_parts = ['ГОД',	'Дата окончания проведения ГИКЭ', 'Вид ГИКЭ', 'Номер (если имеется) и наименование Акта ГИКЭ',
-                     'Место проведения экспертизы',
-                     'Заказчик работ (*если не указан, то заказчик экспертизы)',
-                     'Площадь, протяжённость и/или др. параменты объекта', 'Эксперт (физ. или юр.лицо)',
-                     'Исполнитель полевых работ (юр. лицо)', 'ОЛ', 'Заключение. Выявленые объекты.',
-                     'Объекты расположенные в непосредственной близости. Для границ']
+    act_parts = ['ГОД', 'Дата окончания проведения ГИКЭ', 'Вид ГИКЭ', 'Номер (если имеется) и наименование Акта ГИКЭ',
+                 'Место проведения экспертизы',
+                 'Заказчик работ (*если не указан, то заказчик экспертизы)',
+                 'Площадь, протяжённость и/или др. параменты объекта', 'Эксперт (физ. или юр.лицо)',
+                 'Исполнитель полевых работ (юр. лицо)', 'ОЛ', 'Заключение. Выявленые объекты.',
+                 'Объекты расположенные в непосредственной близости. Для границ']
     acts = Act.objects.all()
+    if not acts:
+        return redirect(open_lists_register)
     df_existing = None
     for act in acts:
         act_parts_info = {i: '' for i in act_parts}
@@ -386,6 +382,7 @@ def acts(request, pk):
 
 
 @login_required
+@owner_or_admin_required(Act)
 def acts_edit(request, pk):
     act = Act.objects.get(id=pk)
     if request.method == 'POST':
@@ -401,13 +398,24 @@ def acts_edit(request, pk):
         act.open_list = request.POST['open_list']
         act.conclusion = request.POST['conclusion']
         act.border_objects = request.POST['border_objects']
+        '''
         if 'source' in request.FILES.keys():
             act.source = request.FILES['source']
+        '''
         act.save()
         messages.success(request, 'Акт успешно обновлен.')
         return redirect(f'/acts/{act.id}')  # Перенаправление на страницу профиля
 
     return render(request, 'act_edit.html', {'act': act})
+
+
+@login_required
+@owner_or_admin_required(Act)
+def acts_delete(request, pk):
+    # Act.objects.filter(id=pk).delete()
+    act_instance = Act.objects.get(id=pk)
+    act_instance.delete()
+    return redirect(f'acts_register')
 
 
 def scientific_reports(request, pk):
@@ -416,6 +424,7 @@ def scientific_reports(request, pk):
 
 
 @login_required
+@owner_or_admin_required(ScientificReport)
 def scientific_reports_edit(request, pk):
     report = ScientificReport.objects.get(id=pk)
     if request.method == 'POST':
@@ -431,13 +440,58 @@ def scientific_reports_edit(request, pk):
         report.research_history = request.POST['research_history']
         report.results = request.POST['results']
         report.conclusion = request.POST['conclusion']
+        '''
         if 'source' in request.FILES.keys():
             report.source = request.FILES['source']
+        '''
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
         return redirect(f'/scientific_reports/{report.id}')  # Перенаправление на страницу профиля
 
     return render(request, 'scientific_report_edit.html', {'report': report})
+
+
+@login_required
+@owner_or_admin_required(ScientificReport)
+def scientific_reports_delete(request, pk):
+    report_instance = ScientificReport.objects.get(id=pk)
+    report_instance.delete()
+    return redirect(f'scientific_reports_register')
+
+
+def open_lists(request, pk):
+    open_list = OpenLists.objects.get(id=pk)
+    return render(request, 'open_list.html', {'open_list': open_list})
+
+
+@login_required
+@owner_or_admin_required(OpenLists)
+def open_lists_edit(request, pk):
+    open_list = OpenLists.objects.get(id=pk)
+    if request.method == 'POST':
+        open_list.number = request.POST['number']
+        open_list.holder = request.POST['holder']
+        open_list.object = request.POST['object']
+        open_list.works = request.POST['works']
+        open_list.start_date = request.POST['start_date']
+        open_list.end_date = request.POST['end_date']
+        '''
+        if 'source' in request.FILES.keys():
+            act.source = request.FILES['source']
+        '''
+        open_list.save()
+        messages.success(request, 'Открытый лист успешно обновлен.')
+        return redirect(f'/open_lists/{open_list.id}')
+
+    return render(request, 'open_list_edit.html', {'open_list': open_list})
+
+
+@login_required
+@owner_or_admin_required(OpenLists)
+def open_lists_delete(request, pk):
+    list_instance = OpenLists.objects.get(id=pk)
+    list_instance.delete()
+    return redirect(f'open_lists_register')
 
 
 class UserList(generics.ListAPIView):

@@ -19,11 +19,12 @@ import matplotlib.pyplot as plt
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
 from .models import OpenLists
+from .hash import calculate_file_hash
 
 MAX_VAL = 255
 UPSCALE = [1]
 MONTHS = {'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04', 'мая': '05', 'июня': '06', 'июля': '07',
-              'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12', }
+          'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12', }
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
 
@@ -43,7 +44,6 @@ def image_binarization(image_path: str, threshold: int = None) -> cv2.UMat:
     img1 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     _, bin_img = cv2.threshold(img1, threshold, MAX_VAL, cv2.THRESH_BINARY)
     return img, bin_img
-
 
 
 def extract_text_from_image(image: cv2.UMat, psm_conf: str) -> str:
@@ -76,7 +76,7 @@ def extract_data_by_lines(image: cv2.UMat, koef: int, line_length: int, line_col
             j += 1
     final_list = []
     for line in lines:
-        if not final_list and line[0]-15*koef >= 0:
+        if not final_list and line[0] - 15 * koef >= 0:
             final_list.append(line)
             continue
         acceptance = []
@@ -85,7 +85,7 @@ def extract_data_by_lines(image: cv2.UMat, koef: int, line_length: int, line_col
                 acceptance.append(False)
             else:
                 acceptance.append(True)
-        if all(acceptance) and line[0]-15*koef >= 0:
+        if all(acceptance) and line[0] - 15 * koef >= 0:
             final_list.append(line)
     return final_list
 
@@ -103,7 +103,7 @@ def check_lines(lines, koef: int):
             is_correct = False
         if not 275 * koef <= lines[4][0] <= 450 * koef:
             is_correct = False
-        if not 425 * koef <= lines[5][0] <= 780 * koef: # <= 525 * koef
+        if not 425 * koef <= lines[5][0] <= 780 * koef:  # <= 525 * koef
             is_correct = False
         if not 20 * koef <= lines[1][0] - lines[0][0] <= 24 * koef:
             is_correct = False
@@ -120,19 +120,22 @@ def check_lines(lines, koef: int):
             if len(new_list) == 0 and 56 * koef <= line[0] <= 71 * koef:
                 new_list.append(line)
                 continue
-            if len(new_list) == 1 and 77 * koef <= line[0] <= 93 * koef and 20 * koef <= line[0] - new_list[0][0] <= 24 * koef:
+            if len(new_list) == 1 and 77 * koef <= line[0] <= 93 * koef and 20 * koef <= line[0] - new_list[0][
+                0] <= 24 * koef:
                 new_list.append(line)
                 continue
             if len(new_list) == 2 and 150 * koef <= line[0] <= 225 * koef:
                 new_list.append(line)
                 continue
-            if len(new_list) == 3 and 200 * koef <= line[0] <= 250 * koef and 57 * koef <= line[0] - new_list[2][0] <= 63 * koef:
+            if len(new_list) == 3 and 200 * koef <= line[0] <= 250 * koef and 57 * koef <= line[0] - new_list[2][
+                0] <= 63 * koef:
                 new_list.append(line)
                 continue
             if len(new_list) == 4 and 275 * koef <= line[0] <= 325 * koef:
                 new_list.append(line)
                 continue
-            if len(new_list) == 5 and 425 * koef <= line[0] <= 525 * koef and 152 * koef <= line[0] - new_list[4][0] <= 156 * koef:
+            if len(new_list) == 5 and 425 * koef <= line[0] <= 525 * koef and 152 * koef <= line[0] - new_list[4][
+                0] <= 156 * koef:
                 new_list.append(line)
                 break
         if len(new_list) == 6:
@@ -144,7 +147,7 @@ def cut_dates_from_image(image: cv2.UMat, final_list: List, koef: int):
     line_length = 130
     dates = []
     for date in final_list:
-        img = image[date[0]-15*koef:date[0], date[1]+20:date[1]+line_length*koef]
+        img = image[date[0] - 15 * koef:date[0], date[1] + 20:date[1] + line_length * koef]
         dates.append(img)
         '''
         plt.imshow(dates[-1], cmap='gray')
@@ -157,7 +160,7 @@ def cut_fio_from_image(image: cv2.UMat, final_list: List, koef: int):
     line_length = 490
     pieces = []
     for date in final_list:
-        img = image[date[0]-18*koef:date[0], date[1]+20:date[1]+line_length*koef]
+        img = image[date[0] - 18 * koef:date[0], date[1] + 20:date[1] + line_length * koef]
         pieces.append(img)
         '''
         plt.imshow(pieces[-1], cmap='gray')
@@ -220,10 +223,10 @@ def get_gaps(image: cv2.UMat, koef: int, thresh: int) -> List:
     i = 0
     gaps = []
     while i < len(image):
-        if img[i:i+11*koef].sum() / (len(img[i])*11*koef) > thresh:
+        if img[i:i + 11 * koef].sum() / (len(img[i]) * 11 * koef) > thresh:
             # img[i:i+11*koef] = np.full(shape=[11*koef,len(img[i])],fill_value=0)
             gaps.append(i)
-            i += 11*koef
+            i += 11 * koef
         i += 1
     # cv2.imwrite(folder + "/gaps.png", img)
     '''
@@ -242,19 +245,22 @@ def change_img_perspect(img, dst_pts, src_pts=None):
                                M=cv2.getPerspectiveTransform(src_pts, dst_pts),
                                dsize=(w, h))
 
+
 @shared_task(bind=True)
-def process_open_lists(self, uploaded_files, user):
+def process_open_lists(self, uploaded_files, open_lists_ids):
     table = None
     progress_recorder = ProgressRecorder(self)
     total_processed = [0]
     already_uploaded = []
     progress_recorder.set_progress(total_processed[0], 100, uploaded_files)
+    i = 0
     for file in uploaded_files:
         progress_recorder.set_progress(int((total_processed[0] + 1) / len(uploaded_files) * 100), 100,
                                        uploaded_files)
         if not file.lower().endswith('.pdf'):
             continue
-        new_table = open_list_ocr('uploaded_files/open_lists/', file, user)
+        new_table = open_list_ocr('uploaded_files/', 'open_lists/', file, open_lists_ids[i])
+        i += 1
         if isinstance(new_table, pd.DataFrame):
             if table is not None:
                 table = table._append(new_table, ignore_index=True)
@@ -267,17 +273,30 @@ def process_open_lists(self, uploaded_files, user):
         table = table['Номер листа'].tolist()
     return table
 
-def open_list_ocr(file_path, pdf_path, user):
+
+def open_list_ocr(file_path, source_path, pdf_path, open_list_id):
+    source_file = source_path + pdf_path
+    path = file_path + source_file
+
+    open_lists = OpenLists.objects.all()
+    for open_list in open_lists:
+        if open_list.source and os.path.isfile(open_list.source.path):
+            file_hash = calculate_file_hash(path)
+            open_list_hash = calculate_file_hash('uploaded_files/' + open_list.source.name)
+            if file_hash == open_list_hash:
+                open_list = OpenLists.objects.get(id=open_list_id)
+                open_list.delete()
+                return 'Already have this file'
+
     false_date = []
     image = None
     image_filename = None
-    path = file_path + pdf_path
     document = fitz.open(path)
     for page_number in range(len(document)):
         # page = document[page_number]
         page = document.load_page(page_number)
 
-        pix = page.get_pixmap(dpi = 300)  # Получаем картинку страницы
+        pix = page.get_pixmap(dpi=300)  # Получаем картинку страницы
         image_filename = translit(pdf_path[:pdf_path.rfind(".")], 'ru', reversed=True)
         folder = file_path + '/' + image_filename
         # Path(folder).mkdir(exist_ok=True)
@@ -301,15 +320,16 @@ def open_list_ocr(file_path, pdf_path, user):
             if image:
                 break
         '''
-        list_data = {'Номер листа': '', 'Держатель': '', 'Объект': '', 'Работы': '', 'Начало срока': '', 'Конец срока': ''}
+        list_data = {'Номер листа': '', 'Держатель': '', 'Объект': '', 'Работы': '', 'Начало срока': '',
+                     'Конец срока': ''}
         # for thresh in range(100, 176, 25):
         binarization_threshold = 120
-        imgz, image = image_binarization(image_filename, binarization_threshold) # , thresh
+        imgz, image = image_binarization(image_filename, binarization_threshold)  # , thresh
         height, width = image.shape
-        ratio = (width / 596 + height / 842) / 2 # image ratio for different resolutions
+        ratio = (width / 596 + height / 842) / 2  # image ratio for different resolutions
         koef = int(UPSCALE[0] * ratio)
-        frame = image[204*koef:778*koef, 63*koef:555*koef]
-        frame_rgb = imgz[204*koef:778*koef, 63*koef:555*koef]
+        frame = image[204 * koef:778 * koef, 63 * koef:555 * koef]
+        frame_rgb = imgz[204 * koef:778 * koef, 63 * koef:555 * koef]
         # cv2.imwrite(folder + "/frame.png", imgz[204*koef:778*koef, 63*koef:555*koef])
         list_number = fio = fio_sklon = object = works = dates = None
 
@@ -333,14 +353,14 @@ def open_list_ocr(file_path, pdf_path, user):
             lines = []
         if 5 <= len(lines) <= 6:
             print(lines)
-            object = frame_rgb[lines[1][0]+30*koef:lines[2][0]]
+            object = frame_rgb[lines[1][0] + 30 * koef:lines[2][0]]
             # cv2.imwrite(folder + "/object_frame.png", object)
-            fio = frame_rgb[lines[2][0]+30*koef:lines[3][0]]
+            fio = frame_rgb[lines[2][0] + 30 * koef:lines[3][0]]
             # cv2.imwrite(folder + "/fio_frame.png", fio)
-            works = frame_rgb[lines[3][0]+32*koef:lines[4][0]]
+            works = frame_rgb[lines[3][0] + 32 * koef:lines[4][0]]
             # cv2.imwrite(folder + "/works_frame.png", works)
-            dates = frame[lines[4][0]+35*koef:lines[4][0]+90*koef, 200*koef:]
-            dates_rgb = frame_rgb[lines[4][0]+35*koef:lines[4][0]+90*koef, 200*koef:]
+            dates = frame[lines[4][0] + 35 * koef:lines[4][0] + 90 * koef, 200 * koef:]
+            dates_rgb = frame_rgb[lines[4][0] + 35 * koef:lines[4][0] + 90 * koef, 200 * koef:]
             # cv2.imwrite(folder + "/dates_frame.png", dates)
         else:
             no_lines.append(image_filename)
@@ -349,29 +369,29 @@ def open_list_ocr(file_path, pdf_path, user):
             for i in range(len(gaps) - 1):
                 if (gaps[i + 1] - gaps[i] < 12 * koef) or (i == 0 and gaps[i] < 12 * koef):
                     continue
-                if index == 0 and gaps[i] > 40*koef:
-                    list_number = frame[:gaps[i]+5*koef]
+                if index == 0 and gaps[i] > 40 * koef:
+                    list_number = frame[:gaps[i] + 5 * koef]
                     if list_number.size == 0:
                         list_number = None
-                if index == 1 and gaps[i+1]-gaps[i] > 10*koef:
-                    fio_sklon = frame[gaps[i]:gaps[i+1]]
+                if index == 1 and gaps[i + 1] - gaps[i] > 10 * koef:
+                    fio_sklon = frame[gaps[i]:gaps[i + 1]]
                     if fio_sklon.size == 0:
                         fio_sklon = None
-                elif index == 3 and gaps[i+1]-gaps[i] > 22*koef:
-                    object = frame[gaps[i]+22*koef:gaps[i+1]-4*koef]
+                elif index == 3 and gaps[i + 1] - gaps[i] > 22 * koef:
+                    object = frame[gaps[i] + 22 * koef:gaps[i + 1] - 4 * koef]
                     if object.size == 0:
                         object = None
-                elif index == 5 and gaps[i+1]-gaps[i] > 14*koef:
-                    fio = frame[gaps[i]:gaps[i+1]-5*koef]
+                elif index == 5 and gaps[i + 1] - gaps[i] > 14 * koef:
+                    fio = frame[gaps[i]:gaps[i + 1] - 5 * koef]
                     if fio.size == 0:
                         fio = None
-                elif index == 6 and gaps[i+1]-gaps[i] > 22*koef:
-                    works = frame[gaps[i]+23*koef:gaps[i+1]]
+                elif index == 6 and gaps[i + 1] - gaps[i] > 22 * koef:
+                    works = frame[gaps[i] + 23 * koef:gaps[i + 1]]
                     if works.size == 0:
                         works = None
-                elif index == 8 and 30*koef > gaps[i+1]-gaps[i] > 11*koef:
-                    dates = frame[gaps[i]+8*koef:gaps[i+1]+4*koef]
-                    dates_rgb = frame_rgb[gaps[i]+8*koef:gaps[i+1]+4*koef]
+                elif index == 8 and 30 * koef > gaps[i + 1] - gaps[i] > 11 * koef:
+                    dates = frame[gaps[i] + 8 * koef:gaps[i + 1] + 4 * koef]
+                    dates_rgb = frame_rgb[gaps[i] + 8 * koef:gaps[i + 1] + 4 * koef]
                     if dates.size == 0:
                         dates = None
                 index += 1
@@ -423,7 +443,8 @@ def open_list_ocr(file_path, pdf_path, user):
                 break
             object = imgz[295 * koef:450 * koef, 60 * koef:560 * koef]
             if len(gaps) > 1:
-                object = object[gaps[gap_num]+24*koef:(gaps[gap_num + 1] if len(gaps) > 1 else len(object))-5*koef]
+                object = object[
+                         gaps[gap_num] + 24 * koef:(gaps[gap_num + 1] if len(gaps) > 1 else len(object)) - 5 * koef]
             if object.size > 0:
                 pass
                 # cv2.imwrite(folder + "/object.png", object)
@@ -433,9 +454,9 @@ def open_list_ocr(file_path, pdf_path, user):
             dates = image[515 * koef:600 * koef, 260 * koef:540 * koef]
             dates_rgb = imgz[515 * koef:600 * koef, 260 * koef:540 * koef]
         if not list_data['Номер листа']:
-            list_number = imgz[196*koef:235*koef, 200*koef:420*koef]
+            list_number = imgz[196 * koef:235 * koef, 200 * koef:420 * koef]
             # cv2.imwrite(folder + "/list_number.png", list_number)
-            extracted_text = extract_text_from_image(list_number, '1').upper().replace('О', '0')\
+            extracted_text = extract_text_from_image(list_number, '1').upper().replace('О', '0') \
                 .replace('()', '0').replace('З', '3')
             list_number = re.search(r'№[ \n]*.*\d+-\d+.*', extracted_text, re.IGNORECASE)
             if list_number:
@@ -446,7 +467,7 @@ def open_list_ocr(file_path, pdf_path, user):
             extracted_text = extract_text_from_image(fio, '1')
             list_holder = re.search(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+', extracted_text)
             if not list_holder or len(list_holder.group(0)) <= 12:
-                fio_sklon = imgz[245*koef:285*koef, 182*koef:437*koef]
+                fio_sklon = imgz[245 * koef:285 * koef, 182 * koef:437 * koef]
                 # cv2.imwrite(folder + "/fio_sklon.png", fio_sklon)
                 extracted_text = extract_text_from_image(fio_sklon, '1')
                 list_holder = re.search(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+',
@@ -469,12 +490,13 @@ def open_list_ocr(file_path, pdf_path, user):
             date_index = 0
             extracted_text = None
             all_sucess = [False for i in dates_list]
-            if len(dates_list) > 2: # if dates_list == 3
+            if len(dates_list) > 2:  # if dates_list == 3
                 i = 0
                 for date in dates_list:
                     if i > 1 and all(all_sucess[:2]):
                         break
-                    extracted_text = extract_text_from_image(date, '6') # .replace('20242.', '2024  г.').replace('/', '1').replace('З', '3').replace('[', '')
+                    extracted_text = extract_text_from_image(date,
+                                                             '6')  # .replace('20242.', '2024  г.').replace('/', '1').replace('З', '3').replace('[', '')
                     date_form = re.search(r'«*\d+»* *.[^ ]+ \d{4}', extracted_text, re.IGNORECASE)
                     if date_form:
                         date_form = date_form.group(0)
@@ -490,10 +512,11 @@ def open_list_ocr(file_path, pdf_path, user):
                             if j == 1:
                                 h, w = date.shape[:2]
                                 date = change_img_perspect(date, dst_pts=np.array(
-                                [[-0.02 * w, 0], [0.99 * w, 0], [0, h], [w, h]], dtype=np.float32))
+                                    [[-0.02 * w, 0], [0.99 * w, 0], [0, h], [w, h]], dtype=np.float32))
                             if j > 1 or j == 0:
                                 date = cv2.convertScaleAbs(date, alpha=1.2, beta=0)
-                            extracted_text = extract_text_from_image(date, '6').replace('20242.', '2024  г.').replace('/', '1').replace('З', '3').replace('2924', '2024')
+                            extracted_text = extract_text_from_image(date, '6').replace('20242.', '2024  г.').replace(
+                                '/', '1').replace('З', '3').replace('2924', '2024')
                             date_form = re.search(r'«*\d+»* *.[^ ]+ \d{4}', extracted_text, re.IGNORECASE)
                             if date_form:
                                 date_form = date_form.group(0)
@@ -516,7 +539,9 @@ def open_list_ocr(file_path, pdf_path, user):
                     # [А-Яа-яёЁA-Za-z \n,0-9:.;"()«»\\–-]+?(?=Дата)
                     if distance < 12:
                 '''
-                extracted_text = extracted_text.replace('20242.', '2024  г.').replace('/', '1').replace('З', '3').replace('[', '')
+                extracted_text = extracted_text.replace('20242.', '2024  г.').replace('/', '1').replace('З',
+                                                                                                        '3').replace(
+                    '[', '')
                 period_dates = re.findall(r'«*\d+»* *.[^ ]+ \d{4}', extracted_text, re.IGNORECASE)
                 print('re =', period_dates)
             if len(period_dates) > 0:
@@ -534,18 +559,15 @@ def open_list_ocr(file_path, pdf_path, user):
                 break
             '''
         os.remove(image_filename)
-
-        scientific_report = OpenLists(
-            user_id=user,
-            number=list_data['Номер листа'],
-            holder=list_data['Держатель'],
-            object=list_data['Объект'],
-            works=list_data['Работы'],
-            start_date=list_data['Начало срока'],
-            end_date=list_data['Конец срока'],
-            source=path
-        )
-        scientific_report.save()
+        open_list = OpenLists.objects.get(id=open_list_id)
+        open_list.number = list_data['Номер листа']
+        open_list.holder = list_data['Держатель']
+        open_list.object = list_data['Объект']
+        open_list.works = list_data['Работы']
+        open_list.start_date = list_data['Начало срока']
+        open_list.end_date = list_data['Конец срока']
+        open_list.source = source_file
+        open_list.save()
 
         table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
         df_new = pd.DataFrame(list_data, columns=list_data.keys(), index=[0])

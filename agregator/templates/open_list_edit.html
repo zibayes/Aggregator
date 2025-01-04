@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактирование открытого листа{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <h2>Редактирование открытого листа</h2>
+    <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="number" class="form-label">Номер</label>
+            <input type="text" class="form-control" id="number" name="number" value="{{ open_list.number }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="holder" class="form-label">Держатель</label>
+            <input type="text" class="form-control" id="holder" name="holder" value="{{ open_list.holder }}" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="object" class="form-label">Объект</label>
+            <textarea class="form-control" id="object" name="object" rows="4">{{ open_list.object }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label for="works" class="form-label">Работы</label>
+            <textarea class="form-control" id="works" name="works" rows="4">{{ open_list.works }}</textarea>
+        </div>
+
+        <div class="mb-3">
+            <label for="start_date" class="form-label">Дата начала</label>
+            <input type="text" class="form-control" id="start_date" name="start_date"
+                   value="{{ open_list.start_date }}">
+        </div>
+
+        <div class="mb-3">
+            <label for="end_date" class="form-label">Дата окончания</label>
+            <input type="text" class="form-control" id="end_date" name="end_date" value="{{ open_list.end_date }}">
+        </div>
+
+        <!--
+        <div class="mb-3">
+            <label for="source" class="form-label">Исходный документ</label>
+            <input type="file" class="form-control" id="source" name="source">
+        </div>
+        -->
+
+        <button type="submit" class="btn btn-primary">Сохранить</button>
+    </form>
+
+    <form method="POST" action="{% url 'open_lists_delete' open_list.id %}" class="mt-3">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-danger" style="border-radius: 12px; margin-right:10px;"
+                onclick="return confirm('Вы уверены, что хотите удалить этот открытый лист?');">Удалить
+        </button>
+    </form>
+</div>
+{% endblock %}

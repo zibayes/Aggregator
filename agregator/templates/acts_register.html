@@ -3,133 +3,234 @@
 {% block title %}Реестр актов{% endblock %}
 
 {% block content %}
-	<!-- Заголовок страницы -->
-    <header class="hero">
-        <div class="container">
-            <h1 class="display-4">Реестр актов</h1>
-        </div>
-    </header>
 
-    <div class="container upload-section">
-		{% if table %}
-			<div class="table-responsive">
-                <!-- {{ table|safe }} -->
-			</div>
-        {% endif %}
+<br>
+<h2 align="center">Реестр актов</h2>
+<br>
+
+<div class="container upload-section">
+    {% if table %}
+    <div class="table-responsive">
+        <!-- {{ table|safe }} -->
     </div>
+    {% endif %}
+</div>
 
-    <div class="accordion" id="accordionColumns">
-      <div class="accordion-item">
+<div class="accordion" id="accordionColumns">
+    <div class="accordion-item">
         <h2 class="accordion-header">
-          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-            Отображение колонок
-          </button>
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                Отображение колонок
+            </button>
         </h2>
         <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
-          <div class="accordion-body">
-            <label><input type="checkbox" class="column-toggle" data-column="0" checked> Год</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="1" checked> Дата окончания проведения ГИКЭ</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="2" checked> Вид ГИКЭ</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="3" checked> Номер и наименование Акта ГИКЭ</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="4" checked> Место проведения экспертизы</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="5" checked> Заказчик работ</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="6" checked> Площадь, параметры</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="7" checked> Эксперт</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="8" checked> Исполнитель</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="9" checked> ОЛ</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="10" checked> Заключение</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="11" checked> Объекты вблизи</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="12" checked> Владелец документа</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="13" checked> Формализованный документ</label><br>
-            <label><input type="checkbox" class="column-toggle" data-column="14" checked> Исходный документ</label><br>
-          </div>
+            <div class="accordion-body">
+                <label><input type="checkbox" class="column-toggle" data-column="0" checked> Год</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="1" checked> Дата окончания проведения
+                    ГИКЭ</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="2" checked> Вид ГИКЭ</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="3" checked> Номер и наименование Акта
+                    ГИКЭ</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="4" checked> Место проведения экспертизы</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="5" checked> Заказчик работ</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="6" checked> Площадь,
+                    параметры</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="7" checked> Эксперт</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="8" checked> Исполнитель</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="9" checked> ОЛ</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="10" checked> Заключение</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="11" checked> Объекты вблизи</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="12" checked> Владелец документа</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="13" checked> Формализованный
+                    документ</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="14" checked> Исходный
+                    документ</label><br>
+                <label><input type="checkbox" class="column-toggle" data-column="15" checked> Редактирование</label><br>
+            </div>
         </div>
-      </div>
     </div>
 
-    <a href="/acts_register_download/">
-        Скачать реестр в формате .xlxs
-    </a>
-
-    <div class="table-responsive overflow-auto">
-        <table class="table table-striped w-100">
-            <thead>
-                <tr>
-                    <th>Год</th>
-                    <th>Дата окончания проведения ГИКЭ</th>
-                    <th>Вид ГИКЭ</th>
-                    <th>Номер (если имеется) и наименование Акта ГИКЭ</th>
-                    <th>Место проведения экспертизы</th>
-                    <th>Заказчик работ (*если не указан, то заказчик экспертизы)</th>
-                    <th>Площадь, протяжённость и/или др. параменты объекта</th>
-                    <th>Эксперт (физ. или юр.лицо)</th>
-                    <th>Исполнитель полевых работ (юр. лицо)</th>
-                    <th>ОЛ</th>
-                    <th>Заключение. Выявленые объекты.</th>
-                    <th>Объекты расположенные в непосредственной близости. Для границ</th>
-                    <th>Владелец документа</th>
-                    <th>Формализованный документ</th>
-                    <th>Исходный документ</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for act in acts %}
-                    <tr>
-                        <td>
-                            {{ act.year }}
-                        </td>
-                        <td>
-                            {{ act.finish_date }}
-                        </td>
-                        <td>
-                            {{ act.type }}
-                        </td>
-                        <td>
-                            {{ act.name_number }}
-                        </td>
-                        <td>
-                            {{ act.place }}
-                        </td>
-                        <td>
-                            {{ act.customer }}
-                        </td>
-                        <td>
-                            {{ act.area }}
-                        </td>
-                        <td>
-                            {{ act.expert }}
-                        </td>
-                        <td>
-                            {{ act.executioner }}
-                        </td>
-                        <td>
-                            {{ act.open_list }}
-                        </td>
-                        <td>
-                            {{ act.conclusion }}
-                        </td>
-                        <td>
-                            {{ act.border_objects }}
-                        </td>
-                        <td>
-                            <a href="/users/{{ act.user.id }}">
-                                <img src="{{ act.user.avatar.url }}" class="rounded-circle" height="25" width="25" loading="lazy" style="object-fit: cover;" alt=""/>
-                                {{ act.user.username }}
-                            </a>
-                        </td>
-                        <td>
-                            <a href="/acts/{{ act.id }}">
-                                <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Просмотр</button>
-                            </a>
-                        </td>
-                        <td>
-                            <a href="/{{ act.source }}">
-                                <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Просмотр</button>
-                            </a>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+    <div class="accordion-item">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
+                Фильтры
+            </button>
+        </h2>
+        <div id="collapseFilters" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+            <div class="accordion-body">
+                <form id="filterForm">
+                    <div class="mb-3">
+                        <label for="filterYear" class="form-label">Год</label>
+                        <input type="text" class="form-control" id="filterYear" placeholder="Введите год">
+                    </div>
+                    <div class="mb-3">
+                        <label for="filterType" class="form-label">Вид ГИКЭ</label>
+                        <input type="text" class="form-control" id="filterType" placeholder="Введите вид ГИКЭ">
+                    </div>
+                    <div class="mb-3">
+                        <label for="filterCustomer" class="form-label">Заказчик</label>
+                        <input type="text" class="form-control" id="filterCustomer" placeholder="Введите заказчика">
+                    </div>
+                    <div class="mb-3">
+                        <label for="filterExpert" class="form-label">Эксперт</label>
+                        <input type="text" class="form-control" id="filterExpert" placeholder="Введите эксперта">
+                    </div>
+                    <div class="mb-3">
+                        <label>
+                            <input type="checkbox" id="showMyDocs"/> Показать только свои документы
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Применить фильтры</button>
+                </form>
+            </div>
+        </div>
     </div>
+</div>
+
+<a href="/acts_register_download/">
+    Скачать реестр в формате .xlsx
+</a>
+
+<div class="table-responsive overflow-auto">
+    <table class="table table-striped w-100">
+        <thead>
+        <tr>
+            <th>Год</th>
+            <th>Дата окончания проведения ГИКЭ</th>
+            <th>Вид ГИКЭ</th>
+            <th>Номер (если имеется) и наименование Акта ГИКЭ</th>
+            <th>Место проведения экспертизы</th>
+            <th>Заказчик работ (*если не указан, то заказчик экспертизы)</th>
+            <th>Площадь, протяжённость и/или др. параменты объекта</th>
+            <th>Эксперт (физ. или юр.лицо)</th>
+            <th>Исполнитель полевых работ (юр. лицо)</th>
+            <th>ОЛ</th>
+            <th>Заключение. Выявленые объекты.</th>
+            <th>Объекты расположенные в непосредственной близости. Для границ</th>
+            <th>Владелец документа</th>
+            <th>Формализованный документ</th>
+            <th>Исходный документ</th>
+            <th>Редактирование</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for act in acts %}
+        <tr data-act-id="{{ act.id }}" data-user-id="{{ act.user.id }}" data-year="{{ act.year }}"
+            data-type="{{ act.type }}" data-customer="{{ act.customer }}" data-expert="{{ act.expert }}">
+            <td>
+                {{ act.year }}
+            </td>
+            <td>
+                {{ act.finish_date }}
+            </td>
+            <td>
+                {{ act.type }}
+            </td>
+            <td>
+                {{ act.name_number }}
+            </td>
+            <td>
+                {{ act.place }}
+            </td>
+            <td>
+                {{ act.customer }}
+            </td>
+            <td>
+                {{ act.area }}
+            </td>
+            <td>
+                {{ act.expert }}
+            </td>
+            <td>
+                {{ act.executioner }}
+            </td>
+            <td>
+                {{ act.open_list }}
+            </td>
+            <td>
+                {{ act.conclusion }}
+            </td>
+            <td>
+                {{ act.border_objects }}
+            </td>
+            <td>
+                <a href="/users/{{ act.user.id }}">
+                    <img src="{{ act.user.avatar.url }}" class="rounded-circle" height="25" width="25" loading="lazy"
+                         style="object-fit: cover;" alt=""/>
+                    {{ act.user.username }}
+                </a>
+            </td>
+            <td>
+                <a href="/acts/{{ act.id }}">
+                    <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">
+                        Просмотр
+                    </button>
+                </a>
+            </td>
+            <td>
+                <a href="/uploaded_files/{{ act.source }}">
+                    <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">
+                        Просмотр
+                    </button>
+                </a>
+            </td>
+            <td>
+                {% if act.user.id == user.id or user.is_superuser %}
+                <a href="/acts_edit/{{ act.id }}">
+                    <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">
+                        Редактировать
+                    </button>
+                </a>
+                <form method="POST" action="{% url 'acts_delete' act.id %}" class="mt-3">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger" style="border-radius: 12px; margin-right:10px;"
+                            onclick="return confirm('Вы уверены, что хотите удалить этот акт?');">Удалить
+                    </button>
+                </form>
+                {% else %}
+                Нет доступа
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+    document.getElementById('filterForm').addEventListener('submit', function (e) {
+        e.preventDefault(); // Отменяем стандартное действие формы
+
+        const yearFilter = document.getElementById('filterYear').value.toLowerCase();
+        const typeFilter = document.getElementById('filterType').value.toLowerCase();
+        const customerFilter = document.getElementById('filterCustomer').value.toLowerCase();
+        const expertFilter = document.getElementById('filterExpert').value.toLowerCase();
+        const showMyDocs = document.getElementById('showMyDocs').checked;
+
+        const rows = document.querySelectorAll('.table tbody tr');
+        rows.forEach(row => {
+            const yearText = row.dataset.year.toLowerCase();
+            const typeText = row.dataset.type.toLowerCase();
+            const customerText = row.dataset.customer.toLowerCase();
+            const expertText = row.dataset.expert.toLowerCase();
+            const userId = row.dataset.userId;
+
+            const isYearMatch = yearText.includes(yearFilter);
+            const isTypeMatch = typeText.includes(typeFilter);
+            const isCustomerMatch = customerText.includes(customerFilter);
+            const isExpertMatch = expertText.includes(expertFilter);
+            const isOwnerMatch = userId === "{{ user.id }}";
+
+            const showRow = (isYearMatch && isTypeMatch && isCustomerMatch && isExpertMatch) &&
+                (!showMyDocs || isOwnerMatch);
+            if (showRow) {
+                row.style.display = ''; // показываем строку
+            } else {
+                row.style.display = 'none'; // скрываем строку
+            }
+        });
+    });
+</script>
 {% endblock %}

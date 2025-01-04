@@ -2,6 +2,29 @@ from django.db import models
 from django.contrib.auth.models import AbstractUser
 from archeology.settings import AUTH_USER_MODEL
 from django.core.files.storage import default_storage
+import os
+import shutil
+
+
+def delete_files(source):
+    if source:
+        file_path = source.path
+        if os.path.isfile(file_path):
+            os.remove(file_path)
+            folder_path = file_path[:file_path.rfind('.')]
+            if os.path.exists(folder_path) and os.path.isdir(folder_path):
+                for filename in os.listdir(folder_path):
+                    file_to_delete = os.path.join(folder_path, filename)
+                    try:
+                        if os.path.isfile(file_to_delete):
+                            os.remove(file_to_delete)  # удаляем файл
+                    except Exception as e:
+                        print(f"Ошибка при удалении файла {file_to_delete}: {e}")
+                try:
+                    os.rmdir(folder_path)
+                except OSError:
+                    print(f"Ошибка удаления: не все файлы внутри папки были удалены")
+
 
 # Модель для пользователей
 class User(AbstractUser):
@@ -26,6 +49,12 @@ class User(AbstractUser):
         # Сохраняем новый аватар
         super().save(*args, **kwargs)
 
+    def delete(self, *args, **kwargs):
+        if self.avatar.name != 'avatars/default.png':
+            delete_files(self.avatar)
+        super().delete(*args, **kwargs)
+
+
 # Модель для приложений
 class Supplement(models.Model):
     maps = models.TextField()
@@ -40,6 +69,7 @@ class Supplement(models.Model):
 
     class Meta:
         db_table = 'supplements'
+
 
 # Модель для актов
 class Act(models.Model):
@@ -58,7 +88,7 @@ class Act(models.Model):
     open_list = models.TextField()
     conclusion = models.TextField()
     border_objects = models.TextField()
-    source = models.FileField(upload_to='uploaded_files/acts/')
+    source = models.FileField(upload_to='acts/')
 
     act = models.TextField()
     start_date = models.TextField()
@@ -80,6 +110,13 @@ class Act(models.Model):
     class Meta:
         db_table = 'acts'
 
+    def delete(self, *args, **kwargs):
+        supplement = Supplement.objects.get(id=self.supplement.id)
+        supplement.delete()
+        delete_files(self.source)
+        super().delete(*args, **kwargs)
+
+
 # Модель для научных отчетов
 class ScientificReport(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -96,13 +133,20 @@ class ScientificReport(models.Model):
     research_history = models.TextField()
     results = models.TextField()
     conclusion = models.TextField()
-    source = models.FileField(upload_to='uploaded_files/reports/')
+    source = models.FileField(upload_to='reports/')
 
     def __str__(self):
         return f"Scientific Report {self.id} by {self.user.username}"
 
     class Meta:
         db_table = 'scientific_reports'
+
+    def delete(self, *args, **kwargs):
+        supplement = Supplement.objects.get(id=self.supplement.id)
+        supplement.delete()
+        delete_files(self.source)
+        super().delete(*args, **kwargs)
+
 
 # Модель для научно-технических отчетов
 class TechReport(models.Model):
@@ -120,13 +164,19 @@ class TechReport(models.Model):
     research_history = models.TextField()
     results = models.TextField()
     conclusion = models.TextField()
-    source = models.FileField(upload_to='uploaded_files/reports/')
+    source = models.FileField(upload_to='reports/')
 
     def __str__(self):
         return f"Tech Report {self.id} by {self.user.username}"
 
     class Meta:
         db_table = 'tech_reports'
+
+    def delete(self, *args, **kwargs):
+        supplement = Supplement.objects.get(id=self.supplement.id)
+        supplement.delete()
+        delete_files(self.source)
+        super().delete(*args, **kwargs)
 
 
 # Модель для открытых листов
@@ -138,10 +188,14 @@ class OpenLists(models.Model):
     works = models.TextField()
     start_date = models.TextField()
     end_date = models.TextField()
-    source = models.FileField(upload_to='uploaded_files/open_lists/')
+    source = models.FileField(upload_to='open_lists/')
 
     def __str__(self):
         return f"Open list {self.id}"
 
     class Meta:
         db_table = 'open_lists'
+
+    def delete(self, *args, **kwargs):
+        delete_files(self.source)
+        super().delete(*args, **kwargs)

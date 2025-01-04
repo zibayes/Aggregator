@@ -8,6 +8,8 @@ import pandas as pd
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
 from .models import ScientificReport, Supplement, User
+from .hash import calculate_file_hash
+import os
 
 
 def choose_file() -> str:
@@ -16,16 +18,26 @@ def choose_file() -> str:
     if file_path:
         return file_path
 
+
 def local_storage_reports_processing(uploaded_files, user):
     files = []
+    reports_ids = []
     pages_count = 0
     for file in uploaded_files:
-        last_id = ScientificReport.objects.last()
-        if not last_id:
-            last_id = 0
-        else:
-            last_id = last_id.id
-        file.name = str(last_id+ 1) + '_report.pdf'
+        supplement = Supplement(
+            maps='Map data',
+            object_fotos='Object photos data',
+            pits_fotos='Pits photos data',
+            plans='Plans data',
+            material_fotos='Material photos data',
+            heritage_info='Heritage information'
+        )
+        supplement.save()
+
+        report = ScientificReport(user_id=user.id, supplement_id=supplement.id)
+        report.save()
+        reports_ids.append(report.id)
+        file.name = str(report.id) + '_report.pdf'
         files.append(file.name)
         # Сохраняем файл во временную директорию
         with open('uploaded_files/reports/' + file.name, 'wb+') as destination:
@@ -33,17 +45,30 @@ def local_storage_reports_processing(uploaded_files, user):
                 destination.write(chunk)
         with fitz.open('uploaded_files/reports/' + file.name) as pdf_doc:
             pages_count += len(pdf_doc)
-    task = extract_text_and_images.delay(files, pages_count, user.id)
+    task = extract_text_and_images.delay(files, pages_count, reports_ids)
     return task
 
+
 @shared_task(bind=True)
-def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
+def extract_text_and_images(self, uploaded_files, pages_count, reports_ids):
     progress_recorder = ProgressRecorder(self)
     total_processed = [0]
     progress_recorder.set_progress(total_processed[0], 100, uploaded_files)
-
+    j = 0
     for file in uploaded_files:
-        file = 'uploaded_files/reports/' + file
+        source_file = 'reports/' + file
+        file = 'uploaded_files/' + source_file
+
+        reports = ScientificReport.objects.all()
+        for report in reports:
+            if report.source and os.path.isfile(report.source.path):
+                file_hash = calculate_file_hash(file)
+                report_hash = calculate_file_hash('uploaded_files/' + report.source.name)
+                if file_hash == report_hash:
+                    report = ScientificReport.objects.get(id=reports_ids[j])
+                    report.delete()
+                    return 'Already have this file'
+
         document = fitz.open(file)
 
         folder = file[:file.rfind(".")]
@@ -76,19 +101,21 @@ def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
 
                     next_index = None
                     if current_part + 1 < len(report_parts):
-                        if df is None or df is not None and page_number+1 == int(df[df['Раздел'] == report_parts[current_part+1]]['Страницы']):
-                            next_index = re.search(report_parts[current_part+1], text, re.IGNORECASE)
+                        if df is None or df is not None and page_number + 1 == int(
+                                df[df['Раздел'] == report_parts[current_part + 1]]['Страницы']):
+                            next_index = re.search(report_parts[current_part + 1], text, re.IGNORECASE)
                     if current_index or found_part:
                         text_to_write = text[current_index:next_index.start() if next_index else len(text)]
                         report_parts_info[report_parts[current_part]] += text_to_write
-                        if start_page == page_number+1:
-                            text_file.write(f"--- {report_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
+                        if start_page == page_number + 1:
+                            text_file.write(
+                                f"--- {report_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
                         else:
                             text_file.write(f"{text_to_write}\n")
                         found_part = True
                     if next_index:
                         current_part += 1
-                        start_page = page_number+1
+                        start_page = page_number + 1
                         if report_parts[current_part] == 'ОГЛАВЛЕНИЕ':
                             with pdfplumber.open(file) as pdf:
                                 page_tables = pdf.pages[page_number].extract_tables()
@@ -97,8 +124,10 @@ def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
                                     if '-' in row['Страницы']:
                                         row['Страницы'] = row['Страницы'][:row['Страницы'].find('-')]
                                 report_parts = list(df['Раздел'])
-                                report_parts_info = dict(list({i: report_parts_info[i] for i in report_parts if i in report_parts_info.keys()}.items()) +
-                                                         list({i: '' for i in report_parts if i not in report_parts_info.keys()}.items()))
+                                report_parts_info = dict(list({i: report_parts_info[i] for i in report_parts if
+                                                               i in report_parts_info.keys()}.items()) +
+                                                         list({i: '' for i in report_parts if
+                                                               i not in report_parts_info.keys()}.items()))
                         continue
                     break
 
@@ -107,13 +136,13 @@ def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
                 captions_count = text.count("Рис.")
                 for i in range(captions_count):
                     first_encounter = text.find("Рис.")
-                    if i != captions_count-1:
-                        last_encounter = text[first_encounter+4:].find("Рис.")
+                    if i != captions_count - 1:
+                        last_encounter = text[first_encounter + 4:].find("Рис.")
                     else:
                         last_encounter = len(text)
                     caption = text[first_encounter:last_encounter]
                     captions.append(caption)
-                    text = text[first_encounter+4:]
+                    text = text[first_encounter + 4:]
 
                 '''
                 # Подписи к рисункам
@@ -144,7 +173,6 @@ def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
                             continue
                         if int(cap1) < int(cap2):
                             captions[i], captions[j] = captions[j], captions[i]
-
 
                 # Извлечение изображений
                 image_list = page.get_images(full=True)
@@ -200,38 +228,37 @@ def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
             total_processed[0] += len(document)
         document.close()
 
-        supplement = Supplement(
-            maps='Map data',
-            object_fotos='Object photos data',
-            pits_fotos='Pits photos data',
-            plans='Plans data',
-            material_fotos='Material photos data',
-            heritage_info='Heritage information'
-        )
-        supplement.save()
+        report = ScientificReport.objects.get(id=reports_ids[j])
+        j += 1
 
-        scientific_report = ScientificReport(
-            user_id=user,
-            supplement=supplement,
-            name='Scientific Report Title',
-            organization='Organization Name',
-            author='Author Name',
-            open_list=report_parts_info['ОТКРЫТЫЙ ЛИСТ'],
-            writing_date='2023-10-01',
-            introduction=report_parts_info['ВВЕДЕНИЕ'],
-            contractors=report_parts_info['СПИСОК ИСПОЛНИТЕЛЕЙ РАБОТ'],
-            place='Research place',
-            area_info='Area information',
-            research_history='Research history text',
-            results='Results text',
-            conclusion='Conclusion text',
-            source=file
-        )
-        scientific_report.save()
+        report.supplement.maps = 'Map data'
+        report.supplement.object_fotos = 'Object photos data'
+        report.supplement.pits_fotos = 'Pits photos data'
+        report.supplement.plans = 'Plans data'
+        report.supplement.material_fotos = 'Material photos data'
+        report.supplement.heritage_info = 'Heritage information'
+        report.supplement.save()
+
+        report.name = 'Scientific Report Title'
+        report.organization = 'Organization Name'
+        report.author = 'Author Name'
+        report.open_list = report_parts_info[
+            'ОТКРЫТЫЙ ЛИСТ'] if 'ОТКРЫТЫЙ ЛИСТ' in report_parts_info.keys() else 'Open list info'
+        report.writing_date = '2023-10-01'
+        report.introduction = report_parts_info[
+            'ВВЕДЕНИЕ'] if 'ВВЕДЕНИЕ' in report_parts_info.keys() else 'Introduction info'
+        report.contractors = report_parts_info[
+            'СПИСОК ИСПОЛНИТЕЛЕЙ РАБОТ'] if 'СПИСОК ИСПОЛНИТЕЛЕЙ РАБОТ' in report_parts_info.keys() else 'Contractors info'
+        report.place = 'Research place'
+        report.area_info = 'Area information'
+        report.research_history = 'Research history text'
+        report.results = 'Results text'
+        report.conclusion = 'Conclusion text'
+        report.source = source_file
+        report.save()
 
 
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()
-    # Указываем путь к PDF и текстовому файлу
     extract_text_and_images(choose_file())

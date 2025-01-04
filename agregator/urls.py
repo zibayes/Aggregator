@@ -28,8 +28,13 @@ urlpatterns = [
     path('users/<int:pk>/', views.users, name='users'),
     path('acts/<int:pk>/', views.acts, name='acts'),
     path('acts_edit/<int:pk>/', views.acts_edit, name='acts_edit'),
+    path('acts_delete/<int:pk>/', views.acts_delete, name='acts_delete'),
     path('scientific_reports/<int:pk>/', views.scientific_reports, name='scientific_reports'),
     path('scientific_reports_edit/<int:pk>/', views.scientific_reports_edit, name='scientific_reports_edit'),
+    path('scientific_reports_delete/<int:pk>/', views.scientific_reports_delete, name='scientific_reports_delete'),
+    path('open_lists/<int:pk>/', views.open_lists, name='open_lists'),
+    path('open_lists_edit/<int:pk>/', views.open_lists_edit, name='open_lists_edit'),
+    path('open_lists_delete/<int:pk>/', views.open_lists_delete, name='open_lists_delete'),
 
     path('api/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),

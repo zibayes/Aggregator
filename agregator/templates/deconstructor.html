@@ -4,85 +4,86 @@
 {% block title %}Обработка отчётов{% endblock %}
 
 {% block content %}
-	<!-- Заголовок страницы -->
-    <header class="hero">
-        <div class="container">
-            <h1 class="display-4">Обработка Отчётов</h1>
-        </div>
-    </header>
 
-    <!-- Секция загрузки файла -->
-    <div class="container upload-section">
-        <h2 class="text-center">Загрузите файл</h2>
-        <form method="post" enctype="multipart/form-data">
-			{% csrf_token %}
-			<p>Выберите тип документа:</p>
-			<input required id="file_type_act" type="radio" name="file_type" value="act">
-			<label style="padding-right: 8px;" for="file_type_act">Акт</label>
-			<input required id="file_type_report" type="radio" name="file_type" value="report">
-			<label style="padding-right: 8px;" for="file_type_report">Научный отчёт</label>
-			{{ form.as_p }}
-			
-			<!--
-			<div class="progress">
-			  <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 25%;" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">25%</div>
-			</div>
-			<br>
-			-->
-			
-			{% if task_id %}
-				<div class='progress-wrapper'>
-				  <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
-				</div>
-				<div id="progress-bar-message">Ожидание загрузки файла...</div>
-				<script src="{% static 'celery_progress/celery_progress.js' %}"></script>
-				<script>
-					function redirectPost(url, data) {
-						var form = document.createElement('form');
-						document.body.appendChild(form);
-						form.method = 'post';
-						form.action = url;
-						var input = document.createElement('input');
-						input.type = 'hidden';
-						input.name = 'acts';
-						input.value = data;
-						var csrf = document.createElement('input');
-						csrf.type = 'hidden';
-						csrf.name = 'csrfmiddlewaretoken';
-						csrf.value = `{{ csrf_token }}`;
-						form.appendChild(input);
-						form.appendChild(csrf);
-						form.submit();
-					}
-
-					function customSuccess(progressBarElement, progressBarMessageElement, result) {
-					    result = this.getMessageDetails(result);
-						if (progressBarElement) {
-							progressBarElement.style.backgroundColor = this.barColors.success;
-						}
-						if (progressBarMessageElement) {
-							progressBarMessageElement.textContent = "Success! " + result;
-						}
-
-						let url = "/deconstructor/";
-						setTimeout(() => { redirectPost(url, result);}, 1000)
-					}
-
-					document.addEventListener("DOMContentLoaded", function () {
-					  var progressUrl = "{% url 'celery_progress:task_status' task_id %}";
-					  CeleryProgressBar.initProgressBar(progressUrl, {onSuccess: customSuccess});
-					});
-				</script>
-			{% endif %}
-			
-			<button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить</button>
-		</form>
-
-		{% if table %}
-            <h2>Считанные данные:</h2>
-			<div class="table-responsive">
-				{{ table|safe }}  <!-- Безопасное отображение HTML -->
-			</div>
-        {% endif %}
+<header class="hero">
+    <div class="container">
+        <h1 class="display-4">Обработка Отчётов</h1>
     </div>
+</header>
+
+<div class="container upload-section">
+    <h2 class="text-center">Загрузите файл</h2>
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        <p>Выберите тип документа:</p>
+        <input required id="file_type_act" type="radio" name="file_type" value="act">
+        <label style="padding-right: 8px;" for="file_type_act">Акт</label>
+        <input required id="file_type_report" type="radio" name="file_type" value="report">
+        <label style="padding-right: 8px;" for="file_type_report">Научный отчёт</label>
+        {{ form.as_p }}
+
+        <!--
+        <div class="progress">
+          <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 25%;" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">25%</div>
+        </div>
+        <br>
+        -->
+
+        {% if task_id %}
+        <div class='progress-wrapper'>
+            <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
+        </div>
+        <div id="progress-bar-message">Ожидание загрузки файла...</div>
+        <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
+        <script>
+            function redirectPost(url, data) {
+                var form = document.createElement('form');
+                document.body.appendChild(form);
+                form.method = 'post';
+                form.action = url;
+                var input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'acts';
+                input.value = data;
+                var csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = 'csrfmiddlewaretoken';
+                csrf.value = `{{ csrf_token }}`;
+                form.appendChild(input);
+                form.appendChild(csrf);
+                form.submit();
+            }
+
+            function customSuccess(progressBarElement, progressBarMessageElement, result) {
+                result = this.getMessageDetails(result);
+                if (progressBarElement) {
+                    progressBarElement.style.backgroundColor = this.barColors.success;
+                }
+                if (progressBarMessageElement) {
+                    progressBarMessageElement.textContent = "Success! " + result;
+                }
+
+                let url = "/deconstructor/";
+                setTimeout(() => {
+                    redirectPost(url, result);
+                }, 1000)
+            }
+
+            document.addEventListener("DOMContentLoaded", function () {
+                var progressUrl = "{% url 'celery_progress:task_status' task_id %}";
+                CeleryProgressBar.initProgressBar(progressUrl, {onSuccess: customSuccess});
+            });
+        </script>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить</button>
+    </form>
+
+    {% if table %}
+    <h2>Считанные данные:</h2>
+    <div class="table-responsive">
+        {{ table|safe }}  <!-- Безопасное отображение HTML -->
+    </div>
+    {% endif %}
+</div>
 {% endblock %}

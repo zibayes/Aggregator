@@ -16,7 +16,6 @@ import os
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -27,7 +26,6 @@ SECRET_KEY = 'django-insecure-jzu6gf*$t^#7z9wyc+6z#5#or-#gnrxfc8^^@1*jja+^!d%jtr
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -48,11 +46,9 @@ INSTALLED_APPS = [
 
 SITE_ID = 1
 LOGIN_URL = 'login'
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = '/uploaded_files/'
+MEDIA_ROOT = BASE_DIR / 'uploaded_files'
 AUTH_USER_MODEL = 'agregator.User'
-UPLOADED_URL = '/uploaded_files/'
-UPLOADED_ROOT = BASE_DIR / 'uploaded_files'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",  # URL Angular
@@ -66,10 +62,10 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'User Management API',                              
-    'DESCRIPTION': 'API для регистрации, получения и удаления пользователей.', 
-    'VERSION': '1.0.0',                            
-    'SERVE_INCLUDE_SCHEMA': False,                     
+    'TITLE': 'User Management API',
+    'DESCRIPTION': 'API для регистрации, получения и удаления пользователей.',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
 }
 
 MIDDLEWARE = [
@@ -104,7 +100,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'archeology.wsgi.application'
 
-
 # Database
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
@@ -128,7 +123,6 @@ DATABASES = {
 }
 '''
 
-
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -147,7 +141,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
@@ -158,7 +151,6 @@ TIME_ZONE = 'UTC'
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/

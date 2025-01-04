@@ -17,7 +17,7 @@ from celery import shared_task
 from celery_progress.backend import ProgressRecorder
 from time import sleep
 from .models import Act, Supplement, User
-
+from .hash import calculate_file_hash
 
 SQUARE_RESERVE = []
 
@@ -34,7 +34,8 @@ def get_gike_object_size(text_to_write: str, table_info: dict) -> None:
     attr_filled = 'Площадь, протяжённость и/или др. параменты объекта' in table_info.keys()
     if not attr_filled or attr_filled and 'Общ. S' not in table_info[
         'Площадь, протяжённость и/или др. параменты объекта']:
-        square = re.search(r'Общ.+[ \n]+площадь[ \n]*.*[ \n]*\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*', text_to_write, re.IGNORECASE)
+        square = re.search(r'Общ.+[ \n]+площадь[ \n]*.*[ \n]*\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*', text_to_write,
+                           re.IGNORECASE)
         if not square:
             square = re.search(r'площадь[ \n]*.*[ \n]*\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*', text_to_write,
                                re.IGNORECASE)
@@ -42,7 +43,7 @@ def get_gike_object_size(text_to_write: str, table_info: dict) -> None:
         if square:
             square = re.search(r'\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*', square.group(0), re.IGNORECASE).group(0)
             if 'га ' in square:
-                square = square.strip()[:square.rfind('га ')+2]
+                square = square.strip()[:square.rfind('га ') + 2]
             if 'кв. м' in square or not re.search(r'[А-Яа-я.]+', square, re.IGNORECASE):
                 SQUARE_RESERVE.append(square)
             else:
@@ -59,10 +60,12 @@ def get_gike_object_size(text_to_write: str, table_info: dict) -> None:
                     'Площадь, протяжённость и/или др. параменты объекта'] += '\nпротяж. ' + length
     if not attr_filled or attr_filled and 'S лин.' not in table_info[
         'Площадь, протяжённость и/или др. параменты объекта']:
-        square_line = re.search(r'площ[а-яА-ЯёЁ]+[ \n]+лин.*\d* *\d+[,]*\d*[ \n]+[а-яА-ЯёЁ]+', text_to_write, re.IGNORECASE)
+        square_line = re.search(r'площ[а-яА-ЯёЁ]+[ \n]+лин.*\d* *\d+[,]*\d*[ \n]+[а-яА-ЯёЁ]+', text_to_write,
+                                re.IGNORECASE)
         if square_line:
             square_line = re.search(r'\d* *\d+[,]*\d*[ \n]+[а-яА-ЯёЁ]+', square_line.group(0), re.IGNORECASE).group(0)
             table_info['Площадь, протяжённость и/или др. параменты объекта'] += ' (S лин. ЗУ = ' + square_line + ')'
+
 
 def external_storage_acts_processing(uploaded_files):
     pages_count = 0
@@ -76,16 +79,26 @@ def external_storage_acts_processing(uploaded_files):
     # task = test_task.delay(1)
     return task
 
+
 def local_storage_acts_processing(uploaded_files, user):
     files = []
+    acts_ids = []
     pages_count = 0
     for file in uploaded_files:
-        last_id = Act.objects.last()
-        if not last_id:
-            last_id = 0
-        else:
-            last_id = last_id.id
-        file.name = str(last_id + 1) + '_act.pdf'
+        supplement = Supplement(
+            maps='Map data',
+            object_fotos='Object photos data',
+            pits_fotos='Pits photos data',
+            plans='Plans data',
+            material_fotos='Material photos data',
+            heritage_info='Heritage information'
+        )
+        supplement.save()
+
+        act = Act(user_id=user.id, supplement_id=supplement.id)
+        act.save()
+        acts_ids.append(act.id)
+        file.name = str(act.id) + '_act.pdf'
         files.append(file.name)
         # Сохраняем файл во временную директорию
         with open('uploaded_files/acts/' + file.name, 'wb+') as destination:
@@ -94,23 +107,25 @@ def local_storage_acts_processing(uploaded_files, user):
         with fitz.open('uploaded_files/acts/' + file.name) as pdf_doc:
             pages_count += len(pdf_doc)
     # table = save_and_process_files.delay(files)
-    task = save_and_process_files.delay(files, pages_count, user.id)
+    task = save_and_process_files.delay(files, pages_count, acts_ids)
     # task = test_task.delay(1)
     return task
 
+
 @shared_task(bind=True)
-def save_and_process_files(self, uploaded_files, pages_count, user):
+def save_and_process_files(self, uploaded_files, pages_count, acts_ids):
     table = None
     progress_recorder = ProgressRecorder(self)
     # progress_recorder.set_progress(i, len(uploaded_files), f'On iter {i}')
     total_processed = [0]
     already_uploaded = []
     progress_recorder.set_progress(total_processed[0], 100, uploaded_files)
+    i = 0
     for file in uploaded_files:
         if not file.lower().endswith('.pdf'):
             continue
-        new_table = extract_text_and_images('uploaded_files/acts/' + file, progress_recorder, pages_count,
-                                            total_processed, uploaded_files, user)
+        new_table = extract_text_and_images('acts/' + file, progress_recorder, pages_count,
+                                            total_processed, uploaded_files, acts_ids[i])
         if isinstance(new_table, pd.DataFrame):
             if table is not None:
                 table = table._append(new_table, ignore_index=True)
@@ -118,6 +133,7 @@ def save_and_process_files(self, uploaded_files, pages_count, user):
                 table = new_table
         else:
             already_uploaded.append(file)
+        i += 1
     if isinstance(table, pd.DataFrame):
         table = table['Номер (если имеется) и наименование Акта ГИКЭ'].tolist()
     return table
@@ -125,40 +141,55 @@ def save_and_process_files(self, uploaded_files, pages_count, user):
     # return uploaded_files
 
 
-def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_processed, uploaded_files, user):
+def extract_text_and_images(file, progress_recorder, pages_count, total_processed, uploaded_files, act_id):
+    pdf_file = 'uploaded_files/' + file
+
+    acts = Act.objects.all()
+    for act in acts:
+        if act.source and os.path.isfile(act.source.path):
+            file_hash = calculate_file_hash(pdf_file)
+            act_hash = calculate_file_hash('uploaded_files/' + act.source.name)
+            if file_hash == act_hash:
+                act = Act.objects.get(id=act_id)
+                act.delete()
+                return 'Already have this file'
+
     # Открываем PDF-файл
     document = fitz.open(pdf_file)
     folder = pdf_file[:pdf_file.rfind(".")]
     Path(folder).mkdir(exist_ok=True)
 
     # Разделы
-    act_parts = ['Акт', 'Дата начала', 'Дата окончания', # проведения экспертизы
-                    r'\d*\.*.*Место проведения [экспертизы]*:*', r'\d*\.*.*Заказчик экспертизы', r'\d*\.*.*[Сведения об]* эксперте',
-                    'Отношени[яе]+ к заказчику', 'Цель экспертизы:', 'Объект .*?[экспертизы]*:*',  # Объект экспертизы:*
-                    'Перечень документов, представленных', 'Сведения о проведенных исследованиях',
-                    'Факты и сведения, выявленные .*\n*.*исследований', # 'Факты и сведения, выявленные и установленные в результате проведенных исследований', 'Координаты',
-                    'Перечень[а-яА-ЯёЁ \n,]*литературы',
-                    # 'Перечень документов и материалов, собранных и полученных при проведении '
-                    #              'экспертизы, а также использованной для нее специальной, технической и '
-                    #              'справочной литературы', 'Обоснования вывода экспертизы',
-                    'Вывод экспертизы', 'Перечень приложений']
+    act_parts = ['Акт', 'Дата начала', 'Дата окончания',  # проведения экспертизы
+                 r'\d*\.*.*Место проведения [экспертизы]*:*', r'\d*\.*.*Заказчик экспертизы',
+                 r'\d*\.*.*[Сведения об]* эксперте',
+                 'Отношени[яе]+ к заказчику', 'Цель экспертизы:', 'Объект .*?[экспертизы]*:*',  # Объект экспертизы:*
+                 'Перечень документов, представленных', 'Сведения о проведенных исследованиях',
+                 'Факты и сведения, выявленные .*\n*.*исследований',
+                 # 'Факты и сведения, выявленные и установленные в результате проведенных исследований', 'Координаты',
+                 'Перечень[а-яА-ЯёЁ \n,]*литературы',
+                 # 'Перечень документов и материалов, собранных и полученных при проведении '
+                 #              'экспертизы, а также использованной для нее специальной, технической и '
+                 #              'справочной литературы', 'Обоснования вывода экспертизы',
+                 'Вывод экспертизы', 'Перечень приложений']
     act_sub_parts = ['Характеристика объекта']
-    act_parts_info = {i:'' for i in act_parts}
+    act_parts_info = {i: '' for i in act_parts}
     object_info = ''
     place_info = ''
 
     table_info = {}
-    table_columns = ['ГОД',	'Дата окончания проведения ГИКЭ', 'Вид ГИКЭ', 'Номер (если имеется) и наименование Акта ГИКЭ',
-                     'Место проведения экспертизы', # 'Муниципальный район или муниципальный округ'
+    table_columns = ['ГОД', 'Дата окончания проведения ГИКЭ', 'Вид ГИКЭ',
+                     'Номер (если имеется) и наименование Акта ГИКЭ',
+                     'Место проведения экспертизы',  # 'Муниципальный район или муниципальный округ'
                      'Заказчик работ (*если не указан, то заказчик экспертизы)',
                      'Площадь, протяжённость и/или др. параменты объекта', 'Эксперт (физ. или юр.лицо)',
                      'Исполнитель полевых работ (юр. лицо)', 'ОЛ', 'Заключение. Выявленые объекты.',
                      'Объекты расположенные в непосредственной близости. Для границ']
     months = {'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04', 'мая': '05', 'июня': '06', 'июля': '07',
-              'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12',}
+              'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12', }
     table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
     broken_structure = False
-    exploration_object= False
+    exploration_object = False
     sectors_square = []
     text_reserve = None
     voan_reserve = None
@@ -170,7 +201,8 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
         extracted_images = []
         current_part = 0
         for page_number in range(len(document)):
-            progress_recorder.set_progress(int((total_processed[0] + page_number) / pages_count * 100), 100, uploaded_files)
+            progress_recorder.set_progress(int((total_processed[0] + page_number) / pages_count * 100), 100,
+                                           uploaded_files)
             page = document[page_number]
             # Извлечение текста
             text = page.get_text()
@@ -182,17 +214,12 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                 if act:
                     text_to_write = act.group(0)
                 else:
-                    text_to_write = text[re.search(act_parts[current_part], text, re.IGNORECASE).start():re.search('Настоящий Акт', text, re.IGNORECASE).start()]
+                    text_to_write = text[re.search(act_parts[current_part], text, re.IGNORECASE).start():re.search(
+                        'Настоящий Акт', text, re.IGNORECASE).start()]
                 text_file.write(f"--- {act_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
                 current_part += 1
                 if '№' not in text_to_write:
                     text_to_write += " б/н"
-
-                if os.path.exists(table_path):
-                    df_existing = pd.read_excel(table_path)
-                    for num in df_existing['Номер (если имеется) и наименование Акта ГИКЭ'].tolist():
-                        if text_to_write[:text_to_write.find('\n')].replace('\r', '') in num[:num.find('\n')].replace('\r', ''):
-                            return 'Already have this file'
 
                 table_info['Номер (если имеется) и наименование Акта ГИКЭ'] = text_to_write
 
@@ -205,7 +232,7 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
 
                 next_index = None
                 if current_part + 1 < len(act_parts):
-                    next_index = re.search(act_parts[current_part+1].replace(' ', r'[ \n]*'), text)
+                    next_index = re.search(act_parts[current_part + 1].replace(' ', r'[ \n]*'), text)
 
                 text_to_write = text[current_index:next_index.start() if next_index else len(text)]
                 text_file.write(f"--- {act_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
@@ -214,11 +241,13 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                 full_time_interval = None
                 interval_type = None
                 if act_parts[current_part] == 'Дата начала':
-                    full_time_interval = re.search(r'период с \d{2}.\d{2}.\d{4}[ \n]+[г. \n]*по[ \n]+\d{2}.\d{2}.\d{4}[ \n]+г.', text_to_write)
+                    full_time_interval = re.search(
+                        r'период с \d{2}.\d{2}.\d{4}[ \n]+[г. \n]*по[ \n]+\d{2}.\d{2}.\d{4}[ \n]+г.', text_to_write)
                     # период с \d+.\d+.\d+[ \n]+г.[ \n]+по[ \n]+\d+.\d+.\d+[ \n]+г.
                     if not full_time_interval:
-                        full_time_interval = re.search(r'период с «*\d+»* [А-Яа-яёЁ]+ \d+ г\.*.*[ \n]+по[ \n]+«*\d+»* [А-Яа-яёЁ]+ \d+ г\.*',
-                                         text_to_write)
+                        full_time_interval = re.search(
+                            r'период с «*\d+»* [А-Яа-яёЁ]+ \d+ г\.*.*[ \n]+по[ \n]+«*\d+»* [А-Яа-яёЁ]+ \d+ г\.*',
+                            text_to_write)
                         interval_type = 'words'
                     else:
                         interval_type = 'dots'
@@ -232,33 +261,38 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                         current_part += 2
                         date = re.search(r'по[ \n]+\d{2}.\d{2}.\d{4}[ \n]+г', date.group(0)).group(0)
                     else:
-                        date = re.findall(r'\d+ *\d+ *\.\d{2} *\d*\.\d{4} *\d* *г*', text_to_write) # (\d )*\d+ *\.\d+ *\d*\.\d+ *\d* *г*  //  \d+\.\d+\.\d+ *г*\.*  //  \d+ *\.\d+ *\d*\.\d+ *\d* *г*
+                        date = re.findall(r'\d+ *\d+ *\.\d{2} *\d*\.\d{4} *\d* *г*',
+                                          text_to_write)  # (\d )*\d+ *\.\d+ *\d*\.\d+ *\d* *г*  //  \d+\.\d+\.\d+ *г*\.*  //  \d+ *\.\d+ *\d*\.\d+ *\d* *г*
                         if date:
                             if len(date) > 1:
                                 date = date[1]
                             else:
                                 date = date[0]
-                        date_words = re.findall(r'«*\d+»* *[А-Яа-яёЁ]+ \d+ г\.*', text_to_write) # TODO: rework?
+                        date_words = re.findall(r'«*\d+»* *[А-Яа-яёЁ]+ \d+ г\.*', text_to_write)  # TODO: rework?
                         if date_words:
                             if len(date_words) > 1:
                                 date_words = date_words[1]
                             else:
                                 date_words = date_words[0]
-                        if date and date_words and (text_to_write.find(date) > text_to_write.find(date_words) or 'Постнов' in text_to_write): # TODO: people style?
+                        if date and date_words and (text_to_write.find(date) > text_to_write.find(
+                                date_words) or 'Постнов' in text_to_write):  # TODO: people style?
                             date = None
                     if date and interval_type != 'words':
                         date = date.replace('по ', '').replace(' ', '')
-                        year = date[date.rfind('.')+1:]
+                        year = date[date.rfind('.') + 1:]
                         if 'г' in year:
                             year = year[:year.rfind('г')]
                         table_info['ГОД'] = year
                         index = date.rfind(' ')
-                        table_info['Дата окончания проведения ГИКЭ'] = date[:index if index != -1 else len(date)].replace('г', '')
+                        table_info['Дата окончания проведения ГИКЭ'] = date[
+                                                                       :index if index != -1 else len(date)].replace(
+                            'г', '')
                         if full_time_interval:
                             continue
                     else:
-                        date = re.search(r'период с «*\d+»* [А-Яа-яёЁ]+ \d+ г\.*.*[ \n]+по[ \n]+«*\d+»* [А-Яа-яёЁ]+ \d+ г\.*',
-                                         text_to_write)
+                        date = re.search(
+                            r'период с «*\d+»* [А-Яа-яёЁ]+ \d+ г\.*.*[ \n]+по[ \n]+«*\d+»* [А-Яа-яёЁ]+ \d+ г\.*',
+                            text_to_write)
                         if date:
                             current_part += 2
                             text_to_write = re.search(r'по[ \n]+«*\d+»* [А-Яа-яёЁ]+ \d+ г\.*', date.group(0)).group(
@@ -296,50 +330,67 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                             continue
                 elif act_parts[current_part] == r'\d*\.*.*Место проведения [экспертизы]*:*':
                     place_info += text_to_write
-                    if not text_to_write.strip() or re.search(r'«*\d+»*[ \n]+[А-Яа-яёЁ]+[ \n]+\d+ г\.* *\n.[^0-9]+\n', text_to_write, re.IGNORECASE):
-                        text_to_write = re.search(r'«*\d+»*[ \n]+[А-Яа-яёЁ]+[ \n]+\d+ г\.* *\n.[^0-9]+\n', text, re.IGNORECASE).group(0)
+                    if not text_to_write.strip() or re.search(r'«*\d+»*[ \n]+[А-Яа-яёЁ]+[ \n]+\d+ г\.* *\n.[^0-9]+\n',
+                                                              text_to_write, re.IGNORECASE):
+                        text_to_write = re.search(r'«*\d+»*[ \n]+[А-Яа-яёЁ]+[ \n]+\d+ г\.* *\n.[^0-9]+\n', text,
+                                                  re.IGNORECASE).group(0)
                         text_to_write = re.search(r'\n.[^0-9]+?(?=\n)', text_to_write, re.IGNORECASE).group(0)
                         broken_structure = True
-                    table_info['Место проведения экспертизы'] = text_to_write.replace('–', '').replace(':', '').replace('\n', '')
+                    table_info['Место проведения экспертизы'] = text_to_write.replace('–', '').replace(':', '').replace(
+                        '\n', '')
                 elif act_parts[current_part] == r'\d*\.*.*Заказчик экспертизы':
                     if broken_structure:
-                        text_to_write = re.search(table_info['Место проведения экспертизы'][:-1] + r'[А-Яа-яёЁ \n,.0-9:"/()«»\\]+', text, re.IGNORECASE)
+                        text_to_write = re.search(
+                            table_info['Место проведения экспертизы'][:-1] + r'[А-Яа-яёЁ \n,.0-9:"/()«»\\]+', text,
+                            re.IGNORECASE)
                         if text_to_write:
                             text_to_write = text_to_write.group(0)[len(table_info['Место проведения экспертизы']):]
                         else:
                             text_to_write = ''
-                    table_info['Заказчик работ (*если не указан, то заказчик экспертизы)'] = text_to_write.replace('–', '').replace(':', '')
+                    table_info['Заказчик работ (*если не указан, то заказчик экспертизы)'] = text_to_write.replace('–',
+                                                                                                                   '').replace(
+                        ':', '')
                 elif act_parts[current_part] == r'\d*\.*.*[Сведения об]* эксперте':
-                    if re.search(r'Эксперты,[ \n]+состоящие[ \n]+в[ \n]+трудовых', text_to_write, re.IGNORECASE) or several_experts:
+                    if re.search(r'Эксперты,[ \n]+состоящие[ \n]+в[ \n]+трудовых', text_to_write,
+                                 re.IGNORECASE) or several_experts:
                         names = []
                         if not full_name:
-                            names = re.findall(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]+\.[ \n]*[А-Яа-яёЁ]+\.[ \n]+-*–*[ \n]*образование', text_to_write)
+                            names = re.findall(
+                                r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]+\.[ \n]*[А-Яа-яёЁ]+\.[ \n]+-*–*[ \n]*образование',
+                                text_to_write)
                         if not names or several_experts and full_name:
-                            names = re.findall(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+-*–*[ \n]*образование',
-                                               text_to_write)
+                            names = re.findall(
+                                r'[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+-*–*[ \n]*образование',
+                                text_to_write)
                             full_name = True
                         if names:
-                            names = list(map(lambda x: x.replace('\n', '').replace(' образование', '').replace(' -', '').replace(' –', ''), names))
+                            names = list(
+                                map(lambda x: x.replace('\n', '').replace(' образование', '').replace(' -', '').replace(
+                                    ' –', ''), names))
                             if several_experts:
                                 table_info['Эксперт (физ. или юр.лицо)'] += ',\n' + ',\n'.join(names)
                             else:
                                 table_info['Эксперт (физ. или юр.лицо)'] = ',\n'.join(names)
                         several_experts = True
                     else:
-                        name = re.search(r'Фамилия,[ \n]*имя[,и \n]*отчество.*[эксперта]*.*\n.*\n', text_to_write, re.IGNORECASE)
+                        name = re.search(r'Фамилия,[ \n]*имя[,и \n]*отчество.*[эксперта]*.*\n.*\n', text_to_write,
+                                         re.IGNORECASE)
                         if name:
                             name = name.group(0)
                             if 'Образование' in name and 'высшее' not in name:
                                 name = re.search(r'[А-Яа-яёЁ]+[ \n]*[А-Яа-яёЁ]+[ \n]*[А-Яа-яёЁ]+[ \n]*?(?=\nвысшее)',
-                                          text_to_write, re.IGNORECASE).group(0)
+                                                 text_to_write, re.IGNORECASE).group(0)
                                 broken_structure = True
                             else:
-                                name = name[re.search(r'Фамилия,[ \n]*имя[,и \n]*отчество.?[эксперта]*:*', name, re.IGNORECASE).end():].replace('\n', '')
+                                name = name[re.search(r'Фамилия,[ \n]*имя[,и \n]*отчество.?[эксперта]*:*', name,
+                                                      re.IGNORECASE).end():].replace('\n', '')
                                 if 'образование' in name.lower():
                                     find_name = re.search(r'[А-Яа-яёЁ]+[ \n]+[А-Яа-яёЁ]+[ \n]+[А-Яа-яёЁ]+[ \n]*?(?=;)',
-                                                     name, re.IGNORECASE)
+                                                          name, re.IGNORECASE)
                                     if not find_name:
-                                        name = re.search(r'[А-Яа-яёЁ]+[ \n]+[А-Яа-яёЁ]+[ \n]+[А-Яа-яёЁ]+[ \n]*?(?=Образование)', name, re.IGNORECASE).group(0)
+                                        name = re.search(
+                                            r'[А-Яа-яёЁ]+[ \n]+[А-Яа-яёЁ]+[ \n]+[А-Яа-яёЁ]+[ \n]*?(?=Образование)',
+                                            name, re.IGNORECASE).group(0)
                                     else:
                                         name = find_name.group(0)
                             table_info['Эксперт (физ. или юр.лицо)'] = name
@@ -347,10 +398,13 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                             name = re.search(r'ФИО эксперта.*\n.*\n', text_to_write, re.IGNORECASE)
                             if name:
                                 name = name.group(0)
-                                name = name[re.search(r'ФИО эксперта.*\n', name, re.IGNORECASE).end():].replace('\n', '')
+                                name = name[re.search(r'ФИО эксперта.*\n', name, re.IGNORECASE).end():].replace('\n',
+                                                                                                                '')
                                 table_info['Эксперт (физ. или юр.лицо)'] = name
                             else:
-                                name = re.search(r'[А-Яа-яёЁ]+[ \n]*[А-Яа-яёЁ]+[ \n]*[А-Яа-яёЁ]+[ \n]*?(?=, образование)', text_to_write, re.IGNORECASE)
+                                name = re.search(
+                                    r'[А-Яа-яёЁ]+[ \n]*[А-Яа-яёЁ]+[ \n]*[А-Яа-яёЁ]+[ \n]*?(?=, образование)',
+                                    text_to_write, re.IGNORECASE)
                                 if name:
                                     name = name.group(0)
                                     table_info['Эксперт (физ. или юр.лицо)'] = name
@@ -369,16 +423,20 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                     elif re.search(r'документация', text_to_write, re.IGNORECASE):
                         table_info['Вид ГИКЭ'] = 'Док-я'
                     get_gike_object_size(text_to_write, table_info)
-                    exp_object = re.search(r'«[/\\А-Яа-яёЁa-zA-Z \n,.0-9:«»-–-()#№+]+?(?=\n\d\.)', text_to_write, re.IGNORECASE)  # «[А-Яа-я \n,.0-9:]+»
+                    exp_object = re.search(r'«[/\\А-Яа-яёЁa-zA-Z \n,.0-9:«»-–-()#№+]+?(?=\n\d\.)', text_to_write,
+                                           re.IGNORECASE)  # «[А-Яа-я \n,.0-9:]+»
                     if not exp_object:
                         exp_object = re.search(r'«[/\\А-Яа-яёЁa-zA-Z \n,.0-9:«»-–-()#№+]+', text_to_write,
                                                re.IGNORECASE)  # «[А-Яа-я \n,.0-9:]+»
                     if exp_object:
                         table_info['Номер (если имеется) и наименование Акта ГИКЭ'] += ' ' + exp_object.group(0)
                         exploration_object = True
-                elif act_parts[current_part] == 'Факты и сведения, выявленные .*\n*.*исследований' and not exploration_object:
-                    exp_object = re.search(r'«[/\\А-Яа-яёЁa-zA-Z \n,.0-9:«»-–-()#№+]+?(?=Краткая[ \n]+физико-географическая)', text_to_write,
-                                           re.IGNORECASE)
+                elif act_parts[
+                    current_part] == 'Факты и сведения, выявленные .*\n*.*исследований' and not exploration_object:
+                    exp_object = re.search(
+                        r'«[/\\А-Яа-яёЁa-zA-Z \n,.0-9:«»-–-()#№+]+?(?=Краткая[ \n]+физико-географическая)',
+                        text_to_write,
+                        re.IGNORECASE)
                     if exp_object:
                         table_info['Номер (если имеется) и наименование Акта ГИКЭ'] += ' ' + exp_object.group(0)
                 elif act_parts[current_part] == 'Вывод экспертизы' and \
@@ -392,31 +450,40 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                     get_gike_object_size(text_to_write, table_info)
                     sectors = re.search(r'Участок[ \n]+№\d+', text, re.IGNORECASE)
                     if sectors and 'Площадь, протяжённость и/или др. параменты объекта' in table_info.keys():
-                        sectors = re.findall(r'Участок[ \n]+№\d+[А-Яа-яёЁA-Za-z \n,.0-9:;"/()«»\\–-]+Документация', text, re.IGNORECASE)
+                        sectors = re.findall(r'Участок[ \n]+№\d+[А-Яа-яёЁA-Za-z \n,.0-9:;"/()«»\\–-]+Документация',
+                                             text, re.IGNORECASE)
                         for sector in sectors:
-                            sector = re.search(r'площадь[ \n]*.*[ \n]*\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*', sector, re.IGNORECASE)
+                            sector = re.search(r'площадь[ \n]*.*[ \n]*\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*', sector,
+                                               re.IGNORECASE)
                             # Общ.+[ \n]+площадь[ \n]*.*[ \n]*\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*
                             if sector:
                                 sector = re.search(r'\d+[,]*\d*', sector.group(0),
                                                    re.IGNORECASE).group(0)
                                 sectors_square.append(sector)
                         total_square = float(
-                            re.search(r'\d+[,]*\d*', table_info['Площадь, протяжённость и/или др. параменты объекта'], re.IGNORECASE).group(0).replace(',', '.'))
-                        if total_square and math.isclose(total_square, sum([float(i.replace(',', '.')) for i in sectors_square])):
+                            re.search(r'\d+[,]*\d*', table_info['Площадь, протяжённость и/или др. параменты объекта'],
+                                      re.IGNORECASE).group(0).replace(',', '.'))
+                        if total_square and math.isclose(total_square,
+                                                         sum([float(i.replace(',', '.')) for i in sectors_square])):
                             sectors_len = len(sectors_square)
-                            table_info['Площадь, протяжённость и/или др. параменты объекта'] += ': всего ' + str(sectors_len) + ' уч-в - '
+                            table_info['Площадь, протяжённость и/или др. параменты объекта'] += ': всего ' + str(
+                                sectors_len) + ' уч-в - '
                             for i in range(sectors_len):
                                 if i < sectors_len - 1:
-                                    table_info['Площадь, протяжённость и/или др. параменты объекта'] += str(sectors_square[i]).replace('.', ',') + ' + '
+                                    table_info['Площадь, протяжённость и/или др. параменты объекта'] += str(
+                                        sectors_square[i]).replace('.', ',') + ' + '
                                 else:
-                                    table_info['Площадь, протяжённость и/или др. параменты объекта'] += str(sectors_square[i]).replace('.', ',')
+                                    table_info['Площадь, протяжённость и/или др. параменты объекта'] += str(
+                                        sectors_square[i]).replace('.', ',')
                                     if 'га' in table_info['Площадь, протяжённость и/или др. параменты объекта']:
                                         table_info['Площадь, протяжённость и/или др. параменты объекта'] += ' га'
                                     elif 'кв. м' in table_info['Площадь, протяжённость и/или др. параменты объекта']:
                                         table_info[
                                             'Площадь, протяжённость и/или др. параменты объекта'] += 'кв. м'
                     if 'Площадь, протяжённость и/или др. параменты объекта' in table_info.keys():
-                        perspective = re.search(r'перспект[А-Яа-яёЁA-Za-z \n,.0-9:;"()«»\\–-]+?площадь[ \n]*.*[ \n]*\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*', text, re.IGNORECASE)
+                        perspective = re.search(
+                            r'перспект[А-Яа-яёЁA-Za-z \n,.0-9:;"()«»\\–-]+?площадь[ \n]*.*[ \n]*\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*',
+                            text, re.IGNORECASE)
                         if perspective:
                             enter_reserve = False
                             non_perspective = None
@@ -437,33 +504,41 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                                 if non_perspective and not small_perspective or not non_perspective and small_perspective:
                                     text_reserve = text
                             if non_perspective and small_perspective or enter_reserve:
-                                if non_perspective and 'неперспект' not in table_info['Площадь, протяжённость и/или др. параменты объекта']:
+                                if non_perspective and 'неперспект' not in table_info[
+                                    'Площадь, протяжённость и/или др. параменты объекта']:
                                     non_perspective = re.search(
                                         r'неперспект[А-Яа-яёЁA-Za-z \n,.0-9:;"()«»\\–-]+?площадь[ \n]*.*[ \n]*\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*',
                                         text, re.IGNORECASE)
-                                    non_perspective = re.search(r'\d* *\d+[,]*\d*[ \n]+[а-яА-ЯёЁ]+', non_perspective.group(0), re.IGNORECASE).group(0)
+                                    non_perspective = re.search(r'\d* *\d+[,]*\d*[ \n]+[а-яА-ЯёЁ]+',
+                                                                non_perspective.group(0), re.IGNORECASE).group(0)
                                     if 'из них' not in table_info['Площадь, протяжённость и/или др. параменты объекта']:
-                                        table_info['Площадь, протяжённость и/или др. параменты объекта'] += ' (из них к неперспект. отнесено ' + non_perspective + ', '
+                                        table_info[
+                                            'Площадь, протяжённость и/или др. параменты объекта'] += ' (из них к неперспект. отнесено ' + non_perspective + ', '
                                     else:
-                                        table_info['Площадь, протяжённость и/или др. параменты объекта'] += ' к неперспект. - ' + non_perspective + ')'
+                                        table_info[
+                                            'Площадь, протяжённость и/или др. параменты объекта'] += ' к неперспект. - ' + non_perspective + ')'
 
-                                if small_perspective and 'малоперсп' not in table_info['Площадь, протяжённость и/или др. параменты объекта']:
+                                if small_perspective and 'малоперсп' not in table_info[
+                                    'Площадь, протяжённость и/или др. параменты объекта']:
                                     small_perspective = re.search(
                                         r'малоперспект[А-Яа-яёЁA-Za-z \n,.0-9:;"()«»\\–-]+?площадь[ \n]*.*[ \n]*\d* *\d+[,]*\d*[ \n]+[га]*[кв. м]*',
                                         text, re.IGNORECASE)
                                     small_perspective = re.search(r'\d* *\d+[,]*\d*[ \n]+[а-яА-ЯёЁ]+',
-                                                                small_perspective.group(0), re.IGNORECASE).group(0)
+                                                                  small_perspective.group(0), re.IGNORECASE).group(0)
                                     if 'из них' not in table_info['Площадь, протяжённость и/или др. параменты объекта']:
-                                        table_info['Площадь, протяжённость и/или др. параменты объекта'] += ' (из них к малоперсп. отнесено ' + small_perspective + ', '
+                                        table_info[
+                                            'Площадь, протяжённость и/или др. параменты объекта'] += ' (из них к малоперсп. отнесено ' + small_perspective + ', '
                                     else:
-                                        table_info['Площадь, протяжённость и/или др. параменты объекта'] += ' к малоперсп. - ' + small_perspective + ')'
+                                        table_info[
+                                            'Площадь, протяжённость и/или др. параменты объекта'] += ' к малоперсп. - ' + small_perspective + ')'
                         if 'из них' not in table_info['Площадь, протяжённость и/или др. параменты объекта']:
                             enter_reserve = False
                             square_object = None
                             line_object = None
                             if text_reserve:
                                 text_reserve += text
-                                text = text_reserve.replace('--- Факты и сведения, выявленные .*\n*.*исследований --- ', '')
+                                text = text_reserve.replace('--- Факты и сведения, выявленные .*\n*.*исследований --- ',
+                                                            '')
                                 text_reserve = None
                                 enter_reserve = True
                             else:
@@ -509,30 +584,41 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                                             table_info[
                                                 'Площадь, протяжённость и/или др. параменты объекта'] += 'лин. об. = ' + line_object + ')'
 
-                        table_info['Площадь, протяжённость и/или др. параменты объекта'] = table_info['Площадь, протяжённость и/или др. параменты объекта'].replace('  ', ' ')
+                        table_info['Площадь, протяжённость и/или др. параменты объекта'] = table_info[
+                            'Площадь, протяжённость и/или др. параменты объекта'].replace('  ', ' ')
                 conclusion = re.search(r'\(.[^\n ]+[^ \n]ельное[ \n]*заключение\)', text_to_write, re.IGNORECASE)
                 if conclusion:
                     table_info['Заключение. Выявленые объекты.'] = conclusion.group(0).replace('(', '').replace(')', '')
                 else:
                     conclusion = re.search(r'Заключение[ \n]*экспертизы[ \n]*.+', text_to_write, re.IGNORECASE)
                     if conclusion:
-                        table_info['Заключение. Выявленые объекты.'] = conclusion.group(0).replace('.', '').replace('Заключение экспертизы ','') + ' заключение'
+                        table_info['Заключение. Выявленые объекты.'] = conclusion.group(0).replace('.', '').replace(
+                            'Заключение экспертизы ', '') + ' заключение'
                         if voan_reserve and 'ВОАН' not in table_info['Заключение. Выявленые объекты.'] and \
                                 'отрицательное' in table_info['Заключение. Выявленые объекты.'].lower():
                             table_info['Заключение. Выявленые объекты.'] += voan_reserve
 
-                if not 'ОЛ' in table_info.keys() or 'от' not in table_info['ОЛ'] or '№' not in table_info['ОЛ'] or not re.search(r'[А-ЯЁ]+[а-яё]+', table_info['ОЛ']):
+                if not 'ОЛ' in table_info.keys() or 'от' not in table_info['ОЛ'] or '№' not in table_info[
+                    'ОЛ'] or not re.search(r'[А-ЯЁ]+[а-яё]+', table_info['ОЛ']):
                     #  Открытого[ \n]*листа[ \n]*[а-яА-Я \n0-9.]*№[\d -]+[а-яА-Я \n\d\.,(]*
                     #  Открытого листа[а-яА-Я \n]*№[\d -]+ от [\d. г]+[а-яА-Я \n,(]*на имя.+\..+\. [а-яА-Я]+
                     #  открытого[ \n]*листа[ \n]*[а-яА-Я \n]*№[\d -]+[а-яА-Я \n\d\.,(]*[а-яА-Я]+.+\..+\.
 
-                    open_list = re.search(r'[А-Яа-яёЁ]+\.*[ \n]*[А-Яа-яёЁ]+\.*[ \n]+[А-ЯЁ]+[а-яё]+[ \n]*.*[ \n]*Открыт.*[ \n]*лист.*[ \n]*[а-яА-ЯёЁ \n0-9.]*№[\d -]+[а-яА-ЯёЁ \n\d.,(-«»]*', text_to_write, re.IGNORECASE)
+                    open_list = re.search(
+                        r'[А-Яа-яёЁ]+\.*[ \n]*[А-Яа-яёЁ]+\.*[ \n]+[А-ЯЁ]+[а-яё]+[ \n]*.*[ \n]*Открыт.*[ \n]*лист.*[ \n]*[а-яА-ЯёЁ \n0-9.]*№[\d -]+[а-яА-ЯёЁ \n\d.,(-«»]*',
+                        text_to_write, re.IGNORECASE)
                     if not open_list:
-                        open_list = re.search(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]+\.*[ \n]*[А-Яа-яёЁ]+\.*[ \n]*.*[ \n]*Открыт.*[ \n]*лист.*[ \n]*[а-яА-ЯёЁ \n0-9.]*№[\d -]+[а-яА-ЯёЁ \n\d.,(-«»]*', text_to_write, re.IGNORECASE)
+                        open_list = re.search(
+                            r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]+\.*[ \n]*[А-Яа-яёЁ]+\.*[ \n]*.*[ \n]*Открыт.*[ \n]*лист.*[ \n]*[а-яА-ЯёЁ \n0-9.]*№[\d -]+[а-яА-ЯёЁ \n\d.,(-«»]*',
+                            text_to_write, re.IGNORECASE)
                     if not open_list:
-                        open_list = re.search(r'Открытый[ \n]*лист[ \n]*[а-яА-ЯёЁ \n0-9.]*№[\d -]+[а-яА-ЯёЁ \n\d.,(-«»]*?(?=Прил)', text_to_write, re.IGNORECASE)
+                        open_list = re.search(
+                            r'Открытый[ \n]*лист[ \n]*[а-яА-ЯёЁ \n0-9.]*№[\d -]+[а-яА-ЯёЁ \n\d.,(-«»]*?(?=Прил)',
+                            text_to_write, re.IGNORECASE)
                     if not open_list:
-                        open_list = re.search(r'Открыт.*[ \n]*лист.*[ \n]*[а-яА-ЯёЁ \n0-9.]*№[\d -]+[а-яА-ЯёЁ \n\d.,(-«»]*', text_to_write, re.IGNORECASE)
+                        open_list = re.search(
+                            r'Открыт.*[ \n]*лист.*[ \n]*[а-яА-ЯёЁ \n0-9.]*№[\d -]+[а-яА-ЯёЁ \n\d.,(-«»]*',
+                            text_to_write, re.IGNORECASE)
                     if open_list:
                         open_list = open_list.group(0)
                         list_holder = re.search(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]+\.[ \n]*[А-Яа-яёЁ]+\.', open_list)
@@ -543,7 +629,8 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                             if list_holder:
                                 list_holder = list_holder.group(0)
                         if not list_holder:
-                            list_holder = re.search(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+', open_list)
+                            list_holder = re.search(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+',
+                                                    open_list)
                             if list_holder:
                                 list_holder = list_holder.group(0)
                                 ''' Замена ИО на инициалы (иногда имя пишут первым, поэтому использование не всегда оправдано)
@@ -576,15 +663,18 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                             list_date = ''
                         table_info['ОЛ'] = list_holder + list_date + ' ' + list_number
 
-                voan = re.search(r'выявлен[\n ]+объект[\n ]+археологического[\n ]+наследия[\n ]+.*«.*»', text, re.IGNORECASE)
+                voan = re.search(r'выявлен[\n ]+объект[\n ]+археологического[\n ]+наследия[\n ]+.*«.*»', text,
+                                 re.IGNORECASE)
                 if not voan:
-                    voan = re.search(r'выявлен[\n ]+объект[\n ]+археологического[\n ]+наследия[\n ]+.*".*"', text,re.IGNORECASE)
+                    voan = re.search(r'выявлен[\n ]+объект[\n ]+археологического[\n ]+наследия[\n ]+.*".*"', text,
+                                     re.IGNORECASE)
                 if not voan:
-                    voan = re.search(r'ВОАН[\n ]+.*«.*»', text,re.IGNORECASE)
+                    voan = re.search(r'ВОАН[\n ]+.*«.*»', text, re.IGNORECASE)
                 if voan:
                     voan = voan.group(0)
-                    voan = ' ВОАН ' + voan[voan.find('«')-1:]
-                    if 'Заключение. Выявленые объекты.' in table_info.keys() and 'ВОАН' not in table_info['Заключение. Выявленые объекты.'] and \
+                    voan = ' ВОАН ' + voan[voan.find('«') - 1:]
+                    if 'Заключение. Выявленые объекты.' in table_info.keys() and 'ВОАН' not in table_info[
+                        'Заключение. Выявленые объекты.'] and \
                             'отрицательное' in table_info['Заключение. Выявленые объекты.'].lower():
                         table_info['Заключение. Выявленые объекты.'] += voan
                     else:
@@ -600,72 +690,72 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                     executor = executor[:re.search(r'.{1}\..{1}\..+', executor, re.IGNORECASE).start()]
                     table_info['Исполнитель полевых работ (юр. лицо)'] = executor
                 else:
-                    executor = re.search(r'Полное[ \n]*и[ \n]*сокращенное[ \n]*наименование[ \n]*организации[а-яА-ЯёЁa-zA-Z\n«»" -()]+?(?=Организационно)', text,
-                              re.IGNORECASE)
+                    executor = re.search(
+                        r'Полное[ \n]*и[ \n]*сокращенное[ \n]*наименование[ \n]*организации[а-яА-ЯёЁa-zA-Z\n«»" -()]+?(?=Организационно)',
+                        text,
+                        re.IGNORECASE)
                     if executor:
                         res = executor.group(0)
-                        executor = res[re.search(r'Полное[ \n]*и[ \n]*сокращенное[ \n]*наименование[ \n]*организации[ \n]*', res, re.IGNORECASE).end():]
+                        executor = res[
+                                   re.search(r'Полное[ \n]*и[ \n]*сокращенное[ \n]*наименование[ \n]*организации[ \n]*',
+                                             res, re.IGNORECASE).end():]
                         table_info['Исполнитель полевых работ (юр. лицо)'] = executor
 
                 if next_index:
                     current_part += 1
                     continue
-                elif current_part + 2 < len(act_parts) and re.search(act_parts[current_part+2].replace(' ', r'[ \n]*'), text):
+                elif current_part + 2 < len(act_parts) and re.search(
+                        act_parts[current_part + 2].replace(' ', r'[ \n]*'), text):
                     current_part += 2
                     continue
                 break
         total_processed[0] += len(document)
 
     if ('Площадь, протяжённость и/или др. параменты объекта' not in table_info.keys() or \
-            'Общ. S' not in table_info['Площадь, протяжённость и/или др. параменты объекта']) and len(SQUARE_RESERVE) > 0:
+        'Общ. S' not in table_info['Площадь, протяжённость и/или др. параменты объекта']) and len(SQUARE_RESERVE) > 0:
         table_info['Площадь, протяжённость и/или др. параменты объекта'] = 'Общ. S = ' + SQUARE_RESERVE[0]
     document.close()
 
     # pd.DataFrame(table_info,columns=table_columns,index=[0]).to_excel(folder + "/" + "table.xlsx", index=False, engine='openpyxl')
     df_new = pd.DataFrame(table_info, columns=table_columns, index=[0])
 
-    supplement = Supplement(
-        maps='Map data',
-        object_fotos='Object photos data',
-        pits_fotos='Pits photos data',
-        plans='Plans data',
-        material_fotos='Material photos data',
-        heritage_info='Heritage information'
-    )
-    supplement.save()
+    act = Act.objects.get(id=act_id)
 
-    act = Act(
-        user_id=user,
-        supplement_id=supplement.id,
+    act.supplement.maps = 'Map data'
+    act.supplement.object_fotos = 'Object photos data'
+    act.supplement.pits_fotos = 'Pits photos data'
+    act.supplement.plans = 'Plans data'
+    act.supplement.material_fotos = 'Material photos data'
+    act.supplement.heritage_info = 'Heritage information'
+    act.supplement.save()
 
-        year=df_new['ГОД'][0],
-        finish_date=df_new['Дата окончания проведения ГИКЭ'][0],
-        type=df_new['Вид ГИКЭ'][0],
-        name_number=df_new['Номер (если имеется) и наименование Акта ГИКЭ'][0],
-        place=df_new['Место проведения экспертизы'][0],
-        customer=df_new['Заказчик работ (*если не указан, то заказчик экспертизы)'][0],
-        area=df_new['Площадь, протяжённость и/или др. параменты объекта'][0],
-        expert=df_new['Эксперт (физ. или юр.лицо)'][0],
-        executioner=df_new['Исполнитель полевых работ (юр. лицо)'][0],
-        open_list=df_new['ОЛ'][0],
-        conclusion=df_new['Заключение. Выявленые объекты.'][0],
-        border_objects=df_new['Объекты расположенные в непосредственной близости. Для границ'][0],
-        source=pdf_file,
+    act.year = df_new['ГОД'][0]
+    act.finish_date = df_new['Дата окончания проведения ГИКЭ'][0]
+    act.type = df_new['Вид ГИКЭ'][0]
+    act.name_number = df_new['Номер (если имеется) и наименование Акта ГИКЭ'][0]
+    act.place = df_new['Место проведения экспертизы'][0]
+    act.customer = df_new['Заказчик работ (*если не указан, то заказчик экспертизы)'][0]
+    act.area = df_new['Площадь, протяжённость и/или др. параменты объекта'][0]
+    act.expert = df_new['Эксперт (физ. или юр.лицо)'][0]
+    act.executioner = df_new['Исполнитель полевых работ (юр. лицо)'][0]
+    act.open_list = df_new['ОЛ'][0]
+    act.conclusion = df_new['Заключение. Выявленые объекты.'][0]
+    act.border_objects = df_new['Объекты расположенные в непосредственной близости. Для границ'][0]
+    act.source = file
 
-        act= act_parts_info['Акт'],
-        start_date=act_parts_info['Дата начала'],
-        exp_place=act_parts_info[r'\d*\.*.*Место проведения [экспертизы]*:*'],
-        exp_customer=act_parts_info[r'\d*\.*.*Заказчик экспертизы'],
-        exp_expert=act_parts_info[r'\d*\.*.*[Сведения об]* эксперте'],
-        relationship=act_parts_info['Отношени[яе]+ к заказчику'],
-        goal=act_parts_info['Цель экспертизы:'],
-        object=act_parts_info['Объект .*?[экспертизы]*:*'],
-        docs=act_parts_info['Перечень документов, представленных'],
-        exp_info=act_parts_info['Сведения о проведенных исследованиях'],
-        exp_facts=act_parts_info['Факты и сведения, выявленные .*\n*.*исследований'],
-        literature=act_parts_info['Перечень[а-яА-ЯёЁ \n,]*литературы'],
-        exp_conclusion=act_parts_info['Вывод экспертизы'],
-    )
+    act.act = act_parts_info['Акт']
+    act.start_date = act_parts_info['Дата начала']
+    act.exp_place = act_parts_info[r'\d*\.*.*Место проведения [экспертизы]*:*']
+    act.exp_customer = act_parts_info[r'\d*\.*.*Заказчик экспертизы']
+    act.exp_expert = act_parts_info[r'\d*\.*.*[Сведения об]* эксперте']
+    act.relationship = act_parts_info['Отношени[яе]+ к заказчику']
+    act.goal = act_parts_info['Цель экспертизы:']
+    act.object = act_parts_info['Объект .*?[экспертизы]*:*']
+    act.docs = act_parts_info['Перечень документов, представленных']
+    act.exp_info = act_parts_info['Сведения о проведенных исследованиях']
+    act.exp_facts = act_parts_info['Факты и сведения, выявленные .*\n*.*исследований']
+    act.literature = act_parts_info['Перечень[а-яА-ЯёЁ \n,]*литературы']
+    act.exp_conclusion = act_parts_info['Вывод экспертизы']
     act.save()
 
     table_data = df_new
@@ -676,7 +766,8 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
     df_str = df_str.map(lambda x: x if re.search(r'[А-Яа-яёЁA-Za-z.0-9,]+', str(x), re.IGNORECASE) else np.nan)
     cells_sum = df_str.size - df_str.isnull().sum().sum()
     print(str(cells_sum) + '/' + str(df_str.size), str(round(cells_sum / df_str.size * 100, 2)) + '%')
-    df_new['Дата окончания проведения ГИКЭ'] = pd.to_datetime(df_new['Дата окончания проведения ГИКЭ'], format='%d.%m.%Y', dayfirst=True)
+    df_new['Дата окончания проведения ГИКЭ'] = pd.to_datetime(df_new['Дата окончания проведения ГИКЭ'],
+                                                              format='%d.%m.%Y', dayfirst=True)
     # df_new['Дата окончания проведения ГИКЭ'] = df_new['Дата окончания проведения ГИКЭ'].dt.date
     # df_new['Дата окончания проведения ГИКЭ'] = df_new['Дата окончания проведения ГИКЭ'] = [x.strftime("%d-%m-%y") for x in df_new.date]
     df_new.sort_values(by='Дата окончания проведения ГИКЭ', ascending=False, inplace=True)
@@ -709,7 +800,7 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
         color='FF000000'
     )
     {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
-    for i in range(1, len(df_new.values)+2):
+    for i in range(1, len(df_new.values) + 2):
         if i == 1:
             ws.row_dimensions[0].height = 50
         else:
