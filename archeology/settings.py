@@ -51,6 +51,8 @@ LOGIN_URL = 'login'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 AUTH_USER_MODEL = 'agregator.User'
+UPLOADED_URL = '/uploaded_files/'
+UPLOADED_ROOT = BASE_DIR / 'uploaded_files'
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",  # URL Angular

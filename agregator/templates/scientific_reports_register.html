@@ -1,0 +1,70 @@
+{% extends 'base.html' %}
+
+{% block title %}Реестр научных отчётов{% endblock %}
+
+{% block content %}
+	<!-- Заголовок страницы -->
+    <header class="hero">
+        <div class="container">
+            <h1 class="display-4">Реестр научных отчётов</h1>
+        </div>
+    </header>
+
+    <div class="container upload-section">
+		{% if table %}
+			<div class="table-responsive">
+                <!-- {{ table|safe }} -->
+			</div>
+        {% endif %}
+    </div>
+
+    <div class="table-responsive overflow-auto">
+    <table class="table table-striped w-100">
+        <thead>
+            <tr>
+                <th>Название</th>
+                <th>Организация</th>
+                <th>Автор</th>
+                <th>Открытый лист</th>
+                <th>Дата написания</th>
+                <th>Владелец документа</th>
+                <th>Формализованный документ</th>
+                <th>Исходный документ</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for report in reports %}
+                <tr>
+                    <td>
+                        {{ report.name }}
+                    </td>
+                    <td>
+                        {{ report.organization }}
+                    </td>
+                    <td>
+                        {{ report.author }}
+                    </td>
+                    <td>
+                        {{ report.open_list }}
+                    </td>
+                    <td>
+                        {{ report.writing_date }}
+                    </td>
+                    <td>
+                        <a href="/users/{{ report.user.id }}">
+                            <img src="{{ report.user.avatar.url }}" class="rounded-circle" height="25" width="25" loading="lazy" style="object-fit: cover;" alt=""/>
+                            {{ report.user.username }}
+                        </a>
+                    </td>
+                    <td>
+                        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;" href="/scientific_reports/{{ report.id }}">Просмотр</a>
+                    </td>
+                    <td>
+                        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;" href="/{{ report.source }}">Просмотр</a>
+                    </td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+{% endblock %}

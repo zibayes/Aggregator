@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактирование акта{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2>Редактирование акта</h2>
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="year" class="form-label">Год</label>
+                <input type="text" class="form-control" id="year" name="year" value="{{ act.year }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="finish_date" class="form-label">Дата окончания проведения ГИКЭ</label>
+                <input type="text" class="form-control" id="finish_date" name="finish_date" value="{{ act.finish_date }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="type" class="form-label">Вид ГИКЭ</label>
+                <input type="text" class="form-control" id="type" name="type" value="{{ act.type }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="name_number" class="form-label">Номер (если имеется) и наименование Акта ГИКЭ</label>
+                <input type="text" class="form-control" id="name_number" name="name_number" value="{{ act.name_number }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="place" class="form-label">Место проведения экспертизы</label>
+                <input type="text" class="form-control" id="place" name="place" value="{{ act.place }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="customer" class="form-label">Заказчик работ</label>
+                <input type="text" class="form-control" id="customer" name="customer" value="{{ act.customer }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="area" class="form-label">Площадь, протяжённость и/или др. параметры объекта</label>
+                <input type="text" class="form-control" id="area" name="area" value="{{ act.area }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="expert" class="form-label">Эксперт</label>
+                <input type="text" class="form-control" id="expert" name="expert" value="{{ act.expert }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="executioner" class="form-label">Исполнитель полевых работ</label>
+                <input type="text" class="form-control" id="executioner" name="executioner" value="{{ act.executioner }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="open_list" class="form-label">ОЛ</label>
+                <input type="text" class="form-control" id="open_list" name="open_list" value="{{ act.open_list }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="conclusion" class="form-label">Заключение. Выявленные объекты.</label>
+                <textarea class="form-control" id="conclusion" name="conclusion">{{ act.conclusion }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="border_objects" class="form-label">Объекты расположенные в непосредственной близости. Для границ</label>
+                <textarea class="form-control" id="border_objects" name="border_objects">{{ act.border_objects }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="source" class="form-label">Исходный документ</label>
+                <input type="file" class="form-control" id="source" name="source">
+            </div>
+
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+        </form>
+    </div>
+{% endblock %}

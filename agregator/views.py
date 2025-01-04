@@ -14,6 +14,8 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
+from rest_framework import generics
+from . import serializers
 
 import asyncio
 from django.http import JsonResponse
@@ -25,9 +27,9 @@ from celery import shared_task
 from celery.result import AsyncResult
 from celery_progress.backend import ProgressRecorder
 from django_celery_results.models import TaskResult
-from .forms import UserProfileForm
-from .models import User
-import base64
+from .models import User, Act, ScientificReport, TechReport, Supplement, OpenLists
+from openpyxl import load_workbook, Workbook
+from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 
 
 def index(request):
@@ -39,7 +41,7 @@ def deconstructor(request):
     if request.method == 'POST':
         if 'acts' in request.POST:
             form = UploadFileForm()
-            table_path = "uploaded_files/РЕЕСТР актов ГИКЭ.xlsx"
+            table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
             df = pd.DataFrame()
             if os.path.exists(table_path):
                 df_existing = pd.read_excel(table_path, engine='openpyxl')
@@ -109,12 +111,13 @@ def interactive_map(request):
     return render(request, 'interactive_map.html')
 
 
-def demonstrator(request):
-    table_path = "uploaded_files/РЕЕСТР актов ГИКЭ.xlsx"
+def acts_register(request):
+    table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
     df_existing = None
+    acts = Act.objects.all()
     if os.path.exists(table_path):
         df_existing = pd.read_excel(table_path, engine='openpyxl').to_html(classes='table table-striped')
-    return render(request, 'demonstrator.html', {'table': df_existing})
+    return render(request, 'acts_register.html', {'table': df_existing, 'acts': acts})
 
 
 @login_required
@@ -122,7 +125,7 @@ def open_list_ocr(request):
     if request.method == 'POST':
         form = UploadFileForm()
         if 'open_lists' in request.POST:
-            table_path = "uploaded_files/Открытые листы.xlsx"
+            table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
             df = pd.DataFrame()
             if os.path.exists(table_path):
                 df_existing = pd.read_excel(table_path, engine='openpyxl')
@@ -151,11 +154,17 @@ def open_list_ocr(request):
                 uploaded_files = form.cleaned_data['files']
                 files = []
                 for file in uploaded_files:
+                    last_id = OpenLists.objects.last()
+                    if not last_id:
+                        last_id = 0
+                    else:
+                        last_id = last_id.id
+                    file.name = str(last_id + 1) + '_open_list.pdf'
                     files.append(file.name)
-                    with open('uploaded_files/' + file.name, 'wb+') as destination:
+                    with open('uploaded_files/open_lists/' + file.name, 'wb+') as destination:
                         for chunk in file.chunks():
                             destination.write(chunk)
-                task = process_open_lists.delay(files)
+                task = process_open_lists.delay(files, request.user.id)
                 return render(request, 'open_list_ocr.html', {'form': form, 'task_id': task.task_id})
     else:
         form = UploadFileForm()
@@ -209,7 +218,7 @@ def custom_logout(request):
 
 @login_required
 def profile(request):
-    return render(request, 'profile.html')
+    return render(request, 'profile.html', {'user_to_show': request.user})
 
 
 @login_required
@@ -234,8 +243,248 @@ def settings(request):
 
 
 def open_lists_register(request):
-    table_path = "uploaded_files/Открытые листы.xlsx"
+    table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
+    open_lists = OpenLists.objects.all()
     df_existing = None
     if os.path.exists(table_path):
         df_existing = pd.read_excel(table_path, engine='openpyxl').to_html(classes='table table-striped')
-    return render(request, 'open_lists_register.html', {'table': df_existing})
+    return render(request, 'open_lists_register.html', {'table': df_existing, 'open_lists': open_lists})
+
+
+def open_lists_register_download(request):
+    table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
+    open_lists = OpenLists.objects.all()
+    df_existing = None
+    for list in open_lists:
+        list_data = {'Номер листа': '', 'Держатель': '', 'Объект': '', 'Работы': '', 'Начало срока': '',
+                     'Конец срока': ''}
+        list_data['Номер листа'] = list.number,
+        list_data['Держатель'] = list.holder,
+        list_data['Объект'] = list.object,
+        list_data['Работы'] = list.works,
+        list_data['Начало срока'] = list.start_date,
+        list_data['Конец срока'] = list.end_date,
+        df_new = pd.DataFrame(list_data, columns=list_data.keys(), index=[0])
+        if df_existing is None:
+            df_existing = df_new
+        else:
+            df_existing = df_existing._append(df_new, ignore_index=True)
+    with pd.ExcelWriter(table_path) as writer:
+        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
+    wb = load_workbook(table_path)
+    ws = wb.active
+    ws.column_dimensions['A'].width = 14
+    ws.column_dimensions['B'].width = 20
+    ws.column_dimensions['C'].width = 100
+    ws.column_dimensions['D'].width = 100
+    ws.column_dimensions['E'].width = 14
+    ws.column_dimensions['F'].width = 14
+    font = Font(
+        name='Times New Roman',
+        size=11,
+        bold=False,
+        italic=False,
+        vertAlign=None,
+        underline='none',
+        strike=False,
+        color='FF000000'
+    )
+    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
+    for i in range(1, len(df_existing.values) + 2):
+        if i == 1:
+            ws.row_dimensions[0].height = 50
+        else:
+            ws.row_dimensions[i].height = 80
+        for cell in ws[i]:
+            if cell.value:
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    wb.save(table_path)
+    return redirect('/uploaded_files/open_lists/Открытые листы.xlsx')
+
+
+def acts_register_download(request):
+    table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
+    act_parts = ['ГОД',	'Дата окончания проведения ГИКЭ', 'Вид ГИКЭ', 'Номер (если имеется) и наименование Акта ГИКЭ',
+                     'Место проведения экспертизы',
+                     'Заказчик работ (*если не указан, то заказчик экспертизы)',
+                     'Площадь, протяжённость и/или др. параменты объекта', 'Эксперт (физ. или юр.лицо)',
+                     'Исполнитель полевых работ (юр. лицо)', 'ОЛ', 'Заключение. Выявленые объекты.',
+                     'Объекты расположенные в непосредственной близости. Для границ']
+    acts = Act.objects.all()
+    df_existing = None
+    for act in acts:
+        act_parts_info = {i: '' for i in act_parts}
+        act_parts_info['ГОД'] = act.year,
+        act_parts_info['Дата окончания проведения ГИКЭ'] = act.finish_date,
+        act_parts_info['Вид ГИКЭ'] = act.type,
+        act_parts_info['Номер (если имеется) и наименование Акта ГИКЭ'] = act.name_number,
+        act_parts_info['Место проведения экспертизы'] = act.place,
+        act_parts_info['Заказчик работ (*если не указан, то заказчик экспертизы)'] = act.customer,
+        act_parts_info['Площадь, протяжённость и/или др. параменты объекта'] = act.area,
+        act_parts_info['Эксперт (физ. или юр.лицо)'] = act.expert,
+        act_parts_info['Исполнитель полевых работ (юр. лицо)'] = act.executioner,
+        act_parts_info['ОЛ'] = act.open_list,
+        act_parts_info['Заключение. Выявленые объекты.'] = act.conclusion,
+        act_parts_info['Объекты расположенные в непосредственной близости. Для границ'] = act.border_objects,
+        df_new = pd.DataFrame(act_parts_info, columns=act_parts_info.keys(), index=[0])
+        if df_existing is None:
+            df_existing = df_new
+        else:
+            df_existing = df_existing._append(df_new, ignore_index=True)
+    with pd.ExcelWriter(table_path) as writer:
+        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
+    wb = load_workbook(table_path)
+    ws = wb.active
+    ws.column_dimensions['A'].width = 6.86
+    ws.column_dimensions['B'].width = 10.14
+    ws.column_dimensions['C'].width = 10.14
+    ws.column_dimensions['D'].width = 66.43
+    ws.column_dimensions['E'].width = 24
+    ws.column_dimensions['F'].width = 26
+    ws.column_dimensions['G'].width = 20.71
+    ws.column_dimensions['H'].width = 18.43
+    ws.column_dimensions['I'].width = 24.71
+    ws.column_dimensions['J'].width = 21.29
+    ws.column_dimensions['K'].width = 26
+    ws.column_dimensions['L'].width = 27.29
+    font = Font(
+        name='Times New Roman',
+        size=11,
+        bold=False,
+        italic=False,
+        vertAlign=None,
+        underline='none',
+        strike=False,
+        color='FF000000'
+    )
+    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
+    for i in range(1, len(df_existing.values) + 2):
+        if i == 1:
+            ws.row_dimensions[0].height = 50
+        else:
+            ws.row_dimensions[i].height = 80
+        for cell in ws[i]:
+            if cell.value:
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    wb.save(table_path)
+    return redirect('/uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx')
+
+
+def scientific_reports_register(request):
+    reports = ScientificReport.objects.all()
+    return render(request, 'scientific_reports_register.html', {'reports': reports})
+
+
+def users(request, pk):
+    user = User.objects.get(id=pk)
+    return render(request, 'profile.html', {'user_to_show': user})
+
+
+def acts(request, pk):
+    act = Act.objects.get(id=pk)
+    return render(request, 'act.html', {'act': act})
+
+
+@login_required
+def acts_edit(request, pk):
+    act = Act.objects.get(id=pk)
+    if request.method == 'POST':
+        act.year = request.POST['year']
+        act.finish_date = request.POST['finish_date']
+        act.type = request.POST['type']
+        act.name_number = request.POST['name_number']
+        act.place = request.POST['place']
+        act.customer = request.POST['customer']
+        act.area = request.POST['area']
+        act.expert = request.POST['expert']
+        act.executioner = request.POST['executioner']
+        act.open_list = request.POST['open_list']
+        act.conclusion = request.POST['conclusion']
+        act.border_objects = request.POST['border_objects']
+        if 'source' in request.FILES.keys():
+            act.source = request.FILES['source']
+        act.save()
+        messages.success(request, 'Акт успешно обновлен.')
+        return redirect(f'/acts/{act.id}')  # Перенаправление на страницу профиля
+
+    return render(request, 'act_edit.html', {'act': act})
+
+
+def scientific_reports(request, pk):
+    report = ScientificReport.objects.get(id=pk)
+    return render(request, 'scientific_report.html', {'report': report})
+
+
+@login_required
+def scientific_reports_edit(request, pk):
+    report = ScientificReport.objects.get(id=pk)
+    if request.method == 'POST':
+        report.name = request.POST['name']
+        report.organization = request.POST['organization']
+        report.author = request.POST['author']
+        report.open_list = request.POST['open_list']
+        report.writing_date = request.POST['writing_date']
+        report.introduction = request.POST['introduction']
+        report.contractors = request.POST['contractors']
+        report.place = request.POST['place']
+        report.area_info = request.POST['area_info']
+        report.research_history = request.POST['research_history']
+        report.results = request.POST['results']
+        report.conclusion = request.POST['conclusion']
+        if 'source' in request.FILES.keys():
+            report.source = request.FILES['source']
+        report.save()
+        messages.success(request, 'Отчёт успешно обновлен.')
+        return redirect(f'/scientific_reports/{report.id}')  # Перенаправление на страницу профиля
+
+    return render(request, 'scientific_report_edit.html', {'report': report})
+
+
+class UserList(generics.ListAPIView):
+    queryset = User.objects.all()
+    serializer_class = serializers.UserSerializer
+
+
+class UserDetail(generics.RetrieveAPIView):
+    queryset = User.objects.all()
+    serializer_class = serializers.UserSerializer
+
+
+class ActList(generics.ListAPIView):
+    queryset = Act.objects.all()
+    serializer_class = serializers.ActSerializer
+
+
+class ActDetail(generics.RetrieveAPIView):
+    queryset = Act.objects.all()
+    serializer_class = serializers.ActSerializer
+
+
+class ScientificReportList(generics.ListAPIView):
+    queryset = ScientificReport.objects.all()
+    serializer_class = serializers.ScientificReport
+
+
+class ScientificReportDetail(generics.RetrieveAPIView):
+    queryset = ScientificReport.objects.all()
+    serializer_class = serializers.ScientificReportSerializer
+
+
+class TechReportList(generics.ListAPIView):
+    queryset = TechReport.objects.all()
+    serializer_class = serializers.TechReport
+
+
+class TechReportDetail(generics.RetrieveAPIView):
+    queryset = TechReport.objects.all()
+    serializer_class = serializers.TechReportSerializer
+
+
+class SupplementList(generics.ListAPIView):
+    queryset = Supplement.objects.all()
+    serializer_class = serializers.SupplementSerializer
+
+
+class SupplementDetail(generics.RetrieveAPIView):
+    queryset = Supplement.objects.all()
+    serializer_class = serializers.SupplementSerializer

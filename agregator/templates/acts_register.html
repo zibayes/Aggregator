@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+
+{% block title %}Реестр актов{% endblock %}
+
+{% block content %}
+	<!-- Заголовок страницы -->
+    <header class="hero">
+        <div class="container">
+            <h1 class="display-4">Реестр актов</h1>
+        </div>
+    </header>
+
+    <div class="container upload-section">
+		{% if table %}
+			<div class="table-responsive">
+                <!-- {{ table|safe }} -->
+			</div>
+        {% endif %}
+    </div>
+
+    <div class="accordion" id="accordionColumns">
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+            Отображение колонок
+          </button>
+        </h2>
+        <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+          <div class="accordion-body">
+            <label><input type="checkbox" class="column-toggle" data-column="0" checked> Год</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="1" checked> Дата окончания проведения ГИКЭ</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="2" checked> Вид ГИКЭ</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="3" checked> Номер и наименование Акта ГИКЭ</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="4" checked> Место проведения экспертизы</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="5" checked> Заказчик работ</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="6" checked> Площадь, параметры</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="7" checked> Эксперт</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="8" checked> Исполнитель</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="9" checked> ОЛ</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="10" checked> Заключение</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="11" checked> Объекты вблизи</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="12" checked> Владелец документа</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="13" checked> Формализованный документ</label><br>
+            <label><input type="checkbox" class="column-toggle" data-column="14" checked> Исходный документ</label><br>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <a href="/acts_register_download/">
+        Скачать реестр в формате .xlxs
+    </a>
+
+    <div class="table-responsive overflow-auto">
+        <table class="table table-striped w-100">
+            <thead>
+                <tr>
+                    <th>Год</th>
+                    <th>Дата окончания проведения ГИКЭ</th>
+                    <th>Вид ГИКЭ</th>
+                    <th>Номер (если имеется) и наименование Акта ГИКЭ</th>
+                    <th>Место проведения экспертизы</th>
+                    <th>Заказчик работ (*если не указан, то заказчик экспертизы)</th>
+                    <th>Площадь, протяжённость и/или др. параменты объекта</th>
+                    <th>Эксперт (физ. или юр.лицо)</th>
+                    <th>Исполнитель полевых работ (юр. лицо)</th>
+                    <th>ОЛ</th>
+                    <th>Заключение. Выявленые объекты.</th>
+                    <th>Объекты расположенные в непосредственной близости. Для границ</th>
+                    <th>Владелец документа</th>
+                    <th>Формализованный документ</th>
+                    <th>Исходный документ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for act in acts %}
+                    <tr>
+                        <td>
+                            {{ act.year }}
+                        </td>
+                        <td>
+                            {{ act.finish_date }}
+                        </td>
+                        <td>
+                            {{ act.type }}
+                        </td>
+                        <td>
+                            {{ act.name_number }}
+                        </td>
+                        <td>
+                            {{ act.place }}
+                        </td>
+                        <td>
+                            {{ act.customer }}
+                        </td>
+                        <td>
+                            {{ act.area }}
+                        </td>
+                        <td>
+                            {{ act.expert }}
+                        </td>
+                        <td>
+                            {{ act.executioner }}
+                        </td>
+                        <td>
+                            {{ act.open_list }}
+                        </td>
+                        <td>
+                            {{ act.conclusion }}
+                        </td>
+                        <td>
+                            {{ act.border_objects }}
+                        </td>
+                        <td>
+                            <a href="/users/{{ act.user.id }}">
+                                <img src="{{ act.user.avatar.url }}" class="rounded-circle" height="25" width="25" loading="lazy" style="object-fit: cover;" alt=""/>
+                                {{ act.user.username }}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="/acts/{{ act.id }}">
+                                <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Просмотр</button>
+                            </a>
+                        </td>
+                        <td>
+                            <a href="/{{ act.source }}">
+                                <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Просмотр</button>
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

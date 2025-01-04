@@ -69,7 +69,7 @@ def external_storage_acts_processing(uploaded_files):
     for file in uploaded_files:
         if not file.lower().endswith('.pdf'):
             continue
-        with fitz.open('uploaded_files/' + file) as pdf_doc:
+        with fitz.open('uploaded_files/acts/' + file) as pdf_doc:
             pages_count += len(pdf_doc)
     # table = save_and_process_files.delay(files)
     task = save_and_process_files.delay(uploaded_files, pages_count)
@@ -80,12 +80,18 @@ def local_storage_acts_processing(uploaded_files, user):
     files = []
     pages_count = 0
     for file in uploaded_files:
+        last_id = Act.objects.last()
+        if not last_id:
+            last_id = 0
+        else:
+            last_id = last_id.id
+        file.name = str(last_id + 1) + '_act.pdf'
         files.append(file.name)
         # Сохраняем файл во временную директорию
-        with open('uploaded_files/' + file.name, 'wb+') as destination:
+        with open('uploaded_files/acts/' + file.name, 'wb+') as destination:
             for chunk in file.chunks():
                 destination.write(chunk)
-        with fitz.open('uploaded_files/' + file.name) as pdf_doc:
+        with fitz.open('uploaded_files/acts/' + file.name) as pdf_doc:
             pages_count += len(pdf_doc)
     # table = save_and_process_files.delay(files)
     task = save_and_process_files.delay(files, pages_count, user.id)
@@ -103,7 +109,7 @@ def save_and_process_files(self, uploaded_files, pages_count, user):
     for file in uploaded_files:
         if not file.lower().endswith('.pdf'):
             continue
-        new_table = extract_text_and_images('uploaded_files/' + file, progress_recorder, pages_count,
+        new_table = extract_text_and_images('uploaded_files/acts/' + file, progress_recorder, pages_count,
                                             total_processed, uploaded_files, user)
         if isinstance(new_table, pd.DataFrame):
             if table is not None:
@@ -137,6 +143,7 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                     #              'справочной литературы', 'Обоснования вывода экспертизы',
                     'Вывод экспертизы', 'Перечень приложений']
     act_sub_parts = ['Характеристика объекта']
+    act_parts_info = {i:'' for i in act_parts}
     object_info = ''
     place_info = ''
 
@@ -149,7 +156,7 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
                      'Объекты расположенные в непосредственной близости. Для границ']
     months = {'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04', 'мая': '05', 'июня': '06', 'июля': '07',
               'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12',}
-    table_path = "uploaded_files/РЕЕСТР актов ГИКЭ.xlsx"
+    table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
     broken_structure = False
     exploration_object= False
     sectors_square = []
@@ -202,6 +209,7 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
 
                 text_to_write = text[current_index:next_index.start() if next_index else len(text)]
                 text_file.write(f"--- {act_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
+                act_parts_info[act_parts[current_part]] += text_to_write
 
                 full_time_interval = None
                 interval_type = None
@@ -629,15 +637,34 @@ def extract_text_and_images(pdf_file, progress_recorder, pages_count, total_proc
     act = Act(
         user_id=user,
         supplement_id=supplement.id,
-        object=object_info,
-        place=place_info,
-        area='Area description',
-        pits='Pits description',
-        coordinates='Coordinates data',
-        expert=df_new['Эксперт (физ. или юр.лицо)'][0],
+
+        year=df_new['ГОД'][0],
+        finish_date=df_new['Дата окончания проведения ГИКЭ'][0],
+        type=df_new['Вид ГИКЭ'][0],
+        name_number=df_new['Номер (если имеется) и наименование Акта ГИКЭ'][0],
+        place=df_new['Место проведения экспертизы'][0],
         customer=df_new['Заказчик работ (*если не указан, то заказчик экспертизы)'][0],
+        area=df_new['Площадь, протяжённость и/или др. параменты объекта'][0],
+        expert=df_new['Эксперт (физ. или юр.лицо)'][0],
+        executioner=df_new['Исполнитель полевых работ (юр. лицо)'][0],
         open_list=df_new['ОЛ'][0],
-        conclusion=df_new['Заключение. Выявленые объекты.'][0]
+        conclusion=df_new['Заключение. Выявленые объекты.'][0],
+        border_objects=df_new['Объекты расположенные в непосредственной близости. Для границ'][0],
+        source=pdf_file,
+
+        act= act_parts_info['Акт'],
+        start_date=act_parts_info['Дата начала'],
+        exp_place=act_parts_info[r'\d*\.*.*Место проведения [экспертизы]*:*'],
+        exp_customer=act_parts_info[r'\d*\.*.*Заказчик экспертизы'],
+        exp_expert=act_parts_info[r'\d*\.*.*[Сведения об]* эксперте'],
+        relationship=act_parts_info['Отношени[яе]+ к заказчику'],
+        goal=act_parts_info['Цель экспертизы:'],
+        object=act_parts_info['Объект .*?[экспертизы]*:*'],
+        docs=act_parts_info['Перечень документов, представленных'],
+        exp_info=act_parts_info['Сведения о проведенных исследованиях'],
+        exp_facts=act_parts_info['Факты и сведения, выявленные .*\n*.*исследований'],
+        literature=act_parts_info['Перечень[а-яА-ЯёЁ \n,]*литературы'],
+        exp_conclusion=act_parts_info['Вывод экспертизы'],
     )
     act.save()
 

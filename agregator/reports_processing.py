@@ -20,14 +20,20 @@ def local_storage_reports_processing(uploaded_files, user):
     files = []
     pages_count = 0
     for file in uploaded_files:
+        last_id = ScientificReport.objects.last()
+        if not last_id:
+            last_id = 0
+        else:
+            last_id = last_id.id
+        file.name = str(last_id+ 1) + '_report.pdf'
         files.append(file.name)
         # Сохраняем файл во временную директорию
-        with open('uploaded_files/' + file.name, 'wb+') as destination:
+        with open('uploaded_files/reports/' + file.name, 'wb+') as destination:
             for chunk in file.chunks():
                 destination.write(chunk)
-        with fitz.open('uploaded_files/' + file.name) as pdf_doc:
+        with fitz.open('uploaded_files/reports/' + file.name) as pdf_doc:
             pages_count += len(pdf_doc)
-    task = extract_text_and_images.delay(files, pages_count, user)
+    task = extract_text_and_images.delay(files, pages_count, user.id)
     return task
 
 @shared_task(bind=True)
@@ -37,7 +43,7 @@ def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
     progress_recorder.set_progress(total_processed[0], 100, uploaded_files)
 
     for file in uploaded_files:
-        file = 'uploaded_files/' + file
+        file = 'uploaded_files/reports/' + file
         document = fitz.open(file)
 
         folder = file[:file.rfind(".")]
@@ -45,6 +51,7 @@ def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
 
         # Разделы
         report_parts = ['АННОТАЦИЯ', 'ОГЛАВЛЕНИЕ']  # , 'ведение', 'список исполнителей работ'
+        report_parts_info = {i: '' for i in report_parts}
         df = None
 
         # Создаем или очищаем текстовый файл
@@ -72,10 +79,12 @@ def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
                         if df is None or df is not None and page_number+1 == int(df[df['Раздел'] == report_parts[current_part+1]]['Страницы']):
                             next_index = re.search(report_parts[current_part+1], text, re.IGNORECASE)
                     if current_index or found_part:
+                        text_to_write = text[current_index:next_index.start() if next_index else len(text)]
+                        report_parts_info[report_parts[current_part]] += text_to_write
                         if start_page == page_number+1:
-                            text_file.write(f"--- {report_parts[current_part]} --- (стр. {page_number + 1}):\n{text[current_index:next_index.start() if next_index else len(text)]}\n")
+                            text_file.write(f"--- {report_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
                         else:
-                            text_file.write(f"{text[current_index:next_index.start() if next_index else len(text)]}\n")
+                            text_file.write(f"{text_to_write}\n")
                         found_part = True
                     if next_index:
                         current_part += 1
@@ -88,6 +97,8 @@ def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
                                     if '-' in row['Страницы']:
                                         row['Страницы'] = row['Страницы'][:row['Страницы'].find('-')]
                                 report_parts = list(df['Раздел'])
+                                report_parts_info = dict(list({i: report_parts_info[i] for i in report_parts if i in report_parts_info.keys()}.items()) +
+                                                         list({i: '' for i in report_parts if i not in report_parts_info.keys()}.items()))
                         continue
                     break
 
@@ -200,20 +211,21 @@ def extract_text_and_images(self, uploaded_files, pages_count, user) -> None:
         supplement.save()
 
         scientific_report = ScientificReport(
-            user=user,
+            user_id=user,
             supplement=supplement,
             name='Scientific Report Title',
             organization='Organization Name',
             author='Author Name',
-            open_list='Open List Data',
+            open_list=report_parts_info['ОТКРЫТЫЙ ЛИСТ'],
             writing_date='2023-10-01',
-            introduction='Introduction text',
-            contractors='Contractors information',
+            introduction=report_parts_info['ВВЕДЕНИЕ'],
+            contractors=report_parts_info['СПИСОК ИСПОЛНИТЕЛЕЙ РАБОТ'],
             place='Research place',
             area_info='Area information',
             research_history='Research history text',
             results='Results text',
-            conclusion='Conclusion text'
+            conclusion='Conclusion text',
+            source=file
         )
         scientific_report.save()
 

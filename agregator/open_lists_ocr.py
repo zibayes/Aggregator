@@ -18,6 +18,7 @@ import Levenshtein
 import matplotlib.pyplot as plt
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
+from .models import OpenLists
 
 MAX_VAL = 255
 UPSCALE = [1]
@@ -242,7 +243,7 @@ def change_img_perspect(img, dst_pts, src_pts=None):
                                dsize=(w, h))
 
 @shared_task(bind=True)
-def process_open_lists(self, uploaded_files):
+def process_open_lists(self, uploaded_files, user):
     table = None
     progress_recorder = ProgressRecorder(self)
     total_processed = [0]
@@ -253,7 +254,7 @@ def process_open_lists(self, uploaded_files):
                                        uploaded_files)
         if not file.lower().endswith('.pdf'):
             continue
-        new_table = open_list_ocr('uploaded_files/', file)
+        new_table = open_list_ocr('uploaded_files/open_lists/', file, user)
         if isinstance(new_table, pd.DataFrame):
             if table is not None:
                 table = table._append(new_table, ignore_index=True)
@@ -266,12 +267,12 @@ def process_open_lists(self, uploaded_files):
         table = table['Номер листа'].tolist()
     return table
 
-def open_list_ocr(file_path, pdf_path):
+def open_list_ocr(file_path, pdf_path, user):
     false_date = []
     image = None
     image_filename = None
-
-    document = fitz.open(file_path + pdf_path)
+    path = file_path + pdf_path
+    document = fitz.open(path)
     for page_number in range(len(document)):
         # page = document[page_number]
         page = document.load_page(page_number)
@@ -279,7 +280,7 @@ def open_list_ocr(file_path, pdf_path):
         pix = page.get_pixmap(dpi = 300)  # Получаем картинку страницы
         image_filename = translit(pdf_path[:pdf_path.rfind(".")], 'ru', reversed=True)
         folder = file_path + '/' + image_filename
-        Path(folder).mkdir(exist_ok=True)
+        # Path(folder).mkdir(exist_ok=True)
         image_filename = image_filename + ".png"
         pix.save(image_filename)
 
@@ -533,7 +534,20 @@ def open_list_ocr(file_path, pdf_path):
                 break
             '''
         os.remove(image_filename)
-        table_path = "uploaded_files/Открытые листы.xlsx"
+
+        scientific_report = OpenLists(
+            user_id=user,
+            number=list_data['Номер листа'],
+            holder=list_data['Держатель'],
+            object=list_data['Объект'],
+            works=list_data['Работы'],
+            start_date=list_data['Начало срока'],
+            end_date=list_data['Конец срока'],
+            source=path
+        )
+        scientific_report.save()
+
+        table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
         df_new = pd.DataFrame(list_data, columns=list_data.keys(), index=[0])
         table_data = df_new
         if os.path.exists(table_path):

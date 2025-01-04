@@ -49,7 +49,7 @@ def external_sources_processing(self):
                 file_not_found = False
 
                 try:
-                    urllib.request.urlretrieve(f"https://ookn.ru{href}", 'uploaded_files/' + file_encoded)
+                    urllib.request.urlretrieve(f"https://ookn.ru{href}", 'uploaded_files/acts/' + file_encoded)
                 except Exception:
                     print("Файл не найден")
                     file_not_found = True
@@ -57,7 +57,7 @@ def external_sources_processing(self):
                 while file_not_found is False:
                     sleep(1.5)
                     try:
-                        with fitz.open('uploaded_files/' + file_encoded) as pdf_doc:
+                        with fitz.open('uploaded_files/acts/' + file_encoded) as pdf_doc:
                             print('PAGES! ' + str(len(pdf_doc)))
                         external_storage_acts_processing([file_encoded])
                         break

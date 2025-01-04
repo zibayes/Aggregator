@@ -14,8 +14,64 @@
     <div class="container upload-section">
 		{% if table %}
 			<div class="table-responsive">
-				{{ table|safe }}  <!-- Безопасное отображение HTML -->
+				<!-- {{ table|safe }} -->
 			</div>
         {% endif %}
+    </div>
+
+    <a href="/open_lists_register_download/">
+        Скачать реестр в формате .xlxs
+    </a>
+
+    <div class="table-responsive overflow-auto">
+        <table class="table table-striped w-100">
+            <thead>
+                <tr>
+                    <th>Номер листа</th>
+                    <th>Держатель</th>
+                    <th>Объект</th>
+                    <th>Работы</th>
+                    <th>Начало строка</th>
+                    <th>Конец срока</th>
+                    <th>Владелец документа</th>
+                    <th>Исходный документ</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for open_list in open_lists %}
+                    <tr>
+                        <td>
+                            {{ open_list.number }}
+                        </td>
+                        <td>
+                            {{ open_list.holder }}
+                        </td>
+                        <td>
+                            {{ open_list.object }}
+                        </td>
+                        <td>
+                            {{ open_list.works }}
+                        </td>
+                        <td>
+                            {{ open_list.start_date }}
+                        </td>
+                        <td>
+                            {{ open_list.end_date }}
+                        </td>
+                        <td>
+                            <a href="/users/{{ open_list.user.id }}">
+                                <img src="{{ open_list.user.avatar.url }}" class="rounded-circle" height="25" width="25" loading="lazy" style="object-fit: cover;" alt=""/>
+                                {{ open_list.user.username }}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="/{{ open_list.source }}">
+                                <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Просмотр</button>
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
     </div>
 {% endblock %}
