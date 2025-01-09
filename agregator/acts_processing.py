@@ -1,3 +1,6 @@
+import copy
+import json
+
 import fitz  # PyMuPDF
 from pathlib import Path
 import tkinter as tk
@@ -15,11 +18,15 @@ import math
 import numpy as np
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
+from django_celery_results.models import TaskResult
 from time import sleep
-from .models import Act, Supplement, User
+from .models import Act, User
 from .hash import calculate_file_hash
+from .images_extraction import extract_images_with_captions, SUPPLEMENT_CONTENT
+import redis
 
 SQUARE_RESERVE = []
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 def choose_pdf_file() -> str:
@@ -75,84 +82,87 @@ def external_storage_acts_processing(uploaded_files):
         with fitz.open('uploaded_files/acts/' + file) as pdf_doc:
             pages_count += len(pdf_doc)
     # table = save_and_process_files.delay(files)
-    task = save_and_process_files.delay(uploaded_files, pages_count)
-    # task = test_task.delay(1)
-    return task
-
-
-def local_storage_acts_processing(uploaded_files, user):
-    files = []
-    acts_ids = []
-    pages_count = 0
-    for file in uploaded_files:
-        supplement = Supplement(
-            maps='Map data',
-            object_fotos='Object photos data',
-            pits_fotos='Pits photos data',
-            plans='Plans data',
-            material_fotos='Material photos data',
-            heritage_info='Heritage information'
-        )
-        supplement.save()
-
-        act = Act(user_id=user.id, supplement_id=supplement.id)
-        act.save()
-        acts_ids.append(act.id)
-        file.name = str(act.id) + '_act.pdf'
-        files.append(file.name)
-        # Сохраняем файл во временную директорию
-        with open('uploaded_files/acts/' + file.name, 'wb+') as destination:
-            for chunk in file.chunks():
-                destination.write(chunk)
-        with fitz.open('uploaded_files/acts/' + file.name) as pdf_doc:
-            pages_count += len(pdf_doc)
-    # table = save_and_process_files.delay(files)
-    task = save_and_process_files.delay(files, pages_count, acts_ids)
+    # task = save_and_process_files.delay(uploaded_files, pages_count)
+    task = 1
     # task = test_task.delay(1)
     return task
 
 
 @shared_task(bind=True)
-def save_and_process_files(self, uploaded_files, pages_count, acts_ids):
+def process_acts(self, acts_ids, pages_count, origin_filenames):
     table = None
     progress_recorder = ProgressRecorder(self)
-    # progress_recorder.set_progress(i, len(uploaded_files), f'On iter {i}')
     total_processed = [0]
     already_uploaded = []
-    progress_recorder.set_progress(total_processed[0], 100, uploaded_files)
-    i = 0
-    for file in uploaded_files:
-        if not file.lower().endswith('.pdf'):
-            continue
-        new_table = extract_text_and_images('acts/' + file, progress_recorder, pages_count,
-                                            total_processed, uploaded_files, acts_ids[i])
-        if isinstance(new_table, pd.DataFrame):
-            if table is not None:
-                table = table._append(new_table, ignore_index=True)
+    user = None
+    acts = []
+    file_groups = {}
+    for act_id in acts_ids:
+        act = Act.objects.get(id=act_id)
+        user = act.user
+        acts.append(act)
+        for source in act.source:
+            file = source.copy()
+            file['origin_name'] = origin_filenames[source['path']]
+            file['processed'] = 'False'
+            file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
+            if str(act.id) in file_groups.keys():
+                file_groups[str(act.id)].append(file)
             else:
-                table = new_table
-        else:
-            already_uploaded.append(file)
-        i += 1
+                file_groups[str(act.id)] = [file]
+    progress_json = {'user_id': user.id, 'file_groups': file_groups, 'file_types': 'acts',
+                     'time_started': datetime.now().strftime(
+                         "%Y-%m-%d %H:%M:%S")}
+    redis_client.set(self.request.id, json.dumps(progress_json))
+    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
+    for act in acts:
+        i = 0
+        for source in act.source:
+            if not source['path'].lower().endswith(('.pdf', '.doc', '.docx')):
+                continue
+            progress_json['file_groups'][str(act.id)][i]['processed'] = 'Processing'
+            new_table = extract_text_and_images(source['path'], progress_recorder, pages_count,
+                                                total_processed, progress_json, act.id, i, self.request.id)
+            progress_json['file_groups'][str(act_id)][i]['pages']['processed'] = \
+                progress_json['file_groups'][str(act_id)][i]['pages']['all']
+            progress_json['file_groups'][str(act.id)][i]['processed'] = 'True'
+            redis_client.set(self.request.id, json.dumps(progress_json))
+            progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
+            i += 1
+            if isinstance(new_table, pd.DataFrame):
+                if table is not None:
+                    table = table._append(new_table, ignore_index=True)
+                else:
+                    table = new_table
+            else:
+                already_uploaded.append(act.id)
+    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return progress_json
+    '''
     if isinstance(table, pd.DataFrame):
         table = table['Номер (если имеется) и наименование Акта ГИКЭ'].tolist()
     return table
     # return table
     # return uploaded_files
+    '''
 
 
-def extract_text_and_images(file, progress_recorder, pages_count, total_processed, uploaded_files, act_id):
-    pdf_file = 'uploaded_files/' + file
+def extract_text_and_images(file, progress_recorder, pages_count, total_processed,
+                            progress_json, act_id, source_index, task_id):
+    supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
+    pdf_file = file  # pdf_file = 'uploaded_files/' + file
 
     acts = Act.objects.all()
     for act in acts:
-        if act.source and os.path.isfile(act.source.path):
-            file_hash = calculate_file_hash(pdf_file)
-            act_hash = calculate_file_hash('uploaded_files/' + act.source.name)
-            if file_hash == act_hash:
-                act = Act.objects.get(id=act_id)
-                act.delete()
-                return 'Already have this file'
+        for source in act.source:
+            source_path = source['path']
+            if act.id != act_id and os.path.isfile(source_path):
+                file_hash = calculate_file_hash(pdf_file)
+                act_hash = calculate_file_hash(source_path)
+                if file_hash == act_hash:
+                    time.sleep(2)
+                    raise FileExistsError(
+                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(act_id)][source_index]['origin_name']}")
 
     # Открываем PDF-файл
     document = fitz.open(pdf_file)
@@ -200,9 +210,19 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     with open(folder + "/" + "text.txt", "w", encoding="utf-8") as text_file:
         extracted_images = []
         current_part = 0
+        time_on_start = datetime.now()
         for page_number in range(len(document)):
-            progress_recorder.set_progress(int((total_processed[0] + page_number) / pages_count * 100), 100,
-                                           uploaded_files)
+            pages_processed = total_processed[0] + page_number
+            progress_json['file_groups'][str(act_id)][source_index]['pages']['processed'] = page_number
+            expected_time = ((datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1)) * (sum(
+                pages_count.values()) - pages_processed)
+            total_seconds = int(expected_time.total_seconds())
+            hours, remainder = divmod(total_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            progress_json['expected_time'] = f"{hours:02}:{minutes:02}:{seconds:02}"
+            redis_client.set(task_id, json.dumps(progress_json))
+            progress_recorder.set_progress(pages_processed, sum(pages_count.values()),
+                                           progress_json)
             page = document[page_number]
             # Извлечение текста
             text = page.get_text()
@@ -709,6 +729,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                     current_part += 2
                     continue
                 break
+            extract_images_with_captions(text_to_write, page, page_number, document, folder, supplement_content,
+                                         extracted_images)
         total_processed[0] += len(document)
 
     if ('Площадь, протяжённость и/или др. параменты объекта' not in table_info.keys() or \
@@ -720,14 +742,6 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     df_new = pd.DataFrame(table_info, columns=table_columns, index=[0])
 
     act = Act.objects.get(id=act_id)
-
-    act.supplement.maps = 'Map data'
-    act.supplement.object_fotos = 'Object photos data'
-    act.supplement.pits_fotos = 'Pits photos data'
-    act.supplement.plans = 'Plans data'
-    act.supplement.material_fotos = 'Material photos data'
-    act.supplement.heritage_info = 'Heritage information'
-    act.supplement.save()
 
     act.year = df_new['ГОД'][0]
     act.finish_date = df_new['Дата окончания проведения ГИКЭ'][0]
@@ -741,7 +755,6 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     act.open_list = df_new['ОЛ'][0]
     act.conclusion = df_new['Заключение. Выявленые объекты.'][0]
     act.border_objects = df_new['Объекты расположенные в непосредственной близости. Для границ'][0]
-    act.source = file
 
     act.act = act_parts_info['Акт']
     act.start_date = act_parts_info['Дата начала']
@@ -756,6 +769,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     act.exp_facts = act_parts_info['Факты и сведения, выявленные .*\n*.*исследований']
     act.literature = act_parts_info['Перечень[а-яА-ЯёЁ \n,]*литературы']
     act.exp_conclusion = act_parts_info['Вывод экспертизы']
+    act.supplement = supplement_content
     act.save()
 
     table_data = df_new
@@ -810,3 +824,16 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                 cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     wb.save(table_path)
     return table_data
+
+
+@shared_task
+def error_handler_acts(task, exception, exception_desc):
+    print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
+    progress_json = json.loads(redis_client.get(task.id))
+    for act_id, sources in progress_json['file_groups'].items():
+        for source in sources:
+            if source['processed'] != 'True':
+                act = Act.objects.get(id=act_id)
+                act.delete()
+    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception

@@ -1,5 +1,5 @@
 from rest_framework import serializers, viewsets
-from .models import User, Act, ScientificReport, TechReport, Supplement
+from .models import User, Act, ScientificReport, TechReport
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -17,13 +17,6 @@ class ActSerializer(serializers.ModelSerializer):
                   'area', 'expert', 'executioner', 'open_list', 'conclusion', 'border_objects',
                   'act', 'start_date', 'exp_place', 'exp_customer', 'relationship', 'goal',
                   'object', 'docs', 'exp_info', 'exp_facts', 'literature', 'exp_conclusion']
-
-
-class SupplementSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Supplement
-        fields = ['id', 'maps', 'object_fotos', 'pits_fotos',
-                  'plans', 'material_fotos', 'heritage_info']
 
 
 class ScientificReportSerializer(serializers.ModelSerializer):

@@ -1,3 +1,8 @@
+import copy
+import json
+from datetime import datetime
+
+import comtypes.client
 import fitz  # PyMuPDF
 from pathlib import Path
 import tkinter as tk
@@ -7,9 +12,15 @@ import pdfplumber
 import pandas as pd
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
-from .models import ScientificReport, Supplement, User
+from django_celery_results.models import TaskResult
+import redis
+
+from .models import ScientificReport, User
 from .hash import calculate_file_hash
 import os
+from .images_extraction import extract_images_with_captions, SUPPLEMENT_CONTENT
+
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 def choose_file() -> str:
@@ -19,246 +30,179 @@ def choose_file() -> str:
         return file_path
 
 
-def local_storage_reports_processing(uploaded_files, user):
-    files = []
-    reports_ids = []
-    pages_count = 0
-    for file in uploaded_files:
-        supplement = Supplement(
-            maps='Map data',
-            object_fotos='Object photos data',
-            pits_fotos='Pits photos data',
-            plans='Plans data',
-            material_fotos='Material photos data',
-            heritage_info='Heritage information'
-        )
-        supplement.save()
-
-        report = ScientificReport(user_id=user.id, supplement_id=supplement.id)
-        report.save()
-        reports_ids.append(report.id)
-        file.name = str(report.id) + '_report.pdf'
-        files.append(file.name)
-        # Сохраняем файл во временную директорию
-        with open('uploaded_files/reports/' + file.name, 'wb+') as destination:
-            for chunk in file.chunks():
-                destination.write(chunk)
-        with fitz.open('uploaded_files/reports/' + file.name) as pdf_doc:
-            pages_count += len(pdf_doc)
-    task = extract_text_and_images.delay(files, pages_count, reports_ids)
-    return task
-
-
 @shared_task(bind=True)
-def extract_text_and_images(self, uploaded_files, pages_count, reports_ids):
+def process_reports(self, reports_ids, pages_count, origin_filenames):
+    user = None
+    reports = []
+    file_groups = {}
+    for report_id in reports_ids:
+        report = ScientificReport.objects.get(id=report_id)
+        user = report.user
+        reports.append(report)
+        for source in report.source:
+            file = source.copy()
+            file['origin_name'] = origin_filenames[source['path']]
+            file['processed'] = 'False'
+            file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
+            if str(report.id) in file_groups.keys():
+                file_groups[str(report.id)].append(file)
+            else:
+                file_groups[str(report.id)] = [file]
+    # task = TaskResult.objects.filter(task_id=self.request.id)[0]
+    progress_json = {'user_id': user.id, 'file_groups': file_groups, 'file_types': 'scientific_reports',
+                     'time_started': datetime.now().strftime(
+                         "%Y-%m-%d %H:%M:%S")}
     progress_recorder = ProgressRecorder(self)
     total_processed = [0]
-    progress_recorder.set_progress(total_processed[0], 100, uploaded_files)
-    j = 0
-    for file in uploaded_files:
-        source_file = 'reports/' + file
-        file = 'uploaded_files/' + source_file
+    redis_client.set(self.request.id, json.dumps(progress_json))
+    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
+    for current_report in reports:
+        i = 0
+        for source in current_report.source:
+            if not source['path'].lower().endswith(('.pdf', '.doc', '.docx')):
+                continue
+            progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'Processing'
+            extract_text_and_images(source['path'], progress_recorder, pages_count,
+                                    total_processed, progress_json, current_report.id, i, self.request.id)
+            progress_json['file_groups'][str(current_report.id)][i]['pages']['processed'] = \
+                progress_json['file_groups'][str(current_report.id)][i]['pages']['all']
+            progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'True'
+            redis_client.set(self.request.id, json.dumps(progress_json))
+            progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
+            i += 1
+    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return progress_json
 
-        reports = ScientificReport.objects.all()
-        for report in reports:
-            if report.source and os.path.isfile(report.source.path):
+
+def extract_text_and_images(file, progress_recorder, pages_count, total_processed, progress_json, report_id,
+                            source_index, task_id):
+    supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
+    reports = ScientificReport.objects.all()
+    for report in reports:
+        for source in report.source:
+            source_path = source['path']
+            if report_id != report.id and os.path.isfile(source_path):
                 file_hash = calculate_file_hash(file)
-                report_hash = calculate_file_hash('uploaded_files/' + report.source.name)
+                report_hash = calculate_file_hash(source_path)
                 if file_hash == report_hash:
-                    report = ScientificReport.objects.get(id=reports_ids[j])
-                    report.delete()
-                    return 'Already have this file'
+                    raise FileExistsError(
+                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(report_id)][source_index]['origin_name']}")
 
-        document = fitz.open(file)
+    document = fitz.open(file)
 
-        folder = file[:file.rfind(".")]
-        Path(folder).mkdir(exist_ok=True)
+    folder = file[:file.rfind(".")]
+    Path(folder).mkdir(exist_ok=True)
 
-        # Разделы
-        report_parts = ['АННОТАЦИЯ', 'ОГЛАВЛЕНИЕ']  # , 'ведение', 'список исполнителей работ'
-        report_parts_info = {i: '' for i in report_parts}
-        df = None
+    # Разделы
+    report_parts = ['АННОТАЦИЯ', 'ОГЛАВЛЕНИЕ']  # , 'ведение', 'список исполнителей работ'
+    report_parts_info = {i: '' for i in report_parts}
+    df = None
 
-        # Создаем или очищаем текстовый файл
-        with open(folder + "/" + "text.txt", "w", encoding="utf-8") as text_file:
-            extracted_images = []
-            current_part = 0
-            found_part = False
-            start_page = 2
-            for page_number in range(len(document)):
-                progress_recorder.set_progress(int((total_processed[0] + page_number) / pages_count * 100), 100,
-                                               uploaded_files)
-                page = document[page_number]
-                # Извлечение текста
-                text = page.get_text()
-                while True:
-                    if found_part:
-                        current_index = 0
+    # Создаем или очищаем текстовый файл
+    with open(folder + "/" + "text.txt", "w", encoding="utf-8") as text_file:
+        extracted_images = []
+        current_part = 0
+        found_part = False
+        start_page = 2
+        time_on_start = datetime.now()
+        for page_number in range(len(document)):
+            pages_processed = total_processed[0] + page_number
+            progress_json['file_groups'][str(report_id)][source_index]['pages']['processed'] = page_number
+            expected_time = (datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1) * (sum(
+                pages_count.values()) - pages_processed)
+            total_seconds = int(expected_time.total_seconds())
+            hours, remainder = divmod(total_seconds, 3600)
+            minutes, seconds = divmod(remainder, 60)
+            progress_json['expected_time'] = f"{hours:02}:{minutes:02}:{seconds:02}"
+            redis_client.set(task_id, json.dumps(progress_json))
+            progress_recorder.set_progress(pages_processed, sum(pages_count.values()),
+                                           progress_json)
+            page = document[page_number]
+            # Извлечение текста
+            text = page.get_text()
+            while True:
+                if found_part:
+                    current_index = 0
+                else:
+                    if current_part >= len(report_parts):
+                        current_index = None
                     else:
                         current_index = re.search(report_parts[current_part], text, re.IGNORECASE)
-                        if current_index:
-                            current_index = current_index.end()
+                    if current_index:
+                        current_index = current_index.end()
 
-                    next_index = None
-                    if current_part + 1 < len(report_parts):
-                        if df is None or df is not None and page_number + 1 == int(
-                                df[df['Раздел'] == report_parts[current_part + 1]]['Страницы']):
-                            next_index = re.search(report_parts[current_part + 1], text, re.IGNORECASE)
-                    if current_index or found_part:
-                        text_to_write = text[current_index:next_index.start() if next_index else len(text)]
-                        report_parts_info[report_parts[current_part]] += text_to_write
-                        if start_page == page_number + 1:
-                            text_file.write(
-                                f"--- {report_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
-                        else:
-                            text_file.write(f"{text_to_write}\n")
-                        found_part = True
-                    if next_index:
-                        current_part += 1
-                        start_page = page_number + 1
-                        if report_parts[current_part] == 'ОГЛАВЛЕНИЕ':
-                            with pdfplumber.open(file) as pdf:
-                                page_tables = pdf.pages[page_number].extract_tables()
-                                df = pd.DataFrame(page_tables[0], columns=['Раздел', 'Страницы'])
-                                for index, row in df.iterrows():
-                                    if '-' in row['Страницы']:
-                                        row['Страницы'] = row['Страницы'][:row['Страницы'].find('-')]
-                                report_parts = list(df['Раздел'])
-                                report_parts_info = dict(list({i: report_parts_info[i] for i in report_parts if
-                                                               i in report_parts_info.keys()}.items()) +
-                                                         list({i: '' for i in report_parts if
-                                                               i not in report_parts_info.keys()}.items()))
-                        continue
-                    break
-
-                text = text.replace("\n", "")
-                captions = []
-                captions_count = text.count("Рис.")
-                for i in range(captions_count):
-                    first_encounter = text.find("Рис.")
-                    if i != captions_count - 1:
-                        last_encounter = text[first_encounter + 4:].find("Рис.")
+                next_index = None
+                if current_part + 1 < len(report_parts):
+                    if df is None or df is not None and page_number + 1 == int(
+                            df[df['Раздел'] == report_parts[current_part + 1]]['Страницы']):
+                        next_index = re.search(report_parts[current_part + 1], text, re.IGNORECASE)
+                if current_index or found_part:
+                    text_to_write = text[current_index:next_index.start() if next_index else len(text)]
+                    report_parts_info[report_parts[current_part]] += text_to_write
+                    if start_page == page_number + 1:
+                        text_file.write(
+                            f"--- {report_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
                     else:
-                        last_encounter = len(text)
-                    caption = text[first_encounter:last_encounter]
-                    captions.append(caption)
-                    text = text[first_encounter + 4:]
+                        text_file.write(f"{text_to_write}\n")
+                    found_part = True
+                if next_index:
+                    current_part += 1
+                    start_page = page_number + 1
+                    if report_parts[current_part] == 'ОГЛАВЛЕНИЕ':
+                        with pdfplumber.open(file) as pdf:
+                            page_tables = pdf.pages[page_number].extract_tables()
+                            df = pd.DataFrame(page_tables[0], columns=['Раздел', 'Страницы'])
+                            for index, row in df.iterrows():
+                                if '-' in row['Страницы']:
+                                    row['Страницы'] = row['Страницы'][:row['Страницы'].find('-')]
+                            report_parts = list(df['Раздел'])
+                            report_parts_info = dict(list({i: report_parts_info[i] for i in report_parts if
+                                                           i in report_parts_info.keys()}.items()) +
+                                                     list({i: '' for i in report_parts if
+                                                           i not in report_parts_info.keys()}.items()))
+                    continue
+                break
 
-                '''
-                # Подписи к рисункам
-                # Split text into blocks separated by double line break.
-                blocks = text.split("\n\n")
-                # Remove all new lines within blocks to remove arbitary line breaks
-                blocks = map(lambda x: x.replace("\n", ""), blocks)
-                # Which blocks are figure captions?
-                captions = []
-                for block in blocks:
-                    if re.search('^Рис.', block, re.IGNORECASE):
-                        captions.append(block)
-                '''
+            extract_images_with_captions(text, page, page_number, document, folder, supplement_content,
+                                         extracted_images)
+        total_processed[0] += len(document)
+    document.close()
 
-                for i in range(len(captions)):
-                    for j in range(len(captions)):
-                        if i == j:
-                            continue
-                        cap1 = re.search(r'Рис. \d+', captions[i], re.IGNORECASE)
-                        if cap1:
-                            cap1 = re.search(r'\d+', cap1.group(0), re.IGNORECASE).group(0)
-                        else:
-                            continue
-                        cap2 = re.search(r'Рис. \d+', captions[j], re.IGNORECASE)
-                        if cap2:
-                            cap2 = re.search(r'\d+', cap2.group(0), re.IGNORECASE).group(0)
-                        else:
-                            continue
-                        if int(cap1) < int(cap2):
-                            captions[i], captions[j] = captions[j], captions[i]
+    current_report = ScientificReport.objects.get(id=report_id)
+    current_report.name = 'Scientific Report Title'
+    current_report.organization = 'Organization Name'
+    current_report.author = 'Author Name'
+    current_report.open_list = report_parts_info[
+        'ОТКРЫТЫЙ ЛИСТ'] if 'ОТКРЫТЫЙ ЛИСТ' in report_parts_info.keys() else 'Open list info'
+    current_report.writing_date = '2023-10-01'
+    current_report.introduction = report_parts_info[
+        'ВВЕДЕНИЕ'] if 'ВВЕДЕНИЕ' in report_parts_info.keys() else 'Introduction info'
+    current_report.contractors = report_parts_info[
+        'СПИСОК ИСПОЛНИТЕЛЕЙ РАБОТ'] if 'СПИСОК ИСПОЛНИТЕЛЕЙ РАБОТ' in report_parts_info.keys() else 'Contractors info'
+    current_report.place = 'Research place'
+    current_report.area_info = 'Area information'
+    current_report.research_history = 'Research history text'
+    current_report.results = 'Results text'
+    current_report.conclusion = 'Conclusion text'
+    current_report.supplement = supplement_content
+    current_report.content = report_parts_info
+    current_report.save()
 
-                # Извлечение изображений
-                image_list = page.get_images(full=True)
-                caption_index = 0
-                for img_index, img in enumerate(image_list):
-                    if captions and caption_index < len(captions):
-                        image_text = captions[caption_index]
-                        caption_index += 1
-                    img_index = img[0]
-                    if img_index in extracted_images:
-                        continue
-                    extracted_images.append(img_index)
-                    base_image = document.extract_image(img_index)
-                    image_bytes = base_image["image"]
-                    image_filename = f"page_{page_number + 1}_img_{img_index}.png"
 
-                    current_folder = folder
-                    print(f"Изображение извлечено: {image_filename}")
-                    if captions:
-                        print(f"Подпись к изображению: {image_text}")
-                        image_text = image_text.lower().replace('\n', '')
-                        if 'общий вид участка обследования' in image_text or 'общий вид участка' in image_text:
-                            current_folder += '/Общий вид'
-                        elif 'карта' in image_text or 'карты' in image_text:
-                            current_folder += '/Карты'
-                        elif 'схема' in image_text or 'схемы' in image_text:
-                            current_folder += '/Схемы'
-                        elif 'спутниковый снимок' in image_text:
-                            current_folder += '/Спутниковые снимки'
-                        elif 'шурф' in image_text:
-                            current_folder += '/Шурфы'
-                            Path(current_folder).mkdir(exist_ok=True)
-                            pit = re.search(r'Шурф.* № *\d+', image_text, re.IGNORECASE)
-                            if pit:
-                                current_folder += '/Ш' + pit.group(0)[1:]
-                        elif 'раскоп' in image_text:
-                            current_folder += '/Раскопы'
-                        elif 'зачистка' in image_text or 'заичистка' in image_text:
-                            current_folder += '/Шурфы'
-                            Path(current_folder).mkdir(exist_ok=True)
-                            pit = re.search(r'Зачистка.* № *\d+', image_text, re.IGNORECASE)
-                            if pit:
-                                current_folder += '/З' + pit.group(0)[1:]
-                        elif 'врезка' in image_text:
-                            current_folder += '/Шурфы'
-                            Path(current_folder).mkdir(exist_ok=True)
-                            pit = re.search(r'Врезка.* № *\d+', image_text, re.IGNORECASE)
-                            if pit:
-                                current_folder += '/В' + pit.group(0)[1:]
-                    Path(current_folder).mkdir(exist_ok=True)
-                    with open(current_folder + "/" + image_filename, "wb") as img_file:
-                        img_file.write(image_bytes)
-            total_processed[0] += len(document)
-        document.close()
-
-        report = ScientificReport.objects.get(id=reports_ids[j])
-        j += 1
-
-        report.supplement.maps = 'Map data'
-        report.supplement.object_fotos = 'Object photos data'
-        report.supplement.pits_fotos = 'Pits photos data'
-        report.supplement.plans = 'Plans data'
-        report.supplement.material_fotos = 'Material photos data'
-        report.supplement.heritage_info = 'Heritage information'
-        report.supplement.save()
-
-        report.name = 'Scientific Report Title'
-        report.organization = 'Organization Name'
-        report.author = 'Author Name'
-        report.open_list = report_parts_info[
-            'ОТКРЫТЫЙ ЛИСТ'] if 'ОТКРЫТЫЙ ЛИСТ' in report_parts_info.keys() else 'Open list info'
-        report.writing_date = '2023-10-01'
-        report.introduction = report_parts_info[
-            'ВВЕДЕНИЕ'] if 'ВВЕДЕНИЕ' in report_parts_info.keys() else 'Introduction info'
-        report.contractors = report_parts_info[
-            'СПИСОК ИСПОЛНИТЕЛЕЙ РАБОТ'] if 'СПИСОК ИСПОЛНИТЕЛЕЙ РАБОТ' in report_parts_info.keys() else 'Contractors info'
-        report.place = 'Research place'
-        report.area_info = 'Area information'
-        report.research_history = 'Research history text'
-        report.results = 'Results text'
-        report.conclusion = 'Conclusion text'
-        report.source = source_file
-        report.save()
+@shared_task
+def error_handler_reports(task, exception, exception_desc):
+    print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
+    progress_json = json.loads(redis_client.get(task.id))
+    for report_id, sources in progress_json['file_groups'].items():
+        for source in sources:
+            if source['processed'] != 'True':
+                report = ScientificReport.objects.get(id=report_id)
+                report.delete()
+    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception
 
 
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()
-    extract_text_and_images(choose_file())
+    # extract_text_and_images(choose_file())

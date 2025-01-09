@@ -12,7 +12,7 @@ urlpatterns = [
     path('interactive_map/', views.interactive_map, name='interactive_map'),
     path('acts_register/', views.acts_register, name='acts_register'),
     path('acts_register_download/', views.acts_register_download, name='acts_register_download'),
-    path('processing_status/', views.processing_status, name='processing_status'),
+    # path('processing_status/', views.processing_status, name='processing_status'),
     path('open_list_ocr/', views.open_list_ocr, name='open_list_ocr'),
     path('open_lists_register/', views.open_lists_register, name='open_lists_register'),
     path('open_lists_register_download/', views.open_lists_register_download, name='open_lists_register_download'),
@@ -46,6 +46,4 @@ urlpatterns = [
     path('api/scientific_reports/<int:pk>/', views.ScientificReportDetail.as_view()),
     path('api/tech_reports/', views.TechReportList.as_view()),
     path('api/tech_reports/<int:pk>/', views.TechReportDetail.as_view()),
-    path('api/supplements/', views.SupplementList.as_view()),
-    path('api/supplements/<int:pk>/', views.SupplementDetail.as_view()),
 ]

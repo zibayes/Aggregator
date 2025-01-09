@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from .forms import UploadFileForm
-from .acts_processing import local_storage_acts_processing
-from .reports_processing import local_storage_reports_processing
+from .acts_processing import process_acts, error_handler_acts
+from .reports_processing import process_reports, error_handler_reports
 from .external_sources import external_sources_processing
 from .open_lists_ocr import process_open_lists
 from .ask import ask_question_with_context
@@ -27,10 +27,11 @@ from celery import shared_task
 from celery.result import AsyncResult
 from celery_progress.backend import ProgressRecorder
 from django_celery_results.models import TaskResult
-from .models import User, Act, ScientificReport, TechReport, Supplement, OpenLists
+from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks
 from openpyxl import load_workbook, Workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
+from .files_saving import save_files
 
 
 def index(request):
@@ -39,6 +40,11 @@ def index(request):
 
 @login_required
 def deconstructor(request):
+    user = request.user
+    user_tasks = list(UserTasks.objects.filter(user_id=user.id))
+    user_tasks = [x.task_id for x in user_tasks]
+    user_tasks = list(TaskResult.objects.filter(task_id__in=user_tasks).order_by('-date_created'))
+    tasks_id = [x.task_id for x in user_tasks]
     if request.method == 'POST':
         if 'acts' in request.POST:
             form = UploadFileForm()
@@ -64,29 +70,70 @@ def deconstructor(request):
                                 ignore_index=True)
                         i += 1
             return render(request, 'deconstructor.html',
-                          {'form': form, 'task_id': None, 'table': df.to_html(classes='table table-striped')})
+                          {'form': form, 'tasks_id': tasks_id, 'table': df.to_html(classes='table table-striped')})
         else:
             form = UploadFileForm(request.POST, request.FILES)
             if form.is_valid():
-                user = request.user
-                # Получаем загруженный файл
                 uploaded_files = form.cleaned_data['files']
-                if 'file_type' in request.POST:
+                file_groups = {}
+                if 'file_type' in request.POST and 'upload_type' in request.POST:
                     file_type = request.POST['file_type']
+                    upload_type = request.POST['upload_type']
                 else:
-                    return render(request, 'deconstructor.html', {'form': form, 'task_id': None})
+                    return render(request, 'deconstructor.html', {'form': form, 'tasks_id': tasks_id})
+                types_convert = {'текст': 'text', 'приложение': 'images', 'иллюстрации': 'images'}
+                if upload_type == 'fully':
+                    file_groups['fully'] = []
+                    for file in uploaded_files:
+                        filename = file.name.lower()
+                        report_type = 'all'
+                        for typename in types_convert.keys():
+                            if typename in filename:
+                                index = filename.find(typename)
+                                if index >= 0:
+                                    report_type = types_convert[typename]
+                                    break
+                        file_groups['fully'].append({'type': report_type, 'file': file})
+                    uploaded_files = []
+                elif upload_type == 'mixed':
+                    for i in range(len(uploaded_files) - 1, -1, -1):
+                        group_name = None
+                        filename = uploaded_files[i].name.lower()
+                        report_type = 'all'
+                        for typename in types_convert.keys():
+                            if typename in filename:
+                                index = filename.find(typename)
+                                if index >= 0:
+                                    if index == 0:
+                                        group_name = filename[len(typename):]
+                                    else:
+                                        group_name = filename[:index]
+                                    report_type = types_convert[typename]
+                                    break
+                        if group_name:
+                            if group_name in file_groups.keys():
+                                file_groups[group_name].append({'type': report_type, 'file': uploaded_files.pop(i)})
+                            else:
+                                file_groups[group_name] = [{'type': report_type, 'file': uploaded_files.pop(i)}]
                 if file_type == 'act':
-                    task = local_storage_acts_processing(uploaded_files, user)
+                    acts_ids, pages_count, origin_filenames = save_files(uploaded_files, file_groups, Act, user)
+                    task = process_acts.apply_async((acts_ids, pages_count, origin_filenames),
+                                                    link_error=error_handler_acts.s())  # .delay(acts_ids, pages_count, origin_filenames)
                 elif file_type == 'report':
-                    task = local_storage_reports_processing(uploaded_files, user)
-                else:
-                    task = None
+                    reports_ids, pages_count, origin_filenames = save_files(uploaded_files, file_groups,
+                                                                            ScientificReport, user)
+                    task = process_reports.apply_async((reports_ids, pages_count, origin_filenames),
+                                                       link_error=error_handler_reports.s())  # .delay(reports_ids, pages_count, origin_filenames)
+                tasks_id = [task.task_id] + tasks_id
+                user_task = UserTasks(user_id=user.id, task_id=task.task_id)
+                user_task.save()
+
                 return render(request, 'deconstructor.html', {'form': form,
-                                                              'task_id': task.task_id})  # 'table': table.to_html(classes='table table-striped'),
+                                                              'tasks_id': tasks_id})
 
     else:
         form = UploadFileForm()
-    return render(request, 'deconstructor.html', {'form': form, 'task_id': None})
+    return render(request, 'deconstructor.html', {'form': form, 'tasks_id': tasks_id})
 
 
 @login_required
@@ -100,7 +147,12 @@ def external_sources(request):
 
 @login_required
 def processing_status(request):
-    tasks_id = list(TaskResult.objects.values_list('task_id', flat=True))
+    tasks = list(TaskResult.objects.all())
+    for i in range(len(tasks) - 1, -1, -1):
+        result = json.loads(tasks[i].result)
+        if 'user_id' in result.keys() and result['user_id'] != request.user.id:
+            tasks.pop(i)
+    tasks_id = [x.task_id for x in tasks]
     return render(request, 'processing_status.html', {'tasks_id': tasks_id})
 
 
@@ -412,7 +464,6 @@ def acts_edit(request, pk):
 @login_required
 @owner_or_admin_required(Act)
 def acts_delete(request, pk):
-    # Act.objects.filter(id=pk).delete()
     act_instance = Act.objects.get(id=pk)
     act_instance.delete()
     return redirect(f'acts_register')
@@ -532,13 +583,3 @@ class TechReportList(generics.ListAPIView):
 class TechReportDetail(generics.RetrieveAPIView):
     queryset = TechReport.objects.all()
     serializer_class = serializers.TechReportSerializer
-
-
-class SupplementList(generics.ListAPIView):
-    queryset = Supplement.objects.all()
-    serializer_class = serializers.SupplementSerializer
-
-
-class SupplementDetail(generics.RetrieveAPIView):
-    queryset = Supplement.objects.all()
-    serializer_class = serializers.SupplementSerializer

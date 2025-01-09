@@ -4,80 +4,270 @@
 
 {% block content %}
 
-<br>
-<h2 align="center">Научный отчёт</h2>
-
-<div>
-    <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px; margin-top: 15px;"
-       href="/uploaded_files/{{ report.source }}">Просмотр
-        исходного документа</a>
     <br>
-    {% if report.user.id == user.id or user.is_superuser %}
-    <a href="/scientific_reports_edit/{{ report.id }}">
-        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
-            Редактировать
-        </button>
-    </a>
-    <form method="POST" action="{% url 'scientific_reports_delete' report.id %}" class="mt-3">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-danger" style="border-radius: 12px; margin-right:10px;"
-                onclick="return confirm('Вы уверены, что хотите удалить этот отчёт?');">Удалить
-        </button>
-    </form>
+    <h2 align="center">Научный отчёт: {{ report.author }} от {{ report.writing_date }}</h2>
+
+    <div>
+        {% for source in report.source %}
+            <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+               href="/{{ source.path }}">
+                {% if source.type == 'all' %}
+                    Исходник: Отчёт
+                {% elif source.type == 'text' %}
+                    Исходник: Текст
+                {% elif source.type == 'images' %}
+                    Исходник: Приложение
+                {% endif %}
+            </a>
+            <br>
+            <br>
+        {% endfor %}
+        {% if report.user.id == user.id or user.is_superuser %}
+            <a href="/scientific_reports_edit/{{ report.id }}">
+                <button type="button" class="btn btn-primary"
+                        style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+                    Редактировать
+                </button>
+            </a>
+            <form method="POST" action="{% url 'scientific_reports_delete' report.id %}" class="mt-3">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger" style="border-radius: 12px; margin-right:10px;"
+                        onclick="return confirm('Вы уверены, что хотите удалить этот отчёт?');">Удалить
+                </button>
+            </form>
+        {% endif %}
+    </div>
+
+    <hr>
+    <h2>Содержание</h2>
+    <ul>
+        {% if report.name %}
+            <li><a href="#name">Название</a></li>
+        {% endif %}
+        {% if report.organization %}
+            <li><a href="#organization">Организация</a></li>
+        {% endif %}
+        {% if report.author %}
+            <li><a href="#author">Автор</a></li>
+        {% endif %}
+        {% if report.open_list %}
+            <li><a href="#open_list">Открытый лист</a></li>
+        {% endif %}
+        {% if report.writing_date %}
+            <li><a href="#writing_date">Дата написания</a></li>
+        {% endif %}
+        {% if report.introduction %}
+            <li><a href="#introduction">Введение</a></li>
+        {% endif %}
+        {% if report.contractors %}
+            <li><a href="#contractors">Исполнители</a></li>
+        {% endif %}
+        {% if report.place %}
+            <li><a href="#place">Место</a></li>
+        {% endif %}
+        {% if report.area_info %}
+            <li><a href="#area_info">Информация о местности</a></li>
+        {% endif %}
+        {% if report.research_history %}
+            <li><a href="#research_history">История исследования</a></li>
+        {% endif %}
+        {% if report.results %}
+            <li><a href="#results">Результаты</a></li>
+        {% endif %}
+        {% if report.conclusion %}
+            <li><a href="#conclusion">Заключение</a></li>
+        {% endif %}
+        {% for title in report.content.keys %}
+            <li><a href="#{{ title }}">{{ title }}</a></li>
+        {% endfor %}
+        {% if report.supplement %}
+            <li>
+                <a href="#supplement">Приложение</a>
+                <ul>
+                    {% if report.supplement.maps %}
+                        <li><a href="#maps">Карты</a></li>
+                    {% endif %}
+                    {% if report.supplement.schemas %}
+                        <li><a href="#schemas">Схемы</a></li>
+                    {% endif %}
+                    {% if report.supplement.object_fotos %}
+                        <li><a href="#object_fotos">Общий вид</a></li>
+                    {% endif %}
+                    {% if report.supplement.pits_fotos %}
+                        <li><a href="#pits_fotos">Шурфы</a></li>
+                    {% endif %}
+                    {% if report.supplement.excavation_fotos %}
+                        <li><a href="#excavation_fotos">Раскопы</a></li>
+                    {% endif %}
+                    {% if report.supplement.material_fotos %}
+                        <li><a href="#material_fotos">Материал</a></li>
+                    {% endif %}
+                    {% if report.supplement.heritage_info %}
+                        <li><a href="#heritage_info">Данные о ВОАН</a></li>
+                    {% endif %}
+                    {% if report.supplement.other %}
+                        <li><a href="#other">Иное</a></li>
+                    {% endif %}
+                    {% if report.supplement.no_captions %}
+                        <li><a href="#no_captions">Без подписей</a></li>
+                    {% endif %}
+                </ul>
+            </li>
+        {% endif %}
+    </ul>
+    <hr>
+
+    {% if report.name %}
+        <h2 id="name">Название</h2>
+        <p>{{ report.name }}</p>
     {% endif %}
-</div>
 
-<hr>
-<h2>Содержание</h2>
-<ul>
-    <li><a href="#name">Название</a></li>
-    <li><a href="#organization">Организация</a></li>
-    <li><a href="#author">Автор</a></li>
-    <li><a href="#open_list">Открытый лист</a></li>
-    <li><a href="#writing_date">Дата написания</a></li>
-    <li><a href="#introduction">Введение</a></li>
-    <li><a href="#contractors">Исполнители</a></li>
-    <li><a href="#place">Место</a></li>
-    <li><a href="#area_info">Информация о местности</a></li>
-    <li><a href="#research_history">История исследования</a></li>
-    <li><a href="#results">Результаты</a></li>
-    <li><a href="#conclusion">Заключение</a></li>
-</ul>
-<hr>
+    {% if report.organization %}
+        <h2 id="organization">Организация</h2>
+        <p>{{ report.organization }}</p>
+    {% endif %}
 
-<h2 id="name">Название</h2>
-<p>{{ report.name }}</p>
+    {% if report.author %}
+        <h2 id="author">Автор</h2>
+        <p>{{ report.author }}</p>
+    {% endif %}
 
-<h2 id="organization">Организация</h2>
-<p>{{ report.organization }}</p>
+    {% if report.open_list %}
+        <h2 id="open_list">Открытый лист</h2>
+        <p>{{ report.open_list }}</p>
+    {% endif %}
 
-<h2 id="author">Автор</h2>
-<p>{{ report.author }}</p>
+    {% if report.writing_date %}
+        <h2 id="writing_date">Дата написания</h2>
+        <p>{{ report.writing_date }}</p>
+    {% endif %}
 
-<h2 id="open_list">Открытый лист</h2>
-<p>{{ report.open_list }}</p>
+    {% if report.introduction %}
+        <h2 id="introduction">Введение</h2>
+        <p>{{ report.introduction }}</p>
+    {% endif %}
 
-<h2 id="writing_date">Дата написания</h2>
-<p>{{ report.writing_date }}</p>
+    {% if report.contractors %}
+        <h2 id="contractors">Исполнители</h2>
+        <p>{{ report.contractors }}</p>
+    {% endif %}
 
-<h2 id="introduction">Введение</h2>
-<p>{{ report.introduction }}</p>
+    {% if report.place %}
+        <h2 id="place">Место</h2>
+        <p>{{ report.place }}</p>
+    {% endif %}
 
-<h2 id="contractors">Исполнители</h2>
-<p>{{ report.contractors }}</p>
+    {% if report.area_info %}
+        <h2 id="area_info">Информация о местности</h2>
+        <p>{{ report.area_info }}</p>
+    {% endif %}
 
-<h2 id="place">Место</h2>
-<p>{{ report.place }}</p>
+    {% if report.research_history %}
+        <h2 id="research_history">История исследования</h2>
+        <p>{{ report.research_history }}</p>
+    {% endif %}
 
-<h2 id="area_info">Информация о местности</h2>
-<p>{{ report.area_info }}</p>
+    {% if report.results %}
+        <h2 id="results">Результаты</h2>
+        <p>{{ report.results }}</p>
+    {% endif %}
 
-<h2 id="research_history">История исследования</h2>
-<p>{{ report.research_history }}</p>
+    {% if report.conclusion %}
+        <h2 id="conclusion">Заключение</h2>
+        <p>{{ report.conclusion }}</p>
+    {% endif %}
 
-<h2 id="results">Результаты</h2>
-<p>{{ report.results }}</p>
+    {% for title, content in report.content.items %}
+        {% if content %}
+            <h2 id="{{ title }}">{{ title }}</h2>
+            <p>{{ content }}</p>
+        {% endif %}
+    {% endfor %}
 
-<h2 id="conclusion">Заключение</h2>
-<p>{{ report.conclusion }}</p>
+    {% if report.supplement %}
+        <h2 id="supplement">Приложение</h2>
+
+        {% if report.supplement.maps %}
+            <h3 id="maps">Карты</h3>
+            {% for map in report.supplement.maps %}
+                <img src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}" style="max-width: 400px;"/>
+                <p>{{ map.label }}</p>
+                <br>
+            {% endfor %}
+        {% endif %}
+
+        {% if report.supplement.schemas %}
+            <h3 id="schemas">Схемы</h3>
+            {% for scheme in report.supplement.schemas %}
+                <img src="/{{ scheme.source }}" loading="lazy" alt="{{ scheme.source }}" style="max-width: 400px;"/>
+                <p>{{ scheme.label }}</p>
+                <br>
+            {% endfor %}
+        {% endif %}
+
+        {% if report.supplement.object_fotos %}
+            <h3 id="object_fotos">Общий вид</h3>
+            {% for object in report.supplement.object_fotos %}
+                <img src="/{{ object.source }}" loading="lazy" alt="{{ object.source }}" style="max-width: 400px;"/>
+                <p>{{ object.label }}</p>
+                <br>
+            {% endfor %}
+        {% endif %}
+
+        {% if report.supplement.pits_fotos %}
+            <h3 id="pits_fotos">Шурфы</h3>
+            {% for pit in report.supplement.pits_fotos %}
+                <img src="/{{ pit.source }}" loading="lazy" alt="{{ pit.source }}" style="max-width: 400px;"/>
+                <p>{{ pit.label }}</p>
+                <br>
+            {% endfor %}
+        {% endif %}
+
+        {% if report.supplement.excavation_fotos %}
+            <h3 id="excavation_fotos">Раскопы</h3>
+            {% for excavation in report.supplement.excavation_fotos %}
+                <img src="/{{ excavation.source }}" loading="lazy" alt="{{ excavation.source }}"
+                     style="max-width: 400px;"/>
+                <p>{{ excavation.label }}</p>
+                <br>
+            {% endfor %}
+        {% endif %}
+
+        {% if report.supplement.material_fotos %}
+            <h3 id="material_fotos">Археологический материал</h3>
+            {% for material in report.supplement.material_fotos %}
+                <img src="/{{ material.source }}" loading="lazy" alt="{{ material.source }}" style="max-width: 400px;"/>
+                <p>{{ material.label }}</p>
+                <br>
+            {% endfor %}
+        {% endif %}
+
+        {% if report.supplement.heritage_info %}
+            <h3 id="heritage_info">Данные о ВОАН</h3>
+            {% for heritage in report.supplement.heritage_info %}
+                <img src="/{{ heritage.source }}" loading="lazy" alt="{{ heritage.source }}" style="max-width: 400px;"/>
+                <p>{{ heritage.label }}</p>
+                <br>
+            {% endfor %}
+        {% endif %}
+
+        {% if report.supplement.other %}
+            <h3 id="other">Иное</h3>
+            {% for other in report.supplement.other %}
+                <img src="/{{ other.source }}" loading="lazy" alt="{{ other.source }}" style="max-width: 400px;"/>
+                <p>{{ other.label }}</p>
+                <br>
+            {% endfor %}
+        {% endif %}
+
+        {% if report.supplement.no_captions %}
+            <h3 id="no_captions">Без подписей</h3>
+            {% for other in report.supplement.no_captions %}
+                <img src="/{{ other.source }}" loading="lazy" alt="{{ other.source }}" style="max-width: 400px;"/>
+                <br>
+                <br>
+            {% endfor %}
+        {% endif %}
+    {% endif %}
+
 {% endblock %}

@@ -286,7 +286,7 @@ def open_list_ocr(file_path, source_path, pdf_path, open_list_id):
             if file_hash == open_list_hash:
                 open_list = OpenLists.objects.get(id=open_list_id)
                 open_list.delete()
-                return 'Already have this file'
+                raise FileExistsError('Такой файл уже загружен в систему')
 
     false_date = []
     image = None

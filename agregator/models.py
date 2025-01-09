@@ -1,29 +1,48 @@
+import json
+
 from django.db import models
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, Group, Permission
 from archeology.settings import AUTH_USER_MODEL
 from django.core.files.storage import default_storage
+from django_celery_results.models import TaskResult
 import os
 import shutil
 
 
-def delete_files(source):
-    if source:
-        file_path = source.path
-        if os.path.isfile(file_path):
-            os.remove(file_path)
-            folder_path = file_path[:file_path.rfind('.')]
-            if os.path.exists(folder_path) and os.path.isdir(folder_path):
-                for filename in os.listdir(folder_path):
-                    file_to_delete = os.path.join(folder_path, filename)
-                    try:
-                        if os.path.isfile(file_to_delete):
-                            os.remove(file_to_delete)  # удаляем файл
-                    except Exception as e:
-                        print(f"Ошибка при удалении файла {file_to_delete}: {e}")
+def to_json(value):
+    if value and not isinstance(value, str):
+        return json.dumps(value, ensure_ascii=False)
+    return value
+
+
+def delete_files(file_path):
+    if os.path.isfile(file_path):
+        if '\\' in file_path:
+            deter = '\\'
+        else:
+            deter = '/'
+        folder_path = file_path[:file_path.rfind(deter)]
+        if os.path.isdir(folder_path):
+            try:
+                shutil.rmtree(folder_path)
+            except OSError:
+                print(f"Ошибка удаления директории")
+        '''
+        os.remove(file_path)
+        folder_path = file_path[:file_path.rfind('.')]
+        if os.path.exists(folder_path) and os.path.isdir(folder_path):
+            for filename in os.listdir(folder_path):
+                file_to_delete = os.path.join(folder_path, filename)
                 try:
-                    os.rmdir(folder_path)
-                except OSError:
-                    print(f"Ошибка удаления: не все файлы внутри папки были удалены")
+                    if os.path.isfile(file_to_delete):
+                        os.remove(file_to_delete)  # удаляем файл
+                except Exception as e:
+                    print(f"Ошибка при удалении файла {file_to_delete}: {e}")
+            try:
+                shutil.rmtree(folder_path)
+            except OSError:
+                print(f"Ошибка удаления: не все файлы внутри папки были удалены")
+        '''
 
 
 # Модель для пользователей
@@ -50,31 +69,26 @@ class User(AbstractUser):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.avatar.name != 'avatars/default.png':
-            delete_files(self.avatar)
+        if self.avatar.name != 'avatars/default.png' and self.avatar:
+            delete_files(self.avatar.path)
         super().delete(*args, **kwargs)
 
 
-# Модель для приложений
-class Supplement(models.Model):
-    maps = models.TextField()
-    object_fotos = models.TextField()
-    pits_fotos = models.TextField()
-    plans = models.TextField()
-    material_fotos = models.TextField()
-    heritage_info = models.TextField()
+# Модель для пользовательских загрузок
+class UserTasks(models.Model):
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+    task_id = models.CharField(max_length=255)
 
     def __str__(self):
-        return f"Supplement {self.id}"
+        return f"User task {self.id}"
 
     class Meta:
-        db_table = 'supplements'
+        db_table = 'user_tasks'
 
 
 # Модель для актов
 class Act(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
-    supplement = models.ForeignKey(Supplement, on_delete=models.CASCADE, null=True, blank=True)
 
     year = models.TextField()
     finish_date = models.TextField()
@@ -88,7 +102,7 @@ class Act(models.Model):
     open_list = models.TextField()
     conclusion = models.TextField()
     border_objects = models.TextField()
-    source = models.FileField(upload_to='acts/')
+    source = models.JSONField(null=True, blank=True)
 
     act = models.TextField()
     start_date = models.TextField()
@@ -103,6 +117,7 @@ class Act(models.Model):
     exp_facts = models.TextField()
     literature = models.TextField()
     exp_conclusion = models.TextField()
+    supplement = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Act {self.id} by {self.user.username}"
@@ -110,17 +125,20 @@ class Act(models.Model):
     class Meta:
         db_table = 'acts'
 
+    def save(self, *args, **kwargs):
+        self.source = to_json(self.source)
+        self.supplement = to_json(self.supplement)
+        super().save(*args, **kwargs)
+
     def delete(self, *args, **kwargs):
-        supplement = Supplement.objects.get(id=self.supplement.id)
-        supplement.delete()
-        delete_files(self.source)
+        if self.source and len(self.source) > 0:
+            delete_files(self.source[0]['path'])
         super().delete(*args, **kwargs)
 
 
 # Модель для научных отчетов
 class ScientificReport(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
-    supplement = models.ForeignKey(Supplement, on_delete=models.CASCADE, null=True, blank=True)
     name = models.TextField()
     organization = models.TextField()
     author = models.TextField()
@@ -133,7 +151,9 @@ class ScientificReport(models.Model):
     research_history = models.TextField()
     results = models.TextField()
     conclusion = models.TextField()
-    source = models.FileField(upload_to='reports/')
+    source = models.JSONField(null=True, blank=True)
+    content = models.JSONField(null=True, blank=True)
+    supplement = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Scientific Report {self.id} by {self.user.username}"
@@ -141,17 +161,21 @@ class ScientificReport(models.Model):
     class Meta:
         db_table = 'scientific_reports'
 
+    def save(self, *args, **kwargs):
+        self.source = to_json(self.source)
+        self.supplement = to_json(self.supplement)
+        self.content = to_json(self.content)
+        super().save(*args, **kwargs)
+
     def delete(self, *args, **kwargs):
-        supplement = Supplement.objects.get(id=self.supplement.id)
-        supplement.delete()
-        delete_files(self.source)
+        if self.source and len(self.source) > 0:
+            delete_files(self.source[0]['path'])
         super().delete(*args, **kwargs)
 
 
 # Модель для научно-технических отчетов
 class TechReport(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
-    supplement = models.ForeignKey(Supplement, on_delete=models.CASCADE, null=True, blank=True)
     name = models.TextField()
     organization = models.TextField()
     author = models.TextField()
@@ -164,7 +188,8 @@ class TechReport(models.Model):
     research_history = models.TextField()
     results = models.TextField()
     conclusion = models.TextField()
-    source = models.FileField(upload_to='reports/')
+    source = models.JSONField(null=True, blank=True)
+    supplement = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Tech Report {self.id} by {self.user.username}"
@@ -172,10 +197,14 @@ class TechReport(models.Model):
     class Meta:
         db_table = 'tech_reports'
 
+    def save(self, *args, **kwargs):
+        self.source = to_json(self.source)
+        self.supplement = to_json(self.supplement)
+        super().save(*args, **kwargs)
+
     def delete(self, *args, **kwargs):
-        supplement = Supplement.objects.get(id=self.supplement.id)
-        supplement.delete()
-        delete_files(self.source)
+        if self.source and len(self.source) > 0:
+            delete_files(self.source[0]['path'])
         super().delete(*args, **kwargs)
 
 
