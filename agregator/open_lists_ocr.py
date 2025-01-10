@@ -1,4 +1,7 @@
+import json
+from datetime import datetime
 from typing import List
+import redis
 
 import fitz
 import pytesseract
@@ -20,12 +23,14 @@ from celery import shared_task
 from celery_progress.backend import ProgressRecorder
 from .models import OpenLists
 from .hash import calculate_file_hash
+from .files_saving import save_open_list_files, load_raw_files, delete_files_in_directory
 
 MAX_VAL = 255
 UPSCALE = [1]
 MONTHS = {'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04', 'мая': '05', 'июня': '06', 'июля': '07',
           'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12', }
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
+redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 def choose_image_file() -> str:
@@ -247,20 +252,41 @@ def change_img_perspect(img, dst_pts, src_pts=None):
 
 
 @shared_task(bind=True)
-def process_open_lists(self, uploaded_files, open_lists_ids):
-    table = None
-    progress_recorder = ProgressRecorder(self)
+def process_open_lists(self, uploaded_files, user_id):
+    uploaded_files = load_raw_files(uploaded_files, user_id)
     total_processed = [0]
+    progress_recorder = ProgressRecorder(self)
+    progress_recorder.set_progress(total_processed[0], 0, '')
+    open_lists_ids, pages_count, origin_filenames = save_open_list_files(uploaded_files, user_id)
+    delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
+    folder = 'uploaded_files/'
+    table = None
     already_uploaded = []
-    progress_recorder.set_progress(total_processed[0], 100, uploaded_files)
-    i = 0
-    for file in uploaded_files:
-        progress_recorder.set_progress(int((total_processed[0] + 1) / len(uploaded_files) * 100), 100,
-                                       uploaded_files)
-        if not file.lower().endswith('.pdf'):
+    open_lists = []
+    file_groups = {}
+    for open_list_id in open_lists_ids:
+        open_list = OpenLists.objects.get(id=open_list_id)
+        open_lists.append(open_list)
+        file = {'path': folder + open_list.source.name, 'origin_name': origin_filenames[str(open_list_id)],
+                'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[str(open_list_id)]}}
+        file_groups[str(open_list_id)] = file
+    progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'open_lists',
+                     'time_started': datetime.now().strftime(
+                         "%Y-%m-%d %H:%M:%S")}
+    redis_client.set(self.request.id, json.dumps(progress_json))
+    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
+    for open_list in open_lists:
+        progress_json['file_groups'][str(open_list.id)]['processed'] = 'Processing'
+        if not open_list.source.path.endswith('.pdf'):
             continue
-        new_table = open_list_ocr('uploaded_files/', 'open_lists/', file, open_lists_ids[i])
-        i += 1
+        time_on_start = datetime.now()
+        new_table = open_list_ocr(open_list.source.path, progress_recorder, pages_count,
+                                  total_processed, open_list.id, progress_json, self.request.id, time_on_start)
+        progress_json['file_groups'][str(open_list.id)]['pages']['processed'] = \
+            progress_json['file_groups'][str(open_list.id)]['pages']['all']
+        progress_json['file_groups'][str(open_list.id)]['processed'] = 'True'
+        redis_client.set(self.request.id, json.dumps(progress_json))
+        progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
         if isinstance(new_table, pd.DataFrame):
             if table is not None:
                 table = table._append(new_table, ignore_index=True)
@@ -268,38 +294,45 @@ def process_open_lists(self, uploaded_files, open_lists_ids):
                 table = new_table
         else:
             already_uploaded.append(file)
-        total_processed[0] += 1
     if isinstance(table, pd.DataFrame):
         table = table['Номер листа'].tolist()
-    return table
+    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    return progress_json
+    # return table
 
 
-def open_list_ocr(file_path, source_path, pdf_path, open_list_id):
-    source_file = source_path + pdf_path
-    path = file_path + source_file
-
+def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
+                  open_list_id, progress_json, task_id, time_on_start):
     open_lists = OpenLists.objects.all()
     for open_list in open_lists:
-        if open_list.source and os.path.isfile(open_list.source.path):
-            file_hash = calculate_file_hash(path)
+        if open_list.source and open_list.id != open_list_id and os.path.isfile(open_list.source.path):
+            file_hash = calculate_file_hash(pdf_path)
             open_list_hash = calculate_file_hash('uploaded_files/' + open_list.source.name)
             if file_hash == open_list_hash:
-                open_list = OpenLists.objects.get(id=open_list_id)
-                open_list.delete()
-                raise FileExistsError('Такой файл уже загружен в систему')
+                raise FileExistsError(
+                    f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(open_list_id)]['origin_name']}")
 
     false_date = []
     image = None
     image_filename = None
-    document = fitz.open(path)
+    document = fitz.open(pdf_path)
     for page_number in range(len(document)):
+        pages_processed = total_processed[0] + page_number
+        progress_json['file_groups'][str(open_list_id)]['pages']['processed'] = page_number
+        expected_time = ((datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1)) * (sum(
+            pages_count.values()) - pages_processed)
+        total_seconds = int(expected_time.total_seconds())
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        progress_json['expected_time'] = f"{hours:02}:{minutes:02}:{seconds:02}"
+        redis_client.set(task_id, json.dumps(progress_json))
+        progress_recorder.set_progress(pages_processed, sum(pages_count.values()),
+                                       progress_json)
         # page = document[page_number]
         page = document.load_page(page_number)
 
         pix = page.get_pixmap(dpi=300)  # Получаем картинку страницы
         image_filename = translit(pdf_path[:pdf_path.rfind(".")], 'ru', reversed=True)
-        folder = file_path + '/' + image_filename
-        # Path(folder).mkdir(exist_ok=True)
         image_filename = image_filename + ".png"
         pix.save(image_filename)
 
@@ -463,6 +496,8 @@ def open_list_ocr(file_path, source_path, pdf_path, open_list_id):
                 list_data['Номер листа'] = list_number.group(0)
             else:
                 list_data['Номер листа'] = extracted_text
+        progress_recorder.set_progress(pages_processed + 1 / 5, sum(pages_count.values()),
+                                       progress_json)
         if not list_data['Держатель']:
             extracted_text = extract_text_from_image(fio, '1')
             list_holder = re.search(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+', extracted_text)
@@ -476,12 +511,18 @@ def open_list_ocr(file_path, source_path, pdf_path, open_list_id):
                 list_data['Держатель'] = list_holder.group(0)
             else:
                 list_data['Держатель'] = extracted_text
+        progress_recorder.set_progress(pages_processed + 2 / 5, sum(pages_count.values()),
+                                       progress_json)
         if not list_data['Объект']:
             extracted_text = extract_text_from_image(object, '1')
             list_data['Объект'] = extracted_text
+        progress_recorder.set_progress(pages_processed + 3 / 5, sum(pages_count.values()),
+                                       progress_json)
         if not list_data['Работы']:
             extracted_text = extract_text_from_image(works, '1')
             list_data['Работы'] = extracted_text
+        progress_recorder.set_progress(pages_processed + 4 / 5, sum(pages_count.values()),
+                                       progress_json)
         if not list_data['Начало срока'] or not list_data['Конец срока']:
             dates_list = extract_dates_from_image(dates, koef)
             # imgz_dates = dates # imgz[515*koef:600*koef, 260*koef:540*koef]
@@ -558,6 +599,7 @@ def open_list_ocr(file_path, source_path, pdf_path, open_list_id):
             if all(list_data.values()):
                 break
             '''
+        total_processed[0] += len(document)
         os.remove(image_filename)
         open_list = OpenLists.objects.get(id=open_list_id)
         open_list.number = list_data['Номер листа']
@@ -566,7 +608,6 @@ def open_list_ocr(file_path, source_path, pdf_path, open_list_id):
         open_list.works = list_data['Работы']
         open_list.start_date = list_data['Начало срока']
         open_list.end_date = list_data['Конец срока']
-        open_list.source = source_file
         open_list.save()
 
         table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
@@ -611,6 +652,19 @@ def open_list_ocr(file_path, source_path, pdf_path, open_list_id):
                     cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
         wb.save(table_path)
         return table_data
+
+
+@shared_task
+def error_handler_open_lists(task, exception, exception_desc):
+    print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
+    progress_json = json.loads(redis_client.get(task.id))
+    for open_list_id, source in progress_json['file_groups'].items():
+        print(open_list_id, source)
+        if source['processed'] != 'True':
+            open_list = OpenLists.objects.get(id=open_list_id)
+            open_list.delete()
+    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception
 
 
 if __name__ == "__main__":

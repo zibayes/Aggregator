@@ -19,6 +19,7 @@ from .models import ScientificReport, User
 from .hash import calculate_file_hash
 import os
 from .images_extraction import extract_images_with_captions, SUPPLEMENT_CONTENT
+from .files_saving import save_report_files, load_raw_files, delete_files_in_directory
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -31,13 +32,18 @@ def choose_file() -> str:
 
 
 @shared_task(bind=True)
-def process_reports(self, reports_ids, pages_count, origin_filenames):
-    user = None
+def process_reports(self, uploaded_files, file_groups, user_id):
+    uploaded_files = load_raw_files(uploaded_files, user_id)
+    total_processed = [0]
+    progress_recorder = ProgressRecorder(self)
+    progress_recorder.set_progress(total_processed[0], 0, '')
+    reports_ids, pages_count, origin_filenames = save_report_files(uploaded_files, file_groups,
+                                                                   ScientificReport, user_id)
+    delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
     reports = []
     file_groups = {}
     for report_id in reports_ids:
         report = ScientificReport.objects.get(id=report_id)
-        user = report.user
         reports.append(report)
         for source in report.source:
             file = source.copy()
@@ -49,11 +55,9 @@ def process_reports(self, reports_ids, pages_count, origin_filenames):
             else:
                 file_groups[str(report.id)] = [file]
     # task = TaskResult.objects.filter(task_id=self.request.id)[0]
-    progress_json = {'user_id': user.id, 'file_groups': file_groups, 'file_types': 'scientific_reports',
+    progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'scientific_reports',
                      'time_started': datetime.now().strftime(
                          "%Y-%m-%d %H:%M:%S")}
-    progress_recorder = ProgressRecorder(self)
-    total_processed = [0]
     redis_client.set(self.request.id, json.dumps(progress_json))
     progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
     for current_report in reports:

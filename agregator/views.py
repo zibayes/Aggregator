@@ -1,14 +1,12 @@
 from django.shortcuts import render, redirect
-from .forms import UploadFileForm
+from .forms import UploadReportsForm, UploadOpenListsForm
 from .acts_processing import process_acts, error_handler_acts
 from .reports_processing import process_reports, error_handler_reports
 from .external_sources import external_sources_processing
-from .open_lists_ocr import process_open_lists
+from .open_lists_ocr import process_open_lists, error_handler_open_lists
 from .ask import ask_question_with_context
-import fitz
 import os
 import pandas as pd
-from rest_framework import viewsets
 import json
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
@@ -16,22 +14,15 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from rest_framework import generics
 from . import serializers
-
-import asyncio
 from django.http import JsonResponse
 from django.contrib.auth import login, authenticate
 from .forms import UserRegisterForm
-from channels.layers import get_channel_layer
-from asgiref.sync import async_to_sync
-from celery import shared_task
-from celery.result import AsyncResult
-from celery_progress.backend import ProgressRecorder
 from django_celery_results.models import TaskResult
 from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks
-from openpyxl import load_workbook, Workbook
+from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
-from .files_saving import save_files
+from .files_saving import raw_files_save
 
 
 def index(request):
@@ -41,13 +32,13 @@ def index(request):
 @login_required
 def deconstructor(request):
     user = request.user
-    user_tasks = list(UserTasks.objects.filter(user_id=user.id))
+    user_tasks = list(UserTasks.objects.filter(user_id=user.id, files_type__in=('act', 'report')))
     user_tasks = [x.task_id for x in user_tasks]
     user_tasks = list(TaskResult.objects.filter(task_id__in=user_tasks).order_by('-date_created'))
     tasks_id = [x.task_id for x in user_tasks]
     if request.method == 'POST':
         if 'acts' in request.POST:
-            form = UploadFileForm()
+            form = UploadReportsForm()
             table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
             df = pd.DataFrame()
             if os.path.exists(table_path):
@@ -72,7 +63,7 @@ def deconstructor(request):
             return render(request, 'deconstructor.html',
                           {'form': form, 'tasks_id': tasks_id, 'table': df.to_html(classes='table table-striped')})
         else:
-            form = UploadFileForm(request.POST, request.FILES)
+            form = UploadReportsForm(request.POST, request.FILES)
             if form.is_valid():
                 uploaded_files = form.cleaned_data['files']
                 file_groups = {}
@@ -115,24 +106,22 @@ def deconstructor(request):
                                 file_groups[group_name].append({'type': report_type, 'file': uploaded_files.pop(i)})
                             else:
                                 file_groups[group_name] = [{'type': report_type, 'file': uploaded_files.pop(i)}]
+                uploaded_files = raw_files_save(uploaded_files, user.id)
                 if file_type == 'act':
-                    acts_ids, pages_count, origin_filenames = save_files(uploaded_files, file_groups, Act, user)
-                    task = process_acts.apply_async((acts_ids, pages_count, origin_filenames),
-                                                    link_error=error_handler_acts.s())  # .delay(acts_ids, pages_count, origin_filenames)
+                    task = process_acts.apply_async((uploaded_files, file_groups, user.id),
+                                                    link_error=error_handler_acts.s())
                 elif file_type == 'report':
-                    reports_ids, pages_count, origin_filenames = save_files(uploaded_files, file_groups,
-                                                                            ScientificReport, user)
-                    task = process_reports.apply_async((reports_ids, pages_count, origin_filenames),
-                                                       link_error=error_handler_reports.s())  # .delay(reports_ids, pages_count, origin_filenames)
+                    task = process_reports.apply_async((uploaded_files, file_groups, user.id),
+                                                       link_error=error_handler_reports.s())
                 tasks_id = [task.task_id] + tasks_id
-                user_task = UserTasks(user_id=user.id, task_id=task.task_id)
+                user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type=file_type)
                 user_task.save()
 
                 return render(request, 'deconstructor.html', {'form': form,
                                                               'tasks_id': tasks_id})
 
     else:
-        form = UploadFileForm()
+        form = UploadReportsForm()
     return render(request, 'deconstructor.html', {'form': form, 'tasks_id': tasks_id})
 
 
@@ -171,8 +160,13 @@ def acts_register(request):
 
 @login_required
 def open_list_ocr(request):
+    user = request.user
+    user_tasks = list(UserTasks.objects.filter(user_id=user.id, files_type='open_list'))
+    user_tasks = [x.task_id for x in user_tasks]
+    user_tasks = list(TaskResult.objects.filter(task_id__in=user_tasks).order_by('-date_created'))
+    tasks_id = [x.task_id for x in user_tasks]
     if request.method == 'POST':
-        form = UploadFileForm()
+        form = UploadOpenListsForm()
         if 'open_lists' in request.POST:
             table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
             df = pd.DataFrame()
@@ -196,27 +190,21 @@ def open_list_ocr(request):
                                 ignore_index=True)
                         i += 1
             return render(request, 'open_list_ocr.html',
-                          {'form': form, 'task_id': None, 'table': df.to_html(classes='table table-striped')})
+                          {'form': form, 'tasks_id': tasks_id, 'table': df.to_html(classes='table table-striped')})
         else:
-            form = UploadFileForm(request.POST, request.FILES)
+            form = UploadOpenListsForm(request.POST, request.FILES)
             if form.is_valid():
                 uploaded_files = form.cleaned_data['files']
-                files = []
-                open_lists_ids = []
-                for file in uploaded_files:
-                    open_list = OpenLists(user_id=request.user.id)
-                    open_list.save()
-                    open_lists_ids.append(open_list.id)
-                    file.name = str(open_list.id) + '_open_list.pdf'
-                    files.append(file.name)
-                    with open('uploaded_files/open_lists/' + file.name, 'wb+') as destination:
-                        for chunk in file.chunks():
-                            destination.write(chunk)
-                task = process_open_lists.delay(files, open_lists_ids)
-                return render(request, 'open_list_ocr.html', {'form': form, 'task_id': task.task_id})
+                uploaded_files = raw_files_save(uploaded_files, user.id)
+                task = process_open_lists.apply_async((uploaded_files, request.user.id),
+                                                      link_error=error_handler_open_lists.s())
+                tasks_id = [task.task_id] + tasks_id
+                user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type='open_list')
+                user_task.save()
+                return render(request, 'open_list_ocr.html', {'form': form, 'tasks_id': tasks_id})
     else:
-        form = UploadFileForm()
-    return render(request, 'open_list_ocr.html', {'form': form, 'task_id': None})
+        form = UploadOpenListsForm()
+    return render(request, 'open_list_ocr.html', {'form': form, 'tasks_id': tasks_id})
 
 
 def gpt_chat(request):

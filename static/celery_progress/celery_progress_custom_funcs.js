@@ -18,8 +18,8 @@ function redirectPost(url, data) {
     form.submit();
 }
 
-let files_types = {'all': 'Отчёт', 'text': 'Текст', 'images': 'Приложение'};
-let report_types = {'acts': 'актов', 'scientific_reports': 'научных отчётов'};
+let files_types = {'all': 'Отчёт', 'text': 'Текст', 'images': 'Приложение', 'scan': 'Скан'};
+let report_types = {'acts': 'актов', 'scientific_reports': 'научных отчётов', 'open_lists': 'открытых листов'};
 
 function onSuccessCustomRedirect(progressBarElement, progressBarMessageElement, result) {
     if (progressBarElement) {
@@ -145,18 +145,23 @@ function add_process_status(progressBarMessageElement, result, isError) {
             let file = document.createElement('a');
             file.textContent = 'Составной отчёт';
             li.appendChild(file);
-            if (value.length > 1) {
-                let sub_ul = document.createElement('ul');
-                li.appendChild(sub_ul)
-                for (let i = 0; i < value.length; i++) {
-                    let sub_li = document.createElement('li');
-                    sub_ul.appendChild(sub_li)
-                    let sub_file = document.createElement('a');
-                    add_process_icon(sub_file, sub_li, value[i], result, key, isError);
+            if (result.file_types !== 'open_lists') {
+                if (value.length > 1) {
+                    let sub_ul = document.createElement('ul');
+                    li.appendChild(sub_ul)
+                    for (let i = 0; i < value.length; i++) {
+                        let sub_li = document.createElement('li');
+                        sub_ul.appendChild(sub_li)
+                        let sub_file = document.createElement('a');
+                        add_process_icon(sub_file, sub_li, value[i], result, key, isError);
+                    }
+                } else {
+                    add_process_icon(file, li, value[0], result, key, isError);
                 }
             } else {
-                add_process_icon(file, li, value[0], result, key, isError);
+                add_process_icon(file, li, value, result, key, isError);
             }
+
         }
     }
 }
@@ -169,7 +174,13 @@ function add_process_icon(file, li, value, result, key, isError) {
     li.appendChild(br);
     file.href = `/${result.file_types}/${key}`;
     file.className = 'link'
-    file.textContent = files_types[value.type];
+    let file_text;
+    if (result.file_types !== 'open_lists') {
+        file_text = files_types[value.type];
+    } else {
+        file_text = 'Открытый лист';
+    }
+    file.textContent = file_text;
     li.appendChild(file);
     checkURL(file);
     let deter = document.createElement('a');

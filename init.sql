@@ -29,7 +29,8 @@ CREATE TABLE user_tasks
 (
     id             serial PRIMARY KEY,
     user_id        integer REFERENCES users (id),
-    task_id        VARCHAR(255)
+    task_id        VARCHAR(255),
+    files_type     VARCHAR(255)           NULL
 );
 
 -- Акты
@@ -126,11 +127,11 @@ CREATE TABLE open_lists
     source     text NULL
 );
 
-GRANT ALL PRIVILEGES ON DATABASE postgres TO agregator;
-GRANT ALL PRIVILEGES ON TABLE users TO agregator;
-GRANT ALL PRIVILEGES ON TABLE user_tasks TO agregator;
-GRANT ALL PRIVILEGES ON TABLE scientific_reports TO agregator;
-GRANT ALL PRIVILEGES ON TABLE tech_reports TO agregator;
-GRANT ALL PRIVILEGES ON TABLE acts TO agregator;
-GRANT ALL PRIVILEGES ON TABLE open_lists TO agregator;
-GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO agregator;
+-- GRANT ALL PRIVILEGES ON DATABASE postgres TO agregator;
+-- GRANT ALL PRIVILEGES ON TABLE users TO agregator;
+-- GRANT ALL PRIVILEGES ON TABLE user_tasks TO agregator;
+-- GRANT ALL PRIVILEGES ON TABLE scientific_reports TO agregator;
+-- GRANT ALL PRIVILEGES ON TABLE tech_reports TO agregator;
+-- GRANT ALL PRIVILEGES ON TABLE acts TO agregator;
+-- GRANT ALL PRIVILEGES ON TABLE open_lists TO agregator;
+-- GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO agregator;

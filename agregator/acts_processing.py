@@ -3,27 +3,23 @@ import json
 
 import fitz  # PyMuPDF
 from pathlib import Path
-import tkinter as tk
 from tkinter import filedialog
 import re
 import pdfplumber
 import pandas as pd
-from openpyxl import load_workbook, Workbook
+from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 import os
-from UliPlot.XLSX import auto_adjust_xlsx_column_width
-import time
-from datetime import datetime, date
+from datetime import datetime
 import math
 import numpy as np
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
-from django_celery_results.models import TaskResult
-from time import sleep
 from .models import Act, User
 from .hash import calculate_file_hash
 from .images_extraction import extract_images_with_captions, SUPPLEMENT_CONTENT
 import redis
+from .files_saving import save_report_files, load_raw_files, delete_files_in_directory
 
 SQUARE_RESERVE = []
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -89,17 +85,20 @@ def external_storage_acts_processing(uploaded_files):
 
 
 @shared_task(bind=True)
-def process_acts(self, acts_ids, pages_count, origin_filenames):
-    table = None
-    progress_recorder = ProgressRecorder(self)
+def process_acts(self, uploaded_files, file_groups, user_id):
+    uploaded_files = load_raw_files(uploaded_files, user_id)
     total_processed = [0]
+    progress_recorder = ProgressRecorder(self)
+    progress_recorder.set_progress(total_processed[0], 0, '')
+    acts_ids, pages_count, origin_filenames = save_report_files(uploaded_files, file_groups, Act, user_id)
+    delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
+    table = None
+
     already_uploaded = []
-    user = None
     acts = []
     file_groups = {}
     for act_id in acts_ids:
         act = Act.objects.get(id=act_id)
-        user = act.user
         acts.append(act)
         for source in act.source:
             file = source.copy()
@@ -110,7 +109,7 @@ def process_acts(self, acts_ids, pages_count, origin_filenames):
                 file_groups[str(act.id)].append(file)
             else:
                 file_groups[str(act.id)] = [file]
-    progress_json = {'user_id': user.id, 'file_groups': file_groups, 'file_types': 'acts',
+    progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'acts',
                      'time_started': datetime.now().strftime(
                          "%Y-%m-%d %H:%M:%S")}
     redis_client.set(self.request.id, json.dumps(progress_json))
@@ -160,7 +159,6 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                 file_hash = calculate_file_hash(pdf_file)
                 act_hash = calculate_file_hash(source_path)
                 if file_hash == act_hash:
-                    time.sleep(2)
                     raise FileExistsError(
                         f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(act_id)][source_index]['origin_name']}")
 

@@ -78,6 +78,7 @@ class User(AbstractUser):
 class UserTasks(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
     task_id = models.CharField(max_length=255)
+    files_type = models.CharField(max_length=255)
 
     def __str__(self):
         return f"User task {self.id}"
@@ -226,5 +227,6 @@ class OpenLists(models.Model):
         db_table = 'open_lists'
 
     def delete(self, *args, **kwargs):
-        delete_files(self.source)
+        if self.source:
+            delete_files(self.source.path)
         super().delete(*args, **kwargs)

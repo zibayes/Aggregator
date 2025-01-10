@@ -4,73 +4,77 @@
 {% block title %}OCR для документов{% endblock %}
 
 {% block content %}
-	<!-- Заголовок страницы -->
-    <header class="hero">
-        <div class="container">
-            <h1 class="display-4">OCR для документов</h1>
-        </div>
-    </header>
 
-    <!-- Секция загрузки файла -->
+    <br>
+    <h2 align="center">OCR для открытых листов</h2>
+    <br>
+
     <div class="container upload-section">
-        <h2 class="text-center">Загрузите файл</h2>
         <form method="post" enctype="multipart/form-data">
-			{% csrf_token %}
-			{{ form.as_p }}
+            {% csrf_token %}
+            {{ form.as_p }}
+            <button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить
+            </button>
+        </form>
 
-            {% if task_id %}
-				<div class='progress-wrapper'>
-				  <div id='progress-bar' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
-				</div>
-				<div id="progress-bar-message">Ожидание загрузки файла...</div>
-				<script src="{% static 'celery_progress/celery_progress.js' %}"></script>
-				<script>
-					function redirectPost(url, data) {
-						var form = document.createElement('form');
-						document.body.appendChild(form);
-						form.method = 'post';
-						form.action = url;
-						var input = document.createElement('input');
-						input.type = 'hidden';
-						input.name = 'open_lists';
-						input.value = data;
-						var csrf = document.createElement('input');
-						csrf.type = 'hidden';
-						csrf.name = 'csrfmiddlewaretoken';
-						csrf.value = `{{ csrf_token }}`;
-						form.appendChild(input);
-						form.appendChild(csrf);
-						form.submit();
-					}
+        {% if tasks_id %}
+            <br>
+            <h3 align="center">Журнал загрузок</h3>
+            <br>
 
-					function customSuccess(progressBarElement, progressBarMessageElement, result) {
-					    result = this.getMessageDetails(result);
-						if (progressBarElement) {
-							progressBarElement.style.backgroundColor = this.barColors.success;
-						}
-						if (progressBarMessageElement) {
-							progressBarMessageElement.textContent = "Success! " + result;
-						}
+            <div class="container upload-section">
+                <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
+                <script>
+                    let i = 0;
+                    let progress_bars;
+                </script>
 
-						let url = "/open_list_ocr/";
-						setTimeout(() => { redirectPost(url, result);}, 1000)
-					}
+                {% for task_id in tasks_id %}
+                    <div class="border border-secondary" style="padding: 5px;">
+                        <div class='progress-wrapper-{{ forloop.counter0 }}'>
+                            <div id='progress-bar-{{ forloop.counter0 }}' class='progress-bar'
+                                 style="background-color: #68a9ef; width: 0%;">&nbsp;
+                            </div>
+                        </div>
+                        <div id="progress-bar-message-{{ forloop.counter0 }}">Ожидание загрузки файла...</div>
+                        <div id="progress-result-{{ forloop.counter0 }}"></div>
+                        <div id="pb-progress-{{ forloop.counter0 }}"></div>
+                        <div id="pb-time-start-{{ forloop.counter0 }}"></div>
+                        <div id="pb-time-end-{{ forloop.counter0 }}"></div>
+                        <div id="pb-files-{{ forloop.counter0 }}"></div>
+                    </div>
+                    <br>
+                {% endfor %}
+                <script src="{% static 'celery_progress/celery_progress_custom_funcs.js' %}"></script>
+                <script>
+                    document.addEventListener("DOMContentLoaded", function () {
 
-					document.addEventListener("DOMContentLoaded", function () {
-					  var progressUrl = "{% url 'celery_progress:task_status' task_id %}";
-					  CeleryProgressBar.initProgressBar(progressUrl, {onSuccess: customSuccess});
-					});
-				</script>
-			{% endif %}
+                        let defaultMessages = {
+                            waiting: 'Ожидание загрузки...',
+                            started: 'Загрузка началась...',
+                        }
 
-			<button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить</button>
-		</form>
-
-		{% if table %}
-            <h2>Считанные данные:</h2>
-			<div class="table-responsive">
-				{{ table|safe }}  <!-- Безопасное отображение HTML -->
-			</div>
+                        const task_urls = [
+                            {% for task_id in tasks_id %}"{% url 'celery_progress:task_status' task_id %}",
+                            {% endfor %}];
+                        for (var i = 0; i < task_urls.length; i++) {
+                            CeleryProgressBar.initProgressBar(task_urls[i], {
+                                progressBarId: "progress-bar-" + i,
+                                progressBarMessageId: "progress-bar-message-" + i,
+                                resultElementId: "progress-result-" + i,
+                                defaultMessages: defaultMessages,
+                                onSuccess: onSuccessCustom,
+                                onResult: onResultCustom,
+                                onError: onErrorCustom,
+                                onTaskError: onTaskErrorCustom,
+                                onRetry: onRetryCustom,
+                                onIgnored: onIgnoredCustom,
+                                onProgress: onProgressCustom,
+                            });
+                        }
+                    });
+                </script>
+            </div>
         {% endif %}
     </div>
 {% endblock %}
