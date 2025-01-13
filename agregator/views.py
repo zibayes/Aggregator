@@ -22,7 +22,19 @@ from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTask
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
-from .files_saving import raw_files_save
+from .files_saving import raw_open_lists_save, raw_reports_save
+
+
+def get_user_tasks(user_id, file_types, upload_source=False):
+    user_tasks = list(UserTasks.objects.filter(user_id=user_id, files_type__in=file_types))
+    if upload_source:
+        user_tasks = [x for x in user_tasks if x.upload_source['source'] != 'Пользовательский файл']
+    else:
+        user_tasks = [x for x in user_tasks if x.upload_source['source'] == 'Пользовательский файл']
+    user_tasks = [x.task_id for x in user_tasks]
+    user_tasks = list(TaskResult.objects.filter(task_id__in=user_tasks).order_by('-date_created'))
+    tasks_id = [x.task_id for x in user_tasks]
+    return tasks_id
 
 
 def index(request):
@@ -32,36 +44,12 @@ def index(request):
 @login_required
 def deconstructor(request):
     user = request.user
-    user_tasks = list(UserTasks.objects.filter(user_id=user.id, files_type__in=('act', 'report')))
-    user_tasks = [x.task_id for x in user_tasks]
-    user_tasks = list(TaskResult.objects.filter(task_id__in=user_tasks).order_by('-date_created'))
-    tasks_id = [x.task_id for x in user_tasks]
+    tasks_id = get_user_tasks(user.id, ('act', 'report'))
     if request.method == 'POST':
         if 'acts' in request.POST:
             form = UploadReportsForm()
-            table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
-            df = pd.DataFrame()
-            if os.path.exists(table_path):
-                df_existing = pd.read_excel(table_path, engine='openpyxl')
-                acts = request.POST['acts']
-                acts_list = []
-                while len(acts) > 0:
-                    if acts.lower().find(',акт') < 0:
-                        acts_list.append(acts)
-                        break
-                    act = acts[:acts.lower().find(',акт')]
-                    acts = acts[acts.lower().find(',акт') + 1:]
-                    acts_list.append(act)
-                for act in acts_list:
-                    i = 0
-                    for num in df_existing['Номер (если имеется) и наименование Акта ГИКЭ'].tolist():
-                        if act[:act.find('\n')].replace('\r', '') == num[:num.find('\n')].replace('\r', ''):
-                            df = df._append(
-                                pd.DataFrame([df_existing.iloc[i].to_list()], columns=df_existing.columns, index=[0]),
-                                ignore_index=True)
-                        i += 1
             return render(request, 'deconstructor.html',
-                          {'form': form, 'tasks_id': tasks_id, 'table': df.to_html(classes='table table-striped')})
+                          {'form': form, 'tasks_id': tasks_id})
         else:
             form = UploadReportsForm(request.POST, request.FILES)
             if form.is_valid():
@@ -106,15 +94,18 @@ def deconstructor(request):
                                 file_groups[group_name].append({'type': report_type, 'file': uploaded_files.pop(i)})
                             else:
                                 file_groups[group_name] = [{'type': report_type, 'file': uploaded_files.pop(i)}]
-                uploaded_files = raw_files_save(uploaded_files, user.id)
                 if file_type == 'act':
-                    task = process_acts.apply_async((uploaded_files, file_groups, user.id),
+                    acts_ids, origin_filenames = raw_reports_save(file_groups, uploaded_files, Act, user.id)
+                    task = process_acts.apply_async((acts_ids, origin_filenames, user.id),
                                                     link_error=error_handler_acts.s())
                 elif file_type == 'report':
-                    task = process_reports.apply_async((uploaded_files, file_groups, user.id),
+                    reports_ids, origin_filenames = raw_reports_save(file_groups, uploaded_files, ScientificReport,
+                                                                     user.id)
+                    task = process_reports.apply_async((reports_ids, origin_filenames, user.id),
                                                        link_error=error_handler_reports.s())
                 tasks_id = [task.task_id] + tasks_id
-                user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type=file_type)
+                user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type=file_type,
+                                      upload_source={'source': 'Пользовательский файл'})
                 user_task.save()
 
                 return render(request, 'deconstructor.html', {'form': form,
@@ -131,18 +122,9 @@ def external_sources(request):
     if request.method == 'POST':
         external_sources_processing.delay()
         is_processing = True
-    return render(request, 'external_sources.html', {'is_processing': is_processing})
-
-
-@login_required
-def processing_status(request):
-    tasks = list(TaskResult.objects.all())
-    for i in range(len(tasks) - 1, -1, -1):
-        result = json.loads(tasks[i].result)
-        if 'user_id' in result.keys() and result['user_id'] != request.user.id:
-            tasks.pop(i)
-    tasks_id = [x.task_id for x in tasks]
-    return render(request, 'processing_status.html', {'tasks_id': tasks_id})
+    admin = User.objects.get(is_superuser=True)
+    tasks_id = get_user_tasks(admin.id, ('act', 'report', 'open_list'), True)
+    return render(request, 'external_sources.html', {'is_processing': is_processing, 'tasks_id': tasks_id})
 
 
 def constructor(request):
@@ -154,54 +136,26 @@ def interactive_map(request):
 
 
 def acts_register(request):
-    acts = Act.objects.all()
+    acts = Act.objects.filter(is_processing=False)
     return render(request, 'acts_register.html', {'acts': acts})
 
 
 @login_required
 def open_list_ocr(request):
-    user = request.user
-    user_tasks = list(UserTasks.objects.filter(user_id=user.id, files_type='open_list'))
-    user_tasks = [x.task_id for x in user_tasks]
-    user_tasks = list(TaskResult.objects.filter(task_id__in=user_tasks).order_by('-date_created'))
-    tasks_id = [x.task_id for x in user_tasks]
+    user_id = request.user.id
+    tasks_id = get_user_tasks(user_id, ('open_list',))
     if request.method == 'POST':
-        form = UploadOpenListsForm()
-        if 'open_lists' in request.POST:
-            table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
-            df = pd.DataFrame()
-            if os.path.exists(table_path):
-                df_existing = pd.read_excel(table_path, engine='openpyxl')
-                open_lists = request.POST['open_lists']
-                ol_list = []
-                while len(open_lists) > 0:
-                    if open_lists.lower().find(',') < 0:
-                        ol_list.append(open_lists)
-                        break
-                    open_list = open_lists[:open_lists.lower().find(',')]
-                    open_lists = open_lists[open_lists.lower().find(',') + 1:]
-                    ol_list.append(open_list)
-                for ol in ol_list:
-                    i = 0
-                    for num in df_existing['Номер листа'].tolist():
-                        if ol[:ol.find('\n')].replace('\r', '') == num[:num.find('\n')].replace('\r', ''):
-                            df = df._append(
-                                pd.DataFrame([df_existing.iloc[i].to_list()], columns=df_existing.columns, index=[0]),
-                                ignore_index=True)
-                        i += 1
-            return render(request, 'open_list_ocr.html',
-                          {'form': form, 'tasks_id': tasks_id, 'table': df.to_html(classes='table table-striped')})
-        else:
-            form = UploadOpenListsForm(request.POST, request.FILES)
-            if form.is_valid():
-                uploaded_files = form.cleaned_data['files']
-                uploaded_files = raw_files_save(uploaded_files, user.id)
-                task = process_open_lists.apply_async((uploaded_files, request.user.id),
-                                                      link_error=error_handler_open_lists.s())
-                tasks_id = [task.task_id] + tasks_id
-                user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type='open_list')
-                user_task.save()
-                return render(request, 'open_list_ocr.html', {'form': form, 'tasks_id': tasks_id})
+        form = UploadOpenListsForm(request.POST, request.FILES)
+        if form.is_valid():
+            uploaded_files = form.cleaned_data['files']
+            open_lists_ids, origin_filenames = raw_open_lists_save(uploaded_files, user_id)
+            task = process_open_lists.apply_async((open_lists_ids, origin_filenames, user_id),
+                                                  link_error=error_handler_open_lists.s())
+            tasks_id = [task.task_id] + tasks_id
+            user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
+                                  upload_source={'source': 'Пользовательский файл'})
+            user_task.save()
+            return render(request, 'open_list_ocr.html', {'form': form, 'tasks_id': tasks_id})
     else:
         form = UploadOpenListsForm()
     return render(request, 'open_list_ocr.html', {'form': form, 'tasks_id': tasks_id})
@@ -279,7 +233,7 @@ def settings(request):
 
 
 def open_lists_register(request):
-    open_lists = OpenLists.objects.all()
+    open_lists = OpenLists.objects.filter(is_processing=False)
     return render(request, 'open_lists_register.html', {'open_lists': open_lists})
 
 
@@ -407,7 +361,7 @@ def acts_register_download(request):
 
 
 def scientific_reports_register(request):
-    reports = ScientificReport.objects.all()
+    reports = ScientificReport.objects.filter(is_processing=False)
     return render(request, 'scientific_reports_register.html', {'reports': reports})
 
 
@@ -438,10 +392,6 @@ def acts_edit(request, pk):
         act.open_list = request.POST['open_list']
         act.conclusion = request.POST['conclusion']
         act.border_objects = request.POST['border_objects']
-        '''
-        if 'source' in request.FILES.keys():
-            act.source = request.FILES['source']
-        '''
         act.save()
         messages.success(request, 'Акт успешно обновлен.')
         return redirect(f'/acts/{act.id}')  # Перенаправление на страницу профиля
@@ -479,10 +429,6 @@ def scientific_reports_edit(request, pk):
         report.research_history = request.POST['research_history']
         report.results = request.POST['results']
         report.conclusion = request.POST['conclusion']
-        '''
-        if 'source' in request.FILES.keys():
-            report.source = request.FILES['source']
-        '''
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
         return redirect(f'/scientific_reports/{report.id}')  # Перенаправление на страницу профиля
@@ -514,10 +460,6 @@ def open_lists_edit(request, pk):
         open_list.works = request.POST['works']
         open_list.start_date = request.POST['start_date']
         open_list.end_date = request.POST['end_date']
-        '''
-        if 'source' in request.FILES.keys():
-            act.source = request.FILES['source']
-        '''
         open_list.save()
         messages.success(request, 'Открытый лист успешно обновлен.')
         return redirect(f'/open_lists/{open_list.id}')

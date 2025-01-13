@@ -19,7 +19,7 @@ from .models import ScientificReport, User
 from .hash import calculate_file_hash
 import os
 from .images_extraction import extract_images_with_captions, SUPPLEMENT_CONTENT
-from .files_saving import save_report_files, load_raw_files, delete_files_in_directory
+from .files_saving import delete_files_in_directory, load_raw_reports
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -32,19 +32,15 @@ def choose_file() -> str:
 
 
 @shared_task(bind=True)
-def process_reports(self, uploaded_files, file_groups, user_id):
-    uploaded_files = load_raw_files(uploaded_files, user_id)
-    total_processed = [0]
+def process_reports(self, reports_ids, origin_filenames, user_id):
     progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(total_processed[0], 0, '')
-    reports_ids, pages_count, origin_filenames = save_report_files(uploaded_files, file_groups,
-                                                                   ScientificReport, user_id)
-    delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
-    reports = []
+    progress_recorder.set_progress(0, 100, '')
+    reports, pages_count = load_raw_reports(reports_ids, ScientificReport)
+    # delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
+    total_processed = [0]
     file_groups = {}
-    for report_id in reports_ids:
-        report = ScientificReport.objects.get(id=report_id)
-        reports.append(report)
+    for report in reports:
+        report.source = json.loads(report.source)
         for source in report.source:
             file = source.copy()
             file['origin_name'] = origin_filenames[source['path']]
@@ -54,7 +50,6 @@ def process_reports(self, uploaded_files, file_groups, user_id):
                 file_groups[str(report.id)].append(file)
             else:
                 file_groups[str(report.id)] = [file]
-    # task = TaskResult.objects.filter(task_id=self.request.id)[0]
     progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'scientific_reports',
                      'time_started': datetime.now().strftime(
                          "%Y-%m-%d %H:%M:%S")}
@@ -66,20 +61,23 @@ def process_reports(self, uploaded_files, file_groups, user_id):
             if not source['path'].lower().endswith(('.pdf', '.doc', '.docx')):
                 continue
             progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'Processing'
-            extract_text_and_images(source['path'], progress_recorder, pages_count,
-                                    total_processed, progress_json, current_report.id, i, self.request.id)
+            extract_text_and_images(current_report, source['path'], progress_recorder, pages_count,
+                                    total_processed, progress_json, current_report.id, i, self.request.id, user_id)
             progress_json['file_groups'][str(current_report.id)][i]['pages']['processed'] = \
                 progress_json['file_groups'][str(current_report.id)][i]['pages']['all']
             progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'True'
             redis_client.set(self.request.id, json.dumps(progress_json))
             progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
             i += 1
+        current_report.is_processing = False
+        current_report.save()
     progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return progress_json
 
 
-def extract_text_and_images(file, progress_recorder, pages_count, total_processed, progress_json, report_id,
-                            source_index, task_id):
+def extract_text_and_images(current_report, file, progress_recorder, pages_count, total_processed, progress_json,
+                            report_id,
+                            source_index, task_id, user_id):
     supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
     reports = ScientificReport.objects.all()
     for report in reports:
@@ -167,8 +165,10 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                     continue
                 break
 
-            extract_images_with_captions(text, page, page_number, document, folder, supplement_content,
-                                         extracted_images)
+            extract_images_with_captions(text, page, page_number, document, folder,
+                                         supplement_content, extracted_images, user_id,
+                                         progress_json['file_groups'][str(report_id)][source_index]['origin_name'],
+                                         current_report.upload_source)
         total_processed[0] += len(document)
     document.close()
 
@@ -198,10 +198,15 @@ def error_handler_reports(task, exception, exception_desc):
     print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
     progress_json = json.loads(redis_client.get(task.id))
     for report_id, sources in progress_json['file_groups'].items():
+        deleted_report = False
         for source in sources:
             if source['processed'] != 'True':
                 report = ScientificReport.objects.get(id=report_id)
                 report.delete()
+                deleted_report = True
+                break
+        if deleted_report:
+            continue
     progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception
 

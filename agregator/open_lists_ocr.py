@@ -23,7 +23,7 @@ from celery import shared_task
 from celery_progress.backend import ProgressRecorder
 from .models import OpenLists
 from .hash import calculate_file_hash
-from .files_saving import save_open_list_files, load_raw_files, delete_files_in_directory
+from .files_saving import delete_files_in_directory, load_raw_open_lists
 
 MAX_VAL = 255
 UPSCALE = [1]
@@ -252,24 +252,20 @@ def change_img_perspect(img, dst_pts, src_pts=None):
 
 
 @shared_task(bind=True)
-def process_open_lists(self, uploaded_files, user_id):
-    uploaded_files = load_raw_files(uploaded_files, user_id)
-    total_processed = [0]
+def process_open_lists(self, open_lists_ids, origin_filenames, user_id):
     progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(total_processed[0], 0, '')
-    open_lists_ids, pages_count, origin_filenames = save_open_list_files(uploaded_files, user_id)
-    delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
+    progress_recorder.set_progress(1, 100, '')
+    open_lists, pages_count = load_raw_open_lists(open_lists_ids)
+    # delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
+    total_processed = [0]
     folder = 'uploaded_files/'
     table = None
     already_uploaded = []
-    open_lists = []
     file_groups = {}
-    for open_list_id in open_lists_ids:
-        open_list = OpenLists.objects.get(id=open_list_id)
-        open_lists.append(open_list)
-        file = {'path': folder + open_list.source.name, 'origin_name': origin_filenames[str(open_list_id)],
-                'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[str(open_list_id)]}}
-        file_groups[str(open_list_id)] = file
+    for open_list in open_lists:
+        file = {'path': folder + open_list.source.name, 'origin_name': origin_filenames[str(open_list.id)],
+                'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[str(open_list.id)]}}
+        file_groups[str(open_list.id)] = file
     progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'open_lists',
                      'time_started': datetime.now().strftime(
                          "%Y-%m-%d %H:%M:%S")}
@@ -339,9 +335,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         '''
         with Image(filename=pdf_path) as img:
             img.save(filename=file[:file.rfind(".")] + f".png")
-        '''
-
-        '''
+            
         image_list = page.get_images(full=True)
         for img_index, img in enumerate(image_list):
             img_index = img[0]
@@ -608,50 +602,8 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         open_list.works = list_data['Работы']
         open_list.start_date = list_data['Начало срока']
         open_list.end_date = list_data['Конец срока']
+        open_list.is_processing = False
         open_list.save()
-
-        table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
-        df_new = pd.DataFrame(list_data, columns=list_data.keys(), index=[0])
-        table_data = df_new
-        if os.path.exists(table_path):
-            df_existing = pd.read_excel(table_path)
-            df_new = df_existing._append(df_new, ignore_index=True)
-        '''
-        df_new['Начало срока'] = pd.to_datetime(df_new['Начало срока'], format='%d.%m.%Y', dayfirst=True)
-        df_new.sort_values(by='Начало срока', ascending=False, inplace=True)
-        df_new['Начало срока'] = df_new['Начало срока'].dt.strftime('%d.%m.%Y')
-        '''
-        with pd.ExcelWriter(table_path) as writer:
-            df_new.to_excel(writer, sheet_name="Sheet1", index=False)
-        wb = load_workbook(table_path)
-        ws = wb.active
-        ws.column_dimensions['A'].width = 14
-        ws.column_dimensions['B'].width = 20
-        ws.column_dimensions['C'].width = 100
-        ws.column_dimensions['D'].width = 100
-        ws.column_dimensions['E'].width = 14
-        ws.column_dimensions['F'].width = 14
-        font = Font(
-            name='Times New Roman',
-            size=11,
-            bold=False,
-            italic=False,
-            vertAlign=None,
-            underline='none',
-            strike=False,
-            color='FF000000'
-        )
-        {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
-        for i in range(1, len(df_new.values) + 2):
-            if i == 1:
-                ws.row_dimensions[0].height = 50
-            else:
-                ws.row_dimensions[i].height = 80
-            for cell in ws[i]:
-                if cell.value:
-                    cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-        wb.save(table_path)
-        return table_data
 
 
 @shared_task

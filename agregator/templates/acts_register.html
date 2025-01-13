@@ -8,14 +8,6 @@
     <h2 align="center">Реестр актов</h2>
     <br>
 
-    <div class="container upload-section">
-        {% if table %}
-            <div class="table-responsive">
-                <!-- {{ table|safe }} -->
-            </div>
-        {% endif %}
-    </div>
-
     <div class="accordion" id="accordionColumns">
         <div class="accordion-item">
             <h2 class="accordion-header">
@@ -47,11 +39,14 @@
                     <label><input type="checkbox" class="column-toggle" data-column="11" checked> Объекты вблизи</label><br>
                     <label><input type="checkbox" class="column-toggle" data-column="12" checked> Владелец
                         документа</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="13" checked> Формализованный
+                    <label><input type="checkbox" class="column-toggle" data-column="13" checked> Источник</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="14" checked> Дата
+                        загрузки</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="15" checked> Формализованный
                         документ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="14" checked> Исходный
+                    <label><input type="checkbox" class="column-toggle" data-column="16" checked> Исходный
                         документ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="15" checked> Редактирование</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="17" checked> Редактирование</label><br>
                 </div>
             </div>
         </div>
@@ -66,21 +61,73 @@
             <div id="collapseFilters" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
                 <div class="accordion-body">
                     <form id="filterForm">
-                        <div class="mb-3">
+                        <div class="mb-3" id="filterYearContainer">
                             <label for="filterYear" class="form-label">Год</label>
                             <input type="text" class="form-control" id="filterYear" placeholder="Введите год">
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" id="filterFinishDateContainer">
+                            <label for="filterFinishDate" class="form-label">Дата окончания</label>
+                            <input type="text" class="form-control" id="filterFinishDate"
+                                   placeholder="Введите дату окончания">
+                        </div>
+                        <div class="mb-3" id="filterTypeContainer">
                             <label for="filterType" class="form-label">Вид ГИКЭ</label>
                             <input type="text" class="form-control" id="filterType" placeholder="Введите вид ГИКЭ">
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" id="filterNameNumberContainer">
+                            <label for="filterNameNumber" class="form-label">Номер и наименование</label>
+                            <input type="text" class="form-control" id="filterNameNumber"
+                                   placeholder="Введите номер и наименование">
+                        </div>
+                        <div class="mb-3" id="filterPlaceContainer">
+                            <label for="filterPlace" class="form-label">Место проведения</label>
+                            <input type="text" class="form-control" id="filterPlace"
+                                   placeholder="Введите место проведения">
+                        </div>
+                        <div class="mb-3" id="filterCustomerContainer">
                             <label for="filterCustomer" class="form-label">Заказчик</label>
                             <input type="text" class="form-control" id="filterCustomer" placeholder="Введите заказчика">
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" id="filterAreaContainer">
+                            <label for="filterArea" class="form-label">Площадь</label>
+                            <input type="text" class="form-control" id="filterArea" placeholder="Введите площадь">
+                        </div>
+                        <div class="mb-3" id="filterExpertContainer">
                             <label for="filterExpert" class="form-label">Эксперт</label>
                             <input type="text" class="form-control" id="filterExpert" placeholder="Введите эксперта">
+                        </div>
+                        <div class="mb-3" id="filterExecutionerContainer">
+                            <label for="filterExecutioner" class="form-label">Исполнитель</label>
+                            <input type="text" class="form-control" id="filterExecutioner"
+                                   placeholder="Введите исполнителя">
+                        </div>
+                        <div class="mb-3" id="filterOpenListContainer">
+                            <label for="filterOpenList" class="form-label">ОЛ</label>
+                            <input type="text" class="form-control" id="filterOpenList" placeholder="Введите ОЛ">
+                        </div>
+                        <div class="mb-3" id="filterConclusionContainer">
+                            <label for="filterConclusion" class="form-label">Заключение</label>
+                            <input type="text" class="form-control" id="filterConclusion"
+                                   placeholder="Введите заключение">
+                        </div>
+                        <div class="mb-3" id="filterBorderObjectsContainer">
+                            <label for="filterBorderObjects" class="form-label">Границы объектов</label>
+                            <input type="text" class="form-control" id="filterBorderObjects"
+                                   placeholder="Введите границы объектов">
+                        </div>
+                        <div class="mb-3" id="filterOwnerContainer">
+                            <label for="filterOwner" class="form-label">Владелец документа</label>
+                            <input type="text" class="form-control" id="filterOwner"
+                                   placeholder="Введите владельца документа">
+                        </div>
+                        <div class="mb-3" id="filterSourceContainer">
+                            <label for="filterSource" class="form-label">Источник</label>
+                            <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
+                        </div>
+                        <div class="mb-3" id="filterDateUploadedContainer">
+                            <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+                            <input type="text" class="form-control" id="filterDateUploaded"
+                                   placeholder="Введите дату загрузки">
                         </div>
                         <div class="mb-3">
                             <label>
@@ -115,6 +162,8 @@
                 <th>Заключение. Выявленые объекты.</th>
                 <th>Объекты расположенные в непосредственной близости. Для границ</th>
                 <th>Владелец документа</th>
+                <th>Источник</th>
+                <th>Дата загрузки</th>
                 <th>Формализованный документ</th>
                 <th>Исходный документ</th>
                 <th>Редактирование</th>
@@ -122,8 +171,23 @@
             </thead>
             <tbody>
             {% for act in acts %}
-                <tr data-act-id="{{ act.id }}" data-user-id="{{ act.user.id }}" data-year="{{ act.year }}"
-                    data-type="{{ act.type }}" data-customer="{{ act.customer }}" data-expert="{{ act.expert }}">
+                <tr data-act-id="{{ act.id }}"
+                    data-user-id="{{ act.user.id }}"
+                    data-year="{{ act.year }}"
+                    data-finish-date="{{ act.finish_date }}"
+                    data-type="{{ act.type }}"
+                    data-name-number="{{ act.name_number }}"
+                    data-place="{{ act.place }}"
+                    data-customer="{{ act.customer }}"
+                    data-area="{{ act.area }}"
+                    data-expert="{{ act.expert }}"
+                    data-executioner="{{ act.executioner }}"
+                    data-open-list="{{ act.open_list }}"
+                    data-conclusion="{{ act.conclusion }}"
+                    data-border-objects="{{ act.border_objects }}"
+                    data-owner="{{ act.user.username }}"
+                    data-source="{{ act.upload_source }}"
+                    data-date-uploaded="{{ act.date_uploaded }}">
                     <td>
                         {{ act.year }}
                     </td>
@@ -167,6 +231,13 @@
                                  style="object-fit: cover;" alt=""/>
                             {{ act.user.username }}
                         </a>
+                    </td>
+                    <td>
+                        <a{% if act.upload_source.link %}
+                            href="{{ act.upload_source.link }}" {% endif %}>{{ act.upload_source.source }}</a>
+                    </td>
+                    <td>
+                        {{ act.date_uploaded }}
                     </td>
                     <td>
                         <a href="/acts/{{ act.id }}">
@@ -222,33 +293,96 @@
             e.preventDefault(); // Отменяем стандартное действие формы
 
             const yearFilter = document.getElementById('filterYear').value.toLowerCase();
+            const finishDateFilter = document.getElementById('filterFinishDate').value.toLowerCase();
             const typeFilter = document.getElementById('filterType').value.toLowerCase();
+            const nameNumberFilter = document.getElementById('filterNameNumber').value.toLowerCase();
+            const placeFilter = document.getElementById('filterPlace').value.toLowerCase();
             const customerFilter = document.getElementById('filterCustomer').value.toLowerCase();
+            const areaFilter = document.getElementById('filterArea').value.toLowerCase();
             const expertFilter = document.getElementById('filterExpert').value.toLowerCase();
+            const executionerFilter = document.getElementById('filterExecutioner').value.toLowerCase();
+            const openListFilter = document.getElementById('filterOpenList').value.toLowerCase();
+            const conclusionFilter = document.getElementById('filterConclusion').value.toLowerCase();
+            const borderObjectsFilter = document.getElementById('filterBorderObjects').value.toLowerCase();
+            const ownerFilter = document.getElementById('filterOwner').value.toLowerCase();
+            const sourceFilter = document.getElementById('filterSource').value.toLowerCase();
+            const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
             const showMyDocs = document.getElementById('showMyDocs').checked;
 
             const rows = document.querySelectorAll('.table tbody tr');
             rows.forEach(row => {
                 const yearText = row.dataset.year.toLowerCase();
+                const finishDateText = row.dataset.finishDate.toLowerCase();
                 const typeText = row.dataset.type.toLowerCase();
+                const nameNumberText = row.dataset.nameNumber.toLowerCase();
+                const placeText = row.dataset.place.toLowerCase();
                 const customerText = row.dataset.customer.toLowerCase();
+                const areaText = row.dataset.area.toLowerCase();
                 const expertText = row.dataset.expert.toLowerCase();
+                const executionerText = row.dataset.executioner.toLowerCase();
+                const openListText = row.dataset.openList.toLowerCase();
+                const conclusionText = row.dataset.conclusion.toLowerCase();
+                const borderObjectsText = row.dataset.borderObjects.toLowerCase();
+                const ownerText = row.dataset.owner.toLowerCase();
+                const sourceText = row.dataset.source.toLowerCase();
+                const dateUploadedText = row.dataset.dateUploaded.toLowerCase();
                 const userId = row.dataset.userId;
 
                 const isYearMatch = yearText.includes(yearFilter);
+                const isFinishDateMatch = finishDateText.includes(finishDateFilter);
                 const isTypeMatch = typeText.includes(typeFilter);
+                const isNameNumberMatch = nameNumberText.includes(nameNumberFilter);
+                const isPlaceMatch = placeText.includes(placeFilter);
                 const isCustomerMatch = customerText.includes(customerFilter);
+                const isAreaMatch = areaText.includes(areaFilter);
                 const isExpertMatch = expertText.includes(expertFilter);
+                const isExecutionerMatch = executionerText.includes(executionerFilter);
+                const isOpenListMatch = openListText.includes(openListFilter);
+                const isConclusionMatch = conclusionText.includes(conclusionFilter);
+                const isBorderObjectsMatch = borderObjectsText.includes(borderObjectsFilter);
+                const isAllOwnerMatch = ownerText.includes(ownerFilter);
+                const isSourceMatch = sourceText.includes(sourceFilter);
+                const isDateUploadedMatch = dateUploadedText.includes(dateUploadedFilter);
                 const isOwnerMatch = userId === "{{ user.id }}";
 
-                const showRow = (isYearMatch && isTypeMatch && isCustomerMatch && isExpertMatch) &&
-                    (!showMyDocs || isOwnerMatch);
+                const showRow = (isYearMatch && isFinishDateMatch && isTypeMatch && isNameNumberMatch &&
+                    isPlaceMatch && isCustomerMatch && isAreaMatch && isExpertMatch &&
+                    isExecutionerMatch && isOpenListMatch && isConclusionMatch &&
+                    isBorderObjectsMatch && isAllOwnerMatch && isSourceMatch &&
+                    isDateUploadedMatch) && (!showMyDocs || isOwnerMatch);
                 if (showRow) {
                     row.style.display = ''; // показываем строку
                 } else {
                     row.style.display = 'none'; // скрываем строку
                 }
             });
+        });
+
+        function updateFilterVisibility() {
+            let columnToggles = document.querySelectorAll('.column-toggle');
+            columnToggles.forEach(toggle => {
+                let columnIndex = toggle.getAttribute('data-column');
+                let columns_count = 18;
+                if (columnIndex > columns_count - 3) {
+                    return;
+                }
+                let filterContainer = document.getElementById('filterForm').children[columnIndex];
+                console.log(filterContainer)
+
+                if (toggle.checked) {
+                    filterContainer.style.display = '';
+                } else {
+                    filterContainer.style.display = 'none';
+                }
+            });
+        }
+
+        document.querySelectorAll('.column-toggle').forEach(toggle => {
+            toggle.addEventListener('change', updateFilterVisibility);
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            setTimeout(updateFilterVisibility, 300);
         });
     </script>
 {% endblock %}

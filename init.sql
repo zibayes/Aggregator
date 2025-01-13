@@ -30,7 +30,8 @@ CREATE TABLE user_tasks
     id             serial PRIMARY KEY,
     user_id        integer REFERENCES users (id),
     task_id        VARCHAR(255),
-    files_type     VARCHAR(255)           NULL
+    files_type     VARCHAR(255) NULL,
+    upload_source          json NULL
 );
 
 -- Акты
@@ -38,6 +39,10 @@ CREATE TABLE acts
 (
     id             serial PRIMARY KEY,
     user_id        integer REFERENCES users (id),
+
+    date_uploaded          TIMESTAMP WITH TIME ZONE NULL,
+    upload_source          json NULL,
+    is_processing          BOOLEAN DEFAULT TRUE,
 
     year           text NULL,
     finish_date    text NULL,
@@ -67,7 +72,7 @@ CREATE TABLE acts
     exp_facts      text NULL,
     literature     text NULL,
     exp_conclusion text NULL,
-    supplement     json Null
+    supplement     json NULL
 );
 
 -- Научные отчёты
@@ -75,6 +80,11 @@ CREATE TABLE scientific_reports
 (
     id               serial PRIMARY KEY,
     user_id          integer REFERENCES users (id),
+
+    date_uploaded          TIMESTAMP WITH TIME ZONE NULL,
+    upload_source          json NULL,
+    is_processing          BOOLEAN DEFAULT TRUE,
+
     name             text NULL,
     organization     text NULL,
     author           text NULL,
@@ -97,6 +107,11 @@ CREATE TABLE tech_reports
 (
     id               serial PRIMARY KEY,
     user_id          integer REFERENCES users (id),
+
+    date_uploaded          TIMESTAMP WITH TIME ZONE NULL,
+    upload_source          json NULL,
+    is_processing          BOOLEAN DEFAULT TRUE,
+
     name             text,
     organization     text,
     author           text,
@@ -110,7 +125,7 @@ CREATE TABLE tech_reports
     results          text,
     conclusion       text,
     source           json NULL,
-    supplement       json Null
+    supplement       json NULL
 );
 
 -- Открытые листы
@@ -118,6 +133,12 @@ CREATE TABLE open_lists
 (
     id         serial PRIMARY KEY,
     user_id    integer REFERENCES users (id),
+
+    origin_filename        VARCHAR(255) NULL,
+    date_uploaded          TIMESTAMP WITH TIME ZONE NULL,
+    upload_source          json NULL,
+    is_processing          BOOLEAN DEFAULT TRUE,
+
     number     text NULL,
     holder     text NULL,
     object     text NULL,

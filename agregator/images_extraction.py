@@ -1,12 +1,23 @@
 from pathlib import Path
 from typing import List
 import re
+
+import cv2
+import numpy as np
 from PIL import Image
 import io
-
 import fitz
+import pytesseract
 
+from agregator.models import UserTasks
+from .files_saving import raw_open_lists_save
+from .open_lists_ocr import process_open_lists, error_handler_open_lists
+
+pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 IMAGE_MIN_SIZE = 150
+CURRENT_OPEN_LIST_RGB = (205, 221, 229)
+RGB_ACCURACY = 20
+
 SUPPLEMENT_CONTENT = {
     "maps": [],
     "schemas": [],
@@ -17,7 +28,69 @@ SUPPLEMENT_CONTENT = {
     "heritage_info": [],
     "other": [],
     "no_captions": [],
+    "title_page": [],
+    "open_list": [],
 }
+
+
+def image_rotate(pil_img):
+    image_np = np.array(pil_img)
+    if image_np.shape[2] == 3:
+        image_cv = cv2.cvtColor(image_np, cv2.COLOR_RGB2BGR)
+    else:
+        image_cv = image_np
+
+    image_bytes = None
+    try:
+        osd_data = pytesseract.image_to_osd(image_cv, output_type=pytesseract.Output.DICT)
+        print(osd_data)
+        if osd_data['rotate'] == 90:
+            image_cv = cv2.rotate(image_cv, cv2.ROTATE_90_CLOCKWISE)
+        elif osd_data['rotate'] == 270:
+            image_cv = cv2.rotate(image_cv, cv2.ROTATE_90_COUNTERCLOCKWISE)
+    except Exception as e:
+        print(e)
+    success, encoded_image = cv2.imencode('.png', image_cv)
+    if success:
+        image_bytes = encoded_image.tobytes()
+        pil_img = Image.open(io.BytesIO(image_bytes))
+    return pil_img, image_bytes
+
+
+def get_pil_image_from_pixmap(pixmap):
+    if pixmap.n == 1:  # Черно-белое изображение
+        img = Image.frombytes("L", [pixmap.width, pixmap.height], pixmap.samples)
+        img = img.convert("RGB")
+    elif pixmap.n == 3:  # RGB
+        img = Image.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
+    elif pixmap.n == 4:  # RGBA
+        img = Image.frombytes("RGBA", [pixmap.width, pixmap.height], pixmap.samples)
+        img = img.convert("RGB")
+    else:
+        raise ValueError("Неподдерживаемый формат изображения.")
+    return img
+
+
+def calculate_average_rgb(img):
+    pixels = list(img.getdata())
+
+    r_total = 0
+    g_total = 0
+    b_total = 0
+
+    # Считаем сумму значений для каждого канала
+    for r, g, b in pixels:
+        r_total += r
+        g_total += g
+        b_total += b
+
+    # Вычисляем средние значения
+    num_pixels = len(pixels)
+    average_r = r_total // num_pixels
+    average_g = g_total // num_pixels
+    average_b = b_total // num_pixels
+
+    return average_r, average_g, average_b
 
 
 def extract_captions(text: str) -> List:
@@ -56,7 +129,8 @@ def extract_captions(text: str) -> List:
     return captions
 
 
-def extract_images_with_captions(text, page, page_number, document, folder, supplement_content, extracted_images):
+def extract_images_with_captions(text, page, page_number, document, folder,
+                                 supplement_content, extracted_images, user_id, origin_name, upload_source=None):
     captions = extract_captions(text)
     image_list = page.get_images(full=True)
     caption_index = 0
@@ -76,11 +150,13 @@ def extract_images_with_captions(text, page, page_number, document, folder, supp
         image = Image.open(io.BytesIO(image_bytes))
         pixels = list(image.getdata())
         num_pixels = len(pixels)
-        avg_color = sum([(x[0] + x[1] + x[2]) / 3 if isinstance(x, tuple) else x / 3 for x in pixels]) / num_pixels
+        avg_color = sum([(x[0] + x[1] + x[2]) // 3 if isinstance(x, tuple) else x // 1 for x in pixels]) // num_pixels
         if avg_color == 255 or avg_color == 0:
             continue
         image_filename = f"page_{page_number + 1}_img_{img_index}.png"
         current_folder = folder
+        pil_img = get_pil_image_from_pixmap(pixmap)
+        avg_color = calculate_average_rgb(pil_img)
         if captions:
             image_text = image_text.replace('\n', '')
             lowered_image_text = image_text.lower()
@@ -128,16 +204,59 @@ def extract_images_with_captions(text, page, page_number, document, folder, supp
                     current_folder += '/В' + pit.group(0)[1:]
                 supplement_content["pits_fotos"].append(
                     {"label": image_text, "source": current_folder + "/" + image_filename})
+            elif all([CURRENT_OPEN_LIST_RGB[i] - RGB_ACCURACY <= avg_color[i] <=
+                      CURRENT_OPEN_LIST_RGB[i] + RGB_ACCURACY for i in range(3)]):
+                # pix = page.get_pixmap(dpi=300)
+                # pil_img = get_pil_image_from_pixmap(pix)
+                print(image_filename)
+                pil_img, image_bytes = image_rotate(pil_img)
+                current_folder += '/Открытый лист'
+                Path(current_folder).mkdir(exist_ok=True)
+                supplement_content["open_list"].append(
+                    {"label": image_text, "source": current_folder + "/" + image_filename})
+
+                open_lists_ids, origin_filenames = raw_open_lists_save([pil_img], user_id, origin_name, upload_source)
+                task = process_open_lists.apply_async((open_lists_ids, origin_filenames, user_id),
+                                                      link_error=error_handler_open_lists.s())
+                user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
+                                      upload_source=upload_source)
+                user_task.save()
             else:
+                print(image_filename)
+                pil_img, image_bytes = image_rotate(pil_img)
                 current_folder += '/Иное'
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["other"].append(
                     {"label": image_text, "source": current_folder + "/" + image_filename})
         else:
-            current_folder += '/Без подписей'
-            Path(current_folder).mkdir(exist_ok=True)
-            supplement_content["no_captions"].append(
-                {"source": current_folder + "/" + image_filename})
+            print(image_filename)
+            pil_img, image_bytes = image_rotate(pil_img)
+            if page_number == 0:
+                current_folder += '/Титульник'
+                Path(current_folder).mkdir(exist_ok=True)
+                supplement_content["title_page"].append(
+                    {"source": current_folder + "/" + image_filename})
+            elif all([CURRENT_OPEN_LIST_RGB[i] - RGB_ACCURACY <= avg_color[i] <=
+                      CURRENT_OPEN_LIST_RGB[i] + RGB_ACCURACY for i in range(3)]):
+                # pix = page.get_pixmap(dpi=300)
+                # pil_img = get_pil_image_from_pixmap(pix)
+                # image_bytes = pil_img.tobytes()
+                current_folder += '/Открытый лист'
+                Path(current_folder).mkdir(exist_ok=True)
+                supplement_content["open_list"].append(
+                    {"source": current_folder + "/" + image_filename})
+
+                open_lists_ids, origin_filenames = raw_open_lists_save([pil_img], user_id, origin_name, upload_source)
+                task = process_open_lists.apply_async((open_lists_ids, origin_filenames, user_id),
+                                                      link_error=error_handler_open_lists.s())
+                user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
+                                      upload_source=upload_source)
+                user_task.save()
+            else:
+                current_folder += '/Без подписей'
+                Path(current_folder).mkdir(exist_ok=True)
+                supplement_content["no_captions"].append(
+                    {"source": current_folder + "/" + image_filename})
         Path(current_folder).mkdir(exist_ok=True)
         with open(current_folder + "/" + image_filename, "wb") as img_file:
             img_file.write(image_bytes)

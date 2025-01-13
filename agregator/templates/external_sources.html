@@ -4,24 +4,81 @@
 {% block title %}Отчёты с внешних источников{% endblock %}
 
 {% block content %}
-	<!-- Заголовок страницы -->
-    <header class="hero">
-        <div class="container">
-            <h1 class="display-4">Отчёты с внешних источников</h1>
-        </div>
-    </header>
 
-    <!-- Секция загрузки файла -->
     <div class="container upload-section">
-        <h2>Сайт службы по государственной охране объектов культурного наследия Красноярского края</h2>
+        <h2 style="margin-top: 5px; margin-bottom: 15px;">Сайт службы по государственной охране объектов культурного
+            наследия Красноярского
+            края</h2>
         <form method="post" action="/external_sources/">
-			{% csrf_token %}
-			<button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить файлы</button>
-		</form>
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить
+                файлы
+            </button>
+        </form>
 
 
-		{% if is_processing %}
-            <h4>Загрузка файлов с сайта ООКН началась - прогресс вы можете посмотреть в разделе <a href="{% url 'processing_status' %}">«Обработка отчётов»</a></h4>
+        {% if is_processing %}
+            <h4>Загрузка файлов с сайта ООКН началась. Прогресс вы можете посмотреть ниже - в журнале загрузок.</h4>
+        {% endif %}
+
+        {% if tasks_id %}
+            <br>
+            <h3 align="center">Журнал загрузок</h3>
+            <br>
+
+            <div class="container upload-section">
+                <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
+                <script>
+                    let i = 0;
+                    let progress_bars;
+                </script>
+
+                {% for task_id in tasks_id %}
+                    <div class="border border-secondary" style="padding: 5px;">
+                        <div class='progress-wrapper-{{ forloop.counter0 }}'>
+                            <div id='progress-bar-{{ forloop.counter0 }}' class='progress-bar'
+                                 style="background-color: #68a9ef; width: 0%;">&nbsp;
+                            </div>
+                        </div>
+                        <div id="progress-bar-message-{{ forloop.counter0 }}">Ожидание загрузки файла...</div>
+                        <div id="progress-result-{{ forloop.counter0 }}"></div>
+                        <div id="pb-progress-{{ forloop.counter0 }}"></div>
+                        <div id="pb-time-start-{{ forloop.counter0 }}"></div>
+                        <div id="pb-time-end-{{ forloop.counter0 }}"></div>
+                        <div id="pb-files-{{ forloop.counter0 }}"></div>
+                    </div>
+                    <br>
+                {% endfor %}
+                <script src="{% static 'celery_progress/celery_progress_custom_funcs.js' %}"></script>
+                <script>
+                    document.addEventListener("DOMContentLoaded", function () {
+
+                        let defaultMessages = {
+                            waiting: 'Ожидание загрузки...',
+                            started: 'Загрузка началась...',
+                        }
+
+                        const task_urls = [
+                            {% for task_id in tasks_id %}"{% url 'celery_progress:task_status' task_id %}",
+                            {% endfor %}];
+                        for (var i = 0; i < task_urls.length; i++) {
+                            CeleryProgressBar.initProgressBar(task_urls[i], {
+                                progressBarId: "progress-bar-" + i,
+                                progressBarMessageId: "progress-bar-message-" + i,
+                                resultElementId: "progress-result-" + i,
+                                defaultMessages: defaultMessages,
+                                onSuccess: onSuccessCustom,
+                                onResult: onResultCustom,
+                                onError: onErrorCustom,
+                                onTaskError: onTaskErrorCustom,
+                                onRetry: onRetryCustom,
+                                onIgnored: onIgnoredCustom,
+                                onProgress: onProgressCustom,
+                            });
+                        }
+                    });
+                </script>
+            </div>
         {% endif %}
     </div>
 {% endblock %}

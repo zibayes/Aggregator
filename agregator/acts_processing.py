@@ -19,7 +19,7 @@ from .models import Act, User
 from .hash import calculate_file_hash
 from .images_extraction import extract_images_with_captions, SUPPLEMENT_CONTENT
 import redis
-from .files_saving import save_report_files, load_raw_files, delete_files_in_directory
+from .files_saving import delete_files_in_directory, load_raw_reports
 
 SQUARE_RESERVE = []
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -85,21 +85,17 @@ def external_storage_acts_processing(uploaded_files):
 
 
 @shared_task(bind=True)
-def process_acts(self, uploaded_files, file_groups, user_id):
-    uploaded_files = load_raw_files(uploaded_files, user_id)
-    total_processed = [0]
+def process_acts(self, acts_ids, origin_filenames, user_id):
     progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(total_processed[0], 0, '')
-    acts_ids, pages_count, origin_filenames = save_report_files(uploaded_files, file_groups, Act, user_id)
-    delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
+    progress_recorder.set_progress(0, 100, '')
+    acts, pages_count = load_raw_reports(acts_ids, Act)
+    # delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
+    total_processed = [0]
     table = None
-
     already_uploaded = []
-    acts = []
     file_groups = {}
-    for act_id in acts_ids:
-        act = Act.objects.get(id=act_id)
-        acts.append(act)
+    for act in acts:
+        act.source = json.loads(act.source)
         for source in act.source:
             file = source.copy()
             file['origin_name'] = origin_filenames[source['path']]
@@ -121,9 +117,9 @@ def process_acts(self, uploaded_files, file_groups, user_id):
                 continue
             progress_json['file_groups'][str(act.id)][i]['processed'] = 'Processing'
             new_table = extract_text_and_images(source['path'], progress_recorder, pages_count,
-                                                total_processed, progress_json, act.id, i, self.request.id)
-            progress_json['file_groups'][str(act_id)][i]['pages']['processed'] = \
-                progress_json['file_groups'][str(act_id)][i]['pages']['all']
+                                                total_processed, progress_json, act.id, i, self.request.id, user_id)
+            progress_json['file_groups'][str(act.id)][i]['pages']['processed'] = \
+                progress_json['file_groups'][str(act.id)][i]['pages']['all']
             progress_json['file_groups'][str(act.id)][i]['processed'] = 'True'
             redis_client.set(self.request.id, json.dumps(progress_json))
             progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
@@ -135,6 +131,8 @@ def process_acts(self, uploaded_files, file_groups, user_id):
                     table = new_table
             else:
                 already_uploaded.append(act.id)
+        act.is_processing = False
+        act.save()
     progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return progress_json
     '''
@@ -147,10 +145,11 @@ def process_acts(self, uploaded_files, file_groups, user_id):
 
 
 def extract_text_and_images(file, progress_recorder, pages_count, total_processed,
-                            progress_json, act_id, source_index, task_id):
+                            progress_json, act_id, source_index, task_id, user_id):
     supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
     pdf_file = file  # pdf_file = 'uploaded_files/' + file
 
+    current_act = Act.objects.get(id=act_id)
     acts = Act.objects.all()
     for act in acts:
         for source in act.source:
@@ -727,8 +726,10 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                     current_part += 2
                     continue
                 break
-            extract_images_with_captions(text_to_write, page, page_number, document, folder, supplement_content,
-                                         extracted_images)
+            extract_images_with_captions(text_to_write, page, page_number, document, folder,
+                                         supplement_content, extracted_images, user_id,
+                                         progress_json['file_groups'][str(act_id)][source_index]['origin_name'],
+                                         current_act.upload_source)
         total_processed[0] += len(document)
 
     if ('Площадь, протяжённость и/или др. параменты объекта' not in table_info.keys() or \
@@ -768,60 +769,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     act.literature = act_parts_info['Перечень[а-яА-ЯёЁ \n,]*литературы']
     act.exp_conclusion = act_parts_info['Вывод экспертизы']
     act.supplement = supplement_content
+    act.is_processing = False
     act.save()
-
-    table_data = df_new
-    if os.path.exists(table_path):
-        df_existing = pd.read_excel(table_path)
-        df_new = df_existing._append(df_new, ignore_index=True)
-    df_str = df_new.astype(pd.StringDtype())
-    df_str = df_str.map(lambda x: x if re.search(r'[А-Яа-яёЁA-Za-z.0-9,]+', str(x), re.IGNORECASE) else np.nan)
-    cells_sum = df_str.size - df_str.isnull().sum().sum()
-    print(str(cells_sum) + '/' + str(df_str.size), str(round(cells_sum / df_str.size * 100, 2)) + '%')
-    df_new['Дата окончания проведения ГИКЭ'] = pd.to_datetime(df_new['Дата окончания проведения ГИКЭ'],
-                                                              format='%d.%m.%Y', dayfirst=True)
-    # df_new['Дата окончания проведения ГИКЭ'] = df_new['Дата окончания проведения ГИКЭ'].dt.date
-    # df_new['Дата окончания проведения ГИКЭ'] = df_new['Дата окончания проведения ГИКЭ'] = [x.strftime("%d-%m-%y") for x in df_new.date]
-    df_new.sort_values(by='Дата окончания проведения ГИКЭ', ascending=False, inplace=True)
-    df_new['Дата окончания проведения ГИКЭ'] = df_new['Дата окончания проведения ГИКЭ'].dt.strftime('%d.%m.%Y')
-    with pd.ExcelWriter(table_path) as writer:
-        df_new.to_excel(writer, sheet_name="Sheet1", index=False)
-        # auto_adjust_xlsx_column_width(df_new, writer, sheet_name="Sheet1", margin=10)
-    wb = load_workbook(table_path)
-    ws = wb.active
-    ws.column_dimensions['A'].width = 6.86
-    ws.column_dimensions['B'].width = 10.14
-    ws.column_dimensions['C'].width = 10.14
-    ws.column_dimensions['D'].width = 66.43
-    ws.column_dimensions['E'].width = 24
-    ws.column_dimensions['F'].width = 26
-    ws.column_dimensions['G'].width = 20.71
-    ws.column_dimensions['H'].width = 18.43
-    ws.column_dimensions['I'].width = 24.71
-    ws.column_dimensions['J'].width = 21.29
-    ws.column_dimensions['K'].width = 26
-    ws.column_dimensions['L'].width = 27.29
-    font = Font(
-        name='Times New Roman',
-        size=11,
-        bold=False,
-        italic=False,
-        vertAlign=None,
-        underline='none',
-        strike=False,
-        color='FF000000'
-    )
-    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
-    for i in range(1, len(df_new.values) + 2):
-        if i == 1:
-            ws.row_dimensions[0].height = 50
-        else:
-            ws.row_dimensions[i].height = 80
-        for cell in ws[i]:
-            if cell.value:
-                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    wb.save(table_path)
-    return table_data
 
 
 @shared_task
@@ -829,9 +778,14 @@ def error_handler_acts(task, exception, exception_desc):
     print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
     progress_json = json.loads(redis_client.get(task.id))
     for act_id, sources in progress_json['file_groups'].items():
+        deleted_report = False
         for source in sources:
             if source['processed'] != 'True':
                 act = Act.objects.get(id=act_id)
                 act.delete()
+                deleted_report = True
+                break
+        if deleted_report:
+            continue
     progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception

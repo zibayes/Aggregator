@@ -8,14 +8,6 @@
     <h2 align="center">Реестр научных отчётов</h2>
     <br>
 
-    <div class="container upload-section">
-        {% if table %}
-            <div class="table-responsive">
-                <!-- {{ table|safe }} -->
-            </div>
-        {% endif %}
-    </div>
-
     <div class="accordion" id="accordionColumns">
         <div class="accordion-item">
             <h2 class="accordion-header">
@@ -35,11 +27,14 @@
                         написания</label><br>
                     <label><input type="checkbox" class="column-toggle" data-column="5" checked> Владелец
                         документа</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="6" checked> Формализованный
+                    <label><input type="checkbox" class="column-toggle" data-column="6" checked> Источник</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="7" checked> Дата
+                        загрузки</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Формализованный
                         документ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="7" checked> Исходный
+                    <label><input type="checkbox" class="column-toggle" data-column="9" checked> Исходный
                         документ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="8" checked>
+                    <label><input type="checkbox" class="column-toggle" data-column="10" checked>
                         Редактирование</label><br>
                 </div>
             </div>
@@ -55,28 +50,43 @@
             <div id="collapseFilters" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
                 <div class="accordion-body">
                     <form id="filterForm">
-                        <div class="mb-3">
+                        <div class="mb-3" id="filterNameContainer">
                             <label for="filterName" class="form-label">Название</label>
                             <input type="text" class="form-control" id="filterName" placeholder="Введите название">
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" id="filterOrganizationContainer">
                             <label for="filterOrganization" class="form-label">Организация</label>
                             <input type="text" class="form-control" id="filterOrganization"
                                    placeholder="Введите организацию">
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" id="filterAuthorContainer">
                             <label for="filterAuthor" class="form-label">Автор</label>
                             <input type="text" class="form-control" id="filterAuthor" placeholder="Введите автора">
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" id="filterOpenListContainer">
                             <label for="filterOpenList" class="form-label">Открытый лист</label>
                             <input type="text" class="form-control" id="filterOpenList"
                                    placeholder="Введите открытый лист">
                         </div>
-                        <div class="mb-3">
+                        <div class="mb-3" id="filterWritingDateContainer">
                             <label for="filterWritingDate" class="form-label">Дата написания</label>
                             <input type="text" class="form-control" id="filterWritingDate"
                                    placeholder="Введите дату написания">
+                        </div>
+                        <div class="mb-3" id="filterOwnerContainer">
+                            <label for="filterOwner" class="form-label">Владелец документа</label>
+                            <input type="text" class="form-control" id="filterOwner"
+                                   placeholder="Введите владельца документа">
+                        </div>
+                        <div class="mb-3" id="filterUploadSourceContainer">
+                            <label for="filterUploadSource" class="form-label">Источник</label>
+                            <input type="text" class="form-control" id="filterUploadSource"
+                                   placeholder="Введите источник">
+                        </div>
+                        <div class="mb-3" id="filterDateUploadedContainer">
+                            <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+                            <input type="text" class="form-control" id="filterDateUploaded"
+                                   placeholder="Введите дату загрузки">
                         </div>
                         <div class="mb-3">
                             <label>
@@ -100,6 +110,8 @@
                 <th>Открытый лист</th>
                 <th>Дата написания</th>
                 <th>Владелец документа</th>
+                <th>Источник</th>
+                <th>Дата загрузки</th>
                 <th>Формализованный документ</th>
                 <th>Исходный документ</th>
                 <th>Редактирование</th>
@@ -132,6 +144,11 @@
                             {{ report.user.username }}
                         </a>
                     </td>
+                    <td>
+                        <a{% if report.upload_source.link %}
+                            href="{{ report.upload_source.link }}" {% endif %}>{{ report.upload_source.source }}</a>
+                    </td>
+                    <td>{{ report.date_uploaded }}</td>
                     <td>
                         <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
                            href="/scientific_reports/{{ report.id }}">Просмотр</a>
@@ -179,13 +196,16 @@
 
     <script>
         document.getElementById('filterForm').addEventListener('submit', function (e) {
-            e.preventDefault(); // Отменяем стандартное действие формы
+            e.preventDefault();
 
             const nameFilter = document.getElementById('filterName').value.toLowerCase();
             const organizationFilter = document.getElementById('filterOrganization').value.toLowerCase();
             const authorFilter = document.getElementById('filterAuthor').value.toLowerCase();
             const openListFilter = document.getElementById('filterOpenList').value.toLowerCase();
             const writingDateFilter = document.getElementById('filterWritingDate').value.toLowerCase();
+            const ownerFilter = document.getElementById('filterOwner').value.toLowerCase();
+            const uploadSourceFilter = document.getElementById('filterUploadSource').value.toLowerCase();
+            const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
             const showMyDocs = document.getElementById('showMyDocs').checked;
 
             const rows = document.querySelectorAll('.table tbody tr');
@@ -194,15 +214,22 @@
                 const organizationText = row.dataset.organization.toLowerCase();
                 const authorText = row.dataset.author.toLowerCase();
                 const userId = row.dataset.userId;
+                const ownerText = row.dataset.owner.toLowerCase();
+                const uploadSourceText = row.dataset.uploadSource.toLowerCase();
+                const dateUploadedText = row.dataset.dateUploaded.toLowerCase();
 
                 const isNameMatch = nameText.includes(nameFilter);
                 const isOrganizationMatch = organizationText.includes(organizationFilter);
                 const isAuthorMatch = authorText.includes(authorFilter);
                 const isOpenListMatch = row.children[3].textContent.toLowerCase().includes(openListFilter);
                 const isWritingDateMatch = row.children[4].textContent.toLowerCase().includes(writingDateFilter);
+                const isAllOwnerMatch = ownerText.includes(ownerFilter);
+                const isUploadSourceMatch = uploadSourceText.includes(uploadSourceFilter);
+                const isDateUploadedMatch = dateUploadedText.includes(dateUploadedFilter);
                 const isOwnerMatch = userId === "{{ user.id }}";
 
-                const showRow = (isNameMatch && isOrganizationMatch && isAuthorMatch && isOpenListMatch && isWritingDateMatch) &&
+                const showRow = (isNameMatch && isOrganizationMatch && isAuthorMatch && isOpenListMatch &&
+                        isWritingDateMatch && isUploadSourceMatch && isAllOwnerMatch && isDateUploadedMatch) &&
                     (!showMyDocs || isOwnerMatch);
 
                 if (showRow) {
@@ -211,6 +238,33 @@
                     row.style.display = 'none'; // скрываем строку
                 }
             });
+        });
+
+        function updateFilterVisibility() {
+            let columnToggles = document.querySelectorAll('.column-toggle');
+            columnToggles.forEach(toggle => {
+                let columnIndex = toggle.getAttribute('data-column');
+                let columns_count = 11;
+                if (columnIndex > columns_count - 3) {
+                    return;
+                }
+                let filterContainer = document.getElementById('filterForm').children[columnIndex];
+                console.log(filterContainer)
+
+                if (toggle.checked) {
+                    filterContainer.style.display = '';
+                } else {
+                    filterContainer.style.display = 'none';
+                }
+            });
+        }
+
+        document.querySelectorAll('.column-toggle').forEach(toggle => {
+            toggle.addEventListener('change', updateFilterVisibility);
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            setTimeout(updateFilterVisibility, 300);
         });
     </script>
 {% endblock %}

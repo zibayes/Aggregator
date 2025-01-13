@@ -108,6 +108,12 @@
                     {% if report.supplement.other %}
                         <li><a href="#other">Иное</a></li>
                     {% endif %}
+                    {% if report.supplement.title_page %}
+                        <li><a href="#title_page">Титульник</a></li>
+                    {% endif %}
+                    {% if report.supplement.open_list %}
+                        <li><a href="#open_list">Открытый лист</a></li>
+                    {% endif %}
                     {% if report.supplement.no_captions %}
                         <li><a href="#no_captions">Без подписей</a></li>
                     {% endif %}
@@ -251,11 +257,35 @@
             {% endfor %}
         {% endif %}
 
+        {% if report.supplement.open_list %}
+            <h3 id="open_list">Открытый лист</h3>
+            {% for open_list in report.supplement.open_list %}
+                <img src="/{{ open_list.source }}" loading="lazy" alt="{{ open_list.source }}"
+                     style="max-width: 400px;"/>
+                {% if open_list.label %}
+                    <p>{{ open_list.label }}</p>
+                {% else %}
+                    <br>
+                {% endif %}
+                <br>
+            {% endfor %}
+        {% endif %}
+
         {% if report.supplement.other %}
             <h3 id="other">Иное</h3>
             {% for other in report.supplement.other %}
                 <img src="/{{ other.source }}" loading="lazy" alt="{{ other.source }}" style="max-width: 400px;"/>
                 <p>{{ other.label }}</p>
+                <br>
+            {% endfor %}
+        {% endif %}
+
+        {% if report.supplement.title_page %}
+            <h3 id="title_page">Титульник</h3>
+            {% for title_page in report.supplement.title_page %}
+                <img src="/{{ title_page.source }}" loading="lazy" alt="{{ title_page.source }}"
+                     style="max-width: 400px;"/>
+                <br>
                 <br>
             {% endfor %}
         {% endif %}

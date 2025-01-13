@@ -1,10 +1,13 @@
 import json
 import os
 from pathlib import Path
+
+import PIL
 import comtypes.client
 import fitz
 import pythoncom
 from PIL import Image
+import io
 
 from .models import Act, ScientificReport, OpenLists
 
@@ -25,127 +28,8 @@ def delete_files_in_directory(directory, files):
         print(f'Директория {directory} не существует или не является директорией.')
 
 
-def raw_files_save(uploaded_files, user_id):
-    path = 'uploaded_files/users/' + str(user_id)
-    Path(path).mkdir(exist_ok=True)
-    file_names = [x.name for x in uploaded_files]
-    for file in uploaded_files:
-        with open(path + '/' + file.name, 'wb+') as destination:
-            for chunk in file.chunks():
-                destination.write(chunk)
-    return file_names
-
-
-def load_raw_files(uploaded_files, user_id):
-    path = 'uploaded_files/users/' + str(user_id)
-    files = []
-    for file in uploaded_files:
-        if not isinstance(file, str):
-            filename = file.name
-        else:
-            filename = path + '/' + file
-        f = open(filename, 'rb+')
-        files.append(f)
-    return files
-
-
-def save_report_files(uploaded_files, file_groups, report_type, user_id):
-    uploaded_files = load_raw_files(uploaded_files, user_id)
-    pythoncom.CoInitialize()
-    if report_type == Act:
-        report_directory = 'act'
-    elif report_type == ScientificReport:
-        report_directory = 'report'
-    else:
-        report_directory = ''
-    reports_ids = []
-    pages_count = {}
+def raw_open_lists_save(uploaded_files, user_id, origin_filename=None, upload_source=None):
     origin_filenames = {}
-    path = ''
-    for value in file_groups.values():
-        i = 0
-        source_content = []
-        report = report_type(user_id=user_id)
-        report.save()
-        report_id = report.id
-        reports_ids.append(report_id)
-        for file in value:
-            if i == 0:
-                path = f'uploaded_files/{report_directory}s/{report_id}_{report_directory}'
-                Path(path).mkdir(exist_ok=True)
-            origin_name = file['file'].name
-            file['file'].name = f'{report_id}_{report_directory}_{i}' + file['file'].name[file['file'].name.rfind('.'):]
-
-            if file['file'].name.lower().endswith(('.doc', '.docx')):
-                wdFormatPDF = 17
-
-                with open(path + '/' + file['file'].name, 'wb+') as destination:
-                    destination.write(file.read())
-                in_file = os.path.abspath(path + '/' + file['file'].name)
-                out_file = os.path.abspath(path + '/' + file['file'].name[:file['file'].name.rfind('.')] + '.pdf')
-
-                word = comtypes.client.CreateObject('Word.Application')
-                doc = word.Documents.Open(in_file)
-                doc.SaveAs(out_file, FileFormat=wdFormatPDF)
-                doc.Close()
-                word.Quit()
-                file['file'].name = file['file'].name[:file['file'].name.rfind('.')] + '.pdf'
-
-            source_content.append({'type': file['type'], 'path': path + '/' + file['file'].name})
-            origin_filenames[source_content[-1]['path']] = origin_name
-            with open(path + '/' + file['file'].name, 'wb+') as destination:
-                destination.write(file.read())
-            with fitz.open(path + '/' + file['file'].name) as pdf_doc:
-                pages_count[source_content[-1]['path']] = len(pdf_doc)
-            i += 1
-        report.source = source_content
-        report.save()
-    for file in uploaded_files:
-        converted_source = None
-        source_content = []
-        report = report_type(user_id=user_id)
-        report.save()
-        reports_ids.append(report.id)
-        origin_name = file.name
-        file.name = f'{report.id}_{report_directory}' + file.name[file.name.rfind('.'):]
-        path = f'uploaded_files/{report_directory}s/{report.id}_{report_directory}'
-        Path(path).mkdir(exist_ok=True)
-
-        if file.name.lower().endswith(('.doc', '.docx')):
-            wdFormatPDF = 17
-
-            with open(path + '/' + file.name, 'wb+') as destination:
-                destination.write(file.read())
-                # for chunk in file.chunks():
-                #    destination.write(chunk)
-            converted_source = in_file = os.path.abspath(path + '/' + file.name)
-            out_file = os.path.abspath(path + '/' + file.name[:file.name.rfind('.')] + '.pdf')
-
-            word = comtypes.client.CreateObject('Word.Application')
-            doc = word.Documents.Open(in_file)
-            doc.SaveAs(out_file, FileFormat=wdFormatPDF)
-            doc.Close()
-            word.Quit()
-            file.name = file.name[:file.name.rfind('.')] + '.pdf'
-
-        source_content.append({'type': 'all', 'path': path + '/' + file.name})
-        origin_filenames[source_content[-1]['path']] = origin_name
-        report.source = source_content
-        report.save()
-        if converted_source is None:
-            with open(path + '/' + file.name, 'wb+') as destination:
-                destination.write(file.read())
-        else:
-            os.remove(converted_source)
-        with fitz.open(path + '/' + file.name) as pdf_doc:
-            pages_count[source_content[-1]['path']] = len(pdf_doc)
-    return reports_ids, pages_count, origin_filenames
-
-
-def save_open_list_files(uploaded_files, user_id):
-    uploaded_files = load_raw_files(uploaded_files, user_id)
-    origin_filenames = {}
-    pages_count = {}
     open_lists_ids = []
     for file in uploaded_files:
         open_list = OpenLists(user_id=user_id)
@@ -153,26 +37,147 @@ def save_open_list_files(uploaded_files, user_id):
         path = f'open_lists/{open_list.id}_open_list'
         full_path = f'uploaded_files/' + path
         Path(full_path).mkdir(exist_ok=True)
-        origin_filenames[str(open_list.id)] = file.name
-        new_filename = str(open_list.id) + '_open_list.pdf'
-
-        if file.name.lower().endswith(('.png', '.jpg', '.bmp', '.tiff')):
-            with open(full_path + '/' + file.name, 'wb+') as destination:
-                destination.write(file.read())
-            img = Image.open(full_path + '/' + file.name)
-            if img.mode in ("RGBA", "P"):
-                img = img.convert("RGB")
-            img.save(full_path + '/' + new_filename, save_all=True)
-        elif file.name.lower().endswith('.pdf'):
+        if isinstance(file, PIL.Image.Image):
+            origin_filenames[str(open_list.id)] = origin_filename
+            open_list.origin_filename = origin_filename
+            open_list.upload_source = upload_source
+            new_filename = str(open_list.id) + '_open_list.png'
+            image_buffer = io.BytesIO()
+            file.save(image_buffer, format='PNG')  # Сохраняем в формате PNG в буфер
+            image_buffer.seek(0)
             with open(full_path + '/' + new_filename, 'wb+') as destination:
-                destination.write(file.read())
-
-        with fitz.open(full_path + '/' + new_filename) as pdf_doc:
-            pages_count[str(open_list.id)] = len(pdf_doc)
+                destination.write(image_buffer.read())
+        else:
+            origin_filenames[str(open_list.id)] = file.name
+            open_list.origin_filename = file.name
+            open_list.upload_source = {'source': 'Пользовательский файл'}
+            new_filename = str(open_list.id) + '_open_list' + file.name[file.name.rfind('.'):]
+            with open(full_path + '/' + new_filename, 'wb+') as destination:
+                for chunk in file.chunks():
+                    destination.write(chunk)
         open_list.source = path + '/' + new_filename
         open_list.save()
         open_lists_ids.append(open_list.id)
-    return open_lists_ids, pages_count, origin_filenames
+    return open_lists_ids, origin_filenames
+
+
+def load_raw_open_lists(open_lists_ids):
+    pages_count = {}
+    open_lists = []
+    for open_list_id in open_lists_ids:
+        open_list = OpenLists.objects.get(id=open_list_id)
+        folder = f'uploaded_files/'
+
+        if open_list.source.name.lower().endswith(('.png', '.jpg', '.bmp', '.tiff')):
+            new_filename = open_list.source.name[:open_list.source.name.rfind('.')] + '.pdf'
+            img = Image.open(folder + '/' + open_list.source.name)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            img.save(folder + '/' + new_filename, save_all=True)
+            open_list.source = new_filename
+            open_list.save()
+
+        with fitz.open(folder + '/' + open_list.source.name) as pdf_doc:
+            pages_count[str(open_list.id)] = len(pdf_doc)
+        open_lists.append(open_list)
+    return open_lists, pages_count
+
+
+def raw_reports_save(file_groups, uploaded_files, report_type, user_id, upload_source=None):
+    if report_type == Act:
+        report_directory = 'act'
+    elif report_type == ScientificReport:
+        report_directory = 'report'
+    else:
+        report_directory = ''
+    reports_ids = []
+    origin_filenames = {}
+    for value in file_groups.values():
+        save_report(value, reports_ids, report_type, user_id, report_directory,
+                    origin_filenames, upload_source)
+    for file in uploaded_files:
+        save_report(file, reports_ids, report_type, user_id, report_directory,
+                    origin_filenames, upload_source)
+    return reports_ids, origin_filenames
+
+
+def save_report(files, reports_ids, report_type, user_id, report_directory,
+                origin_filenames, upload_source):
+    source_content = []
+    report = report_type(user_id=user_id)
+    report.save()
+    report_id = report.id
+    reports_ids.append(report_id)
+    path = f'uploaded_files/{report_directory}s/{report_id}_{report_directory}'
+    Path(path).mkdir(exist_ok=True)
+    if isinstance(files, list):
+        i = 0
+        for file in files:
+            save_report_source(report, file['file'], path, report_directory, report_id, source_content,
+                               origin_filenames, file['type'], i, upload_source)
+            i += 1
+    else:
+        save_report_source(report, files, path, report_directory, report_id,
+                           source_content, origin_filenames, upload_source=upload_source)
+    report.source = source_content
+    report.save()
+
+
+def save_report_source(report, file, path, report_directory, report_id, source_content,
+                       origin_filenames, type=None, index=None, upload_source=None):
+    origin_name = file.name
+    if upload_source:
+        origin_name = origin_name.replace('%20', ' ')
+        report.upload_source = upload_source
+    else:
+        report.upload_source = {'source': 'Пользовательский файл'}
+
+    if index:
+        file.name = f'{report_id}_{report_directory}_{index}' + file.name[file.name.rfind('.'):]
+        source_content.append({'type': type, 'path': path + '/' + file.name, 'origin_filename': origin_name})
+    else:
+        file.name = f'{report_id}_{report_directory}' + file.name[file.name.rfind('.'):]
+        source_content.append({'type': 'all', 'path': path + '/' + file.name, 'origin_filename': origin_name})
+
+    origin_filenames[source_content[-1]['path']] = origin_name
+
+    with open(path + '/' + file.name, 'wb+') as destination:
+        if upload_source:
+            destination.write(file.read())
+            file.close()
+        else:
+            for chunk in file.chunks():
+                destination.write(chunk)
+
+
+def load_raw_reports(reports_ids, report_type):
+    reports = []
+    pages_count = {}
+    for report_id in reports_ids:
+        report = report_type.objects.get(id=report_id)
+        i = 0
+        for source in report.source:
+            if source['path'].lower().endswith(('.doc', '.docx')):
+                wd_format_pdf = 17
+                new_filename = source['path'][source['path'].rfind('.'):] + '.pdf'
+                in_file = os.path.abspath(source['path'])
+                out_file = os.path.abspath(new_filename)
+
+                word = comtypes.client.CreateObject('Word.Application')
+                doc = word.Documents.Open(in_file)
+                doc.SaveAs(out_file, FileFormat=wd_format_pdf)
+                doc.Close()
+                word.Quit()
+                source['path'] = new_filename
+                report.source[i]['path'] = new_filename
+                report.save()
+
+            with fitz.open(source['path']) as pdf_doc:
+                pages_count[source['path']] = len(pdf_doc)
+            i += 1
+        report.save()
+        reports.append(report)
+    return reports, pages_count
 
 
 if __name__ == '__main__':

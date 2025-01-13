@@ -79,6 +79,7 @@ class UserTasks(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
     task_id = models.CharField(max_length=255)
     files_type = models.CharField(max_length=255)
+    upload_source = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"User task {self.id}"
@@ -86,10 +87,18 @@ class UserTasks(models.Model):
     class Meta:
         db_table = 'user_tasks'
 
+    def save(self, *args, **kwargs):
+        self.upload_source = to_json(self.upload_source)
+        super().save(*args, **kwargs)
+
 
 # Модель для актов
 class Act(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+    upload_source = models.JSONField(null=True, blank=True)
+    is_processing = models.BooleanField(default=True)
 
     year = models.TextField()
     finish_date = models.TextField()
@@ -127,6 +136,7 @@ class Act(models.Model):
         db_table = 'acts'
 
     def save(self, *args, **kwargs):
+        self.upload_source = to_json(self.upload_source)
         self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
         super().save(*args, **kwargs)
@@ -140,6 +150,11 @@ class Act(models.Model):
 # Модель для научных отчетов
 class ScientificReport(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+    upload_source = models.JSONField(null=True, blank=True)
+    is_processing = models.BooleanField(default=True)
+
     name = models.TextField()
     organization = models.TextField()
     author = models.TextField()
@@ -163,6 +178,7 @@ class ScientificReport(models.Model):
         db_table = 'scientific_reports'
 
     def save(self, *args, **kwargs):
+        self.upload_source = to_json(self.upload_source)
         self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
         self.content = to_json(self.content)
@@ -177,6 +193,11 @@ class ScientificReport(models.Model):
 # Модель для научно-технических отчетов
 class TechReport(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+    upload_source = models.JSONField(null=True, blank=True)
+    is_processing = models.BooleanField(default=True)
+
     name = models.TextField()
     organization = models.TextField()
     author = models.TextField()
@@ -199,6 +220,7 @@ class TechReport(models.Model):
         db_table = 'tech_reports'
 
     def save(self, *args, **kwargs):
+        self.upload_source = to_json(self.upload_source)
         self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
         super().save(*args, **kwargs)
@@ -212,6 +234,12 @@ class TechReport(models.Model):
 # Модель для открытых листов
 class OpenLists(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    origin_filename = models.TextField()
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+    upload_source = models.JSONField(null=True, blank=True)
+    is_processing = models.BooleanField(default=True)
+
     number = models.TextField()
     holder = models.TextField()
     object = models.TextField()
@@ -225,6 +253,10 @@ class OpenLists(models.Model):
 
     class Meta:
         db_table = 'open_lists'
+
+    def save(self, *args, **kwargs):
+        self.upload_source = to_json(self.upload_source)
+        super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         if self.source:
