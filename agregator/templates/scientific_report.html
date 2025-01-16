@@ -259,20 +259,6 @@
             {% endfor %}
         {% endif %}
 
-        {% if report.supplement.open_list %}
-            <h3 id="open_list">Открытый лист</h3>
-            {% for open_list in report.supplement.open_list %}
-                <img src="/{{ open_list.source }}" loading="lazy" alt="{{ open_list.source }}"
-                     style="max-width: 400px;"/>
-                {% if open_list.label %}
-                    <p>{{ open_list.label }}</p>
-                {% else %}
-                    <br>
-                {% endif %}
-                <br>
-            {% endfor %}
-        {% endif %}
-
         {% if report.supplement.other %}
             <h3 id="other">Иное</h3>
             {% for other in report.supplement.other %}
@@ -292,10 +278,25 @@
             {% endfor %}
         {% endif %}
 
+        {% if report.supplement.open_list %}
+            <h3 id="open_list">Открытый лист</h3>
+            {% for open_list in report.supplement.open_list %}
+                <img src="/{{ open_list.source }}" loading="lazy" alt="{{ open_list.source }}"
+                     style="max-width: 400px;"/>
+                {% if open_list.label %}
+                    <p>{{ open_list.label }}</p>
+                {% else %}
+                    <br>
+                {% endif %}
+                <br>
+            {% endfor %}
+        {% endif %}
+
         {% if report.supplement.no_captions %}
             <h3 id="no_captions">Без подписей</h3>
-            {% for other in report.supplement.no_captions %}
-                <img src="/{{ other.source }}" loading="lazy" alt="{{ other.source }}" style="max-width: 400px;"/>
+            {% for no_captions in report.supplement.no_captions %}
+                <img src="/{{ no_captions.source }}" loading="lazy" alt="{{ no_captions.source }}"
+                     style="max-width: 400px;"/>
                 <br>
                 <br>
             {% endfor %}
