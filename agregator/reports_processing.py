@@ -98,13 +98,19 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
     # Разделы
     report_parts = ['АННОТАЦИЯ', 'ОГЛАВЛЕНИЕ']  # , 'ведение', 'список исполнителей работ'
     report_parts_info = {i: '' for i in report_parts}
+    table_columns = ['Название отчёта', 'Организация', 'Автор',
+                     'Открытый лист',
+                     'Дата написания',
+                     'Исполнители',
+                     'Заключение']
+    table_columns_info = {i: '' for i in table_columns}
     df = None
 
     # Создаем или очищаем текстовый файл
     with open(folder + "/" + "text.txt", "w", encoding="utf-8") as text_file:
         extracted_images = []
         current_part = 0
-        found_part = False
+        reading_contents = False
         start_page = 2
         time_on_start = datetime.now()
         for page_number in range(len(document)):
@@ -119,49 +125,152 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
             redis_client.set(task_id, json.dumps(progress_json))
             progress_recorder.set_progress(pages_processed, sum(pages_count.values()),
                                            progress_json)
+
             page = document[page_number]
-            # Извлечение текста
             text = page.get_text()
             while True:
-                if found_part:
-                    current_index = 0
+                current_index = re.search(
+                    report_parts[current_part].lower().replace('оглавление', r'(оглавление|содержание)').replace(' ',
+                                                                                                                 r'[ \n]*'),
+                    text, re.IGNORECASE)
+                if current_index:
+                    current_index = current_index.end()
                 else:
-                    if current_part >= len(report_parts):
-                        current_index = None
-                    else:
-                        current_index = re.search(report_parts[current_part], text, re.IGNORECASE)
-                    if current_index:
-                        current_index = current_index.end()
+                    current_index = 0
 
                 next_index = None
                 if current_part + 1 < len(report_parts):
-                    if df is None or df is not None and page_number + 1 == int(
-                            df[df['Раздел'] == report_parts[current_part + 1]]['Страницы']):
-                        next_index = re.search(report_parts[current_part + 1], text, re.IGNORECASE)
-                if current_index or found_part:
-                    text_to_write = text[current_index:next_index.start() if next_index else len(text)]
-                    report_parts_info[report_parts[current_part]] += text_to_write
-                    if start_page == page_number + 1:
-                        text_file.write(
-                            f"--- {report_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
-                    else:
-                        text_file.write(f"{text_to_write}\n")
-                    found_part = True
-                if next_index:
-                    current_part += 1
-                    start_page = page_number + 1
-                    if report_parts[current_part] == 'ОГЛАВЛЕНИЕ':
+                    next_index = re.search(
+                        report_parts[current_part + 1].replace('оглавление', r'(оглавление|содержание)').replace(' ',
+                                                                                                                 r'[ \n]*')
+                        .replace('(', r'\(').replace(')', r'\)'), text, re.IGNORECASE)
+                    if next_index:
+                        reading_contents = False
+                text_to_write = text[current_index:next_index.start() if next_index else len(text)]
+                report_parts_info[report_parts[current_part]] += text_to_write
+                text_file.write(
+                    f"--- {report_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
+                if next_index or reading_contents:
+                    if 'оглавление' in report_parts[current_part + 1].lower() or 'содержание' in report_parts[
+                        current_part + 1].lower() or reading_contents:
                         with pdfplumber.open(file) as pdf:
                             page_tables = pdf.pages[page_number].extract_tables()
-                            df = pd.DataFrame(page_tables[0], columns=['Раздел', 'Страницы'])
+                        if page_tables:
+                            df_new = pd.DataFrame(page_tables[0], columns=['Раздел', 'Страницы'])
+                            if reading_contents:
+                                df = df._append(df_new, ignore_index=True)
+                            else:
+                                df = df_new
                             for index, row in df.iterrows():
                                 if '-' in row['Страницы']:
                                     row['Страницы'] = row['Страницы'][:row['Страницы'].find('-')]
                             report_parts = list(df['Раздел'])
+                            report_parts_info = {i: '' for i in report_parts}
+                            print('BLYAT!1', report_parts)
+                            print('BLYAT!2', report_parts_info)
+                            '''
                             report_parts_info = dict(list({i: report_parts_info[i] for i in report_parts if
                                                            i in report_parts_info.keys()}.items()) +
                                                      list({i: '' for i in report_parts if
                                                            i not in report_parts_info.keys()}.items()))
+                            '''
+                            continue
+                        else:
+                            titles = re.findall(r'^(?!\d+\s*$)\.*\d*\.*\d*.*?[\s\S]*?\s*\d+\.*\s*\d*\s*$',
+                                                text, re.MULTILINE)
+                            structure = []
+                            for title_line in titles:
+                                title = re.search(
+                                    r'(^(?!\d+\s*$)\d*\.*.*?(?=…))|(^(?!\d+\s*$)\d+\..*\s.+?(?=…))|^(?!\d+\s*$)\d*\.*.*[^…]*?(?=\n\d+)',
+                                    title_line, re.IGNORECASE)
+
+                                if title:
+                                    title = title.group(0).replace('\n', '').replace('  ', ' ').strip()
+                                    title = title[:-1] if title[-1] == '.' else title
+                                    title_page = re.findall(r'\d+', title_line, re.IGNORECASE)
+                                    if title_page:
+                                        title_page = title_page[-1].replace('\n', '')
+                                        title = title[:-len(title_page) if title_page in title else len(title)]
+                                    structure.append({'Раздел': title, 'Страницы': title_page})
+                            df_new = pd.DataFrame(structure, columns=['Раздел', 'Страницы'])
+                            if reading_contents:
+                                df = df._append(df_new, ignore_index=True)
+                            else:
+                                df = df_new
+                            report_parts = list(df['Раздел'])
+                            report_parts_info = {i: '' for i in report_parts}
+                            print('BLYAT!1', report_parts)
+                            print('BLYAT!2', report_parts_info)
+                            current_part = 0
+                            report_parts_lower = [s.lower() for s in report_parts]
+                            index = -1
+                            if any('оглавление' in s.lower() for s in report_parts_lower):
+                                for i, s in enumerate(report_parts_lower):
+                                    if 'оглавление' in s:
+                                        index = i
+                                current_part = report_parts_lower.index('оглавление')
+                            elif any('содержание' in s.lower() for s in report_parts_lower):
+                                for i, s in enumerate(report_parts_lower):
+                                    if 'содержание' in s.lower():
+                                        index = i
+                            if index > 0:
+                                current_part = index
+                            # print(df)
+                        reading_contents = True
+                        break
+
+                if page_number + 1 == 1:
+                    report_name = re.search(
+                        r'н*\s*а*\s*у*\s*ч*\s*н*\s*ы*\s*й*\s*о\s*т\s*ч\s*[её]\s*т[\s\S]*?\d{4}\s*.*г\.*[оду]*', text,
+                        re.IGNORECASE)
+                    if report_name:
+                        table_columns_info['Название отчёта'] = report_name.group(0)
+
+                    author = re.search(r'выполнил:\s+.*|автор:\s+.*', text, re.IGNORECASE)
+                    print('author', author)
+                    if author:
+                        author = re.search(
+                            r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.|[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]+[а-яё]+',
+                            author.group(0), re.MULTILINE)
+                        print('author', author)
+                        if author:
+                            table_columns_info['Автор'] = author.group(0)
+
+                    open_list = re.search(
+                        r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?\d{2}\.\s*\d{2}\.\s*\d+|[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]+[а-яё]+[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?\d{2}\.\s*\d{2}\.\s*\d+',
+                        text)
+                    if not open_list:
+                        open_list = re.search(
+                            r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?|[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]+[а-яё]+[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?',
+                            text)
+                        if not open_list:
+                            open_list = re.findall(
+                                r'[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]{1}[а-яё]+|[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?[А-ЯЁ]{1}[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.',
+                                text)
+                            if open_list:
+                                open_list = ';\n'.join(open_list)
+                    if open_list and not isinstance(open_list, (list, str)):
+                        open_list = open_list.group(0)
+                    if open_list:
+                        table_columns_info['Открытый лист'] = open_list
+
+                    organization = re.search(r'Общество\s+с\s+ограниченной\s+ответственностью\s*[\n]*«[^»]+»', text,
+                                             re.IGNORECASE)
+                    if not organization:
+                        organization = re.search(r'ООО\s+[^\n]+?(?:«[^»]+»|“[^”]+”|\"[^\"]+\")?\s*[\n]*\"?[^\n]*\"',
+                                                 text, re.IGNORECASE)
+                    if not organization:
+                        organization = re.search(r'ООО\s+«[^»]+»', text, re.IGNORECASE)
+                    if organization:
+                        table_columns_info['Организация'] = organization.group(0)
+                if next_index:
+                    current_part += 1
+                    start_page = page_number + 1
+                    continue
+                elif current_part + 2 < len(report_parts) and re.search(
+                        report_parts[current_part + 2].replace(' ', r'[ \n]*')
+                                .replace('(', r'\(').replace(')', r'\)'), text):
+                    current_part += 2
                     continue
                 break
 
@@ -172,12 +281,11 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
         total_processed[0] += len(document)
     document.close()
 
-    current_report = ScientificReport.objects.get(id=report_id)
-    current_report.name = 'Scientific Report Title'
-    current_report.organization = 'Organization Name'
-    current_report.author = 'Author Name'
-    current_report.open_list = report_parts_info[
-        'ОТКРЫТЫЙ ЛИСТ'] if 'ОТКРЫТЫЙ ЛИСТ' in report_parts_info.keys() else 'Open list info'
+    current_report.name = table_columns_info['Название отчёта']
+    current_report.organization = table_columns_info['Организация']
+    current_report.author = table_columns_info['Автор']
+    current_report.open_list = table_columns_info[
+        'Открытый лист']  # report_parts_info['ОТКРЫТЫЙ ЛИСТ'] if 'ОТКРЫТЫЙ ЛИСТ' in report_parts_info.keys() else 'Open list info'
     current_report.writing_date = '2023-10-01'
     current_report.introduction = report_parts_info[
         'ВВЕДЕНИЕ'] if 'ВВЕДЕНИЕ' in report_parts_info.keys() else 'Introduction info'

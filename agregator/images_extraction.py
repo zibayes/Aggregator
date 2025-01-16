@@ -33,6 +33,45 @@ SUPPLEMENT_CONTENT = {
 }
 
 
+def hex_to_rgb(hex_color):
+    # Удаляем символ '#' если он есть
+    hex_color = hex_color.lstrip('#')
+
+    # Преобразуем строки в целые числа
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+
+    return r, g, b
+
+
+COLOR_PALETTE = [hex_to_rgb('#deecf1'), hex_to_rgb('#adc3d4'), hex_to_rgb('#bdc2d2')]
+ACCURACY_PALETTE = 15
+COLOR_PARTS = [38, 8, 8]
+ACCURACY_PARTS = 8
+COLOR_PALETTE_LEN = len(COLOR_PALETTE)
+COLOR_PALETTE_ARRAY = np.array(COLOR_PALETTE)
+LOWER_BOUNDS = COLOR_PALETTE_ARRAY - ACCURACY_PALETTE
+UPPER_BOUNDS = COLOR_PALETTE_ARRAY + ACCURACY_PALETTE
+
+
+def is_image_open_list(avg_color, pil_img):
+    if not all([CURRENT_OPEN_LIST_RGB[i] - RGB_ACCURACY <= avg_color[i] <=
+                CURRENT_OPEN_LIST_RGB[i] + RGB_ACCURACY for i in range(3)]):
+        return False
+    pixels = list(pil_img.getdata())
+    pixels_len = len(pixels)
+    pixels_array = np.array(pixels)
+
+    for part in range(COLOR_PALETTE_LEN):
+        near_enough = np.sum(
+            np.all((pixels_array >= LOWER_BOUNDS[part]) & (pixels_array <= UPPER_BOUNDS[part]), axis=1))
+        near_part = (near_enough / pixels_len) * 100
+        if not (COLOR_PARTS[part] - ACCURACY_PARTS <= near_part <= COLOR_PARTS[part] + ACCURACY_PARTS):
+            return False
+    return True
+
+
 def image_rotate(pil_img):
     image_np = np.array(pil_img)
     if image_np.shape[2] == 3:
@@ -204,8 +243,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                     current_folder += '/В' + pit.group(0)[1:]
                 supplement_content["pits_fotos"].append(
                     {"label": image_text, "source": current_folder + "/" + image_filename})
-            elif all([CURRENT_OPEN_LIST_RGB[i] - RGB_ACCURACY <= avg_color[i] <=
-                      CURRENT_OPEN_LIST_RGB[i] + RGB_ACCURACY for i in range(3)]):
+            elif is_image_open_list(avg_color, pil_img):
                 # pix = page.get_pixmap(dpi=300)
                 # pil_img = get_pil_image_from_pixmap(pix)
                 print(image_filename)
@@ -236,8 +274,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["title_page"].append(
                     {"source": current_folder + "/" + image_filename})
-            elif all([CURRENT_OPEN_LIST_RGB[i] - RGB_ACCURACY <= avg_color[i] <=
-                      CURRENT_OPEN_LIST_RGB[i] + RGB_ACCURACY for i in range(3)]):
+            elif is_image_open_list(avg_color, pil_img):
                 # pix = page.get_pixmap(dpi=300)
                 # pil_img = get_pil_image_from_pixmap(pix)
                 # image_bytes = pil_img.tobytes()

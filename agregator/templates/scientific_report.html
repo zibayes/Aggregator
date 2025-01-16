@@ -77,8 +77,10 @@
         {% if report.conclusion %}
             <li><a href="#conclusion">Заключение</a></li>
         {% endif %}
-        {% for title in report.content.keys %}
-            <li><a href="#{{ title }}">{{ title }}</a></li>
+        {% for title, value in report.content.items %}
+            {% if value %}
+                <li><a href="#{{ title }}">{{ title }}</a></li>
+            {% endif %}
         {% endfor %}
         {% if report.supplement %}
             <li>
