@@ -178,7 +178,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
             image_text = captions[caption_index]
             caption_index += 1
         img_index = img[0]
-        if img_index in extracted_images:  # and not captions
+        if img_index in extracted_images:
             continue
         extracted_images.append(img_index)
         base_image = document.extract_image(img_index)
@@ -253,8 +253,8 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 supplement_content["open_list"].append(
                     {"label": image_text, "source": current_folder + "/" + image_filename})
 
-                open_lists_ids, origin_filenames = raw_open_lists_save([pil_img], user_id, origin_name, upload_source)
-                task = process_open_lists.apply_async((open_lists_ids, origin_filenames, user_id),
+                open_lists_ids = raw_open_lists_save([pil_img], user_id, origin_name, upload_source)
+                task = process_open_lists.apply_async((open_lists_ids, user_id),
                                                       link_error=error_handler_open_lists.s())
                 user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
                                       upload_source=upload_source)
@@ -283,8 +283,8 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 supplement_content["open_list"].append(
                     {"source": current_folder + "/" + image_filename})
 
-                open_lists_ids, origin_filenames = raw_open_lists_save([pil_img], user_id, origin_name, upload_source)
-                task = process_open_lists.apply_async((open_lists_ids, origin_filenames, user_id),
+                open_lists_ids = raw_open_lists_save([pil_img], user_id, origin_name, upload_source)
+                task = process_open_lists.apply_async((open_lists_ids, user_id),
                                                       link_error=error_handler_open_lists.s())
                 user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
                                       upload_source=upload_source)

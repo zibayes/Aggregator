@@ -167,15 +167,16 @@
                         {{ open_list.date_uploaded }}
                     </td>
                     <td>
-                        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-                           href="/open_lists/{{ open_list.id }}">Просмотр</a>
-                    </td>
-                    <td>
-                        <a href="/uploaded_files/{{ open_list.source }}">
+                        <a href="/open_lists/{{ open_list.id }}">
                             <button type="button" class="btn btn-primary"
                                     style="border-radius: 12px; margin-right:10px;">
                                 Просмотр
                             </button>
+                        </a>
+                    </td>
+                    <td>
+                        <a href="/uploaded_files/{{ open_list.source }}">
+                            {{ open_list.origin_filename }}
                         </a>
                     </td>
                     <td>

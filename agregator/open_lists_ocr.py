@@ -252,7 +252,7 @@ def change_img_perspect(img, dst_pts, src_pts=None):
 
 
 @shared_task(bind=True)
-def process_open_lists(self, open_lists_ids, origin_filenames, user_id):
+def process_open_lists(self, open_lists_ids, user_id):
     progress_recorder = ProgressRecorder(self)
     progress_recorder.set_progress(1, 100, '')
     open_lists, pages_count = load_raw_open_lists(open_lists_ids)
@@ -263,7 +263,7 @@ def process_open_lists(self, open_lists_ids, origin_filenames, user_id):
     already_uploaded = []
     file_groups = {}
     for open_list in open_lists:
-        file = {'path': folder + open_list.source.name, 'origin_name': origin_filenames[str(open_list.id)],
+        file = {'path': folder + open_list.source.name, 'origin_filename': open_list.origin_filename,
                 'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[str(open_list.id)]}}
         file_groups[str(open_list.id)] = file
     progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'open_lists',
@@ -306,7 +306,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
             open_list_hash = calculate_file_hash('uploaded_files/' + open_list.source.name)
             if file_hash == open_list_hash:
                 raise FileExistsError(
-                    f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(open_list_id)]['origin_name']}")
+                    f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(open_list_id)]['origin_filename']}")
 
     false_date = []
     image = None

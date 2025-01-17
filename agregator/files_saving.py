@@ -29,7 +29,6 @@ def delete_files_in_directory(directory, files):
 
 
 def raw_open_lists_save(uploaded_files, user_id, origin_filename=None, upload_source=None):
-    origin_filenames = {}
     open_lists_ids = []
     for file in uploaded_files:
         open_list = OpenLists(user_id=user_id)
@@ -38,7 +37,6 @@ def raw_open_lists_save(uploaded_files, user_id, origin_filename=None, upload_so
         full_path = f'uploaded_files/' + path
         Path(full_path).mkdir(exist_ok=True)
         if isinstance(file, PIL.Image.Image):
-            origin_filenames[str(open_list.id)] = origin_filename
             open_list.origin_filename = origin_filename
             open_list.upload_source = upload_source
             new_filename = str(open_list.id) + '_open_list.png'
@@ -48,7 +46,6 @@ def raw_open_lists_save(uploaded_files, user_id, origin_filename=None, upload_so
             with open(full_path + '/' + new_filename, 'wb+') as destination:
                 destination.write(image_buffer.read())
         else:
-            origin_filenames[str(open_list.id)] = file.name
             open_list.origin_filename = file.name
             open_list.upload_source = {'source': 'Пользовательский файл'}
             new_filename = str(open_list.id) + '_open_list' + file.name[file.name.rfind('.'):]
@@ -58,7 +55,7 @@ def raw_open_lists_save(uploaded_files, user_id, origin_filename=None, upload_so
         open_list.source = path + '/' + new_filename
         open_list.save()
         open_lists_ids.append(open_list.id)
-    return open_lists_ids, origin_filenames
+    return open_lists_ids
 
 
 def load_raw_open_lists(open_lists_ids):
@@ -91,18 +88,17 @@ def raw_reports_save(file_groups, uploaded_files, report_type, user_id, upload_s
     else:
         report_directory = ''
     reports_ids = []
-    origin_filenames = {}
     for value in file_groups.values():
         save_report(value, reports_ids, report_type, user_id, report_directory,
-                    origin_filenames, upload_source)
+                    upload_source)
     for file in uploaded_files:
         save_report(file, reports_ids, report_type, user_id, report_directory,
-                    origin_filenames, upload_source)
-    return reports_ids, origin_filenames
+                    upload_source)
+    return reports_ids
 
 
 def save_report(files, reports_ids, report_type, user_id, report_directory,
-                origin_filenames, upload_source):
+                upload_source):
     source_content = []
     report = report_type(user_id=user_id)
     report.save()
@@ -114,17 +110,17 @@ def save_report(files, reports_ids, report_type, user_id, report_directory,
         i = 0
         for file in files:
             save_report_source(report, file['file'], path, report_directory, report_id, source_content,
-                               origin_filenames, file['type'], i, upload_source)
+                               file['type'], i, upload_source)
             i += 1
     else:
         save_report_source(report, files, path, report_directory, report_id,
-                           source_content, origin_filenames, upload_source=upload_source)
+                           source_content, upload_source=upload_source)
     report.source = source_content
     report.save()
 
 
 def save_report_source(report, file, path, report_directory, report_id, source_content,
-                       origin_filenames, type=None, index=None, upload_source=None):
+                       type=None, index=None, upload_source=None):
     origin_name = file.name
     if upload_source:
         origin_name = origin_name.replace('%20', ' ')
@@ -138,8 +134,6 @@ def save_report_source(report, file, path, report_directory, report_id, source_c
     else:
         file.name = f'{report_id}_{report_directory}' + file.name[file.name.rfind('.'):]
         source_content.append({'type': 'all', 'path': path + '/' + file.name, 'origin_filename': origin_name})
-
-    origin_filenames[source_content[-1]['path']] = origin_name
 
     with open(path + '/' + file.name, 'wb+') as destination:
         if upload_source:

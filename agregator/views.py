@@ -95,13 +95,13 @@ def deconstructor(request):
                             else:
                                 file_groups[group_name] = [{'type': report_type, 'file': uploaded_files.pop(i)}]
                 if file_type == 'act':
-                    acts_ids, origin_filenames = raw_reports_save(file_groups, uploaded_files, Act, user.id)
-                    task = process_acts.apply_async((acts_ids, origin_filenames, user.id),
+                    acts_ids = raw_reports_save(file_groups, uploaded_files, Act, user.id)
+                    task = process_acts.apply_async((acts_ids, user.id),
                                                     link_error=error_handler_acts.s())
                 elif file_type == 'report':
-                    reports_ids, origin_filenames = raw_reports_save(file_groups, uploaded_files, ScientificReport,
-                                                                     user.id)
-                    task = process_reports.apply_async((reports_ids, origin_filenames, user.id),
+                    reports_ids = raw_reports_save(file_groups, uploaded_files, ScientificReport,
+                                                   user.id)
+                    task = process_reports.apply_async((reports_ids, user.id),
                                                        link_error=error_handler_reports.s())
                 tasks_id = [task.task_id] + tasks_id
                 user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type=file_type,
@@ -148,8 +148,8 @@ def open_list_ocr(request):
         form = UploadOpenListsForm(request.POST, request.FILES)
         if form.is_valid():
             uploaded_files = form.cleaned_data['files']
-            open_lists_ids, origin_filenames = raw_open_lists_save(uploaded_files, user_id)
-            task = process_open_lists.apply_async((open_lists_ids, origin_filenames, user_id),
+            open_lists_ids = raw_open_lists_save(uploaded_files, user_id)
+            task = process_open_lists.apply_async((open_lists_ids, user_id),
                                                   link_error=error_handler_open_lists.s())
             tasks_id = [task.task_id] + tasks_id
             user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',

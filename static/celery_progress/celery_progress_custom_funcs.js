@@ -88,14 +88,24 @@ function onResultCustom(resultElement, result) {
             // resultElement.textContent = result.error_text;
         }
     } finally {
-        this.onRetry()
+        setTimeout(() => {
+            this.onRetry()
+        }, 1000)
     }
 }
 
 function onRetryCustom(progressBarElement, progressBarMessageElement, excMessage, retrySeconds) {
     let message = 'Статус: Повторная попытка подключения через ' + retrySeconds + ' секунд: ' + excMessage;
-    progressBarElement.style.backgroundColor = this.barColors.error;
-    progressBarMessageElement.textContent = message;
+    try {
+        if (progressBarElement !== undefined && progressBarMessageElement !== undefined) {
+            progressBarElement.style.backgroundColor = this.barColors.error;
+            progressBarMessageElement.textContent = message;
+        }
+    } finally {
+        setTimeout(() => {
+            this.onRetry()
+        }, 1000)
+    }
 }
 
 function onIgnoredCustom(progressBarElement, progressBarMessageElement, result) {
@@ -169,7 +179,7 @@ function add_process_status(progressBarMessageElement, result, isError) {
 function add_process_icon(file, li, value, result, key, isError) {
     let br = document.createElement('br');
     let origin = document.createElement('a');
-    origin.textContent = value.origin_name;
+    origin.textContent = value.origin_filename;
     li.appendChild(origin);
     li.appendChild(br);
     file.href = `/${result.file_types}/${key}`;

@@ -32,7 +32,7 @@ def choose_file() -> str:
 
 
 @shared_task(bind=True)
-def process_reports(self, reports_ids, origin_filenames, user_id):
+def process_reports(self, reports_ids, user_id):
     progress_recorder = ProgressRecorder(self)
     progress_recorder.set_progress(0, 100, '')
     reports, pages_count = load_raw_reports(reports_ids, ScientificReport)
@@ -43,7 +43,6 @@ def process_reports(self, reports_ids, origin_filenames, user_id):
         report.source = json.loads(report.source)
         for source in report.source:
             file = source.copy()
-            file['origin_name'] = origin_filenames[source['path']]
             file['processed'] = 'False'
             file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
             if str(report.id) in file_groups.keys():
@@ -78,7 +77,10 @@ def process_reports(self, reports_ids, origin_filenames, user_id):
 def extract_text_and_images(current_report, file, progress_recorder, pages_count, total_processed, progress_json,
                             report_id,
                             source_index, task_id, user_id):
-    supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
+    if current_report.supplement:
+        supplement_content = json.loads(current_report.supplement)
+    else:
+        supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
     reports = ScientificReport.objects.all()
     for report in reports:
         for source in report.source:
@@ -88,7 +90,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                 report_hash = calculate_file_hash(source_path)
                 if file_hash == report_hash:
                     raise FileExistsError(
-                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(report_id)][source_index]['origin_name']}")
+                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(report_id)][source_index]['origin_filename']}")
 
     document = fitz.open(file)
 
@@ -236,12 +238,10 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                             table_columns_info['Населённый пункт'] = place.group(0)
 
                     author = re.search(r'выполнил:\s+.*|автор:\s+.*', text, re.IGNORECASE)
-                    print('author', author)
                     if author:
                         author = re.search(
                             r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.|[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]+[а-яё]+',
                             author.group(0), re.MULTILINE)
-                        print('author', author)
                         if author:
                             table_columns_info['Автор'] = author.group(0)
 
@@ -352,12 +352,11 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
 
             extract_images_with_captions(text, page, page_number, document, folder,
                                          supplement_content, extracted_images, user_id,
-                                         progress_json['file_groups'][str(report_id)][source_index]['origin_name'],
+                                         progress_json['file_groups'][str(report_id)][source_index]['origin_filename'],
                                          current_report.upload_source)
         total_processed[0] += len(document)
     document.close()
 
-    print('BLYAT!', progress_json['file_groups'][str(report_id)][source_index]['type'])
     if progress_json['file_groups'][str(report_id)][source_index]['type'] in ('text', 'all'):
         current_report.name = table_columns_info['Название отчёта']
         current_report.organization = table_columns_info['Организация']

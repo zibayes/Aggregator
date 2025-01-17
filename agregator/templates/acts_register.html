@@ -249,8 +249,8 @@
                     </td>
                     <td>
                         {% for source in act.source %}
-                            <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-                               href="/{{ source.path }}">
+                            <a href="/{{ source.path }}">
+                                <!--
                                 {% if source.type == 'all' %}
                                     Отчёт
                                 {% elif source.type == 'text' %}
@@ -258,6 +258,8 @@
                                 {% elif source.type == 'images' %}
                                     Приложение
                                 {% endif %}
+                                -->
+                                {{ source.origin_filename }}
                             </a>
                             <br>
                             <br>

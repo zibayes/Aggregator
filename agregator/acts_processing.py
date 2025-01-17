@@ -85,7 +85,7 @@ def external_storage_acts_processing(uploaded_files):
 
 
 @shared_task(bind=True)
-def process_acts(self, acts_ids, origin_filenames, user_id):
+def process_acts(self, acts_ids, user_id):
     progress_recorder = ProgressRecorder(self)
     progress_recorder.set_progress(0, 100, '')
     acts, pages_count = load_raw_reports(acts_ids, Act)
@@ -98,7 +98,6 @@ def process_acts(self, acts_ids, origin_filenames, user_id):
         act.source = json.loads(act.source)
         for source in act.source:
             file = source.copy()
-            file['origin_name'] = origin_filenames[source['path']]
             file['processed'] = 'False'
             file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
             if str(act.id) in file_groups.keys():
@@ -159,7 +158,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                 act_hash = calculate_file_hash(source_path)
                 if file_hash == act_hash:
                     raise FileExistsError(
-                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(act_id)][source_index]['origin_name']}")
+                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
 
     # Открываем PDF-файл
     document = fitz.open(pdf_file)
@@ -728,7 +727,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                 break
             extract_images_with_captions(text_to_write, page, page_number, document, folder,
                                          supplement_content, extracted_images, user_id,
-                                         progress_json['file_groups'][str(act_id)][source_index]['origin_name'],
+                                         progress_json['file_groups'][str(act_id)][source_index]['origin_filename'],
                                          current_act.upload_source)
         total_processed[0] += len(document)
 
