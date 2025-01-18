@@ -70,20 +70,6 @@ def get_gike_object_size(text_to_write: str, table_info: dict) -> None:
             table_info['Площадь, протяжённость и/или др. параменты объекта'] += ' (S лин. ЗУ = ' + square_line + ')'
 
 
-def external_storage_acts_processing(uploaded_files):
-    pages_count = 0
-    for file in uploaded_files:
-        if not file.lower().endswith('.pdf'):
-            continue
-        with fitz.open('uploaded_files/acts/' + file) as pdf_doc:
-            pages_count += len(pdf_doc)
-    # table = save_and_process_files.delay(files)
-    # task = save_and_process_files.delay(uploaded_files, pages_count)
-    task = 1
-    # task = test_task.delay(1)
-    return task
-
-
 @shared_task(bind=True)
 def process_acts(self, acts_ids, user_id):
     progress_recorder = ProgressRecorder(self)

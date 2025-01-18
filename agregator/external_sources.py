@@ -1,16 +1,20 @@
 import os
+import re
+import shutil
 import ssl
 import urllib.request
+from pathlib import Path
 from urllib.parse import quote
 from bs4 import BeautifulSoup
 import requests
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
-from .acts_processing import external_storage_acts_processing, process_acts, error_handler_acts
+from .acts_processing import process_acts, error_handler_acts
 from celery import shared_task
 from time import sleep
 import fitz
+import patoolib
 
 from .files_saving import raw_reports_save
 from .models import User, Act, UserTasks
@@ -21,6 +25,11 @@ def external_sources_processing(self):
     page = 1
     pages = [str(page)]
     ignore_ssl = False
+
+    admin = User.objects.get(is_superuser=True)
+    acts = Act.objects.filter(user_id=admin.id)
+    downloaded_files = [y['origin_filename'] for x in acts if
+                        x.upload_source['source'] != 'Пользовательский файл' for y in x.source]
     while str(page) in pages:
         print(f"PAGE={page}")
         try:
@@ -31,13 +40,14 @@ def external_sources_processing(self):
             ignore_ssl = True
         data = r.text
         soup = BeautifulSoup(data, features="html.parser")
-        downloaded_files = []
         new_files = []
 
+        '''
         for root, dirs, files in os.walk('.'):
             for file in files:
                 if file.lower().endswith('.pdf') or file.lower().endswith('.zip') or file.lower().endswith('.rar'):
                     downloaded_files.append(file)
+        '''
 
         for link in soup.find_all('a'):
             href = link.get('href')
@@ -48,11 +58,11 @@ def external_sources_processing(self):
             if '/upload/iblock/' in href and 'акт' in href.lower() or 'гикэ' in href.lower():
                 file = href[href.rfind('/') + 1:]
 
-                file_encoded = file.replace(' ', '%20')
-                if file_encoded in downloaded_files:
+                if file in downloaded_files or file.endswith('.sig'):
                     continue
-                else:
-                    new_files.append(file_encoded)
+
+                file_encoded = file.replace(' ', '%20')
+                new_files.append(file_encoded)
 
                 print(href)
                 href = href[:href.rfind('/')]
@@ -79,19 +89,54 @@ def external_sources_processing(self):
 
                 while file_not_found is False:
                     sleep(1.5)
-                    # try:
-                    with fitz.open(path_to_download) as pdf_doc:
-                        print('PAGES! ' + str(len(pdf_doc)))
-                    file_to_save = convert_file_to_uploaded_file(path_to_download)
+
+                    folder = None
+                    archive_files = []
+                    if path_to_download.lower().endswith(('.zip', '.rar')):
+                        folder = path_to_download[:path_to_download.rfind('.')]
+                        Path(folder).mkdir(exist_ok=True)
+                        patoolib.extract_archive(path_to_download, outdir=folder)
+                        for root, dirs, files in os.walk(os.getcwd() + '/' + folder):
+                            for file in files:
+                                if file.lower().endswith('.pdf') and not re.search(r'проверк[\s\S]+подпис[\S]+', file,
+                                                                                   re.IGNORECASE):
+                                    archive_files.append(os.path.join(root, file))
+
+                    '''
+                    try:
+                        with fitz.open(path_to_download) as pdf_doc:
+                            print('PAGES! ' + str(len(pdf_doc)))
+                    '''
+
+                    files_to_save = []
+                    file_groups = {}
+                    if archive_files:
+                        file_groups['fully'] = []
+                        types_convert = {'текст': 'text', 'приложение': 'images', 'иллюстрации': 'images'}
+                        for file in archive_files:
+                            filename = file.lower()
+                            report_type = 'all'
+                            for typename in types_convert.keys():
+                                if typename in filename:
+                                    index = filename.find(typename)
+                                    if index >= 0:
+                                        report_type = types_convert[typename]
+                                        break
+                            file_groups['fully'].append(
+                                {'type': report_type, 'file': convert_file_to_uploaded_file(file)})
+                    else:
+                        files_to_save = [convert_file_to_uploaded_file(path_to_download)]
                     admin = User.objects.get(is_superuser=True)
                     upload_source = {'source': 'ООКН', 'link': url}
-                    acts_ids, origin_filenames = raw_reports_save({}, [file_to_save], Act, admin.id, upload_source)
-                    task = process_acts.apply_async((acts_ids, origin_filenames, admin.id),
+                    acts_ids = raw_reports_save(file_groups, files_to_save, Act, admin.id, upload_source)
+                    if folder is not None:
+                        shutil.rmtree(folder)
+                    os.remove(path_to_download)
+                    task = process_acts.apply_async((acts_ids, admin.id),
                                                     link_error=error_handler_acts.s())
                     user_task = UserTasks(user_id=admin.id, task_id=task.task_id, files_type='act',
                                           upload_source=upload_source)
                     user_task.save()
-                    external_storage_acts_processing([file_encoded])
                     break
                     # except Exception as e:
                     #     continue
