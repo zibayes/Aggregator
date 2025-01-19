@@ -25,6 +25,14 @@ from .models import OpenLists
 from .hash import calculate_file_hash
 from .files_saving import delete_files_in_directory, load_raw_open_lists
 
+FRAME_BORDERS = [204, 800, 43, 545]  # each need to '* koef' [204, 778, 63, 555]
+FIO_BORDERS = [390, 512, 40, 550]  # [390, 490, 60, 560]
+WORKS_BORDERS = [415, 602, 40, 550]  # [415, 580, 60, 560]
+OBJECT_BORDERS = [295, 472, 40, 550]  # [295, 450, 60, 560]
+DATES_BORDERS = [515, 622, 240, 530]  # [515, 600, 260, 540]
+LIST_NUMBER_BORDERS = [196, 257, 180, 410]  # [196, 235, 200, 420]
+FIO_SKLON_BORDERS = [245, 307, 162, 427]  # [245, 285, 182, 437]
+
 MAX_VAL = 255
 UPSCALE = [1]
 MONTHS = {'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04', 'мая': '05', 'июня': '06', 'июля': '07',
@@ -40,14 +48,51 @@ def choose_image_file() -> str:
         return file_path
 
 
-def image_binarization(image_path: str, threshold: int = None) -> cv2.UMat:
+def cutting(bin_img, img):
+    color_thresh_up = 248
+    color_thresh_down = 240
+    rows_to_delete = []
+    for i in range(len(bin_img)):
+        color = bin_img[i].sum() / len(bin_img[i])
+        if color >= color_thresh_up:
+            rows_to_delete.append(i)
+        elif color <= color_thresh_down:
+            color_thresh_up = 254
+    if rows_to_delete:
+        bin_img = np.delete(bin_img, rows_to_delete, axis=0)
+        img = np.delete(img, rows_to_delete, axis=0)
+    return bin_img, img
+
+
+def cut_one_dimension_and_transpose(bin_img, img):
+    bin_img, img = cutting(bin_img, img)
+
+    np.flipud(bin_img)
+    np.flipud(img)
+    bin_img, img = cutting(bin_img, img)
+    np.flipud(bin_img)
+    np.flipud(img)
+
+    bin_img = np.transpose(bin_img)
+    img = np.transpose(img, (1, 0, 2))
+
+    return bin_img, img
+
+
+def borders_cut(bin_img, img):
+    bin_img, img = cut_one_dimension_and_transpose(bin_img, img)
+    bin_img, img = cut_one_dimension_and_transpose(bin_img, img)
+    return bin_img, img
+
+
+def image_binarization(image_path: str, threshold: int = None) -> tuple:
     img = cv2.imread(image_path)
     height, width = img.shape[:2]
     if width <= 598 and height <= 845:
         UPSCALE[0] = 8
         img = cv2.resize(img, None, fx=UPSCALE[0], fy=UPSCALE[0], interpolation=cv2.INTER_LANCZOS4)
-    img1 = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    _, bin_img = cv2.threshold(img1, threshold, MAX_VAL, cv2.THRESH_BINARY)
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, bin_img = cv2.threshold(img_gray, threshold, MAX_VAL, cv2.THRESH_BINARY)
     return img, bin_img
 
 
@@ -57,45 +102,47 @@ def extract_text_from_image(image: cv2.UMat, psm_conf: str) -> str:
     return extracted_text
 
 
-def extract_fio_from_image(image: cv2.UMat, koef: int):
+def extract_fio_from_image(image: cv2.UMat, koef: float):
     line_length = 490
     line_color_thresh = 18
     return extract_data_by_lines(image, koef, line_length, line_color_thresh)
 
 
-def extract_dates_from_image(image: cv2.UMat, koef: int):
+def extract_dates_from_image(image: cv2.UMat, koef: float):
     line_length = 112
     line_color_thresh = 18
     return extract_data_by_lines(image, koef, line_length, line_color_thresh)
 
 
-def extract_data_by_lines(image: cv2.UMat, koef: int, line_length: int, line_color_thresh: int):
+def extract_data_by_lines(image: cv2.UMat, koef: float, line_length: int, line_color_thresh: int):
     lines = []
+    line_length = int(line_length * koef)
+    short_check = int(15 * koef)
     for i in range(0, len(image)):
         j = 0
-        while j < len(image[i]) - line_length * koef:
-            if image[i][j:j + line_length * koef].sum() / len(image[i][j:j + line_length * koef]) < line_color_thresh:
+        while j < len(image[i]) - line_length:
+            if image[i][j:j + line_length].sum() / len(image[i][j:j + line_length]) < line_color_thresh:
                 # img8[i][j:j+112*4] = np.full(shape=[1,112*4],fill_value=255)
                 lines.append((i, j))
-                j += line_length * koef
+                j += line_length
             j += 1
     final_list = []
     for line in lines:
-        if not final_list and line[0] - 15 * koef >= 0:
+        if not final_list and line[0] >= short_check:
             final_list.append(line)
             continue
         acceptance = []
         for val in final_list:
-            if abs(line[0] - val[0]) < koef and abs(line[1] - val[1]) < line_length * koef:
+            if abs(line[0] - val[0]) < koef and abs(line[1] - val[1]) < line_length:
                 acceptance.append(False)
             else:
                 acceptance.append(True)
-        if all(acceptance) and line[0] - 15 * koef >= 0:
+        if all(acceptance) and line[0] >= short_check:
             final_list.append(line)
     return final_list
 
 
-def check_lines(lines, koef: int):
+def check_lines(lines: List, koef: float):
     is_correct = True
     if len(lines) == 6:
         if not 56 * koef <= lines[0][0] <= 71 * koef:
@@ -148,11 +195,13 @@ def check_lines(lines, koef: int):
         return False
 
 
-def cut_dates_from_image(image: cv2.UMat, final_list: List, koef: int):
-    line_length = 130
+def cut_dates_from_image(image: cv2.UMat, final_list: List, koef: float):
+    line_length = int(130 * koef)
+    left_border = int(15 * koef)
+    right_border = int(20 * koef)
     dates = []
     for date in final_list:
-        img = image[date[0] - 15 * koef:date[0], date[1] + 20:date[1] + line_length * koef]
+        img = image[date[0] - left_border:date[0], date[1] + right_border:date[1] + line_length]
         dates.append(img)
         '''
         plt.imshow(dates[-1], cmap='gray')
@@ -161,11 +210,13 @@ def cut_dates_from_image(image: cv2.UMat, final_list: List, koef: int):
     return dates
 
 
-def cut_fio_from_image(image: cv2.UMat, final_list: List, koef: int):
-    line_length = 490
+def cut_fio_from_image(image: cv2.UMat, final_list: List, koef: float):
+    line_length = int(490 * koef)
+    left_border = int(18 * koef)
+    right_border = int(20 * koef)
     pieces = []
     for date in final_list:
-        img = image[date[0] - 18 * koef:date[0], date[1] + 20:date[1] + line_length * koef]
+        img = image[date[0] - left_border:date[0], date[1] + right_border:date[1] + line_length]
         pieces.append(img)
         '''
         plt.imshow(pieces[-1], cmap='gray')
@@ -223,15 +274,16 @@ def date_to_dots_format(date: str) -> str:
     return day + '.' + month + '.' + year
 
 
-def get_gaps(image: cv2.UMat, koef: int, thresh: int) -> List:
+def get_gaps(image: cv2.UMat, koef: float, thresh: int) -> List:
     img = image.copy()
     i = 0
     gaps = []
+    gap_size = int(11 * koef)
     while i < len(image):
-        if img[i:i + 11 * koef].sum() / (len(img[i]) * 11 * koef) > thresh:
+        if img[i:i + gap_size].sum() / (len(img[i]) * gap_size) > thresh:
             # img[i:i+11*koef] = np.full(shape=[11*koef,len(img[i])],fill_value=0)
             gaps.append(i)
-            i += 11 * koef
+            i += gap_size
         i += 1
     # cv2.imwrite(folder + "/gaps.png", img)
     '''
@@ -351,13 +403,17 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
                      'Конец срока': ''}
         # for thresh in range(100, 176, 25):
         binarization_threshold = 120
-        imgz, image = image_binarization(image_filename, binarization_threshold)  # , thresh
+        img_colored, image = image_binarization(image_filename, binarization_threshold)  # , thresh
+        image, img_colored = borders_cut(image, img_colored)
         height, width = image.shape
         ratio = (width / 596 + height / 842) / 2  # image ratio for different resolutions
-        koef = int(UPSCALE[0] * ratio)
-        frame = image[204 * koef:778 * koef, 63 * koef:555 * koef]
-        frame_rgb = imgz[204 * koef:778 * koef, 63 * koef:555 * koef]
-        # cv2.imwrite(folder + "/frame.png", imgz[204*koef:778*koef, 63*koef:555*koef])
+        koef = UPSCALE[0] * ratio  # int(UPSCALE[0] * ratio)
+
+        frame_borders = [int(x * koef) for x in FRAME_BORDERS]
+
+        frame = image[frame_borders[0]:frame_borders[1], frame_borders[2]:frame_borders[3]]
+        frame_rgb = img_colored[frame_borders[0]:frame_borders[1], frame_borders[2]:frame_borders[3]]
+        # cv2.imwrite(folder + "/frame.png", img_colored[204*koef:778*koef, 63*koef:555*koef])
         list_number = fio = fio_sklon = object = works = dates = None
 
         no_lines = []
@@ -369,8 +425,8 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         while not lines and len_lines <= 10 and binarization_threshold <= 200:
             if binarization_threshold <= 200:
                 binarization_threshold += 10
-                imgz, image = image_binarization(image_filename, binarization_threshold)
-                frame = image[204 * koef:778 * koef, 63 * koef:555 * koef]
+                img_colored, image = image_binarization(image_filename, binarization_threshold)
+                frame = image[frame_borders[0]:frame_borders[1], frame_borders[2]:frame_borders[3]]
             else:
                 line_color_thresh += 5
             lines = extract_data_by_lines(frame, koef, line_length, line_color_thresh)
@@ -380,45 +436,62 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
             lines = []
         if 5 <= len(lines) <= 6:
             print(lines)
-            object = frame_rgb[lines[1][0] + 30 * koef:lines[2][0]]
+            margin = int(30 * koef)
+            object = frame_rgb[lines[1][0] + margin:lines[2][0]]
             # cv2.imwrite(folder + "/object_frame.png", object)
-            fio = frame_rgb[lines[2][0] + 30 * koef:lines[3][0]]
+            fio = frame_rgb[lines[2][0] + margin:lines[3][0]]
             # cv2.imwrite(folder + "/fio_frame.png", fio)
-            works = frame_rgb[lines[3][0] + 32 * koef:lines[4][0]]
+            margin = int(32 * koef)
+            works = frame_rgb[lines[3][0] + margin:lines[4][0]]
             # cv2.imwrite(folder + "/works_frame.png", works)
-            dates = frame[lines[4][0] + 35 * koef:lines[4][0] + 90 * koef, 200 * koef:]
-            dates_rgb = frame_rgb[lines[4][0] + 35 * koef:lines[4][0] + 90 * koef, 200 * koef:]
+            margin = [int(35 * koef), int(90 * koef), int(200 * koef)]
+            dates = frame[lines[4][0] + margin[0]:lines[4][0] + margin[1], margin[2]:]
+            dates_rgb = frame_rgb[lines[4][0] + margin[0]:lines[4][0] + margin[1], margin[2]:]
             # cv2.imwrite(folder + "/dates_frame.png", dates)
         else:
             no_lines.append(image_filename)
             gaps = get_gaps(frame, koef, 250)
             index = 0
+
+            koef_values = [
+                int(12 * koef),  # 0
+                int(40 * koef),  # 1
+                int(10 * koef),  # 2
+                int(22 * koef),  # 3
+                int(14 * koef),  # 4
+                int(23 * koef),  # 5
+                int(30 * koef),  # 6
+                int(8 * koef),  # 7
+                int(4 * koef),  # 8
+                int(5 * koef)  # 9
+            ]
+
             for i in range(len(gaps) - 1):
-                if (gaps[i + 1] - gaps[i] < 12 * koef) or (i == 0 and gaps[i] < 12 * koef):
+                if (gaps[i + 1] - gaps[i] < koef_values[0]) or (i == 0 and gaps[i] < koef_values[0]):
                     continue
-                if index == 0 and gaps[i] > 40 * koef:
-                    list_number = frame[:gaps[i] + 5 * koef]
+                if index == 0 and gaps[i] > koef_values[1]:
+                    list_number = frame[:gaps[i] + koef_values[9]]
                     if list_number.size == 0:
                         list_number = None
-                if index == 1 and gaps[i + 1] - gaps[i] > 10 * koef:
+                if index == 1 and gaps[i + 1] - gaps[i] > koef_values[2]:
                     fio_sklon = frame[gaps[i]:gaps[i + 1]]
                     if fio_sklon.size == 0:
                         fio_sklon = None
-                elif index == 3 and gaps[i + 1] - gaps[i] > 22 * koef:
-                    object = frame[gaps[i] + 22 * koef:gaps[i + 1] - 4 * koef]
+                elif index == 3 and gaps[i + 1] - gaps[i] > koef_values[3]:
+                    object = frame[gaps[i] + koef_values[3]:gaps[i + 1] - koef_values[8]]
                     if object.size == 0:
                         object = None
-                elif index == 5 and gaps[i + 1] - gaps[i] > 14 * koef:
-                    fio = frame[gaps[i]:gaps[i + 1] - 5 * koef]
+                elif index == 5 and gaps[i + 1] - gaps[i] > koef_values[4]:
+                    fio = frame[gaps[i]:gaps[i + 1] - koef_values[9]]
                     if fio.size == 0:
                         fio = None
-                elif index == 6 and gaps[i + 1] - gaps[i] > 22 * koef:
-                    works = frame[gaps[i] + 23 * koef:gaps[i + 1]]
+                elif index == 6 and gaps[i + 1] - gaps[i] > koef_values[3]:
+                    works = frame[gaps[i] + koef_values[5]:gaps[i + 1]]
                     if works.size == 0:
                         works = None
-                elif index == 8 and 30 * koef > gaps[i + 1] - gaps[i] > 11 * koef:
-                    dates = frame[gaps[i] + 8 * koef:gaps[i + 1] + 4 * koef]
-                    dates_rgb = frame_rgb[gaps[i] + 8 * koef:gaps[i + 1] + 4 * koef]
+                elif index == 8 and koef_values[6] > gaps[i + 1] - gaps[i] > koef_values[0]:
+                    dates = frame[gaps[i] + koef_values[7]:gaps[i + 1] + koef_values[8]]
+                    dates_rgb = frame_rgb[gaps[i] + koef_values[7]:gaps[i + 1] + koef_values[8]]
                     if dates.size == 0:
                         dates = None
                 index += 1
@@ -434,7 +507,8 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
                 '''
         if not (fio is not None and object is not None
                 and works is not None and dates is not None):
-            fio = image[390 * koef:490 * koef, 60 * koef:560 * koef]
+            fio_borders = [int(x * koef) for x in FIO_BORDERS]
+            fio = image[fio_borders[0]:fio_borders[1], fio_borders[2]:fio_borders[3]]
             # cv2.imwrite(folder + "/fio.png", fio)
             '''
             final_list = extract_fio_from_image(fio, koef)
@@ -443,45 +517,53 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
                 fio = fios[0]
             '''
 
-            works = image[415 * koef:580 * koef, 60 * koef:560 * koef]
+            works_borders = [int(x * koef) for x in WORKS_BORDERS]
+            works = image[works_borders[0]:works_borders[1], works_borders[2]:works_borders[3]]
             gaps = get_gaps(works, koef, 240)
             gap_num = 0
+            gap_interval = int(36 * koef)
             for i in range(len(gaps) - 1):
-                if (gaps[i + 1] - gaps[i] < 36 * koef) or (i == 0 and gaps[i] < 36 * koef):
+                if (gaps[i + 1] - gaps[i] < gap_interval) or (i == 0 and gaps[i] < gap_interval):
                     continue
                 gap_num = i
                 break
-            works = imgz[415 * koef:580 * koef, 60 * koef:560 * koef]
+            works = img_colored[works_borders[0]:works_borders[1], works_borders[2]:works_borders[3]]
             if len(gaps) > 1:
-                works = works[gaps[gap_num] + 24 * koef:gaps[gap_num + 1] if len(gaps) > 1 else len(works)]
+                works = works[gaps[gap_num] + int(24 * koef):gaps[gap_num + 1] if len(gaps) > 1 else len(works)]
             if works.size > 0:
                 pass
                 # cv2.imwrite(folder + "/works.png", works)
             else:
-                works = imgz[415 * koef:580 * koef, 60 * koef:560 * koef]
+                works = img_colored[works_borders[0]:works_borders[1], works_borders[2]:works_borders[3]]
 
-            object = image[295 * koef:450 * koef, 60 * koef:560 * koef]
+            object_borders = [int(x * koef) for x in OBJECT_BORDERS]
+            object = image[object_borders[0]:object_borders[1], object_borders[2]:object_borders[3]]
             gaps = get_gaps(object, koef, 250)
             gap_num = 0
+            gap_interval = int(21 * koef)
             for i in range(len(gaps) - 1):
-                if (gaps[i + 1] - gaps[i] < 21 * koef) or (i == 0 and gaps[i] < 21 * koef):
+                if (gaps[i + 1] - gaps[i] < gap_interval) or (i == 0 and gaps[i] < gap_interval):
                     continue
                 gap_num = i
                 break
-            object = imgz[295 * koef:450 * koef, 60 * koef:560 * koef]
+            object = img_colored[object_borders[0]:object_borders[1], object_borders[2]:object_borders[3]]
             if len(gaps) > 1:
                 object = object[
-                         gaps[gap_num] + 24 * koef:(gaps[gap_num + 1] if len(gaps) > 1 else len(object)) - 5 * koef]
+                         gaps[gap_num] + int(24 * koef):(gaps[gap_num + 1] if len(gaps) > 1 else len(object)) - int(
+                             5 * koef)]
             if object.size > 0:
                 pass
                 # cv2.imwrite(folder + "/object.png", object)
             else:
-                object = imgz[295 * koef:450 * koef, 60 * koef:560 * koef]
+                object = img_colored[object_borders[0]:object_borders[1], object_borders[2]:object_borders[3]]
 
-            dates = image[515 * koef:600 * koef, 260 * koef:540 * koef]
-            dates_rgb = imgz[515 * koef:600 * koef, 260 * koef:540 * koef]
+            dates_borders = [int(x * koef) for x in DATES_BORDERS]
+            dates = image[dates_borders[0]:dates_borders[1], dates_borders[2]:dates_borders[3]]
+            dates_rgb = img_colored[dates_borders[0]:dates_borders[1], dates_borders[2]:dates_borders[3]]
         if not list_data['Номер листа']:
-            list_number = imgz[196 * koef:235 * koef, 200 * koef:420 * koef]
+            list_number_borders = [int(x * koef) for x in LIST_NUMBER_BORDERS]
+            list_number = img_colored[list_number_borders[0]:list_number_borders[1],
+                          list_number_borders[2]:list_number_borders[3]]
             # cv2.imwrite(folder + "/list_number.png", list_number)
             extracted_text = extract_text_from_image(list_number, '1').upper().replace('О', '0') \
                 .replace('()', '0').replace('З', '3')
@@ -496,7 +578,9 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
             extracted_text = extract_text_from_image(fio, '1')
             list_holder = re.search(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+', extracted_text)
             if not list_holder or len(list_holder.group(0)) <= 12:
-                fio_sklon = imgz[245 * koef:285 * koef, 182 * koef:437 * koef]
+                fio_sklon_borders = [int(x * koef) for x in FIO_SKLON_BORDERS]
+                fio_sklon = img_colored[fio_sklon_borders[0]:fio_sklon_borders[1],
+                            fio_sklon_borders[2]:fio_sklon_borders[3]]
                 # cv2.imwrite(folder + "/fio_sklon.png", fio_sklon)
                 extracted_text = extract_text_from_image(fio_sklon, '1')
                 list_holder = re.search(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+',
@@ -519,7 +603,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
                                        progress_json)
         if not list_data['Начало срока'] or not list_data['Конец срока']:
             dates_list = extract_dates_from_image(dates, koef)
-            # imgz_dates = dates # imgz[515*koef:600*koef, 260*koef:540*koef]
+            # imgz_dates = dates # img_colored[515*koef:600*koef, 260*koef:540*koef]
             dates_list = cut_dates_from_image(dates_rgb, dates_list, koef)
             period_dates = []
             date_index = 0
