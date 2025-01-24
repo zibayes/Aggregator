@@ -5,23 +5,21 @@ import redis
 
 import fitz
 import pytesseract
-from PIL import Image, ImageEnhance
 import cv2
 import tkinter as tk
 from tkinter import filedialog
 import numpy as np
 import re
 import pandas as pd
-from openpyxl import load_workbook, Workbook
-from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 import os
-from pathlib import Path
+
+from language_tool_python.utils import _4_bytes_encoded_positions, Match
 from transliterate import translit
 import Levenshtein
 import matplotlib.pyplot as plt
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
-# import language_tool_python
+import requests
 from fuzzywuzzy import fuzz
 from skimage import io, filters
 from .models import OpenLists
@@ -58,7 +56,6 @@ redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 # language_tool = language_tool_python.LanguageTool('ru-RU')
-
 
 def choose_image_file() -> str:
     # file_path = filedialog.askopenfilename(title="Выберите файл изображения", filetypes=[("Изображения", "*.png *.jpg")])
@@ -319,7 +316,7 @@ def extract_data_by_lines(image: np.ndarray, koef: float, line_length: int, line
             continue
         acceptance = []
         for val in final_list:
-            if abs(line[0] - val[0]) < koef and abs(line[1] - val[1]) < line_length:
+            if abs(line[0] - val[0]) < short_check and abs(line[1] - val[1]) < line_length:
                 acceptance.append(False)
             else:
                 acceptance.append(True)
@@ -484,7 +481,7 @@ def change_brightness_and_perspect(img, koef):
 
 def preprocess_string(string: str) -> str:
     string = string.replace('=', '').replace('’', '').replace('`', '').replace('^', '').replace('‘', '') \
-        .replace('!', '').replace('|', '').replace('$', '').replace('@', 'а').replace('_', '').strip()
+        .replace('!', '').replace('|', '').replace('$', '').replace('@', 'а').replace('_', '').replace('&', '').strip()
     return string
 
 
@@ -506,23 +503,66 @@ def preprocess_number(string: str) -> str:
     return string
 
 
+def correct(text: str, matches: List[Match]) -> str:
+    """Automatically apply suggestions to the text."""
+    # Get the positions of 4-byte encoded characters in the text because without
+    # carrying out this step, the offsets of the matches could be incorrect.
+    for match in matches:
+        match.offset -= sum(1 for i in _4_bytes_encoded_positions(text) if i <= match.offset)
+    ltext = list(text)
+    matches = [match for match in matches if match.replacements]
+    errors = [ltext[match.offset:match.offset + match.errorLength]
+              for match in matches]
+    correct_offset = 0
+    for n, match in enumerate(matches):
+        frompos, topos = (correct_offset + match.offset,
+                          correct_offset + match.offset + match.errorLength)
+        if ltext[frompos:topos] != errors[n]:
+            continue
+        repl = match.replacements[0]
+        ltext[frompos:topos] = list(repl)
+        correct_offset += len(repl) - len(errors[n])
+    return ''.join(ltext)
+
+
+def spell_check(string: str) -> Optional[str]:
+    url = 'http://localhost:8010/v2/check'
+    payload = {
+        'text': string,
+        'language': 'ru'
+    }
+
+    try:
+        response = requests.post(url, data=payload)
+        if response.status_code == 200:
+            data = response.json()
+            matches = data['matches']
+            matches = [Match(match) for match in matches]
+            return correct(string, matches)
+        return string
+    except Exception as exception:
+        print('Spell checker error:', exception)
+    finally:
+        return string
+
+
 def compare_two_texts(extracted_text, extracted_text_twin):
     extracted_len = len(extracted_text) >= 45
     twin_len = len(extracted_text_twin) >= 45
     if extracted_len and not twin_len:
-        return extracted_text  # language_tool.correct(extracted_text)
+        return spell_check(extracted_text)  # language_tool.correct(extracted_text)
     elif not extracted_len and twin_len:
-        return extracted_text_twin  # language_tool.correct(extracted_text_twin)
+        return spell_check(extracted_text_twin)  # language_tool.correct(extracted_text_twin)
     else:
         extracted_len = []
         twin_len = []
         for word in WORDS_TO_CHECK:
             extracted_len.append(fuzz.partial_ratio(word, extracted_text))
-            twin_len.append(fuzz.partial_ratio(word, extracted_text_twin))
+            twin_len.append(fuzz.partial_ratio(word, spell_check(extracted_text_twin)))
         if sum(extracted_len) > sum(twin_len):
-            return extracted_text  # language_tool.correct(extracted_text)
+            return spell_check(extracted_text)  # language_tool.correct(extracted_text)
         else:
-            return extracted_text_twin  # language_tool.correct(extracted_text_twin)
+            return spell_check(extracted_text_twin)  # language_tool.correct(extracted_text_twin)
 
 
 @shared_task(bind=True)
@@ -802,6 +842,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
 
         if not list_data['Работы']:
             extracted_text = preprocess_string(extract_text_from_image(works, '1')).lower()
+            extracted_text = spell_check(extracted_text)
             # extracted_text = language_tool.correct(extracted_text)
 
             best_type_similarity = best_text_similarity = 0
