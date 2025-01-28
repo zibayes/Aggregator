@@ -654,7 +654,11 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
             img_colored = rotate_image(img_colored, angle)
         img_colored, image = image_binarization_plain(img_colored, binarization_threshold)
         image, img_colored = borders_cut(image, img_colored)
-        sauvola_bin = sauvola_binarization(img_colored)
+        try:
+            sauvola_bin = sauvola_binarization(img_colored)
+        except np.core._exceptions._ArrayMemoryError as error:
+            print(error)
+            sauvola_bin = None
         object_sauvola = dates_sauvola = dates_rgb = None
 
         height, width = image.shape[:2]
@@ -662,9 +666,13 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         koef = UPSCALE[0] * ratio  # int(UPSCALE[0] * ratio)
 
         frame_borders = [int(x * koef) for x in FRAME_BORDERS]
-        frame = sauvola_bin[frame_borders[0]:frame_borders[1], frame_borders[2]:frame_borders[3]]
+        frame = sauvola_bin[frame_borders[0]:frame_borders[1],
+                frame_borders[2]:frame_borders[3]] if sauvola_bin is not None else image[
+                                                                                   frame_borders[0]:frame_borders[1],
+                                                                                   frame_borders[2]:frame_borders[3]]
         frame_rgb = img_colored[frame_borders[0]:frame_borders[1], frame_borders[2]:frame_borders[3]]
-        frame_sauvola = sauvola_bin[frame_borders[0]:frame_borders[1], frame_borders[2]:frame_borders[3]]
+        frame_sauvola = sauvola_bin[frame_borders[0]:frame_borders[1],
+                        frame_borders[2]:frame_borders[3]] if sauvola_bin is not None else None
         # cv2.imwrite(folder + "/frame.png", frame_rgb)
         list_number = fio = fio_sklon = object = works = dates = None
 
@@ -695,7 +703,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
             margin = int(30 * koef)
             object = frame_rgb[lines[1][0] + margin:lines[2][0], :]
             object = change_brightness_and_perspect(object, koef)
-            object_sauvola = frame_sauvola[lines[1][0] + margin:lines[2][0], :]
+            object_sauvola = frame_sauvola[lines[1][0] + margin:lines[2][0], :] if frame_sauvola is not None else None
             # cv2.imwrite(folder + "/object_frame.png", object)
             fio = frame_rgb[lines[2][0] + margin:lines[3][0]]
             fio = change_brightness_and_perspect(fio, koef)
@@ -703,10 +711,11 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
             margin = int(32 * koef)
             works = frame_rgb[lines[3][0] + margin:lines[4][0], :]
             works = change_brightness_and_perspect(works, koef)
-            works_sauvola = frame_sauvola[lines[3][0] + margin:lines[4][0], :]
+            works_sauvola = frame_sauvola[lines[3][0] + margin:lines[4][0], :] if frame_sauvola is not None else None
             # cv2.imwrite(folder + "/works_frame.png", works)
             margin = [int(35 * koef), int(90 * koef), int(200 * koef)]
-            dates = frame[lines[4][0] + margin[0]:lines[4][0] + margin[1], margin[2]:]
+            dates_sauvola = frame_sauvola[lines[4][0] + margin[0]:lines[4][0] + margin[1],
+                            margin[2]:] if frame_sauvola is not None else None
             dates_rgb = frame_rgb[lines[4][0] + margin[0]:lines[4][0] + margin[1], margin[2]:]
             dates_sauvola = frame_sauvola[lines[4][0] + margin[0]:lines[4][0] + margin[1], margin[2]:]
             # cv2.imwrite(folder + "/dates_frame.png", dates)

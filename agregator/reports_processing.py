@@ -68,8 +68,6 @@ def process_reports(self, reports_ids, user_id):
             redis_client.set(self.request.id, json.dumps(progress_json))
             progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
             i += 1
-        current_report.is_processing = False
-        current_report.save()
     progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return progress_json
 
@@ -376,6 +374,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
         current_report.content = report_parts_info
     if progress_json['file_groups'][str(report_id)][source_index]['type'] in ('images', 'all'):
         current_report.supplement = supplement_content
+    current_report.is_processing = False
     current_report.save()
 
 

@@ -116,8 +116,6 @@ def process_acts(self, acts_ids, user_id):
                     table = new_table
             else:
                 already_uploaded.append(act.id)
-        act.is_processing = False
-        act.save()
     progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return progress_json
     '''
@@ -725,37 +723,37 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     # pd.DataFrame(table_info,columns=table_columns,index=[0]).to_excel(folder + "/" + "table.xlsx", index=False, engine='openpyxl')
     df_new = pd.DataFrame(table_info, columns=table_columns, index=[0])
 
-    act = Act.objects.get(id=act_id)
+    if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('text', 'all'):
+        current_act.year = df_new['ГОД'][0]
+        current_act.finish_date = df_new['Дата окончания проведения ГИКЭ'][0]
+        current_act.type = df_new['Вид ГИКЭ'][0]
+        current_act.name_number = df_new['Номер (если имеется) и наименование Акта ГИКЭ'][0]
+        current_act.place = df_new['Место проведения экспертизы'][0]
+        current_act.customer = df_new['Заказчик работ (*если не указан, то заказчик экспертизы)'][0]
+        current_act.area = df_new['Площадь, протяжённость и/или др. параменты объекта'][0]
+        current_act.expert = df_new['Эксперт (физ. или юр.лицо)'][0]
+        current_act.executioner = df_new['Исполнитель полевых работ (юр. лицо)'][0]
+        current_act.open_list = df_new['ОЛ'][0]
+        current_act.conclusion = df_new['Заключение. Выявленые объекты.'][0]
+        current_act.border_objects = df_new['Объекты расположенные в непосредственной близости. Для границ'][0]
 
-    act.year = df_new['ГОД'][0]
-    act.finish_date = df_new['Дата окончания проведения ГИКЭ'][0]
-    act.type = df_new['Вид ГИКЭ'][0]
-    act.name_number = df_new['Номер (если имеется) и наименование Акта ГИКЭ'][0]
-    act.place = df_new['Место проведения экспертизы'][0]
-    act.customer = df_new['Заказчик работ (*если не указан, то заказчик экспертизы)'][0]
-    act.area = df_new['Площадь, протяжённость и/или др. параменты объекта'][0]
-    act.expert = df_new['Эксперт (физ. или юр.лицо)'][0]
-    act.executioner = df_new['Исполнитель полевых работ (юр. лицо)'][0]
-    act.open_list = df_new['ОЛ'][0]
-    act.conclusion = df_new['Заключение. Выявленые объекты.'][0]
-    act.border_objects = df_new['Объекты расположенные в непосредственной близости. Для границ'][0]
-
-    act.act = act_parts_info['Акт']
-    act.start_date = act_parts_info['Дата начала']
-    act.exp_place = act_parts_info[r'\d*\.*.*Место проведения [экспертизы]*:*']
-    act.exp_customer = act_parts_info[r'\d*\.*.*Заказчик экспертизы']
-    act.exp_expert = act_parts_info[r'\d*\.*.*[Сведения об]* эксперте']
-    act.relationship = act_parts_info['Отношени[яе]+ к заказчику']
-    act.goal = act_parts_info['Цель экспертизы:']
-    act.object = act_parts_info['Объект .*?[экспертизы]*:*']
-    act.docs = act_parts_info['Перечень документов, представленных']
-    act.exp_info = act_parts_info['Сведения о проведенных исследованиях']
-    act.exp_facts = act_parts_info['Факты и сведения, выявленные .*\n*.*исследований']
-    act.literature = act_parts_info['Перечень[а-яА-ЯёЁ \n,]*литературы']
-    act.exp_conclusion = act_parts_info['Вывод экспертизы']
-    act.supplement = supplement_content
-    act.is_processing = False
-    act.save()
+        current_act.act = act_parts_info['Акт']
+        current_act.start_date = act_parts_info['Дата начала']
+        current_act.exp_place = act_parts_info[r'\d*\.*.*Место проведения [экспертизы]*:*']
+        current_act.exp_customer = act_parts_info[r'\d*\.*.*Заказчик экспертизы']
+        current_act.exp_expert = act_parts_info[r'\d*\.*.*[Сведения об]* эксперте']
+        current_act.relationship = act_parts_info['Отношени[яе]+ к заказчику']
+        current_act.goal = act_parts_info['Цель экспертизы:']
+        current_act.object = act_parts_info['Объект .*?[экспертизы]*:*']
+        current_act.docs = act_parts_info['Перечень документов, представленных']
+        current_act.exp_info = act_parts_info['Сведения о проведенных исследованиях']
+        current_act.exp_facts = act_parts_info['Факты и сведения, выявленные .*\n*.*исследований']
+        current_act.literature = act_parts_info['Перечень[а-яА-ЯёЁ \n,]*литературы']
+        current_act.exp_conclusion = act_parts_info['Вывод экспертизы']
+    if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('images', 'all'):
+        current_act.supplement = supplement_content
+    current_act.is_processing = False
+    current_act.save()
 
 
 @shared_task
