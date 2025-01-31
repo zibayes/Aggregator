@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактирование научно-технического отчёта{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2>Редактирование научно-технического отчёта</h2>
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div class="mb-3">
+                <label for="name" class="form-label">Название отчета</label>
+                <input type="text" class="form-control" id="name" name="name" value="{{ report.name }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="organization" class="form-label">Организация</label>
+                <input type="text" class="form-control" id="organization" name="organization"
+                       value="{{ report.organization }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="author" class="form-label">Автор</label>
+                <input type="text" class="form-control" id="author" name="author" value="{{ report.author }}" required>
+            </div>
+
+            <div class="mb-3">
+                <label for="open_list" class="form-label">ОЛ</label>
+                <input type="text" class="form-control" id="open_list" name="open_list" value="{{ report.open_list }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="writing_date" class="form-label">Дата написания</label>
+                <input type="text" class="form-control" id="writing_date" name="writing_date"
+                       value="{{ report.writing_date }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="introduction" class="form-label">Введение</label>
+                <textarea class="form-control" id="introduction" name="introduction"
+                          rows="3">{{ report.introduction }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="contractors" class="form-label">Подрядчики</label>
+                <textarea class="form-control" id="contractors" name="contractors"
+                          rows="3">{{ report.contractors }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="place" class="form-label">Место проведения</label>
+                <input type="text" class="form-control" id="place" name="place" value="{{ report.place }}">
+            </div>
+
+            <div class="mb-3">
+                <label for="area_info" class="form-label">Информация об области</label>
+                <textarea class="form-control" id="area_info" name="area_info"
+                          rows="3">{{ report.area_info }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="research_history" class="form-label">История исследований</label>
+                <textarea class="form-control" id="research_history" name="research_history"
+                          rows="3">{{ report.research_history }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="results" class="form-label">Результаты</label>
+                <textarea class="form-control" id="results" name="results" rows="3">{{ report.results }}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label for="conclusion" class="form-label">Заключение</label>
+                <textarea class="form-control" id="conclusion" name="conclusion"
+                          rows="3">{{ report.conclusion }}</textarea>
+            </div>
+
+            <!--
+            <div class="mb-3">
+                <label for="source" class="form-label">Исходный документ</label>
+                <input type="file" class="form-control" id="source" name="source">
+            </div>
+            -->
+
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+        </form>
+
+        <form method="POST" action="{% url 'tech_reports_delete' report.id %}" class="mt-3">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger" style="border-radius: 12px; margin-right:10px;"
+                    onclick="return confirm('Вы уверены, что хотите удалить этот отчёт?');">Удалить
+            </button>
+        </form>
+
+        <br>
+        <h2 id="supplement">Приложение</h2>
+
+        <h3 id="maps">Карты</h3>
+        {% for map in report.supplement.maps %}
+            <img src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="map" name="map" rows="3">{{ map.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="schemas">Схемы</h3>
+        {% for scheme in report.supplement.schemas %}
+            <img src="/{{ scheme.source }}" loading="lazy" alt="{{ scheme.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="scheme" name="scheme" rows="3">{{ scheme.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="object_fotos">Общий вид</h3>
+        {% for object in report.supplement.object_fotos %}
+            <img src="/{{ object.source }}" loading="lazy" alt="{{ object.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="object" name="object" rows="3">{{ object.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="pits_fotos">Шурфы</h3>
+        {% for pit in report.supplement.pits_fotos %}
+            <img src="/{{ pit.source }}" loading="lazy" alt="{{ pit.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="pit" name="pit" rows="3">{{ pit.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="excavation_fotos">Раскопы</h3>
+        {% for excavation in report.supplement.excavation_fotos %}
+            <img src="/{{ excavation.source }}" loading="lazy" alt="{{ excavation.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="excavation" name="excavation"
+                      rows="3">{{ excavation.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="material_fotos">Археологический материал</h3>
+        {% for material in report.supplement.material_fotos %}
+            <img src="/{{ material.source }}" loading="lazy" alt="{{ material.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="material" name="material" rows="3">{{ material.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="heritage_info">Данные о ВОАН</h3>
+        {% for heritage in report.supplement.heritage_info %}
+            <img src="/{{ heritage.source }}" loading="lazy" alt="{{ heritage.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="heritage" name="heritage" rows="3">{{ heritage.label }}</textarea>
+            <br>
+        {% endfor %}
+    </div>
+{% endblock %}

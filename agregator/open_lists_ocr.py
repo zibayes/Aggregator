@@ -657,7 +657,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         try:
             sauvola_bin = sauvola_binarization(img_colored)
         except np.core._exceptions._ArrayMemoryError as error:
-            print('sauvola error: ' + error)
+            print('sauvola error: ' + str(error))
             sauvola_bin = None
         object_sauvola = dates_sauvola = dates_rgb = None
 

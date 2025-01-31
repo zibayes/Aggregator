@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect
 from .forms import UploadReportsForm, UploadOpenListsForm
 from .acts_processing import process_acts, error_handler_acts
-from .reports_processing import process_reports, error_handler_reports
+from .scientific_reports_processing import process_scientific_reports, error_handler_scientific_reports
+from .tech_reports_processing import process_tech_reports, error_handler_tech_reports
 from .external_sources import external_sources_processing
 from .open_lists_ocr import process_open_lists, error_handler_open_lists
 from .ask import ask_question_with_context
@@ -44,7 +45,7 @@ def index(request):
 @login_required
 def deconstructor(request):
     user = request.user
-    tasks_id = get_user_tasks(user.id, ('act', 'report'))
+    tasks_id = get_user_tasks(user.id, ('act', 'scientific_report', 'tech_report'))
     if request.method == 'POST':
         if 'acts' in request.POST:
             form = UploadReportsForm()
@@ -98,11 +99,16 @@ def deconstructor(request):
                     acts_ids = raw_reports_save(file_groups, uploaded_files, Act, user.id)
                     task = process_acts.apply_async((acts_ids, user.id),
                                                     link_error=error_handler_acts.s())
-                elif file_type == 'report':
-                    reports_ids = raw_reports_save(file_groups, uploaded_files, ScientificReport,
-                                                   user.id)
-                    task = process_reports.apply_async((reports_ids, user.id),
-                                                       link_error=error_handler_reports.s())
+                elif file_type == 'scientific_report':
+                    scientific_reports_ids = raw_reports_save(file_groups, uploaded_files, ScientificReport,
+                                                              user.id)
+                    task = process_scientific_reports.apply_async((scientific_reports_ids, user.id),
+                                                                  link_error=error_handler_scientific_reports.s())
+                elif file_type == 'tech_report':
+                    tech_reports_ids = raw_reports_save(file_groups, uploaded_files, TechReport,
+                                                        user.id)
+                    task = process_tech_reports.apply_async((tech_reports_ids, user.id),
+                                                            link_error=error_handler_tech_reports.s())
                 tasks_id = [task.task_id] + tasks_id
                 user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type=file_type,
                                       upload_source={'source': 'Пользовательский файл'})
@@ -123,7 +129,7 @@ def external_sources(request):
         external_sources_processing.delay()
         is_processing = True
     admin = User.objects.get(is_superuser=True)
-    tasks_id = get_user_tasks(admin.id, ('act', 'report', 'open_list'), True)
+    tasks_id = get_user_tasks(admin.id, ('act', 'scientific_report', 'tech_report', 'open_list'), True)
     return render(request, 'external_sources.html', {'is_processing': is_processing, 'tasks_id': tasks_id})
 
 
@@ -365,6 +371,11 @@ def scientific_reports_register(request):
     return render(request, 'scientific_reports_register.html', {'reports': reports})
 
 
+def tech_reports_register(request):
+    reports = TechReport.objects.filter(is_processing=False)
+    return render(request, 'tech_reports_register.html', {'reports': reports})
+
+
 def users(request, pk):
     user = User.objects.get(id=pk)
     return render(request, 'profile.html', {'user_to_show': user})
@@ -431,7 +442,7 @@ def scientific_reports_edit(request, pk):
         report.conclusion = request.POST['conclusion']
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
-        return redirect(f'/scientific_reports/{report.id}')  # Перенаправление на страницу профиля
+        return redirect(f'/scientific_reports/{report.id}')
 
     return render(request, 'scientific_report_edit.html', {'report': report})
 
@@ -442,6 +453,43 @@ def scientific_reports_delete(request, pk):
     report_instance = ScientificReport.objects.get(id=pk)
     report_instance.delete()
     return redirect(f'scientific_reports_register')
+
+
+def tech_reports(request, pk):
+    report = TechReport.objects.get(id=pk)
+    return render(request, 'tech_report.html', {'report': report})
+
+
+@login_required
+@owner_or_admin_required(TechReport)
+def tech_reports_edit(request, pk):
+    report = TechReport.objects.get(id=pk)
+    if request.method == 'POST':
+        report.name = request.POST['name']
+        report.organization = request.POST['organization']
+        report.author = request.POST['author']
+        report.open_list = request.POST['open_list']
+        report.writing_date = request.POST['writing_date']
+        report.introduction = request.POST['introduction']
+        report.contractors = request.POST['contractors']
+        report.place = request.POST['place']
+        report.area_info = request.POST['area_info']
+        report.research_history = request.POST['research_history']
+        report.results = request.POST['results']
+        report.conclusion = request.POST['conclusion']
+        report.save()
+        messages.success(request, 'Отчёт успешно обновлен.')
+        return redirect(f'/tech_reports/{report.id}')
+
+    return render(request, 'tech_report_edit.html', {'report': report})
+
+
+@login_required
+@owner_or_admin_required(TechReport)
+def tech_reports_delete(request, pk):
+    report_instance = TechReport.objects.get(id=pk)
+    report_instance.delete()
+    return redirect(f'tech_reports_register')
 
 
 def open_lists(request, pk):

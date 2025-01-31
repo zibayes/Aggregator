@@ -9,7 +9,7 @@ import pythoncom
 from PIL import Image
 import io
 
-from .models import Act, ScientificReport, OpenLists
+from .models import Act, ScientificReport, TechReport, OpenLists
 
 SOURCE_CONTENT = []  # [{'type': 'text/images/all', 'path': 'path/to/file.pdf'}, {}, ...]
 
@@ -84,7 +84,9 @@ def raw_reports_save(file_groups, uploaded_files, report_type, user_id, upload_s
     if report_type == Act:
         report_directory = 'act'
     elif report_type == ScientificReport:
-        report_directory = 'report'
+        report_directory = 'scientific_report'
+    elif report_type == TechReport:
+        report_directory = 'tech_report'
     else:
         report_directory = ''
     reports_ids = []
@@ -116,6 +118,7 @@ def save_report(files, reports_ids, report_type, user_id, report_directory,
         save_report_source(report, files, path, report_directory, report_id,
                            source_content, upload_source=upload_source)
     report.source = source_content
+    print('HUINYA EBANA: ' + str(report.source))
     report.save()
 
 

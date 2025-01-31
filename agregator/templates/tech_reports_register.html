@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Реестр научных отчётов{% endblock %}
+{% block title %}Реестр научно-технических отчётов{% endblock %}
 
 {% block content %}
 
     <br>
-    <h2 align="center">Реестр научных отчётов</h2>
+    <h2 align="center">Реестр научно-технических отчётов</h2>
     <br>
 
     <div class="accordion" id="accordionColumns">
@@ -151,7 +151,7 @@
                     <td>{{ report.date_uploaded }}</td>
                     <td>
                         <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-                           href="/scientific_reports/{{ report.id }}">Просмотр</a>
+                           href="/tech_reports/{{ report.id }}">Просмотр</a>
                     </td>
                     <td>
                         {% for source in report.source %}
@@ -173,13 +173,13 @@
                     </td>
                     <td>
                         {% if report.user.id == user.id or user.is_superuser %}
-                            <a href="/scientific_reports_edit/{{ report.id }}">
+                            <a href="/tech_reports_edit/{{ report.id }}">
                                 <button type="button" class="btn btn-primary"
                                         style="border-radius: 12px; margin-right:10px;">
                                     Редактировать
                                 </button>
                             </a>
-                            <form method="POST" action="{% url 'scientific_reports_delete' report.id %}" class="mt-3">
+                            <form method="POST" action="{% url 'tech_reports_delete' report.id %}" class="mt-3">
                                 {% csrf_token %}
                                 <button type="submit" class="btn btn-danger"
                                         style="border-radius: 12px; margin-right:10px;"

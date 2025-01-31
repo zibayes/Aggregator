@@ -19,7 +19,10 @@ function redirectPost(url, data) {
 }
 
 let files_types = {'all': 'Отчёт', 'text': 'Текст', 'images': 'Приложение', 'scan': 'Скан'};
-let report_types = {'acts': 'актов', 'scientific_reports': 'научных отчётов', 'open_lists': 'открытых листов'};
+let report_types = {
+    'acts': 'актов', 'scientific_reports': 'научных отчётов',
+    'tech_reports': 'научно-технических отчётов', 'open_lists': 'открытых листов'
+};
 
 function onSuccessCustomRedirect(progressBarElement, progressBarMessageElement, result) {
     if (progressBarElement) {

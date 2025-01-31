@@ -211,6 +211,7 @@ class TechReport(models.Model):
     results = models.TextField()
     conclusion = models.TextField()
     source = models.JSONField(null=True, blank=True)
+    content = models.JSONField(null=True, blank=True)
     supplement = models.JSONField(null=True, blank=True)
 
     def __str__(self):
@@ -223,6 +224,7 @@ class TechReport(models.Model):
         self.upload_source = to_json(self.upload_source)
         self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
+        self.content = to_json(self.content)
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):

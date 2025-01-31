@@ -49,6 +49,8 @@
                         <li><a class="dropdown-item" href="{% url 'acts_register' %}">Реестр актов</a></li>
                         <li><a class="dropdown-item" href="{% url 'scientific_reports_register' %}">Реестр научных
                             отчётов</a></li>
+                        <li><a class="dropdown-item" href="{% url 'tech_reports_register' %}">Реестр научно-технических
+                            отчётов</a></li>
                         {% if user.is_authenticated %}
                             <li><a class="dropdown-item" href="{% url 'deconstructor' %}">Менеджер загрузок</a></li>
                             <li><a class="dropdown-item" href="{% url 'external_sources' %}">Отчёты с внешних
@@ -119,9 +121,9 @@
 <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
 <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.20/js/jquery.dataTables.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/datatables/1.10.20/js/dataTables.bootstrap4.min.js"></script>
+<script src="{% static 'js/jquery-3.7.0.min.js' %}"></script>
+<script src="{% static 'js/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'js/dataTables.bootstrap4.min.js' %}"></script>
 <!-- <script type="module" src="{% static 'js/dataTables.js' %}"></script> -->
 
 <script>

@@ -32,7 +32,7 @@ def choose_file() -> str:
 
 
 @shared_task(bind=True)
-def process_reports(self, reports_ids, user_id):
+def process_scientific_reports(self, reports_ids, user_id):
     progress_recorder = ProgressRecorder(self)
     progress_recorder.set_progress(0, 100, '')
     reports, pages_count = load_raw_reports(reports_ids, ScientificReport)
@@ -187,7 +187,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                             structure = []
                             for title_line in titles:
                                 title = re.search(
-                                    r'(^(?!\d+\s*$)\d*\.*.*?(?=…))|(^(?!\d+\s*$)\d+\..*\s.+?(?=…))|^(?!\d+\s*$)\d*\.*.*[^…]*?(?=\n\d+)',
+                                    r'(^(?!\d+\s*$)\d*\.*.*?(?=…))|(^(?!\d+\s*$)\d+\..*\s.+?(?=…))|^(?!\d+\s*$)\d*\.*.*[^…]*?(?=\n\d+)|^(?!\d+\s*$)\d*\.*[\s\S]*?(?=\.\.\.)',
                                     title_line, re.MULTILINE)
 
                                 if title:
@@ -288,7 +288,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                     current_part].lower():
                     if 'аннотация' in report_parts[current_part].lower():
                         works_type = re.search(
-                            'работы\sпо[\s\S]+?наблюд[^\s]+|работы\sпо[\s\S]+?шур[^\s]+|результ[\s\S]+?раб[^\s]+|обслед[\s\S]+?наслед[^\s]+|археолог[\s\S]+?развед[^\s]+',
+                            r'работы\sпо[\s\S]+?наблюд[^\s]+|работы\sпо[\s\S]+?шур[^\s]+|результ[\s\S]+?раб[^\s]+|обслед[\s\S]+?наслед[^\s]+|археолог[\s\S]+?развед[^\s]+',
                             text, re.IGNORECASE)
                         if works_type:
                             table_columns_info['Вид работ'] = works_type
@@ -360,12 +360,11 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
         current_report.organization = table_columns_info['Организация']
         current_report.author = table_columns_info['Автор']
         current_report.open_list = table_columns_info[
-            'Открытый лист']  # report_parts_info['ОТКРЫТЫЙ ЛИСТ'] if 'ОТКРЫТЫЙ ЛИСТ' in report_parts_info.keys() else 'Open list info'
+            'Открытый лист']
         current_report.writing_date = table_columns_info['Год написания отчёта']
         current_report.introduction = report_parts_info[
             'ВВЕДЕНИЕ'] if 'ВВЕДЕНИЕ' in report_parts_info.keys() else ''
-        current_report.contractors = report_parts_info[
-            'СПИСОК ИСПОЛНИТЕЛЕЙ РАБОТ'] if 'СПИСОК ИСПОЛНИТЕЛЕЙ РАБОТ' in report_parts_info.keys() else ''
+        current_report.contractors = table_columns_info['Исполнители']
         current_report.place = table_columns_info['Населённый пункт']
         current_report.area_info = table_columns_info['Площадь']
         current_report.research_history = ''
@@ -379,7 +378,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
 
 
 @shared_task
-def error_handler_reports(task, exception, exception_desc):
+def error_handler_scientific_reports(task, exception, exception_desc):
     print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
     progress_json = json.loads(redis_client.get(task.id))
     for report_id, sources in progress_json['file_groups'].items():
