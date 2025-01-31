@@ -8,6 +8,7 @@ from PIL import Image
 import io
 import fitz
 import pytesseract
+from matplotlib import pyplot as plt
 
 from agregator.models import UserTasks
 from .files_saving import raw_open_lists_save
@@ -244,10 +245,12 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 supplement_content["pits_fotos"].append(
                     {"label": image_text, "source": current_folder + "/" + image_filename})
             elif is_image_open_list(avg_color, pil_img):
-                # pix = page.get_pixmap(dpi=300)
+                pix = page.get_pixmap(dpi=300)
                 # pil_img = get_pil_image_from_pixmap(pix)
+                image_bytes = pix.tobytes()
+                pil_img = Image.open(io.BytesIO(image_bytes))
                 print(image_filename)
-                pil_img, image_bytes = image_rotate(pil_img)
+                # pil_img, image_bytes = image_rotate(pil_img)
                 current_folder += '/Открытый лист'
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["open_list"].append(
@@ -275,15 +278,15 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 supplement_content["title_page"].append(
                     {"source": current_folder + "/" + image_filename})
             elif is_image_open_list(avg_color, pil_img):
-                # pix = page.get_pixmap(dpi=300)
-                # pil_img = get_pil_image_from_pixmap(pix)
-                # image_bytes = pil_img.tobytes()
+                pix = page.get_pixmap(dpi=300)
+                pil_img = get_pil_image_from_pixmap(pix)
+                image_bytes = pix.tobytes()
                 current_folder += '/Открытый лист'
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["open_list"].append(
                     {"source": current_folder + "/" + image_filename})
-
                 open_lists_ids = raw_open_lists_save([pil_img], user_id, origin_name, upload_source)
+
                 task = process_open_lists.apply_async((open_lists_ids, user_id),
                                                       link_error=error_handler_open_lists.s())
                 user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',

@@ -657,7 +657,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         try:
             sauvola_bin = sauvola_binarization(img_colored)
         except np.core._exceptions._ArrayMemoryError as error:
-            print(error)
+            print('sauvola error: ' + error)
             sauvola_bin = None
         object_sauvola = dates_sauvola = dates_rgb = None
 
@@ -680,6 +680,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         line_length = 485
         line_color_thresh = 80
         lines = extract_data_by_lines(frame, koef, line_length, line_color_thresh, find_sloped_lines=False)
+        print('lines 1', lines)
         len_lines = len(lines)
         lines = check_lines(lines, koef)
         while not lines and len_lines <= 10 and binarization_threshold <= 200:
@@ -694,6 +695,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
             else:
                 line_color_thresh += 5
             lines = extract_data_by_lines(frame, koef, line_length, line_color_thresh)
+            print('lines while', binarization_threshold, lines)
             len_lines = len(lines)
             lines = check_lines(lines, koef)
         if not lines:
