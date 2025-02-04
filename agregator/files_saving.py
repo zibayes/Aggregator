@@ -41,10 +41,12 @@ def raw_open_lists_save(uploaded_files, user_id, origin_filename=None, upload_so
             open_list.upload_source = upload_source
             new_filename = str(open_list.id) + '_open_list.png'
             image_buffer = io.BytesIO()
-            file.save(image_buffer, format='PNG')  # Сохраняем в формате PNG в буфер
+            file.save(full_path + '/' + new_filename, format='PNG', optimize=True)
+            '''
             image_buffer.seek(0)
             with open(full_path + '/' + new_filename, 'wb+') as destination:
                 destination.write(image_buffer.read())
+            '''
         else:
             open_list.origin_filename = file.name
             open_list.upload_source = {'source': 'Пользовательский файл'}
@@ -118,7 +120,6 @@ def save_report(files, reports_ids, report_type, user_id, report_directory,
         save_report_source(report, files, path, report_directory, report_id,
                            source_content, upload_source=upload_source)
     report.source = source_content
-    print('HUINYA EBANA: ' + str(report.source))
     report.save()
 
 

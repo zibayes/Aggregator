@@ -306,7 +306,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                             if square:
                                 table_columns_info['Площадь'] = square.group(0)
 
-                if is_introduction:
+                if is_introduction or 'список исполнителей' in report_parts[current_part].lower():
                     with pdfplumber.open(file) as pdf:
                         page_tables = pdf.pages[page_number].extract_tables()
                     if page_tables and len(page_tables[0]) > 0 and len(page_tables[0][0]) == 2:

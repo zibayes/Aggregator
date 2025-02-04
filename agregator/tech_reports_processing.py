@@ -303,10 +303,11 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                             if square:
                                 table_columns_info['Площадь'] = square.group(0)
 
-                if is_introduction or 'cписок исполнителей' in report_parts[current_part].lower():
+                if is_introduction or 'список исполнителей' in report_parts[current_part].lower():
                     with pdfplumber.open(file) as pdf:
                         page_tables = pdf.pages[page_number].extract_tables()
                     executors = []
+                    print(page_tables)
                     if page_tables and len(page_tables[0]) > 0 and len(page_tables[0][0]) == 2:
                         if 'ФИО' in page_tables[0][0] and 'Степень участия' in page_tables[0][0]:
                             df_new = pd.DataFrame(page_tables[0], columns=['ФИО', 'Степень участия'])
@@ -319,6 +320,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                                 table_columns_info['Исполнители'] = ';\n'.join(executors)
                         else:
                             df_new = pd.DataFrame(page_tables[0], columns=['Параметр', 'Значение'])
+                            print(df_new)
                             fio = None
                             for index, cell in df_new.iterrows():
                                 if fio is None:
@@ -330,6 +332,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                                         works = cell['Значение']
                                         if fio and works:
                                             executors.append(fio + ': ' + works)
+                                            fio = None
                                     else:
                                         fio = re.search(r'[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+',
                                                         cell['Значение'])
@@ -339,7 +342,9 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                                     works = cell['Значение']
                                     if fio and works:
                                         executors.append(fio + ': ' + works)
+                                        fio = None
                             table_columns_info['Исполнители'] = ';\n'.join(executors)
+                            print(executors)
                             ''' IN CASE OF ONE PERSON
                             df_new = pd.DataFrame(page_tables[0], columns=['Параметр', 'Значение'])
                             fio = None

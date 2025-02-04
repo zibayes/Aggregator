@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 from typing import List
 import re
@@ -9,15 +10,18 @@ import io
 import fitz
 import pytesseract
 from matplotlib import pyplot as plt
+from tensorflow.keras.models import load_model
 
 from agregator.models import UserTasks
 from .files_saving import raw_open_lists_save
-from .open_lists_ocr import process_open_lists, error_handler_open_lists
+from .open_lists_ocr import process_open_lists, error_handler_open_lists, \
+    borders_cut, get_image_angle, image_binarization_plain, rotate_image
 
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 IMAGE_MIN_SIZE = 150
 CURRENT_OPEN_LIST_RGB = (205, 221, 229)
 RGB_ACCURACY = 20
+image_classification_model = load_model('image_classificator.keras')
 
 SUPPLEMENT_CONTENT = {
     "maps": [],
@@ -133,6 +137,17 @@ def calculate_average_rgb(img):
     return average_r, average_g, average_b
 
 
+def predict_image_class(img):
+    img = img.resize((200, 200))
+    img_array = np.array(img)
+    img_array = np.expand_dims(img_array, axis=0)
+    img_array = img_array / 255.0
+    y_pred = image_classification_model.predict(img_array)
+    predicted_class = np.argmax(y_pred, axis=1)
+    labels = ['Карты', 'Общий вид', 'Открытый лист', 'Спутниковые снимки', 'Шурфы']
+    return labels[predicted_class[0]]
+
+
 def extract_captions(text: str) -> List:
     text = text.replace("\n", "")
     captions = []
@@ -167,6 +182,32 @@ def extract_captions(text: str) -> List:
                     captions[i], captions[j] = captions[j], captions[i]
 
     return captions
+
+
+def preprocess_open_list(pix):
+    image_bytes = pix.tobytes("png")
+    nparr = np.frombuffer(image_bytes, np.uint8)
+    img_colored = cv2.imdecode(nparr, cv2.IMREAD_UNCHANGED)
+    img_colored = cv2.cvtColor(img_colored, cv2.COLOR_BGR2RGB)
+    binarization_threshold = 120
+    img_colored, image = image_binarization_plain(img_colored, binarization_threshold)
+    image, img_colored = borders_cut(image, img_colored)
+    angle = get_image_angle(img_colored)
+    if angle is not None:
+        img_colored = rotate_image(img_colored, angle)
+    img_colored, image = image_binarization_plain(img_colored, binarization_threshold)
+    image, img_colored = borders_cut(image, img_colored)
+    pil_img = Image.fromarray(img_colored)
+    ratio = (pil_img.width / 596 + pil_img.height / 842) / 2
+    print(pil_img.width, pil_img.height)
+    print(ratio)
+    if ratio > 2.1:
+        new_ratio = 2.08
+        pil_img = pil_img.resize(
+            (int(pil_img.width / ratio * new_ratio), int(pil_img.height / ratio * new_ratio)),
+            Image.LANCZOS)
+    print(pil_img.width, pil_img.height)
+    return pil_img
 
 
 def extract_images_with_captions(text, page, page_number, document, folder,
@@ -244,12 +285,12 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                     current_folder += '/В' + pit.group(0)[1:]
                 supplement_content["pits_fotos"].append(
                     {"label": image_text, "source": current_folder + "/" + image_filename})
-            elif is_image_open_list(avg_color, pil_img):
+            elif is_image_open_list(avg_color, pil_img) or 'открытый лист' in lowered_image_text:
                 pix = page.get_pixmap(dpi=300)
-                # pil_img = get_pil_image_from_pixmap(pix)
-                image_bytes = pix.tobytes()
-                pil_img = Image.open(io.BytesIO(image_bytes))
+                pil_img = preprocess_open_list(pix)
+                image_bytes = pil_img.tobytes()
                 print(image_filename)
+                print(predict_image_class(pil_img))
                 # pil_img, image_bytes = image_rotate(pil_img)
                 current_folder += '/Открытый лист'
                 Path(current_folder).mkdir(exist_ok=True)
@@ -264,6 +305,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 user_task.save()
             else:
                 print(image_filename)
+                print(predict_image_class(pil_img))
                 pil_img, image_bytes = image_rotate(pil_img)
                 current_folder += '/Иное'
                 Path(current_folder).mkdir(exist_ok=True)
@@ -271,6 +313,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                     {"label": image_text, "source": current_folder + "/" + image_filename})
         else:
             print(image_filename)
+            print(predict_image_class(pil_img))
             pil_img, image_bytes = image_rotate(pil_img)
             if page_number == 0:
                 current_folder += '/Титульник'
@@ -279,8 +322,8 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                     {"source": current_folder + "/" + image_filename})
             elif is_image_open_list(avg_color, pil_img):
                 pix = page.get_pixmap(dpi=300)
-                pil_img = get_pil_image_from_pixmap(pix)
-                image_bytes = pix.tobytes()
+                pil_img = preprocess_open_list(pix)
+                image_bytes = pil_img.tobytes()
                 current_folder += '/Открытый лист'
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["open_list"].append(
