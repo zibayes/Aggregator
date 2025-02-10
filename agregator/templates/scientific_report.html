@@ -86,44 +86,49 @@
             {% endif %}
         {% endfor %}
         {% if report.supplement %}
-            <li>
-                <a href="#supplement">Приложение</a>
-                <ul>
-                    {% if report.supplement.maps %}
-                        <li><a href="#maps">Карты</a></li>
-                    {% endif %}
-                    {% if report.supplement.schemas %}
-                        <li><a href="#schemas">Схемы</a></li>
-                    {% endif %}
-                    {% if report.supplement.object_fotos %}
-                        <li><a href="#object_fotos">Общий вид</a></li>
-                    {% endif %}
-                    {% if report.supplement.pits_fotos %}
-                        <li><a href="#pits_fotos">Шурфы</a></li>
-                    {% endif %}
-                    {% if report.supplement.excavation_fotos %}
-                        <li><a href="#excavation_fotos">Раскопы</a></li>
-                    {% endif %}
-                    {% if report.supplement.material_fotos %}
-                        <li><a href="#material_fotos">Материал</a></li>
-                    {% endif %}
-                    {% if report.supplement.heritage_info %}
-                        <li><a href="#heritage_info">Данные о ВОАН</a></li>
-                    {% endif %}
-                    {% if report.supplement.other %}
-                        <li><a href="#other">Иное</a></li>
-                    {% endif %}
-                    {% if report.supplement.title_page %}
-                        <li><a href="#title_page">Титульник</a></li>
-                    {% endif %}
-                    {% if report.supplement.open_list %}
-                        <li><a href="#open_list">Открытый лист</a></li>
-                    {% endif %}
-                    {% if report.supplement.no_captions %}
-                        <li><a href="#no_captions">Без подписей</a></li>
-                    {% endif %}
-                </ul>
-            </li>
+            {% for source in report.source %}
+                <li>
+                    <a href="#supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</a>
+                    <ul>
+                        {% if report.supplement.maps %}
+                            <li><a href="#maps-{{ forloop.counter }}">Карты</a></li>
+                        {% endif %}
+                        {% if report.supplement.schemas %}
+                            <li><a href="#schemas-{{ forloop.counter }}">Схемы</a></li>
+                        {% endif %}
+                        {% if report.supplement.object_fotos %}
+                            <li><a href="#object_fotos-{{ forloop.counter }}">Общий вид</a></li>
+                        {% endif %}
+                        {% if report.supplement.pits_fotos %}
+                            <li><a href="#pits_fotos-{{ forloop.counter }}">Шурфы</a></li>
+                        {% endif %}
+                        {% if report.supplement.excavation_fotos %}
+                            <li><a href="#excavation_fotos-{{ forloop.counter }}">Раскопы</a></li>
+                        {% endif %}
+                        {% if report.supplement.material_fotos %}
+                            <li><a href="#material_fotos-{{ forloop.counter }}">Материал</a></li>
+                        {% endif %}
+                        {% if report.supplement.heritage_info %}
+                            <li><a href="#heritage_info-{{ forloop.counter }}">Данные о ВОАН</a></li>
+                        {% endif %}
+                        {% if report.supplement.other %}
+                            <li><a href="#other-{{ forloop.counter }}">Иное</a></li>
+                        {% endif %}
+                        {% if report.supplement.title_page %}
+                            <li><a href="#title_page-{{ forloop.counter }}">Титульник</a></li>
+                        {% endif %}
+                        {% if report.supplement.docs %}
+                            <li><a href="#docs-{{ forloop.counter }}">Документы</a></li>
+                        {% endif %}
+                        {% if report.supplement.open_list %}
+                            <li><a href="#open_list-{{ forloop.counter }}">Открытый лист</a></li>
+                        {% endif %}
+                        {% if report.supplement.no_captions %}
+                            <li><a href="#no_captions-{{ forloop.counter }}">Без подписей</a></li>
+                        {% endif %}
+                    </ul>
+                </li>
+            {% endfor %}
         {% endif %}
     </ul>
     <hr>
@@ -196,124 +201,169 @@
     {% endfor %}
 
     {% if report.supplement %}
-        <h2 id="supplement">Приложение</h2>
+        {% for source in report.source %}
+            {% with truncated_path=source.path|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
 
-        {% if report.supplement.maps %}
-            <h3 id="maps">Карты</h3>
-            {% for map in report.supplement.maps %}
-                <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}"
-                     style="max-width: 400px;"/>
-                <p>{{ map.label }}</p>
-                <br>
-            {% endfor %}
-        {% endif %}
+                <h2 id="supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</h2>
 
-        {% if report.supplement.schemas %}
-            <h3 id="schemas">Схемы</h3>
-            {% for scheme in report.supplement.schemas %}
-                <img id="image-link-{{ scheme.image_num }}" src="/{{ scheme.source }}" loading="lazy"
-                     alt="{{ scheme.source }}" style="max-width: 400px;"/>
-                <p>{{ scheme.label }}</p>
-                <br>
-            {% endfor %}
-        {% endif %}
-
-        {% if report.supplement.object_fotos %}
-            <h3 id="object_fotos">Общий вид</h3>
-            {% for object in report.supplement.object_fotos %}
-                <img id="image-link-{{ object.image_num }}" src="/{{ object.source }}" loading="lazy"
-                     alt="{{ object.source }}" style="max-width: 400px;"/>
-                <p>{{ object.label }}</p>
-                <br>
-            {% endfor %}
-        {% endif %}
-
-        {% if report.supplement.pits_fotos %}
-            <h3 id="pits_fotos">Шурфы</h3>
-            {% for pit in report.supplement.pits_fotos %}
-                <img id="image-link-{{ pit.image_num }}" src="/{{ pit.source }}" loading="lazy" alt="{{ pit.source }}"
-                     style="max-width: 400px;"/>
-                <p>{{ pit.label }}</p>
-                <br>
-            {% endfor %}
-        {% endif %}
-
-        {% if report.supplement.excavation_fotos %}
-            <h3 id="excavation_fotos">Раскопы</h3>
-            {% for excavation in report.supplement.excavation_fotos %}
-                <img id="image-link-{{ excavation.image_num }}" src="/{{ excavation.source }}" loading="lazy"
-                     alt="{{ excavation.source }}"
-                     style="max-width: 400px;"/>
-                <p>{{ excavation.label }}</p>
-                <br>
-            {% endfor %}
-        {% endif %}
-
-        {% if report.supplement.material_fotos %}
-            <h3 id="material_fotos">Археологический материал</h3>
-            {% for material in report.supplement.material_fotos %}
-                <img id="image-link-{{ material.image_num }}" src="/{{ material.source }}" loading="lazy"
-                     alt="{{ material.source }}" style="max-width: 400px;"/>
-                <p>{{ material.label }}</p>
-                <br>
-            {% endfor %}
-        {% endif %}
-
-        {% if report.supplement.heritage_info %}
-            <h3 id="heritage_info">Данные о ВОАН</h3>
-            {% for heritage in report.supplement.heritage_info %}
-                <img id="image-link-{{ heritage.image_num }}" src="/{{ heritage.source }}" loading="lazy"
-                     alt="{{ heritage.source }}" style="max-width: 400px;"/>
-                <p>{{ heritage.label }}</p>
-                <br>
-            {% endfor %}
-        {% endif %}
-
-        {% if report.supplement.other %}
-            <h3 id="other">Иное</h3>
-            {% for other in report.supplement.other %}
-                <img id="image-link-{{ other.image_num }}" src="/{{ other.source }}" loading="lazy"
-                     alt="{{ other.source }}" style="max-width: 400px;"/>
-                <p>{{ other.label }}</p>
-                <br>
-            {% endfor %}
-        {% endif %}
-
-        {% if report.supplement.title_page %}
-            <h3 id="title_page">Титульник</h3>
-            {% for title_page in report.supplement.title_page %}
-                <img id="image-link-{{ title_page.image_num }}" src="/{{ title_page.source }}" loading="lazy"
-                     alt="{{ title_page.source }}"
-                     style="max-width: 400px;"/>
-                <br>
-                <br>
-            {% endfor %}
-        {% endif %}
-
-        {% if report.supplement.open_list %}
-            <h3 id="open_list">Открытый лист</h3>
-            {% for open_list in report.supplement.open_list %}
-                <img id="image-link-{{ open_list.image_num }}" src="/{{ open_list.source }}" loading="lazy"
-                     alt="{{ open_list.source }}"
-                     style="max-width: 400px;"/>
-                {% if open_list.label %}
-                    <p>{{ open_list.label }}</p>
-                {% else %}
-                    <br>
+                {% if report.supplement.maps %}
+                    <h3 id="maps-{{ forloop.counter }}">Карты</h3>
+                    {% for map in report.supplement.maps %}
+                        {% if truncated_path in map.source %}
+                            <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
+                                 alt="{{ map.source }}"
+                                 style="max-width: 400px;"/>
+                            <p>{{ map.label }}</p>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
                 {% endif %}
-                <br>
-            {% endfor %}
-        {% endif %}
 
-        {% if report.supplement.no_captions %}
-            <h3 id="no_captions">Без подписей</h3>
-            {% for no_captions in report.supplement.no_captions %}
-                <img src="/{{ no_captions.source }}" loading="lazy" alt="{{ no_captions.source }}"
-                     style="max-width: 400px;"/>
-                <br>
-                <br>
-            {% endfor %}
-        {% endif %}
+                {% if report.supplement.schemas %}
+                    <h3 id="schemas-{{ forloop.counter }}">Схемы</h3>
+                    {% for scheme in report.supplement.schemas %}
+                        {% if truncated_path in scheme.source %}
+                            <img id="image-link-{{ scheme.image_num }}" src="/{{ scheme.source }}" loading="lazy"
+                                 alt="{{ scheme.source }}" style="max-width: 400px;"/>
+                            <p>{{ scheme.label }}</p>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if report.supplement.object_fotos %}
+                    <h3 id="object_fotos-{{ forloop.counter }}">Общий вид</h3>
+                    {% for object in report.supplement.object_fotos %}
+                        {% if truncated_path in object.source %}
+                            <img id="image-link-{{ object.image_num }}" src="/{{ object.source }}" loading="lazy"
+                                 alt="{{ object.source }}" style="max-width: 400px;"/>
+                            <p>{{ object.label }}</p>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if report.supplement.pits_fotos %}
+                    <h3 id="pits_fotos-{{ forloop.counter }}">Шурфы</h3>
+                    {% for pit in report.supplement.pits_fotos %}
+                        {% if truncated_path in pit.source %}
+                            <img id="image-link-{{ pit.image_num }}" src="/{{ pit.source }}" loading="lazy"
+                                 alt="{{ pit.source }}"
+                                 style="max-width: 400px;"/>
+                            <p>{{ pit.label }}</p>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if report.supplement.excavation_fotos %}
+                    <h3 id="excavation_fotos-{{ forloop.counter }}">Раскопы</h3>
+                    {% for excavation in report.supplement.excavation_fotos %}
+                        {% if truncated_path in excavation.source %}
+                            <img id="image-link-{{ excavation.image_num }}" src="/{{ excavation.source }}"
+                                 loading="lazy"
+                                 alt="{{ excavation.source }}"
+                                 style="max-width: 400px;"/>
+                            <p>{{ excavation.label }}</p>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if report.supplement.material_fotos %}
+                    <h3 id="material_fotos-{{ forloop.counter }}">Археологический материал</h3>
+                    {% for material in report.supplement.material_fotos %}
+                        {% if truncated_path in material.source %}
+                            <img id="image-link-{{ material.image_num }}" src="/{{ material.source }}" loading="lazy"
+                                 alt="{{ material.source }}" style="max-width: 400px;"/>
+                            <p>{{ material.label }}</p>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if report.supplement.heritage_info %}
+                    <h3 id="heritage_info-{{ forloop.counter }}">Данные о ВОАН</h3>
+                    {% for heritage in report.supplement.heritage_info %}
+                        {% if truncated_path in heritage.source %}
+                            <img id="image-link-{{ heritage.image_num }}" src="/{{ heritage.source }}" loading="lazy"
+                                 alt="{{ heritage.source }}" style="max-width: 400px;"/>
+                            <p>{{ heritage.label }}</p>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if report.supplement.other %}
+                    <h3 id="other-{{ forloop.counter }}">Иное</h3>
+                    {% for other in report.supplement.other %}
+                        {% if truncated_path in other.source %}
+                            <img id="image-link-{{ other.image_num }}" src="/{{ other.source }}" loading="lazy"
+                                 alt="{{ other.source }}" style="max-width: 400px;"/>
+                            <p>{{ other.label }}</p>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if report.supplement.title_page %}
+                    <h3 id="title_page-{{ forloop.counter }}">Титульник</h3>
+                    {% for title_page in report.supplement.title_page %}
+                        {% if truncated_path in title_page.source %}
+                            <img id="image-link-{{ title_page.image_num }}" src="/{{ title_page.source }}"
+                                 loading="lazy"
+                                 alt="{{ title_page.source }}"
+                                 style="max-width: 400px;"/>
+                            <br>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if report.supplement.docs %}
+                    <h3 id="docs-{{ forloop.counter }}">Документы</h3>
+                    {% for doc in report.supplement.docs %}
+                        {% if truncated_path in doc.source %}
+                            <img id="image-link-{{ doc.image_num }}" src="/{{ doc.source }}"
+                                 loading="lazy"
+                                 alt="{{ doc.source }}"
+                                 style="max-width: 400px;"/>
+                            <br>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if report.supplement.open_list %}
+                    <h3 id="open_list-{{ forloop.counter }}">Открытый лист</h3>
+                    {% for open_list in report.supplement.open_list %}
+                        {% if truncated_path in open_list.source %}
+                            <img id="image-link-{{ open_list.image_num }}" src="/{{ open_list.source }}" loading="lazy"
+                                 alt="{{ open_list.source }}"
+                                 style="max-width: 400px;"/>
+                            {% if open_list.label %}
+                                <p>{{ open_list.label }}</p>
+                            {% else %}
+                                <br>
+                            {% endif %}
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+
+                {% if report.supplement.no_captions %}
+                    <h3 id="no_captions-{{ forloop.counter }}">Без подписей</h3>
+                    {% for no_captions in report.supplement.no_captions %}
+                        {% if truncated_path in no_captions.source %}
+                            <img src="/{{ no_captions.source }}" loading="lazy" alt="{{ no_captions.source }}"
+                                 style="max-width: 400px;"/>
+                            <br>
+                            <br>
+                        {% endif %}
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        {% endfor %}
     {% endif %}
 
     <style>

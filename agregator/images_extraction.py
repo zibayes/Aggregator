@@ -34,6 +34,7 @@ SUPPLEMENT_CONTENT = {
     "other": [],
     "no_captions": [],
     "title_page": [],
+    "docs": [],
     "open_list": [],
 }
 
@@ -316,23 +317,40 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 user_task.save()
             else:
                 print(image_filename)
-                print(predict_image_class(pil_img))
                 pil_img, image_bytes = image_rotate(pil_img)
-                current_folder += '/Иное'
-                Path(current_folder).mkdir(exist_ok=True)
-                supplement_content["other"].append(
-                    {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
+                image_class = predict_image_class(pil_img)
+                print(image_class)
+                if image_class == 'Документы':
+                    current_folder += '/Документы'
+                    Path(current_folder).mkdir(exist_ok=True)
+                    supplement_content["docs"].append(
+                        {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
+                elif image_class == 'Карты':
+                    current_folder += '/Карты'
+                    Path(current_folder).mkdir(exist_ok=True)
+                    supplement_content["maps"].append(
+                        {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
+                elif image_class == 'Материал':
+                    current_folder += '/Материал'
+                    Path(current_folder).mkdir(exist_ok=True)
+                    supplement_content["material_fotos"].append(
+                        {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
+                else:
+                    current_folder += '/Иное'
+                    Path(current_folder).mkdir(exist_ok=True)
+                    supplement_content["other"].append(
+                        {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
         else:
             print(image_filename)
-            print(predict_image_class(pil_img))
             pil_img, image_bytes = image_rotate(pil_img)
+            image_class = predict_image_class(pil_img)
+            print(image_class)
             if page_number == 0:
                 current_folder += '/Титульник'
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["title_page"].append(
                     {"source": current_folder + "/" + image_filename})
-            elif is_image_open_list(avg_color, pil_img) or predict_image_class(pil_img) == 'Открытый лист':
-                print('right')
+            elif is_image_open_list(avg_color, pil_img) or image_class == 'Открытый лист':
                 pix = page.get_pixmap(dpi=300)
                 pil_img = preprocess_open_list(pix)
                 image_bytes = pil_img.tobytes()
@@ -347,6 +365,21 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
                                       upload_source=upload_source)
                 user_task.save()
+            elif image_class == 'Документы':
+                current_folder += '/Документы'
+                Path(current_folder).mkdir(exist_ok=True)
+                supplement_content["docs"].append(
+                    {"source": current_folder + "/" + image_filename})
+            elif image_class == 'Карты':
+                current_folder += '/Карты'
+                Path(current_folder).mkdir(exist_ok=True)
+                supplement_content["maps"].append(
+                    {"source": current_folder + "/" + image_filename})
+            elif image_class == 'Материал':
+                current_folder += '/Материал'
+                Path(current_folder).mkdir(exist_ok=True)
+                supplement_content["material_fotos"].append(
+                    {"source": current_folder + "/" + image_filename})
             else:
                 current_folder += '/Без подписей'
                 Path(current_folder).mkdir(exist_ok=True)
