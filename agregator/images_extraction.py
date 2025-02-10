@@ -138,34 +138,43 @@ def calculate_average_rgb(img):
 
 
 def predict_image_class(img):
-    img = img.resize((200, 200))
+    image_size = 500
+    img = img.resize((image_size, image_size))
     img_array = np.array(img)
     img_array = np.expand_dims(img_array, axis=0)
     img_array = img_array / 255.0
     y_pred = image_classification_model.predict(img_array)
     predicted_class = np.argmax(y_pred, axis=1)
-    labels = ['Карты', 'Общий вид', 'Открытый лист', 'Спутниковые снимки', 'Шурфы']
+    labels = ['Документы', 'Карты', 'Материал', 'Общий вид', 'Открытый лист', 'Спутниковые снимки', 'Шурфы']
     return labels[predicted_class[0]]
 
 
-def extract_captions(text: str) -> List:
+def extract_captions(text: str) -> tuple:
     text = text.replace("\n", "")
     captions = []
-    caption_types = ["Рис.", "Приложение"]
+    captions_nums = []
+    caption_types = ["Рис.", "Рисунок", "Приложение"]
     for caption_type in caption_types:
+        caption_len = len(caption_type)
         captions_count = text.count(caption_type)
         for i in range(captions_count):
             first_encounter = text.find(caption_type)
             if i != captions_count - 1:
-                last_encounter = text[first_encounter + 4:].find(caption_type)
+                last_encounter = text[first_encounter + caption_len:].find(caption_type)
             else:
                 last_encounter = len(text)
             caption = text[first_encounter:last_encounter]
             captions.append(caption)
-            text = text[first_encounter + 4:]
-
-        for i in range(len(captions)):
-            for j in range(len(captions)):
+            number = re.search(caption_type + r' .*\d+', captions[i], re.IGNORECASE)
+            if number:
+                number = re.search(r'\d+', number.group(0), re.IGNORECASE).group(0)
+                captions_nums.append(number)
+            else:
+                captions_nums.append('')
+            text = text[first_encounter + caption_len:]
+        captions_len = len(captions)
+        for i in range(captions_len):
+            for j in range(captions_len):
                 if i == j:
                     continue
                 cap1 = re.search(caption_type + r' .*\d+', captions[i], re.IGNORECASE)
@@ -180,8 +189,9 @@ def extract_captions(text: str) -> List:
                     continue
                 if int(cap1) < int(cap2):
                     captions[i], captions[j] = captions[j], captions[i]
+                    captions_nums[i], captions_nums[j] = captions_nums[j], captions_nums[i]
 
-    return captions
+    return captions, captions_nums
 
 
 def preprocess_open_list(pix):
@@ -212,12 +222,13 @@ def preprocess_open_list(pix):
 
 def extract_images_with_captions(text, page, page_number, document, folder,
                                  supplement_content, extracted_images, user_id, origin_name, upload_source=None):
-    captions = extract_captions(text)
+    captions, captions_nums = extract_captions(text)
     image_list = page.get_images(full=True)
     caption_index = 0
     for img_index, img in enumerate(image_list):
         if captions and caption_index < len(captions):
             image_text = captions[caption_index]
+            image_num = captions_nums[caption_index]
             caption_index += 1
         img_index = img[0]
         if img_index in extracted_images:
@@ -243,19 +254,19 @@ def extract_images_with_captions(text, page, page_number, document, folder,
             lowered_image_text = image_text.lower()
             if 'общий вид участка обследования' in lowered_image_text or 'общий вид участка' in lowered_image_text or 'общие виды' in lowered_image_text:
                 current_folder += '/Общий вид'
-                supplement_content["object_fotos"].append({"label": image_text,
+                supplement_content["object_fotos"].append({"label": image_text, "image_num": image_num,
                                                            "source": current_folder + "/" + image_filename})
             elif 'карта' in lowered_image_text or 'карты' in lowered_image_text:
                 current_folder += '/Карты'
-                supplement_content["maps"].append({"label": image_text,
+                supplement_content["maps"].append({"label": image_text, "image_num": image_num,
                                                    "source": current_folder + "/" + image_filename})
             elif 'схема' in lowered_image_text or 'схемы' in lowered_image_text:
                 current_folder += '/Схемы'
-                supplement_content["schemas"].append({"label": image_text,
+                supplement_content["schemas"].append({"label": image_text, "image_num": image_num,
                                                       "source": current_folder + "/" + image_filename})
             elif 'спутниковый снимок' in lowered_image_text:
                 current_folder += '/Спутниковые снимки'
-                supplement_content["maps"].append({"label": image_text,
+                supplement_content["maps"].append({"label": image_text, "image_num": image_num,
                                                    "source": current_folder + "/" + image_filename})
             elif 'шурф' in lowered_image_text:
                 current_folder += '/Шурфы'
@@ -263,11 +274,11 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 pit = re.search(r'Шурф.* № *\d+', image_text, re.IGNORECASE)
                 if pit:
                     current_folder += '/Ш' + pit.group(0)[1:]
-                supplement_content["pits_fotos"].append({"label": image_text,
+                supplement_content["pits_fotos"].append({"label": image_text, "image_num": image_num,
                                                          "source": current_folder + "/" + image_filename})
             elif 'раскоп' in lowered_image_text:
                 current_folder += '/Раскопы'
-                supplement_content["excavation_fotos"].append({"label": image_text,
+                supplement_content["excavation_fotos"].append({"label": image_text, "image_num": image_num,
                                                                "source": current_folder + "/" + image_filename})
             elif 'зачистка' in lowered_image_text or 'заичистка' in lowered_image_text:
                 current_folder += '/Шурфы'
@@ -275,7 +286,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 pit = re.search(r'Зачистка.* № *\d+', image_text, re.IGNORECASE)
                 if pit:
                     current_folder += '/З' + pit.group(0)[1:]
-                supplement_content["pits_fotos"].append({"label": image_text,
+                supplement_content["pits_fotos"].append({"label": image_text, "image_num": image_num,
                                                          "source": current_folder + "/" + image_filename})
             elif 'врезка' in lowered_image_text:
                 current_folder += '/Шурфы'
@@ -284,18 +295,18 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 if pit:
                     current_folder += '/В' + pit.group(0)[1:]
                 supplement_content["pits_fotos"].append(
-                    {"label": image_text, "source": current_folder + "/" + image_filename})
-            elif is_image_open_list(avg_color, pil_img) or 'открытый лист' in lowered_image_text:
+                    {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
+            elif 'открытый лист' in lowered_image_text or is_image_open_list(avg_color, pil_img) or predict_image_class(
+                    pil_img) == 'Открытый лист':
                 pix = page.get_pixmap(dpi=300)
                 pil_img = preprocess_open_list(pix)
                 image_bytes = pil_img.tobytes()
                 print(image_filename)
-                print(predict_image_class(pil_img))
                 # pil_img, image_bytes = image_rotate(pil_img)
                 current_folder += '/Открытый лист'
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["open_list"].append(
-                    {"label": image_text, "source": current_folder + "/" + image_filename})
+                    {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
 
                 open_lists_ids = raw_open_lists_save([pil_img], user_id, origin_name, upload_source)
                 task = process_open_lists.apply_async((open_lists_ids, user_id),
@@ -310,7 +321,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 current_folder += '/Иное'
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["other"].append(
-                    {"label": image_text, "source": current_folder + "/" + image_filename})
+                    {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
         else:
             print(image_filename)
             print(predict_image_class(pil_img))
@@ -320,7 +331,8 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["title_page"].append(
                     {"source": current_folder + "/" + image_filename})
-            elif is_image_open_list(avg_color, pil_img):
+            elif is_image_open_list(avg_color, pil_img) or predict_image_class(pil_img) == 'Открытый лист':
+                print('right')
                 pix = page.get_pixmap(dpi=300)
                 pil_img = preprocess_open_list(pix)
                 image_bytes = pil_img.tobytes()
@@ -343,6 +355,53 @@ def extract_images_with_captions(text, page, page_number, document, folder,
         Path(current_folder).mkdir(exist_ok=True)
         with open(current_folder + "/" + image_filename, "wb") as img_file:
             img_file.write(image_bytes)
+
+
+def insert_supplement_links(report_parts: dict) -> None:
+    caption_types = ["Рис.", "Рисунок", "Приложение"]
+
+    for part, text in report_parts.items():
+        offset = 0
+        links = []
+        for caption_type in caption_types:
+            links += re.finditer(caption_type + r'[\s\d\-;,]+', text, re.IGNORECASE)  # \s*\d+\s*-*\s*\d*
+
+        links_len = len(links)
+        for i in range(links_len):
+            for caption_type in caption_types:
+                numbers = []
+
+                link_number = re.search(caption_type + r'[\s\d\-;,]+', links[i].group(0), re.IGNORECASE)
+                if link_number:
+                    link_number = re.search(r'[\s\d\-;,]+', link_number.group(0), re.IGNORECASE).group(0).strip()
+                    if '-' not in link_number:
+                        numbers.append(link_number)
+                    else:
+                        delimiters = r'[;,]'
+                        number_groups = re.split(delimiters, link_number)
+                        number_groups = [item for item in number_groups if item]
+                        for group in number_groups:
+                            group = group.split('-')
+                            if len(group) == 2 and group[0] and group[1]:
+                                numbers += [str(x) for x in list(range(int(group[0]), int(group[1]) + 1))]
+                            elif len(numbers) == 2 and group[0]:
+                                numbers += group
+                                numbers.pop(-1)
+                            else:
+                                continue
+                    final_string = ''
+                    j = 0
+                    numbers_len = len(numbers)
+                    for number in numbers:
+                        if j != numbers_len - 1:
+                            final_string += f'<a href="#image-link-{number}">' + number + '</a>, '
+                        else:
+                            final_string += f'<a href="#image-link-{number}">' + number + '</a>'
+                        j += 1
+                    final_string = ' [' + final_string + ']'
+                    text = text[:links[i].end() + offset] + final_string + text[links[i].end() + offset:]
+                    offset += len(final_string)
+        report_parts[part] = text
 
 
 if __name__ == '__main__':

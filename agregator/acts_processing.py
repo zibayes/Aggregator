@@ -1,5 +1,6 @@
 import copy
 import json
+from typing import List
 
 import fitz  # PyMuPDF
 from pathlib import Path
@@ -17,7 +18,7 @@ from celery import shared_task
 from celery_progress.backend import ProgressRecorder
 from .models import Act, User
 from .hash import calculate_file_hash
-from .images_extraction import extract_images_with_captions, SUPPLEMENT_CONTENT
+from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
 import redis
 from .files_saving import delete_files_in_directory, load_raw_reports
 
@@ -722,6 +723,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
 
     # pd.DataFrame(table_info,columns=table_columns,index=[0]).to_excel(folder + "/" + "table.xlsx", index=False, engine='openpyxl')
     df_new = pd.DataFrame(table_info, columns=table_columns, index=[0])
+
+    insert_supplement_links(act_parts_info)
 
     if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('text', 'all'):
         current_act.year = df_new['ГОД'][0]

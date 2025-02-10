@@ -18,7 +18,7 @@ import redis
 from .models import ScientificReport, User
 from .hash import calculate_file_hash
 import os
-from .images_extraction import extract_images_with_captions, SUPPLEMENT_CONTENT
+from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
 from .files_saving import delete_files_in_directory, load_raw_reports
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -354,6 +354,8 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                                          current_report.upload_source)
         total_processed[0] += len(document)
     document.close()
+
+    insert_supplement_links(report_parts_info)
 
     if progress_json['file_groups'][str(report_id)][source_index]['type'] in ('text', 'all'):
         current_report.name = table_columns_info['Название отчёта']

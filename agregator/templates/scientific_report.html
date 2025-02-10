@@ -130,68 +130,68 @@
 
     {% if report.name %}
         <h2 id="name">Название</h2>
-        <p>{{ report.name }}</p>
+        <p>{{ report.name | safe }}</p>
     {% endif %}
 
     {% if report.organization %}
         <h2 id="organization">Организация</h2>
-        <p>{{ report.organization }}</p>
+        <p>{{ report.organization | safe }}</p>
     {% endif %}
 
     {% if report.author %}
         <h2 id="author">Автор</h2>
-        <p>{{ report.author }}</p>
+        <p>{{ report.author | safe }}</p>
     {% endif %}
 
     {% if report.open_list %}
         <h2 id="open_list">Открытый лист</h2>
-        <p>{{ report.open_list }}</p>
+        <p>{{ report.open_list | safe }}</p>
     {% endif %}
 
     {% if report.writing_date %}
         <h2 id="writing_date">Дата написания</h2>
-        <p>{{ report.writing_date }}</p>
+        <p>{{ report.writing_date | safe }}</p>
     {% endif %}
 
     {% if report.introduction %}
         <h2 id="introduction">Введение</h2>
-        <p>{{ report.introduction }}</p>
+        <p>{{ report.introduction | safe }}</p>
     {% endif %}
 
     {% if report.contractors %}
         <h2 id="contractors">Исполнители</h2>
-        <p>{{ report.contractors }}</p>
+        <p>{{ report.contractors | safe }}</p>
     {% endif %}
 
     {% if report.place %}
         <h2 id="place">Место</h2>
-        <p>{{ report.place }}</p>
+        <p>{{ report.place | safe }}</p>
     {% endif %}
 
     {% if report.area_info %}
         <h2 id="area_info">Информация о местности</h2>
-        <p>{{ report.area_info }}</p>
+        <p>{{ report.area_info | safe }}</p>
     {% endif %}
 
     {% if report.research_history %}
         <h2 id="research_history">История исследования</h2>
-        <p>{{ report.research_history }}</p>
+        <p>{{ report.research_history | safe }}</p>
     {% endif %}
 
     {% if report.results %}
         <h2 id="results">Результаты</h2>
-        <p>{{ report.results }}</p>
+        <p>{{ report.results | safe }}</p>
     {% endif %}
 
     {% if report.conclusion %}
         <h2 id="conclusion">Заключение</h2>
-        <p>{{ report.conclusion }}</p>
+        <p>{{ report.conclusion | safe }}</p>
     {% endif %}
 
     {% for title, content in report.content.items %}
         {% if content %}
             <h2 id="{{ title }}">{{ title }}</h2>
-            <p>{{ content }}</p>
+            <p>{{ content | safe }}</p>
         {% endif %}
     {% endfor %}
 
@@ -201,7 +201,8 @@
         {% if report.supplement.maps %}
             <h3 id="maps">Карты</h3>
             {% for map in report.supplement.maps %}
-                <img src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}"
+                     style="max-width: 400px;"/>
                 <p>{{ map.label }}</p>
                 <br>
             {% endfor %}
@@ -210,7 +211,8 @@
         {% if report.supplement.schemas %}
             <h3 id="schemas">Схемы</h3>
             {% for scheme in report.supplement.schemas %}
-                <img src="/{{ scheme.source }}" loading="lazy" alt="{{ scheme.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ scheme.image_num }}" src="/{{ scheme.source }}" loading="lazy"
+                     alt="{{ scheme.source }}" style="max-width: 400px;"/>
                 <p>{{ scheme.label }}</p>
                 <br>
             {% endfor %}
@@ -219,7 +221,8 @@
         {% if report.supplement.object_fotos %}
             <h3 id="object_fotos">Общий вид</h3>
             {% for object in report.supplement.object_fotos %}
-                <img src="/{{ object.source }}" loading="lazy" alt="{{ object.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ object.image_num }}" src="/{{ object.source }}" loading="lazy"
+                     alt="{{ object.source }}" style="max-width: 400px;"/>
                 <p>{{ object.label }}</p>
                 <br>
             {% endfor %}
@@ -228,7 +231,8 @@
         {% if report.supplement.pits_fotos %}
             <h3 id="pits_fotos">Шурфы</h3>
             {% for pit in report.supplement.pits_fotos %}
-                <img src="/{{ pit.source }}" loading="lazy" alt="{{ pit.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ pit.image_num }}" src="/{{ pit.source }}" loading="lazy" alt="{{ pit.source }}"
+                     style="max-width: 400px;"/>
                 <p>{{ pit.label }}</p>
                 <br>
             {% endfor %}
@@ -237,7 +241,8 @@
         {% if report.supplement.excavation_fotos %}
             <h3 id="excavation_fotos">Раскопы</h3>
             {% for excavation in report.supplement.excavation_fotos %}
-                <img src="/{{ excavation.source }}" loading="lazy" alt="{{ excavation.source }}"
+                <img id="image-link-{{ excavation.image_num }}" src="/{{ excavation.source }}" loading="lazy"
+                     alt="{{ excavation.source }}"
                      style="max-width: 400px;"/>
                 <p>{{ excavation.label }}</p>
                 <br>
@@ -247,7 +252,8 @@
         {% if report.supplement.material_fotos %}
             <h3 id="material_fotos">Археологический материал</h3>
             {% for material in report.supplement.material_fotos %}
-                <img src="/{{ material.source }}" loading="lazy" alt="{{ material.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ material.image_num }}" src="/{{ material.source }}" loading="lazy"
+                     alt="{{ material.source }}" style="max-width: 400px;"/>
                 <p>{{ material.label }}</p>
                 <br>
             {% endfor %}
@@ -256,7 +262,8 @@
         {% if report.supplement.heritage_info %}
             <h3 id="heritage_info">Данные о ВОАН</h3>
             {% for heritage in report.supplement.heritage_info %}
-                <img src="/{{ heritage.source }}" loading="lazy" alt="{{ heritage.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ heritage.image_num }}" src="/{{ heritage.source }}" loading="lazy"
+                     alt="{{ heritage.source }}" style="max-width: 400px;"/>
                 <p>{{ heritage.label }}</p>
                 <br>
             {% endfor %}
@@ -265,7 +272,8 @@
         {% if report.supplement.other %}
             <h3 id="other">Иное</h3>
             {% for other in report.supplement.other %}
-                <img src="/{{ other.source }}" loading="lazy" alt="{{ other.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ other.image_num }}" src="/{{ other.source }}" loading="lazy"
+                     alt="{{ other.source }}" style="max-width: 400px;"/>
                 <p>{{ other.label }}</p>
                 <br>
             {% endfor %}
@@ -274,7 +282,8 @@
         {% if report.supplement.title_page %}
             <h3 id="title_page">Титульник</h3>
             {% for title_page in report.supplement.title_page %}
-                <img src="/{{ title_page.source }}" loading="lazy" alt="{{ title_page.source }}"
+                <img id="image-link-{{ title_page.image_num }}" src="/{{ title_page.source }}" loading="lazy"
+                     alt="{{ title_page.source }}"
                      style="max-width: 400px;"/>
                 <br>
                 <br>
@@ -284,7 +293,8 @@
         {% if report.supplement.open_list %}
             <h3 id="open_list">Открытый лист</h3>
             {% for open_list in report.supplement.open_list %}
-                <img src="/{{ open_list.source }}" loading="lazy" alt="{{ open_list.source }}"
+                <img id="image-link-{{ open_list.image_num }}" src="/{{ open_list.source }}" loading="lazy"
+                     alt="{{ open_list.source }}"
                      style="max-width: 400px;"/>
                 {% if open_list.label %}
                     <p>{{ open_list.label }}</p>
@@ -305,5 +315,11 @@
             {% endfor %}
         {% endif %}
     {% endif %}
+
+    <style>
+        p {
+            white-space: pre-wrap;
+        }
+    </style>
 
 {% endblock %}

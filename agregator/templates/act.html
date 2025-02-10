@@ -129,74 +129,74 @@
 
     <h2 id="act">Акт</h2>
     {% if act.act %}
-        <p>{{ act.act }}</p>
+        <p>{{ act.act | safe }}</p>
     {% else %}
-        <p>{{ act.name_number }}</p>
+        <p>{{ act.name_number | safe }}</p>
     {% endif %}
 
     {% if act.start_date %}
         <h2 id="start_date">Дата начала</h2>
-        <p>{{ act.start_date }}</p>
+        <p>{{ act.start_date | safe }}</p>
     {% endif %}
 
     {% if act.end_date %}
         <h2 id="end_date">Дата окончания</h2>
-        <p>{{ act.end_date }}</p>
+        <p>{{ act.end_date | safe }}</p>
     {% endif %}
 
     {% if act.exp_place %}
         <h2 id="exp_place">Место провидения</h2>
-        <p>{{ act.exp_place }}</p>
+        <p>{{ act.exp_place | safe }}</p>
     {% endif %}
 
     {% if act.exp_customer %}
         <h2 id="exp_customer">Заказчик</h2>
-        <p>{{ act.exp_customer }}</p>
+        <p>{{ act.exp_customer | safe }}</p>
     {% endif %}
 
     {% if act.exp_expert %}
         <h2 id="exp_expert">Эксперт</h2>
-        <p>{{ act.exp_expert }}</p>
+        <p>{{ act.exp_expert | safe }}</p>
     {% endif %}
 
     {% if act.relationship %}
         <h2 id="relationship">Отношение</h2>
-        <p>{{ act.relationship }}</p>
+        <p>{{ act.relationship | safe }}</p>
     {% endif %}
 
     {% if act.goal %}
         <h2 id="goal">Цель</h2>
-        <p>{{ act.goal }}</p>
+        <p>{{ act.goal | safe }}</p>
     {% endif %}
 
     {% if act.object %}
         <h2 id="object">Объект</h2>
-        <p>{{ act.object }}</p>
+        <p>{{ act.object | safe }}</p>
     {% endif %}
 
     {% if act.docs %}
         <h2 id="docs">Документы</h2>
-        <p>{{ act.docs }}</p>
+        <p>{{ act.docs | safe }}</p>
     {% endif %}
 
     {% if act.exp_info %}
         <h2 id="exp_info">Информация</h2>
-        <p>{{ act.exp_info }}</p>
+        <p>{{ act.exp_info | safe }}</p>
     {% endif %}
 
     {% if act.exp_facts %}
         <h2 id="exp_facts">Факты</h2>
-        <p>{{ act.exp_facts }}</p>
+        <p>{{ act.exp_facts | safe }}</p>
     {% endif %}
 
     {% if act.literature %}
         <h2 id="literature">Литература</h2>
-        <p>{{ act.literature }}</p>
+        <p>{{ act.literature | safe }}</p>
     {% endif %}
 
     {% if act.exp_conclusion %}
         <h2 id="exp_conclusion">Заключение</h2>
-        <p>{{ act.exp_conclusion }}</p>
+        <p>{{ act.exp_conclusion | safe }}</p>
     {% endif %}
 
     {% if act.supplement %}
@@ -205,7 +205,8 @@
         {% if act.supplement.maps %}
             <h3 id="maps">Карты</h3>
             {% for map in act.supplement.maps %}
-                <img src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}"
+                     style="max-width: 400px;"/>
                 <p>{{ map.label }}</p>
                 <br>
             {% endfor %}
@@ -214,7 +215,8 @@
         {% if act.supplement.schemas %}
             <h3 id="schemas">Схемы</h3>
             {% for scheme in act.supplement.schemas %}
-                <img src="/{{ scheme.source }}" loading="lazy" alt="{{ scheme.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ scheme.image_num }}" src="/{{ scheme.source }}" loading="lazy"
+                     alt="{{ scheme.source }}" style="max-width: 400px;"/>
                 <p>{{ scheme.label }}</p>
                 <br>
             {% endfor %}
@@ -223,7 +225,8 @@
         {% if act.supplement.object_fotos %}
             <h3 id="object_fotos">Общий вид</h3>
             {% for object in act.supplement.object_fotos %}
-                <img src="/{{ object.source }}" loading="lazy" alt="{{ object.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ object.image_num }}" src="/{{ object.source }}" loading="lazy"
+                     alt="{{ object.source }}" style="max-width: 400px;"/>
                 <p>{{ object.label }}</p>
                 <br>
             {% endfor %}
@@ -232,7 +235,8 @@
         {% if act.supplement.pits_fotos %}
             <h3 id="pits_fotos">Шурфы</h3>
             {% for pit in act.supplement.pits_fotos %}
-                <img src="/{{ pit.source }}" loading="lazy" alt="{{ pit.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ pit.image_num }}" src="/{{ pit.source }}" loading="lazy" alt="{{ pit.source }}"
+                     style="max-width: 400px;"/>
                 <p>{{ pit.label }}</p>
                 <br>
             {% endfor %}
@@ -241,7 +245,8 @@
         {% if act.supplement.excavation_fotos %}
             <h3 id="excavation_fotos">Раскопы</h3>
             {% for excavation in act.supplement.excavation_fotos %}
-                <img src="/{{ excavation.source }}" loading="lazy" alt="{{ excavation.source }}"
+                <img id="image-link-{{ excavation.image_num }}" src="/{{ excavation.source }}" loading="lazy"
+                     alt="{{ excavation.source }}"
                      style="max-width: 400px;"/>
                 <p>{{ excavation.label }}</p>
                 <br>
@@ -251,7 +256,8 @@
         {% if act.supplement.material_fotos %}
             <h3 id="material_fotos">Археологический материал</h3>
             {% for material in act.supplement.material_fotos %}
-                <img src="/{{ material.source }}" loading="lazy" alt="{{ material.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ material.image_num }}" src="/{{ material.source }}" loading="lazy"
+                     alt="{{ material.source }}" style="max-width: 400px;"/>
                 <p>{{ material.label }}</p>
                 <br>
             {% endfor %}
@@ -260,7 +266,8 @@
         {% if act.supplement.heritage_info %}
             <h3 id="heritage_info">Данные о ВОАН</h3>
             {% for heritage in act.supplement.heritage_info %}
-                <img src="/{{ heritage.source }}" loading="lazy" alt="{{ heritage.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ heritage.image_num }}" src="/{{ heritage.source }}" loading="lazy"
+                     alt="{{ heritage.source }}" style="max-width: 400px;"/>
                 <p>{{ heritage.label }}</p>
                 <br>
             {% endfor %}
@@ -269,7 +276,8 @@
         {% if act.supplement.other %}
             <h3 id="other">Иное</h3>
             {% for other in act.supplement.other %}
-                <img src="/{{ other.source }}" loading="lazy" alt="{{ other.source }}" style="max-width: 400px;"/>
+                <img id="image-link-{{ other.image_num }}" src="/{{ other.source }}" loading="lazy"
+                     alt="{{ other.source }}" style="max-width: 400px;"/>
                 <p>{{ other.label }}</p>
                 <br>
             {% endfor %}
@@ -288,7 +296,8 @@
         {% if act.supplement.open_list %}
             <h3 id="open_list">Открытый лист</h3>
             {% for open_list in act.supplement.open_list %}
-                <img src="/{{ open_list.source }}" loading="lazy" alt="{{ open_list.source }}"
+                <img id="image-link-{{ open_list.image_num }}" src="/{{ open_list.source }}" loading="lazy"
+                     alt="{{ open_list.source }}"
                      style="max-width: 400px;"/>
                 {% if open_list.label %}
                     <p>{{ open_list.label }}</p>
@@ -309,5 +318,11 @@
             {% endfor %}
         {% endif %}
     {% endif %}
+
+    <style>
+        p {
+            white-space: pre-wrap;
+        }
+    </style>
 
 {% endblock %}
