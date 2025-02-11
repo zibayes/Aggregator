@@ -4,79 +4,285 @@
 {% block title %}Чат с нейросетью{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="{% static 'css/gpt_chat.css' %}">
-<script src="{% static 'js/marked.min.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/gpt_chat.css' %}">
+    <script src="{% static 'js/marked.min.js' %}"></script>
 
-<br>
-<h2 align="center">Чат с нейросетью</h2>
-<br>
-
-<div id="chat-container">
-    <div id="messages"></div>
-    <div id="input-container">
-        <input type="text" id="input" placeholder="Напишите ваше сообщение..."/>
-        <button id="send-btn">Отправить</button>
+    <div class="container mt-4">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h2 class="card-title mb-0">Чат с нейросетью</h2>
+                <button id="new-chat-btn" class="btn btn-light">Новый чат</button>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-3 chat-list-container">
+                        <div id="chat-list" class="chat-list"></div>
+                    </div>
+                    <div class="col-9">
+                        <div id="chat-container" class="chat-container">
+                            <div id="messages" class="messages"></div>
+                            <div id="input-container" class="input-container" style="display: none;">
+                                <input type="text" id="input" class="form-control"
+                                       placeholder="Напишите ваше сообщение..."/>
+                                <button id="send-btn" class="btn btn-primary">Отправить</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-</div>
 
-<script>
-    document.getElementById('send-btn').addEventListener('click', sendMessage);
-    document.getElementById('input').addEventListener('keypress', function (event) {
-        if (event.key === 'Enter') {
-            sendMessage();
+    <script>
+        let currentChatId = null;
+        const chats = {};
+
+        document.getElementById('new-chat-btn').addEventListener('click', createNewChat);
+        document.getElementById('send-btn').addEventListener('click', createMessage);
+        document.getElementById('input').addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
+                createMessage();
+            }
+        });
+
+        function createNewChat() {
+            const chatId = Date.now();
+            chats[chatId] = {messages: [], title: `Чат ${Object.keys(chats).length + 1}`};
+            addChatToList(chatId);
+            switchChat(chatId);
         }
-    });
 
-    function sendMessage() {
-        const inputField = document.getElementById('input');
-        const messageText = inputField.value;
+        function addChatToList(chatId) {
+            const chatList = document.getElementById('chat-list');
+            const chatItem = document.createElement('div');
+            chatItem.className = 'chat-item';
+            chatItem.innerHTML = `
+                <span class="chat-title">${chats[chatId].title}</span>
+                <button class="btn-edit btn-edit-chat" onclick="editChatTitle(${chatId})">✏️</button>
+                <button class="btn-edit btn-delete-chat" onclick="deleteChat(${chatId})">🗑️</button>
+            `;
+            chatItem.onclick = () => switchChat(chatId);
+            chatList.appendChild(chatItem);
+        }
 
-        if (messageText.trim() === '') return;
+        function deleteChat(chatId) {
+            if (confirm('Вы уверены, что хотите удалить этот чат?')) {
+                delete chats[chatId];
+                const chatList = document.getElementById('chat-list');
+                chatList.innerHTML = '';
+                for (const id in chats) {
+                    addChatToList(id);
+                }
+            }
+        }
 
-        // Добавляем сообщение пользователя в чат
-        addMessage(messageText, 'user');
+        function editChatTitle(chatId) {
+            const chatItem = document.querySelector(`.chat-item:nth-child(${Object.keys(chats).indexOf(chatId.toString()) + 1})`);
+            const chatTitleElement = chatItem.querySelector('.chat-title');
+            const currentTitle = chatTitleElement.innerText;
 
-        // Очистка поля ввода
-        inputField.value = '';
+            // Создаем поле ввода для редактирования
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = currentTitle;
+            input.className = 'form-control';
 
-        // Отправляем AJAX-запрос
-        const url = "/ask_gpt/"  // "http://localhost:1234/v1/chat/completions";
-        const headers = {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`};
-        const data = {
-            "model": "llama-3.1-8b-lexi-uncensored-v2",
-            "messages": [
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": messageText}
-            ],
-            "temperature": 0.7,
-            "max_tokens": -1,
-            "stream": false
-        };
+            // Создаем кнопку для сохранения изменений
+            const saveButton = document.createElement('button');
+            saveButton.innerText = 'Сохранить';
+            saveButton.className = 'btn btn-success';
+            saveButton.onclick = () => {
+                const newTitle = input.value.trim();
+                if (newTitle) {
+                    chats[chatId].title = newTitle;
+                    chatTitleElement.innerText = newTitle;
 
-        fetch(url, {
-            method: 'POST',
-            headers: headers,
-            body: JSON.stringify(data)
-        })
-            .then(response => response.json())
-            .then(result => {
-                const aiMessage = result.choices[0].message.content;
-                addMessage(aiMessage, 'ai');
+                    chatItem.replaceChild(chatTitleElement, input);
+
+                    const editButton = document.createElement('button');
+                    editButton.className = 'btn-edit btn-edit-chat';
+                    editButton.innerText = '✏️';
+                    editButton.onclick = () => editChatTitle(chatId);
+                    chatItem.replaceChild(editButton, saveButton);
+                }
+            };
+
+            // Заменяем название на поле ввода и добавляем кнопку
+            chatItem.replaceChild(input, chatTitleElement);
+            chatItem.replaceChild(saveButton, chatItem.querySelector('.btn-edit-chat'));
+        }
+
+        function switchChat(chatId) {
+            currentChatId = chatId;
+            document.getElementById('chat-container').style.display = 'block';
+            document.getElementById('messages').innerHTML = ''; // Очищаем сообщения
+            chats[chatId].messages.forEach(msg => addMessage(msg.text, msg.sender)); // Загружаем сообщения
+            document.getElementById('input-container').style.display = 'flex';
+        }
+
+        function createMessage(messageText) {
+            if (typeof messageText !== "string") {
+                const inputField = document.getElementById('input');
+                messageText = inputField.value;
+            }
+            if (messageText.trim() === '' || currentChatId === null) return;
+            sendMessage(messageText, currentChatId);
+        }
+
+        function sendMessage(messageText, chatId) {
+            // Добавляем сообщение пользователя в чат
+            addMessage(messageText, 'user');
+            chats[currentChatId].messages.push({text: messageText, sender: 'user'}); // Сохраняем сообщение
+
+            // Очистка поля ввода
+            const inputField = document.getElementById('input');
+            inputField.value = '';
+
+            // Отправляем AJAX-запрос
+            const url = "http://localhost:1234/v1/chat/completions";  // "/ask_gpt/"
+            const headers = {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`};
+            const data = {
+                "model": "llama-3.1-8b-lexi-uncensored-v2",
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "Ты ассистент на сайте археологического агрегатора научно-технической информации. Отвечай на русском языке."
+                    },
+                    {"role": "user", "content": messageText}
+                ],
+                "temperature ": 0.7,
+                "max_tokens": -1,
+                "stream": false
+            };
+
+            fetch(url, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(data)
             })
-            .catch(error => {
-                console.error('Error:', error);
-            });
-    }
+                .then(response => response.json())
+                .then(result => {
+                    const aiMessage = result.choices[0].message.content;
+                    if (chatId === currentChatId)
+                        addMessage(aiMessage, 'ai');
+                    chats[chatId].messages.push({text: aiMessage, sender: 'ai'}); // Сохраняем сообщение
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+        }
 
-    function addMessage(text, sender) {
-        const formattedText = marked.marked(text); // text.replace(/\n/g, '<br>').replace(/\t/g, '&nbsp;&nbsp;&nbsp;&nbsp;');
-        const messagesContainer = document.getElementById('messages');
-        const messageDiv = document.createElement('div');
-        messageDiv.classList.add('message', sender);
-        messageDiv.innerHTML = `${formattedText}`;
-        messagesContainer.appendChild(messageDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight; // Прокрутка вниз
-    }
-</script>
+        function addMessage(text, sender) {
+            const formattedText = marked.marked(text); // Преобразуем Markdown в HTML
+            const messagesContainer = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender);
+
+            // Аватар и имя отправителя
+            const avatar = sender === 'user' ? "{{ user.avatar.url }}" : "\\uploaded_files\\avatars/neuro-net_ava.jpg";
+            const senderName = sender === 'user' ? "{{ user.username }}" : "Ассистент";
+
+            messageDiv.innerHTML = `
+                <div class="message-header">
+                    <img src="${avatar}" alt="${senderName}" class="avatar" />
+                    <span class="sender-name">${senderName}</span>
+                    <div class="message-actions">
+                        <button class="btn-copy" onclick="copyMessage(this)">📋</button>
+                    </div>
+                </div>
+                <div class="message-content">${formattedText}</div>
+            `;
+
+            if (sender === 'user') {
+                const userMessages = messagesContainer.querySelectorAll('.message.user');
+                userMessages.forEach((msg) => {
+                    const editButton = msg.querySelector('.btn-edit');
+                    if (editButton) {
+                        editButton.remove(); // Удаляем кнопку редактирования
+                    }
+                });
+
+                // Добавляем кнопку редактирования только к последнему пользовательскому сообщению
+                const editButton = document.createElement('button');
+                editButton.className = 'btn-edit';
+                editButton.innerText = '✏️';
+                editButton.onclick = function () {
+                    editMessage(editButton);
+                };
+                messageDiv.querySelector('.message-actions').appendChild(editButton);
+            }
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight; // Прокрутка вниз
+        }
+
+        function editMessage(button) {
+            const messageContent = button.closest('.message').querySelector('.message-content');
+            const currentText = messageContent.innerText;
+            const messageDiv = button.closest('.message');
+
+            const inputField = document.createElement('input');
+            inputField.type = 'text';
+            inputField.value = currentText;
+            inputField.className = 'form-control';
+
+            const saveButton = document.createElement('button');
+            saveButton.innerText = 'Сохранить';
+            saveButton.className = 'btn btn-success';
+            saveButton.onclick = function () {
+                const newText = inputField.value;
+                messageContent.innerHTML = marked.marked(newText); // Обновляем текст с поддержкой Markdown
+
+                // Удаляем последнее сообщение нейросети
+                const messagesContainer = document.getElementById('messages');
+                const lastAiMessage = messagesContainer.querySelector('.message.ai:last-child');
+                if (lastAiMessage) {
+                    messagesContainer.removeChild(lastAiMessage);
+                }
+                const lastUserMessage = messagesContainer.querySelector('.message.user:last-child');
+                if (lastUserMessage) {
+                    messagesContainer.removeChild(lastUserMessage);
+                }
+
+                // Отправляем новый запрос к нейросети
+                createMessage(newText);
+
+                // Удаляем поле ввода и кнопку
+                if (messageDiv.contains(inputField)) {
+                    messageDiv.removeChild(inputField);
+                }
+                if (messageDiv.contains(saveButton)) {
+                    messageDiv.removeChild(saveButton);
+                }
+            };
+
+            messageContent.innerHTML = '';
+            messageContent.appendChild(inputField);
+            messageContent.appendChild(saveButton);
+            inputField.focus();
+        }
+
+        function copyMessage(button) {
+            const messageContent = button.closest('.message').querySelector('.message-content');
+            const textToCopy = messageContent.innerText;
+            navigator.clipboard.writeText(textToCopy).then(() => {
+                const notification = document.createElement('div');
+                notification.innerText = "Сообщение скопировано в буфер обмена!";
+                notification.className = "copy-notification";
+                document.body.appendChild(notification);
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 2000);
+            }).catch(() => {
+                const notification = document.createElement('div');
+                notification.innerText = "Не удалось скопировать сообщение.";
+                notification.className = "copy-notification";
+                document.body.appendChild(notification);
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 2000);
+            });
+        }
+    </script>
 
 {% endblock %}
