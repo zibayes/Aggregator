@@ -16,7 +16,11 @@ urlpatterns = [
     path('open_lists_register/', views.open_lists_register, name='open_lists_register'),
     path('open_lists_register_download/', views.open_lists_register_download, name='open_lists_register_download'),
     path('scientific_reports_register/', views.scientific_reports_register, name='scientific_reports_register'),
+    path('scientific_reports_register_download/', views.scientific_reports_register_download,
+         name='scientific_reports_register_download'),
     path('tech_reports_register/', views.tech_reports_register, name='tech_reports_register'),
+    path('tech_reports_register_download/', views.tech_reports_register_download,
+         name='tech_reports_register_download'),
     path('gpt_chat/', views.gpt_chat, name='gpt_chat'),
     path('ask_gpt/', views.ask_gpt, name='ask_gpt'),
     path('register/', views.user_register, name='register'),
@@ -38,6 +42,11 @@ urlpatterns = [
     path('open_lists/<int:pk>/', views.open_lists, name='open_lists'),
     path('open_lists_edit/<int:pk>/', views.open_lists_edit, name='open_lists_edit'),
     path('open_lists_delete/<int:pk>/', views.open_lists_delete, name='open_lists_delete'),
+
+    path('api/download_delete/<str:task_id>/', views.download_delete, name='download_delete'),
+    path('api/get_user_tasks_reports/', views.get_user_tasks_reports, name='get_user_tasks_reports'),
+    path('api/get_user_tasks_open_lists/', views.get_user_tasks_open_lists, name='get_user_tasks_open_lists'),
+    path('api/get_user_tasks_external/', views.get_user_tasks_external, name='get_user_tasks_external'),
 
     path('api/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),

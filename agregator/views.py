@@ -43,6 +43,27 @@ def index(request):
 
 
 @login_required
+def get_user_tasks_reports(request):
+    user = request.user
+    tasks_id = get_user_tasks(user.id, ('act', 'scientific_report', 'tech_report'))
+    return JsonResponse({'tasks_id': tasks_id})
+
+
+@login_required
+def get_user_tasks_open_lists(request):
+    user = request.user
+    tasks_id = get_user_tasks(user.id, ('open_list',))
+    return JsonResponse({'tasks_id': tasks_id})
+
+
+@login_required
+def get_user_tasks_external(request):
+    admin = User.objects.get(is_superuser=True)
+    tasks_id = get_user_tasks(admin.id, ('act', 'scientific_report', 'tech_report', 'open_list'), True)
+    return JsonResponse({'tasks_id': tasks_id})
+
+
+@login_required
 def deconstructor(request):
     user = request.user
     tasks_id = get_user_tasks(user.id, ('act', 'scientific_report', 'tech_report'))
@@ -142,7 +163,11 @@ def interactive_map(request):
 
 
 def acts_register(request):
-    acts = Act.objects.filter(is_processing=False)
+    acts = Act.objects.filter(is_processing=False).only('id', 'user_id', 'date_uploaded',
+                                                        'is_processing', 'year', 'finish_date',
+                                                        'type', 'name_number', 'place', 'customer', 'area',
+                                                        'expert', 'executioner', 'open_list', 'conclusion',
+                                                        'border_objects', 'source')
     return render(request, 'acts_register.html', {'acts': acts})
 
 
@@ -366,13 +391,149 @@ def acts_register_download(request):
     return redirect('/uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx')
 
 
+def scientific_reports_register_download(request):
+    table_path = "uploaded_files/scientific_reports/РЕЕСТР ПНО.xlsx"
+    table_columns = ['Год написания отчёта', 'Название отчёта', 'Организация', 'Автор',
+                     'Открытый лист', 'Населённый пункт',
+                     'Вид работ', 'Площадь', 'Исполнители',
+                     'Заключение']
+    reports = ScientificReport.objects.all()
+    if not reports:
+        return redirect(scientific_reports_register)
+    df_existing = None
+    for report in reports:
+        table_columns_info = {i: '' for i in table_columns}
+        table_columns_info['Год написания отчёта'] = report.writing_date
+        table_columns_info['Название отчёта'] = report.name
+        table_columns_info['Организация'] = report.organization
+        table_columns_info['Автор'] = report.author
+        table_columns_info['Открытый лист'] = report.open_list
+        table_columns_info['Населённый пункт'] = report.place
+        table_columns_info['Исполнители'] = report.contractors
+        table_columns_info['Площадь'] = report.area_info
+        df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
+        if df_existing is None:
+            df_existing = df_new
+        else:
+            df_existing = df_existing._append(df_new, ignore_index=True)
+    with pd.ExcelWriter(table_path) as writer:
+        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
+    wb = load_workbook(table_path)
+    ws = wb.active
+    ws.column_dimensions['A'].width = 24
+    ws.column_dimensions['B'].width = 24
+    ws.column_dimensions['C'].width = 24
+    ws.column_dimensions['D'].width = 24
+    ws.column_dimensions['E'].width = 24
+    ws.column_dimensions['F'].width = 26
+    ws.column_dimensions['G'].width = 20.71
+    ws.column_dimensions['H'].width = 18.43
+    ws.column_dimensions['I'].width = 24.71
+    ws.column_dimensions['J'].width = 21.29
+    ws.column_dimensions['K'].width = 26
+    ws.column_dimensions['L'].width = 27.29
+    font = Font(
+        name='Times New Roman',
+        size=11,
+        bold=False,
+        italic=False,
+        vertAlign=None,
+        underline='none',
+        strike=False,
+        color='FF000000'
+    )
+    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
+    for i in range(1, len(df_existing.values) + 2):
+        if i == 1:
+            ws.row_dimensions[0].height = 50
+        else:
+            ws.row_dimensions[i].height = 80
+        for cell in ws[i]:
+            if cell.value:
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    wb.save(table_path)
+    return redirect('/uploaded_files/scientific_reports/РЕЕСТР ПНО.xlsx')
+
+
+def tech_reports_register_download(request):
+    table_path = "uploaded_files/tech_reports/РЕЕСТР ПНТО.xlsx"
+    table_columns = ['Год написания отчёта', 'Название отчёта', 'Организация', 'Автор',
+                     'Открытый лист', 'Населённый пункт',
+                     'Вид работ', 'Площадь', 'Исполнители',
+                     'Заключение']
+    reports = TechReport.objects.all()
+    if not reports:
+        return redirect(scientific_reports_register)
+    df_existing = None
+    for report in reports:
+        table_columns_info = {i: '' for i in table_columns}
+        table_columns_info['Год написания отчёта'] = report.writing_date
+        table_columns_info['Название отчёта'] = report.name
+        table_columns_info['Организация'] = report.organization
+        table_columns_info['Автор'] = report.author
+        table_columns_info['Открытый лист'] = report.open_list
+        table_columns_info['Населённый пункт'] = report.place
+        table_columns_info['Исполнители'] = report.contractors
+        table_columns_info['Площадь'] = report.area_info
+        df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
+        if df_existing is None:
+            df_existing = df_new
+        else:
+            df_existing = df_existing._append(df_new, ignore_index=True)
+    with pd.ExcelWriter(table_path) as writer:
+        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
+    wb = load_workbook(table_path)
+    ws = wb.active
+    ws.column_dimensions['A'].width = 24
+    ws.column_dimensions['B'].width = 24
+    ws.column_dimensions['C'].width = 24
+    ws.column_dimensions['D'].width = 24
+    ws.column_dimensions['E'].width = 24
+    ws.column_dimensions['F'].width = 26
+    ws.column_dimensions['G'].width = 20.71
+    ws.column_dimensions['H'].width = 18.43
+    ws.column_dimensions['I'].width = 24.71
+    ws.column_dimensions['J'].width = 21.29
+    ws.column_dimensions['K'].width = 26
+    ws.column_dimensions['L'].width = 27.29
+    font = Font(
+        name='Times New Roman',
+        size=11,
+        bold=False,
+        italic=False,
+        vertAlign=None,
+        underline='none',
+        strike=False,
+        color='FF000000'
+    )
+    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
+    for i in range(1, len(df_existing.values) + 2):
+        if i == 1:
+            ws.row_dimensions[0].height = 50
+        else:
+            ws.row_dimensions[i].height = 80
+        for cell in ws[i]:
+            if cell.value:
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    wb.save(table_path)
+    return redirect("/uploaded_files/tech_reports/РЕЕСТР ПНТО.xlsx")
+
+
 def scientific_reports_register(request):
-    reports = ScientificReport.objects.filter(is_processing=False)
+    reports = ScientificReport.objects.filter(is_processing=False).only('id', 'user_id', 'date_uploaded',
+                                                                        'upload_source', 'is_processing', 'name',
+                                                                        'organization', 'author', 'open_list',
+                                                                        'writing_date', 'contractors', 'source',
+                                                                        'place', 'area_info', 'results', 'conclusion')
     return render(request, 'scientific_reports_register.html', {'reports': reports})
 
 
 def tech_reports_register(request):
-    reports = TechReport.objects.filter(is_processing=False)
+    reports = TechReport.objects.filter(is_processing=False).only('id', 'user_id', 'date_uploaded',
+                                                                  'upload_source', 'is_processing', 'name',
+                                                                  'organization', 'author', 'open_list',
+                                                                  'writing_date', 'contractors', 'source',
+                                                                  'place', 'area_info', 'results', 'conclusion')
     return render(request, 'tech_reports_register.html', {'reports': reports})
 
 
@@ -416,6 +577,16 @@ def acts_delete(request, pk):
     act_instance = Act.objects.get(id=pk)
     act_instance.delete()
     return redirect(f'acts_register')
+
+
+@login_required
+# @owner_or_admin_required(UserTasks)
+def download_delete(request, task_id):
+    user_task = UserTasks.objects.get(task_id=task_id)
+    user_task.delete()
+    task = TaskResult.objects.get(task_id=task_id)
+    task.delete()
+    return JsonResponse({'response': 'deleted'})
 
 
 def scientific_reports(request, pk):

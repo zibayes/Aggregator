@@ -126,20 +126,24 @@
                 messageText = inputField.value;
             }
             if (messageText.trim() === '' || currentChatId === null) return;
+
             sendMessage(messageText, currentChatId);
         }
 
         function sendMessage(messageText, chatId) {
-            // Добавляем сообщение пользователя в чат
             addMessage(messageText, 'user');
-            chats[currentChatId].messages.push({text: messageText, sender: 'user'}); // Сохраняем сообщение
-
-            // Очистка поля ввода
+            chats[currentChatId].messages.push({text: messageText, sender: 'user'});
             const inputField = document.getElementById('input');
             inputField.value = '';
 
-            // Отправляем AJAX-запрос
-            const url = "http://localhost:1234/v1/chat/completions";  // "/ask_gpt/"
+            const loadingMessage = {text: `Генерация ответа`, sender: 'ai'};
+            addMessage(loadingMessage.text, loadingMessage.sender);
+            chats[chatId].messages.push(loadingMessage);
+
+            let dotCount = 0;
+            const loadingElement = document.querySelector('.message.ai:last-child');
+
+            const url = "http://localhost:1234/v1/chat/completions";
             const headers = {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`};
             const data = {
                 "model": "llama-3.1-8b-lexi-uncensored-v2",
@@ -162,10 +166,22 @@
             })
                 .then(response => response.json())
                 .then(result => {
+                    const lastMessage = document.querySelector('.message.ai:last-child');
+                    if (lastMessage && (lastMessage.innerText.indexOf(loadingMessage.text) >= 0) && (lastMessage.innerText.indexOf("Ассистент") >= 0)) {
+                        lastMessage.remove();
+                    }
+                    chats[chatId].messages.pop();
+
                     const aiMessage = result.choices[0].message.content;
-                    if (chatId === currentChatId)
-                        addMessage(aiMessage, 'ai');
-                    chats[chatId].messages.push({text: aiMessage, sender: 'ai'}); // Сохраняем сообщение
+                    if (chatId === currentChatId) {
+                        const lastMessage = document.querySelector('.message.ai:last-child');
+                        if (lastMessage && lastMessage.innerText === loadingMessage.text) {
+                            lastMessage.querySelector('.message-content').innerHTML = marked.marked(aiMessage);
+                        } else {
+                            addMessage(aiMessage, 'ai');
+                        }
+                    }
+                    chats[chatId].messages.push({text: aiMessage, sender: 'ai'});
                 })
                 .catch(error => {
                     console.error('Error:', error);
@@ -182,7 +198,16 @@
             const avatar = sender === 'user' ? "{{ user.avatar.url }}" : "\\uploaded_files\\avatars/neuro-net_ava.jpg";
             const senderName = sender === 'user' ? "{{ user.username }}" : "Ассистент";
 
-            messageDiv.innerHTML = `
+            if (formattedText.indexOf("Генерация ответа") >= 0 && sender === 'ai') {
+                messageDiv.innerHTML = `
+                <div class="message-header">
+                    <img src="${avatar}" alt="${senderName}" class="avatar" />
+                    <span class="sender-name">${senderName}</span>
+                </div>
+                <div class="message-content" style="display: inline-flex"><i style="margin-right: 5px;">${formattedText}</i><div class="loader"></div></div>
+            `;
+            } else {
+                messageDiv.innerHTML = `
                 <div class="message-header">
                     <img src="${avatar}" alt="${senderName}" class="avatar" />
                     <span class="sender-name">${senderName}</span>
@@ -192,6 +217,7 @@
                 </div>
                 <div class="message-content">${formattedText}</div>
             `;
+            }
 
             if (sender === 'user') {
                 const userMessages = messagesContainer.querySelectorAll('.message.user');
