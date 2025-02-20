@@ -43,6 +43,7 @@ CREATE TABLE acts
     date_uploaded          TIMESTAMP WITH TIME ZONE NULL,  -- дата загрузки отчёта на сервер
     upload_source          json NULL,                       -- источник загрузки
     is_processing          BOOLEAN DEFAULT TRUE,            -- находится ли отчёт в процессе обработки
+    is_public              BOOLEAN DEFAULT TRUE,            -- находится ли отчёт в открытом доступе
 
     year           text NULL,              -- год написания акта
     finish_date    text NULL,              -- дата завершения проведения экспертизы
@@ -72,7 +73,8 @@ CREATE TABLE acts
     exp_facts      text NULL,              -- факты экспертизы
     literature     text NULL,              -- литература
     exp_conclusion text NULL,              -- заключение экспертизы
-    supplement     json NULL               -- приложение к отчёту (иллюстрации)
+    supplement     json NULL,              -- приложение к отчёту (иллюстрации)
+    coordinates    json NULL               -- координаты точек фотофиксации, шурфов, каталога и выписок из ЕГРН
 );
 
 -- Научные отчёты
@@ -84,6 +86,7 @@ CREATE TABLE scientific_reports
     date_uploaded          TIMESTAMP WITH TIME ZONE NULL,  -- дата загрузки отчёта на сервер
     upload_source          json NULL,                       -- источник загрузки
     is_processing          BOOLEAN DEFAULT TRUE,            -- находится ли отчёт в процессе обработки
+    is_public              BOOLEAN DEFAULT TRUE,            -- находится ли отчёт в открытом доступе
 
     name             text NULL,              -- название отчёта
     organization     text NULL,              -- организация, проводившая экспертизу
@@ -99,7 +102,8 @@ CREATE TABLE scientific_reports
     conclusion       text NULL, 			 -- заключение экспертизы
     source           json NULL,              -- путь к файлам отчёта на сервере
     content          json NULL,              -- содержание отчёта
-    supplement       json NULL               -- приложение к отчёту (иллюстрации)
+    supplement       json NULL,               -- приложение к отчёту (иллюстрации)
+    coordinates      json NULL               -- координаты точек фотофиксации, шурфов, каталога и выписок из ЕГРН
 );
 
 -- Научно-технические отчёты
@@ -111,6 +115,7 @@ CREATE TABLE tech_reports
     date_uploaded          TIMESTAMP WITH TIME ZONE NULL,   -- дата загрузки отчёта на сервер
     upload_source          json NULL,                       -- источник загрузки
     is_processing          BOOLEAN DEFAULT TRUE,            -- находится ли отчёт в процессе обработки
+    is_public              BOOLEAN DEFAULT TRUE,            -- находится ли отчёт в открытом доступе
 
     name             text NULL,              -- название отчёта
     organization     text NULL,              -- организация, проводившая экспертизу
@@ -126,7 +131,8 @@ CREATE TABLE tech_reports
     conclusion       text NULL, 			 -- заключение экспертизы
     source           json NULL,              -- путь к файлам отчёта на сервере
     content          json NULL,              -- содержание отчёта
-    supplement       json NULL               -- приложение к отчёту (иллюстрации)
+    supplement       json NULL,               -- приложение к отчёту (иллюстрации)
+    coordinates      json NULL               -- координаты точек фотофиксации, шурфов, каталога и выписок из ЕГРН
 );
 
 -- Открытые листы
@@ -139,6 +145,7 @@ CREATE TABLE open_lists
     date_uploaded          TIMESTAMP WITH TIME ZONE NULL,   -- дата загрузки отчёта на сервер
     upload_source          json NULL,                       -- источник загрузки
     is_processing          BOOLEAN DEFAULT TRUE,            -- находится ли отчёт в процессе обработки
+    is_public              BOOLEAN DEFAULT TRUE,            -- находится ли отчёт в открытом доступе
 
     number     text NULL,              -- номер открытого листа
     holder     text NULL,              -- держатель открытого листа

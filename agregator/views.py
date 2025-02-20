@@ -1,3 +1,4 @@
+import simplekml
 from django.shortcuts import render, redirect
 from .forms import UploadReportsForm, UploadOpenListsForm
 from .acts_processing import process_acts, error_handler_acts
@@ -540,6 +541,62 @@ def tech_reports_register(request):
 def users(request, pk):
     user = User.objects.get(id=pk)
     return render(request, 'profile.html', {'user_to_show': user})
+
+
+def map(request, report_type, pk):
+    report = None
+    if report_type == 'act':
+        report = Act.objects.get(id=pk)
+    elif report_type == 'scientific_report':
+        report = ScientificReport.objects.get(id=pk)
+    elif report_type == 'tech_report':
+        report = TechReport.objects.get(id=pk)
+    coordinates = report.coordinates if report else {}
+    return render(request, 'interactive_map.html', {'coordinates': coordinates, 'report_type': report_type, 'pk': pk})
+
+
+def download_coordinates(request, report_type, pk):
+    report = None
+    if report_type == 'act':
+        report = Act.objects.get(id=pk)
+    elif report_type == 'scientific_report':
+        report = ScientificReport.objects.get(id=pk)
+    elif report_type == 'tech_report':
+        report = TechReport.objects.get(id=pk)
+    coordinates = report.coordinates if report else {}
+
+    if coordinates:
+        kml = simplekml.Kml()
+        catalog_style = simplekml.Style()
+        catalog_style.iconstyle.color = simplekml.Color.blue
+        photos_style = simplekml.Style()
+        photos_style.iconstyle.color = simplekml.Color.green
+        pits_style = simplekml.Style()
+        pits_style.iconstyle.color = simplekml.Color.red
+        current_style = current_group = None
+        for group, point in coordinates.items():
+            system_check = 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
+            if 'фотофиксации' in group:
+                current_style = photos_style
+                photos_group = kml.newfolder(name=group)
+                current_group = photos_group
+            elif 'Каталог' in group:
+                current_style = catalog_style
+                catalog_group = kml.newfolder(name=group)
+                current_group = catalog_group
+            elif 'Шурфы' in group:
+                current_style = pits_style
+                pits_group = kml.newfolder(name=group)
+                current_group = pits_group
+            for point_name, coords in point.items():
+                if current_group and system_check:
+                    photo_point = current_group.newpoint(name=str(point_name),
+                                                         coords=[(coords[1], coords[0])])  # TODO: менять их или нет?!
+                    photo_point.style = current_style
+
+    file_path = f'uploaded_files/{report_type}s/{pk}_{report_type}/{pk}_{report_type}/coordinates.kml'
+    kml.save(file_path)
+    return redirect('/' + file_path)
 
 
 def acts(request, pk):

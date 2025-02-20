@@ -25,6 +25,14 @@
             <br>
             <br>
         {% endfor %}
+        {% if report.coordinates %}
+            <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
+               href="/map/scientific_report/{{ report.id }}">
+                Просмотр координат
+            </a>
+            <br>
+            <br>
+        {% endif %}
         {% if report.user.id == user.id or user.is_superuser %}
             <a href="/scientific_reports_edit/{{ report.id }}">
                 <button type="button" class="btn btn-primary"

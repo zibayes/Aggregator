@@ -99,6 +99,7 @@ class Act(models.Model):
     date_uploaded = models.DateTimeField(auto_now_add=True)
     upload_source = models.JSONField(null=True, blank=True)
     is_processing = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=True)
 
     year = models.TextField()
     finish_date = models.TextField()
@@ -128,6 +129,7 @@ class Act(models.Model):
     literature = models.TextField()
     exp_conclusion = models.TextField()
     supplement = models.JSONField(null=True, blank=True)
+    coordinates = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Act {self.id} by {self.user.username}"
@@ -139,6 +141,7 @@ class Act(models.Model):
         self.upload_source = to_json(self.upload_source)
         self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
+        self.coordinates = to_json(self.coordinates)
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -154,6 +157,7 @@ class ScientificReport(models.Model):
     date_uploaded = models.DateTimeField(auto_now_add=True)
     upload_source = models.JSONField(null=True, blank=True)
     is_processing = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=True)
 
     name = models.TextField()
     organization = models.TextField()
@@ -170,6 +174,7 @@ class ScientificReport(models.Model):
     source = models.JSONField(null=True, blank=True)
     content = models.JSONField(null=True, blank=True)
     supplement = models.JSONField(null=True, blank=True)
+    coordinates = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Scientific Report {self.id} by {self.user.username}"
@@ -182,6 +187,7 @@ class ScientificReport(models.Model):
         self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
         self.content = to_json(self.content)
+        self.coordinates = to_json(self.coordinates)
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -197,6 +203,7 @@ class TechReport(models.Model):
     date_uploaded = models.DateTimeField(auto_now_add=True)
     upload_source = models.JSONField(null=True, blank=True)
     is_processing = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=True)
 
     name = models.TextField()
     organization = models.TextField()
@@ -213,6 +220,7 @@ class TechReport(models.Model):
     source = models.JSONField(null=True, blank=True)
     content = models.JSONField(null=True, blank=True)
     supplement = models.JSONField(null=True, blank=True)
+    coordinates = models.JSONField(null=True, blank=True)
 
     def __str__(self):
         return f"Tech Report {self.id} by {self.user.username}"
@@ -225,6 +233,7 @@ class TechReport(models.Model):
         self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
         self.content = to_json(self.content)
+        self.coordinates = to_json(self.coordinates)
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -241,6 +250,7 @@ class OpenLists(models.Model):
     date_uploaded = models.DateTimeField(auto_now_add=True)
     upload_source = models.JSONField(null=True, blank=True)
     is_processing = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=True)
 
     number = models.TextField()
     holder = models.TextField()

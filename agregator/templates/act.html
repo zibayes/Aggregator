@@ -24,7 +24,16 @@
             </a>
             <br>
             <br>
+
         {% endfor %}
+        {% if act.coordinates %}
+            <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
+               href="/map/act/{{ act.id }}">
+                Просмотр координат
+            </a>
+            <br>
+            <br>
+        {% endif %}
         {% if act.user.id == user.id or user.is_superuser %}
             <a href="/acts_edit/{{ act.id }}">
                 <button type="button" class="btn btn-primary"

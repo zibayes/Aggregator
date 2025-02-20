@@ -3,37 +3,201 @@
 {% block title %}Демонстратор{% endblock %}
 
 {% block content %}
-<!-- Подключение CSS Leaflet -->
-<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-<style>
-    #map {
-        height: 500px; /* Высота карты */
-        width: 100%; /* Ширина карты */
-    }
-</style>
+    <!-- Подключение CSS Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <style>
+        #map {
+            height: 720px;
+            width: 100%;
+        }
 
-<br>
-<h2 align="center">Интерактивная Карта</h2>
+        .legend {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            width: 230px;
+        }
 
-<!-- Секция карты -->
-<div class="container mt-5">
-    <div id="map"></div>
-</div>
+        .legend i {
+            width: 15px;
+            height: 15px;
+            display: inline-block;
+            margin-right: 5px;
+        }
+    </style>
 
-<!-- Подключение JS Leaflet -->
-<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-<script>
-    // Инициализация карты
-    var map = L.map('map').setView([55.7558, 37.6173], 10); // Москва
+    <br>
+    <h2 align="center">Интерактивная Карта</h2>
 
-    // Добавление слоя с OpenStreetMap
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-    }).addTo(map);
+    <div class="container mt-1">
+        <div class="controls" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+            <a href="/map/{{ report_type }}/{{ pk }}/download/">
+                Скачать координаты в формате .kml
+            </a>
+            <label style="display: flex; align-items: center;">
+                <input type="checkbox" id="toggleLegend" style="margin-right: 3px;" checked> Легенда
+            </label>
+        </div>
+    </div>
 
-    // Добавление маркера
-    var marker = L.marker([55.7558, 37.6173]).addTo(map);
-    marker.bindPopup("<b>Москва</b><br>Столица России").openPopup();
-</script>
+    <!-- Секция карты -->
+    <div class="container mt-2">
+        <div id="map"></div>
+    </div>
+    <!-- Подключение JS Leaflet -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Инициализация карты
+        var map = L.map('map').setView([55.7558, 37.6173], 8);
+
+        // Добавление слоя с OpenStreetMap
+        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+            maxZoom: 18,
+        }).addTo(map);
+
+        var legend = L.control({position: 'topright'});
+
+        legend.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'info legend');
+            {% if coordinates %}
+                div.innerHTML += '<h4>Легенда</h4>';
+                {% if 'Шурфы' in coordinates.keys %}
+                    div.innerHTML += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleShurfs" style="margin-right: 3px;" checked><i style="background: red;"></i> Шурфы<br></label>';
+                {% endif %}
+                {% if 'Каталог' in coordinates.keys|join:", " %}
+                    div.innerHTML += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleCatalog" style="margin-right: 3px;" checked><i style="background: blue;"></i> Каталог координат участка<br></label>';
+                {% endif %}
+                {% if 'фото' in coordinates.keys|join:", " %}
+                    div.innerHTML += '<label style="display: flex; align-items: center;"><input type="checkbox" id="togglePhotoPoints" style="margin-right: 3px;" checked><i style="background: green;"></i> Пункты фотофиксации<br></label>';
+                {% endif %}
+                div.innerHTML += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleTooltips" style="margin-right: 3px;" checked> Названия точек</label>';
+            {% endif %}
+            return div;
+        };
+
+        legend.addTo(map);
+
+        var catalog_icons = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+        var pits_icons = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+        var photos_icons = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
+        var current_icon;
+        var markers = [];
+        var bounds = L.latLngBounds();
+
+        {% if coordinates %}
+            {% for group, point in coordinates.items %}
+                {% if 'Каталог' in group %}
+                    current_icon = catalog_icons;
+                {% elif 'Шурфы' in group %}
+                    current_icon = pits_icons;
+                {% elif 'фото' in group %}
+                    current_icon = photos_icons;
+                {% endif %}
+                {% if 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group %}
+                    {% for point_name, coords in point.items %}
+                        var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
+                            color: 'red',
+                            icon: current_icon,
+                        }).addTo(map)
+                            .bindPopup("<b>" + `{{ point_name }}` + "</b><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
+                            .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
+                                permanent: true,
+                                direction: 'bottom'
+                            });
+                        markers.push({marker: marker, group: `{{ group }}`});
+                        bounds.extend(marker.getLatLng());
+                    {% endfor %}
+                {% endif %}
+            {% endfor %}
+            map.fitBounds(bounds);
+        {% else %}
+            var marker = L.marker([55.7558, 37.6173]).addTo(map);
+            marker.bindPopup("<b>Москва</b><br>Столица России").openPopup();
+        {% endif %}
+
+        var element = document.querySelector('.leaflet-bottom.leaflet-right');
+        if (element) {
+            element.remove();
+        }
+
+        document.getElementById('toggleTooltips').addEventListener('change', function () {
+            markers.forEach(function (item) {
+                if (this.checked) {
+                    const popupContent = item.marker.getPopup().getContent();
+                    const boldTextMatch = popupContent.match(/<b>(.*?)<\/b>/);
+                    const pointName = boldTextMatch ? boldTextMatch[1] : 'Имя не найдено';
+                    item.marker.bindTooltip("<b>" + pointName + "</b>", {
+                        permanent: true,
+                        direction: 'bottom'
+                    }).openTooltip();
+                } else {
+                    item.marker.unbindTooltip();
+                }
+            }, this);
+        });
+
+        document.getElementById('toggleLegend').addEventListener('change', function () {
+            if (this.checked) {
+                legend.getContainer().style.display = 'block';
+            } else {
+                legend.getContainer().style.display = 'none';
+            }
+        });
+
+        document.getElementById('toggleShurfs').addEventListener('change', function () {
+            markers.forEach(function (item) {
+                if (item.group.includes('Шурф') && this.checked) {
+                    item.marker.addTo(map);
+                } else if (item.group.includes('Шурф') && !this.checked) {
+                    map.removeLayer(item.marker);
+                }
+            }, this);
+        });
+
+        document.getElementById('toggleCatalog').addEventListener('change', function () {
+            markers.forEach(function (item) {
+                if (item.group.includes('Каталог координат участка') && this.checked) {
+                    item.marker.addTo(map);
+                } else if (item.group.includes('Каталог координат участка') && !this.checked) {
+                    map.removeLayer(item.marker);
+                }
+            }, this);
+        });
+
+        document.getElementById('togglePhotoPoints').addEventListener('change', function () {
+            markers.forEach(function (item) {
+                if (item.group.includes('Пункты фотофиксации') && this.checked) {
+                    item.marker.addTo(map);
+                } else if (item.group.includes('Пункты фотофиксации') && !this.checked) {
+                    map.removeLayer(item.marker);
+                }
+            }, this);
+        });
+    </script>
 {% endblock %}

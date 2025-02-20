@@ -19,6 +19,7 @@ from .models import TechReport, User
 from .hash import calculate_file_hash
 import os
 from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
+from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
 from .files_saving import delete_files_in_directory, load_raw_reports
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -79,6 +80,10 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
         supplement_content = json.loads(current_report.supplement)
     else:
         supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
+    if current_report.coordinates:
+        coordinates = json.loads(current_report.coordinates)
+    else:
+        coordinates = copy.deepcopy(COORDINATES_SAMPLE)
     reports = TechReport.objects.all()
     for report in reports:
         for source in report.source:
@@ -378,6 +383,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                                          supplement_content, extracted_images, user_id,
                                          progress_json['file_groups'][str(report_id)][source_index]['origin_filename'],
                                          current_report.upload_source)
+            extract_coordinates(file, document, page_number, folder, coordinates)
         total_processed[0] += len(document)
     document.close()
 
@@ -401,6 +407,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
         current_report.content = report_parts_info
     if progress_json['file_groups'][str(report_id)][source_index]['type'] in ('images', 'all'):
         current_report.supplement = supplement_content
+    current_report.coordinates = coordinates
     current_report.is_processing = False
     current_report.save()
 

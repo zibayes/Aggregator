@@ -19,6 +19,7 @@ from celery_progress.backend import ProgressRecorder
 from .models import Act, User
 from .hash import calculate_file_hash
 from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
+from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
 import redis
 from .files_saving import delete_files_in_directory, load_raw_reports
 
@@ -131,6 +132,7 @@ def process_acts(self, acts_ids, user_id):
 def extract_text_and_images(file, progress_recorder, pages_count, total_processed,
                             progress_json, act_id, source_index, task_id, user_id):
     supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
+    coordinates = copy.deepcopy(COORDINATES_SAMPLE)
     pdf_file = file  # pdf_file = 'uploaded_files/' + file
 
     current_act = Act.objects.get(id=act_id)
@@ -714,6 +716,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                                          supplement_content, extracted_images, user_id,
                                          progress_json['file_groups'][str(act_id)][source_index]['origin_filename'],
                                          current_act.upload_source)
+            extract_coordinates(file, document, page_number, folder, coordinates)
         total_processed[0] += len(document)
 
     if ('Площадь, протяжённость и/или др. параменты объекта' not in table_info.keys() or \
@@ -755,6 +758,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         current_act.exp_conclusion = act_parts_info['Вывод экспертизы']
     if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('images', 'all'):
         current_act.supplement = supplement_content
+    current_act.coordinates = coordinates
     current_act.is_processing = False
     current_act.save()
 
