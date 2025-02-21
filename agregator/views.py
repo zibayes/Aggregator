@@ -160,7 +160,91 @@ def constructor(request):
 
 
 def interactive_map(request):
-    return render(request, 'interactive_map.html')
+    acts = Act.objects.filter(is_processing=False)
+    scientific_reports = ScientificReport.objects.filter(is_processing=False)
+    tech_report = TechReport.objects.filter(is_processing=False)
+    all_coordinates = {'Акты': {}, 'Научные отчёты': {}, 'Научно-технические отчёты': {}}
+    for act in acts:
+        all_coordinates['Акты'][
+            act.source[0]['origin_filename']] = act.coordinates  # TODO: Подобрать более удачный нейминг?
+    for report in scientific_reports:
+        all_coordinates['Научные отчёты'][report.source[0]['origin_filename']] = report.coordinates
+    for report in tech_report:
+        all_coordinates['Научно-технические отчёты'][report.source[0]['origin_filename']] = report.coordinates
+    return render(request, 'interactive_map.html', {'all_coordinates': all_coordinates})
+
+
+def download_all_coordinates(request):
+    if request.method == 'POST':
+        acts = Act.objects.filter(is_processing=False)
+        scientific_reports = ScientificReport.objects.filter(is_processing=False)
+        tech_report = TechReport.objects.filter(is_processing=False)
+        all_coordinates = {'Акты': {}, 'Научные отчёты': {}, 'Научно-технические отчёты': {}}
+        coordinates_to_download = {}
+
+        for act in acts:
+            all_coordinates['Акты'][
+                act.source[0]['origin_filename']] = act.coordinates  # TODO: Подобрать более удачный нейминг?
+        for report in scientific_reports:
+            all_coordinates['Научные отчёты'][report.source[0]['origin_filename']] = report.coordinates
+        for report in tech_report:
+            all_coordinates['Научно-технические отчёты'][report.source[0]['origin_filename']] = report.coordinates
+
+        for report_type, reports in all_coordinates.items():
+            for report, groups in reports.items():
+                for group, point in groups.items():
+                    for point_name, coords in point.items():
+                        for key in request.POST.keys():
+                            if f'{report_type}-{report}-{group}-{point_name}' == key:
+                                if report_type not in coordinates_to_download.keys():
+                                    coordinates_to_download[report_type] = {}
+                                if report not in coordinates_to_download[report_type].keys():
+                                    coordinates_to_download[report_type][report] = {}
+                                if group not in coordinates_to_download[report_type][report].keys():
+                                    coordinates_to_download[report_type][report][group] = {}
+                                coordinates_to_download[report_type][report][group][point_name] = coords
+
+        if coordinates_to_download:
+            kml = simplekml.Kml()
+            catalog_style = simplekml.Style()
+            catalog_style.iconstyle.color = simplekml.Color.blue
+            photos_style = simplekml.Style()
+            photos_style.iconstyle.color = simplekml.Color.green
+            pits_style = simplekml.Style()
+            pits_style.iconstyle.color = simplekml.Color.red
+            current_style = current_group = None
+            for report_type, reports in coordinates_to_download.items():
+                report_type_folder = kml.newfolder(name=report_type)
+                for report, groups in reports.items():
+                    report_folder = report_type_folder.newfolder(name=report)
+                    for group, point in groups.items():
+                        system_check = 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
+                        if 'фотофиксации' in group:
+                            current_style = photos_style
+                            photos_group = report_folder.newfolder(name=group)
+                            current_group = photos_group
+                        elif 'Каталог' in group:
+                            current_style = catalog_style
+                            catalog_group = report_folder.newfolder(name=group)
+                            current_group = catalog_group
+                        elif 'Шурфы' in group:
+                            current_style = pits_style
+                            pits_group = report_folder.newfolder(name=group)
+                            current_group = pits_group
+                        for point_name, coords in point.items():
+                            if current_group and system_check:
+                                photo_point = current_group.newpoint(name=str(point_name),
+                                                                     coords=[
+                                                                         (coords[1],
+                                                                          coords[
+                                                                              0])])  # TODO: менять их местами или нет?!
+                                photo_point.style = current_style
+
+            file_path = f'uploaded_files/{request.user.id}-all_coordinates.kml'
+            kml.save(file_path)
+            return redirect('/' + file_path)
+        return JsonResponse({'response': f'There is no selected coordinates'})
+    return JsonResponse({'response': f'Method {request.method} is not available for this URL'})
 
 
 def acts_register(request):
@@ -556,47 +640,60 @@ def map(request, report_type, pk):
 
 
 def download_coordinates(request, report_type, pk):
-    report = None
-    if report_type == 'act':
-        report = Act.objects.get(id=pk)
-    elif report_type == 'scientific_report':
-        report = ScientificReport.objects.get(id=pk)
-    elif report_type == 'tech_report':
-        report = TechReport.objects.get(id=pk)
-    coordinates = report.coordinates if report else {}
+    if request.method == 'POST':
+        report = None
+        if report_type == 'act':
+            report = Act.objects.get(id=pk)
+        elif report_type == 'scientific_report':
+            report = ScientificReport.objects.get(id=pk)
+        elif report_type == 'tech_report':
+            report = TechReport.objects.get(id=pk)
+        coordinates = report.coordinates if report else {}
+        coordinates_to_download = {}
 
-    if coordinates:
-        kml = simplekml.Kml()
-        catalog_style = simplekml.Style()
-        catalog_style.iconstyle.color = simplekml.Color.blue
-        photos_style = simplekml.Style()
-        photos_style.iconstyle.color = simplekml.Color.green
-        pits_style = simplekml.Style()
-        pits_style.iconstyle.color = simplekml.Color.red
-        current_style = current_group = None
         for group, point in coordinates.items():
-            system_check = 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
-            if 'фотофиксации' in group:
-                current_style = photos_style
-                photos_group = kml.newfolder(name=group)
-                current_group = photos_group
-            elif 'Каталог' in group:
-                current_style = catalog_style
-                catalog_group = kml.newfolder(name=group)
-                current_group = catalog_group
-            elif 'Шурфы' in group:
-                current_style = pits_style
-                pits_group = kml.newfolder(name=group)
-                current_group = pits_group
             for point_name, coords in point.items():
-                if current_group and system_check:
-                    photo_point = current_group.newpoint(name=str(point_name),
-                                                         coords=[(coords[1], coords[0])])  # TODO: менять их или нет?!
-                    photo_point.style = current_style
+                if f'{group}-{point_name}' in request.POST.keys():
+                    if group not in coordinates_to_download.keys():
+                        coordinates_to_download[group] = {}
+                    coordinates_to_download[group][point_name] = coords
 
-    file_path = f'uploaded_files/{report_type}s/{pk}_{report_type}/{pk}_{report_type}/coordinates.kml'
-    kml.save(file_path)
-    return redirect('/' + file_path)
+        if coordinates_to_download:
+            kml = simplekml.Kml()
+            catalog_style = simplekml.Style()
+            catalog_style.iconstyle.color = simplekml.Color.blue
+            photos_style = simplekml.Style()
+            photos_style.iconstyle.color = simplekml.Color.green
+            pits_style = simplekml.Style()
+            pits_style.iconstyle.color = simplekml.Color.red
+            current_style = current_group = None
+            for group, point in coordinates_to_download.items():
+                system_check = 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
+                if 'фотофиксации' in group:
+                    current_style = photos_style
+                    photos_group = kml.newfolder(name=group)
+                    current_group = photos_group
+                elif 'Каталог' in group:
+                    current_style = catalog_style
+                    catalog_group = kml.newfolder(name=group)
+                    current_group = catalog_group
+                elif 'Шурфы' in group:
+                    current_style = pits_style
+                    pits_group = kml.newfolder(name=group)
+                    current_group = pits_group
+                for point_name, coords in point.items():
+                    if current_group and system_check:
+                        photo_point = current_group.newpoint(name=str(point_name),
+                                                             coords=[
+                                                                 (coords[1],
+                                                                  coords[0])])  # TODO: менять их местами или нет?!
+                        photo_point.style = current_style
+
+            file_path = f'uploaded_files/{report_type}s/{pk}_{report_type}/{pk}_{report_type}/coordinates.kml'
+            kml.save(file_path)
+            return redirect('/' + file_path)
+        return JsonResponse({'response': f'There is no selected coordinates'})
+    return JsonResponse({'response': f'Method {request.method} is not available for this URL'})
 
 
 def acts(request, pk):

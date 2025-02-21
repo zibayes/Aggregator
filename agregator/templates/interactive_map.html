@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}Демонстратор{% endblock %}
+{% block title %}Интерактивная карта{% endblock %}
 
 {% block content %}
     <!-- Подключение CSS Leaflet -->
@@ -20,7 +20,13 @@
             top: 10px;
             right: 10px;
             z-index: 1000;
-            width: 230px;
+        {% if all_coordinates %}
+            width: 420px;
+        {% else %}
+            width: 270px;
+        {% endif %}
+            max-height: 650px;
+            overflow-y: auto;
         }
 
         .legend i {
@@ -29,6 +35,34 @@
             display: inline-block;
             margin-right: 5px;
         }
+
+        .link-button {
+            background: none; /* Убираем фон */
+            border: none; /* Убираем границу */
+            color: blue; /* Цвет текста, как у гиперссылки */
+            text-decoration: underline; /* Подчеркивание текста */
+            cursor: pointer; /* Указатель при наведении */
+            padding: 0; /* Убираем отступы */
+            font: inherit; /* Унаследовать шрифт от родителя */
+        }
+
+        .link-button:hover {
+            color: darkblue; /* Цвет текста при наведении */
+        }
+
+        .btn-alt {
+            background-color: #28a745; /* Задайте свой цвет фона */
+            color: white; /* Цвет текста */
+            border: 2px solid #28a745; /* Граница */
+            border-radius: 5px; /* Скругление углов */
+            padding: 5px 12px; /* Отступы */
+            transition: background-color 0.3s, border-color 0.3s; /* Плавный переход */
+        }
+
+        .btn-alt:hover {
+            background-color: #218838; /* Цвет фона при наведении */
+            border-color: #218838; /* Цвет границы при наведении */
+        }
     </style>
 
     <br>
@@ -36,9 +70,10 @@
 
     <div class="container mt-1">
         <div class="controls" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <a href="/map/{{ report_type }}/{{ pk }}/download/">
+            <button class="link-button" type="button" data-mdb-target="#download"
+                    data-mdb-toggle="modal">
                 Скачать координаты в формате .kml
-            </a>
+            </button>
             <label style="display: flex; align-items: center;">
                 <input type="checkbox" id="toggleLegend" style="margin-right: 3px;" checked> Легенда
             </label>
@@ -49,6 +84,7 @@
     <div class="container mt-2">
         <div id="map"></div>
     </div>
+
     <!-- Подключение JS Leaflet -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
@@ -64,23 +100,64 @@
 
         legend.onAdd = function (map) {
             var div = L.DomUtil.create('div', 'info legend');
+            var content = "";
             {% if coordinates %}
-                div.innerHTML += '<h4>Легенда</h4>';
+                content += '<h4>Легенда</h4>';
                 {% if 'Шурфы' in coordinates.keys %}
-                    div.innerHTML += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleShurfs" style="margin-right: 3px;" checked><i style="background: red;"></i> Шурфы<br></label>';
+                    content += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleShurfs" style="margin-right: 3px;" checked><i style="background: red;"></i> Шурфы<br></label>';
                 {% endif %}
                 {% if 'Каталог' in coordinates.keys|join:", " %}
-                    div.innerHTML += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleCatalog" style="margin-right: 3px;" checked><i style="background: blue;"></i> Каталог координат участка<br></label>';
+                    content += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleCatalog" style="margin-right: 3px;" checked><i style="background: blue;"></i> Каталог координат участка<br></label>';
                 {% endif %}
                 {% if 'фото' in coordinates.keys|join:", " %}
-                    div.innerHTML += '<label style="display: flex; align-items: center;"><input type="checkbox" id="togglePhotoPoints" style="margin-right: 3px;" checked><i style="background: green;"></i> Пункты фотофиксации<br></label>';
+                    content += '<label style="display: flex; align-items: center;"><input type="checkbox" id="togglePhotoPoints" style="margin-right: 3px;" checked><i style="background: green;"></i> Пункты фотофиксации<br></label>';
                 {% endif %}
-                div.innerHTML += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleTooltips" style="margin-right: 3px;" checked> Названия точек</label>';
+                content += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleTooltips" style="margin-right: 3px;" checked> Названия точек</label>';
+            {% elif all_coordinates %}
+                content += '<h4>Легенда</h4>';
+                {% for report_type, reports in all_coordinates.items %}
+                    content += '<div><span id="report-{{ report_type }}_toggle" class="toggle-icon" onclick="toggleContent(\'report-{{ report_type }}\')">+</span><input type="checkbox" id="toggleMarkerGroup-{{ report_type }}" style="margin-right: 3px;" checked onchange="syncCheckboxes(\'{{ report_type }}\')"> {{ report_type }}</div>';
+                    content += '<div id="report-{{ report_type }}_content" style="margin-left: 20px; display: none;">';
+
+                    {% for report_name, coordinates in reports.items %}
+                        content += '<div style="margin-left: 20px;"><span id="report-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'report-{{ report_name }}\')">+</span><input type="checkbox" id="toggleMarkerGroup-{{ report_name }}" class="{{ report_type }}_point" style="margin-right: 3px;" checked> {{ report_name }}<button class="center-button" title="Центрировать карту на этом отчете" style="margin-left: 5px; cursor: pointer;" onclick="centerMap(\'{{ report_name }}\')">➔</button></div>';
+                        content += '<div id="report-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
+
+                        {% if 'Шурфы' in coordinates.keys %}
+                            content += '<div style="margin-left: 40px;"><span id="shurfs-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'shurfs-{{ report_name }}\')">+</span><input type="checkbox" id="toggleShurfs-{{ report_name }}" class="{{ report_type }}_point" style="margin-right: 3px;" checked><i style="background: red;"></i> Шурфы</div>';
+                            content += '<div id="shurfs-{{ report_name }}_content" style="margin-left: 20px; display: none;"></div>';
+                        {% endif %}
+                        {% if 'Каталог' in coordinates.keys|join:", " %}
+                            content += '<div style="margin-left: 40px;"><span id="catalog-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'catalog-{{ report_name }}\')">+</span><input type="checkbox" id="toggleCatalog-{{ report_name }}" class="{{ report_type }}_point" style="margin-right: 3px;" checked><i style="background: blue;"></i> Каталог координат участка</div>';
+                            content += '<div id="catalog-{{ report_name }}_content" style="margin-left: 20px; display: none;"></div>';
+                        {% endif %}
+                        {% if 'фото' in coordinates.keys|join:", " %}
+                            content += '<div style="margin-left: 40px;"><span class="toggle-icon" onclick="toggleContent(\'photos-{{ report_name }}\')">+</span><input type="checkbox" id="togglePhotoPoints-{{ report_name }}" class="{{ report_type }}_point" style="margin-right: 3px;" checked><i style="background: green;"></i> Пункты фотофиксации</div>';
+                            content += '<div id="photos-{{ report_name }}_content" style="margin-left: 20px; display: none;"></div>';
+                        {% endif %}
+                        content += '</div>'; // Закрываем вложенный контент для report_name
+                    {% endfor %}
+                    content += '</div>'; // Закрываем вложенный контент для report_type
+                {% endfor %}
+                content += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleTooltips" style="margin-right: 3px;" checked> Названия точек</label>';
             {% endif %}
+            div.innerHTML = content;
             return div;
         };
 
         legend.addTo(map);
+
+        function centerMap(reportName) {
+            const coords = all_markers[reportName];
+            if (coords) {
+                let bounds = L.latLngBounds();
+                Object.keys(coords).forEach(function (point) {
+                    const marker = coords[point].marker;
+                    bounds.extend(marker.getLatLng());
+                });
+                map.fitBounds(bounds);
+            }
+        }
 
         var catalog_icons = new L.Icon({
             iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x.png',
@@ -108,6 +185,7 @@
         });
         var current_icon;
         var markers = [];
+        var all_markers = {};
         var bounds = L.latLngBounds();
 
         {% if coordinates %}
@@ -135,6 +213,131 @@
                     {% endfor %}
                 {% endif %}
             {% endfor %}
+
+            {% if 'Шурфы' in coordinates.keys %}
+                document.getElementById('toggleShurfs').addEventListener('change', function () {
+                    markers.forEach(function (item) {
+                        if (item.group.includes('Шурф') && this.checked) {
+                            item.marker.addTo(map);
+                        } else if (item.group.includes('Шурф') && !this.checked) {
+                            map.removeLayer(item.marker);
+                        }
+                    }, this);
+                });
+            {% endif %}
+
+            {% if 'Каталог' in coordinates.keys|join:", " %}
+                document.getElementById('toggleCatalog').addEventListener('change', function () {
+                    markers.forEach(function (item) {
+                        if (item.group.includes('Каталог координат участка') && this.checked) {
+                            item.marker.addTo(map);
+                        } else if (item.group.includes('Каталог координат участка') && !this.checked) {
+                            map.removeLayer(item.marker);
+                        }
+                    }, this);
+                });
+            {% endif %}
+
+            {% if 'фото' in coordinates.keys|join:", " %}
+                document.getElementById('togglePhotoPoints').addEventListener('change', function () {
+                    markers.forEach(function (item) {
+                        if (item.group.includes('Пункты фотофиксации') && this.checked) {
+                            item.marker.addTo(map);
+                        } else if (item.group.includes('Пункты фотофиксации') && !this.checked) {
+                            map.removeLayer(item.marker);
+                        }
+                    }, this);
+                });
+            {% endif %}
+
+            map.fitBounds(bounds);
+        {% elif all_coordinates %}
+            {% for report_type, reports in all_coordinates.items %}
+                {% for report_name, coordinates in reports.items %}
+                    all_markers[`{{ report_name }}`] = []
+                    {% for group, point in coordinates.items %}
+                        {% if 'Каталог' in group %}
+                            current_icon = catalog_icons;
+                        {% elif 'Шурфы' in group %}
+                            current_icon = pits_icons;
+                        {% elif 'фото' in group %}
+                            current_icon = photos_icons;
+                        {% endif %}
+                        {% if 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group %}
+                            {% for point_name, coords in point.items %}
+                                var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
+                                    color: 'red',
+                                    icon: current_icon,
+                                }).addTo(map)
+                                    .bindPopup("<b>" + `{{ point_name }}` + "</b><br><br>" + `<i>[{{ report_type }}]</i>` + "<br>" + `<i>{{ report_name }}</i>` + "<br><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
+                                    .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
+                                        permanent: true,
+                                        direction: 'bottom'
+                                    });
+                                all_markers[`{{ report_name }}`].push({marker: marker, group: `{{ group }}`});
+                                bounds.extend(marker.getLatLng());
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+
+                    document.getElementById('toggleMarkerGroup-{{ report_name }}').addEventListener('change', function () {
+                        const changeEvent = new Event('change');
+                        let groupCheckbox;
+                        {% if 'Шурфы' in coordinates.keys %}
+                            groupCheckbox = document.getElementById(`toggleShurfs-{{ report_name }}`);
+                            groupCheckbox.checked = this.checked;
+                            groupCheckbox.dispatchEvent(changeEvent);
+                        {% endif %}
+                        {% if 'Каталог' in coordinates.keys|join:", " %}
+                            groupCheckbox = document.getElementById(`toggleCatalog-{{ report_name }}`);
+                            groupCheckbox.checked = this.checked;
+                            groupCheckbox.dispatchEvent(changeEvent);
+                        {% endif %}
+                        {% if 'фото' in coordinates.keys|join:", " %}
+                            groupCheckbox = document.getElementById(`togglePhotoPoints-{{ report_name }}`);
+                            groupCheckbox.checked = this.checked;
+                            groupCheckbox.dispatchEvent(changeEvent);
+                        {% endif %}
+                    });
+
+                    {% if 'Шурфы' in coordinates.keys %}
+                        document.getElementById('toggleShurfs-{{ report_name }}').addEventListener('change', function () {
+                            all_markers[`{{ report_name }}`].forEach(function (item) {
+                                if (item.group.includes('Шурф') && this.checked) {
+                                    item.marker.addTo(map);
+                                } else if (item.group.includes('Шурф') && !this.checked) {
+                                    map.removeLayer(item.marker);
+                                }
+                            }, this);
+                        });
+                    {% endif %}
+
+                    {% if 'Каталог' in coordinates.keys|join:", " %}
+                        document.getElementById('toggleCatalog-{{ report_name }}').addEventListener('change', function () {
+                            all_markers[`{{ report_name }}`].forEach(function (item) {
+                                if (item.group.includes('Каталог координат участка') && this.checked) {
+                                    item.marker.addTo(map);
+                                } else if (item.group.includes('Каталог координат участка') && !this.checked) {
+                                    map.removeLayer(item.marker);
+                                }
+                            }, this);
+                        });
+                    {% endif %}
+
+                    {% if 'фото' in coordinates.keys|join:", " %}
+                        document.getElementById('togglePhotoPoints-{{ report_name }}').addEventListener('change', function () {
+                            all_markers[`{{ report_name }}`].forEach(function (item) {
+                                if (item.group.includes('Пункты фотофиксации') && this.checked) {
+                                    item.marker.addTo(map);
+                                } else if (item.group.includes('Пункты фотофиксации') && !this.checked) {
+                                    map.removeLayer(item.marker);
+                                }
+                            }, this);
+                        });
+                    {% endif %}
+
+                {% endfor %}
+            {% endfor %}
             map.fitBounds(bounds);
         {% else %}
             var marker = L.marker([55.7558, 37.6173]).addTo(map);
@@ -160,6 +363,25 @@
                     item.marker.unbindTooltip();
                 }
             }, this);
+
+            Object.keys(all_markers).forEach(function (reportName) {
+                const detached_marker = all_markers[reportName];
+                detached_marker.forEach(function (marker) {
+                    if (marker) {
+                        if (this.checked) {
+                            const popupContent = marker.marker.getPopup().getContent();
+                            const boldTextMatch = popupContent.match(/<b>(.*?)<\/b>/);
+                            const pointName = boldTextMatch ? boldTextMatch[1] : 'Имя не найдено';
+                            marker.marker.bindTooltip("<b>" + pointName + "</b>", {
+                                permanent: true,
+                                direction: 'bottom'
+                            }).openTooltip();
+                        } else {
+                            marker.marker.unbindTooltip();
+                        }
+                    }
+                }, this);
+            }, this);
         });
 
         document.getElementById('toggleLegend').addEventListener('change', function () {
@@ -169,35 +391,177 @@
                 legend.getContainer().style.display = 'none';
             }
         });
-
-        document.getElementById('toggleShurfs').addEventListener('change', function () {
-            markers.forEach(function (item) {
-                if (item.group.includes('Шурф') && this.checked) {
-                    item.marker.addTo(map);
-                } else if (item.group.includes('Шурф') && !this.checked) {
-                    map.removeLayer(item.marker);
-                }
-            }, this);
-        });
-
-        document.getElementById('toggleCatalog').addEventListener('change', function () {
-            markers.forEach(function (item) {
-                if (item.group.includes('Каталог координат участка') && this.checked) {
-                    item.marker.addTo(map);
-                } else if (item.group.includes('Каталог координат участка') && !this.checked) {
-                    map.removeLayer(item.marker);
-                }
-            }, this);
-        });
-
-        document.getElementById('togglePhotoPoints').addEventListener('change', function () {
-            markers.forEach(function (item) {
-                if (item.group.includes('Пункты фотофиксации') && this.checked) {
-                    item.marker.addTo(map);
-                } else if (item.group.includes('Пункты фотофиксации') && !this.checked) {
-                    map.removeLayer(item.marker);
-                }
-            }, this);
-        });
     </script>
 {% endblock %}
+
+{% block modal_dialog %}
+    <div class="modal fade" id="download" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title lang" id="exampleModalLabel" key="unit_creation">Скачивание координат в
+                        формате .kml</h5>
+                    <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form style="max-height: 800px; overflow-y: auto;"
+                        {% if coordinates %}
+                      action="/map/{{ report_type }}/{{ pk }}/download/"
+                        {% else %}
+                      action="/interactive_map/download/"
+                        {% endif %}
+                      method="POST">
+                    {% csrf_token %}
+                    <div class="modal-body lang" key="enter_unit_name">Выберите точки для экспорта:</div>
+                    {% if coordinates %}
+                        {% for group, point in coordinates.items %}
+                            <div style="margin-left: 20px;">
+                                <span style="cursor: pointer;" onclick="toggleContent('{{ group }}')">
+                                    <span id="{{ group }}_toggle" class="toggle-icon">+</span>
+                                    <input type="checkbox" id="{{ group }}_checkbox" checked
+                                           onclick="toggleGroup('{{ group }}')" name="{{ group }}">
+                                    <label for="{{ group }}_checkbox">{{ group }}</label>
+                                </span>
+                                <div id="{{ group }}_content" style="margin-left: 40px; display: none;">
+                                    {% for point_name, coordinates in point.items %}
+                                        <input type="checkbox" class="{{ group }}_point" checked
+                                               id="{{ point_name }}_checkbox" name="{{ group }}-{{ point_name }}">
+                                        <label for="{{ point_name }}_checkbox">{{ point_name }} ({{ coordinates.0 }},
+                                            {{ coordinates.1 }})</label><br>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            <br>
+                        {% endfor %}
+                    {% endif %}
+                    {% if all_coordinates %}
+                        {% for report_type, reports in all_coordinates.items %}
+                            <div style="margin-left: 20px;">
+                                <span style="cursor: pointer;"
+                                      onclick="toggleContent('{{ report_type }}')">
+                                    <span id="{{ report_type }}_toggle"
+                                          class="toggle-icon">+</span>
+                                </span>
+                                <label for="{{ report_type }}_checkbox"
+                                       style="margin-right: 10px;"><input
+                                        type="checkbox"
+                                        id="report-{{ report_type }}_checkbox"
+                                        checked
+                                        onclick="toggleGroup('report-{{ report_type }}')"
+                                        name="{{ report_type }}">{{ report_type }}
+                                </label>
+                            </div>
+                            <div style="margin-left: 20px;" id="{{ report_type }}_content">
+                                {% for report_name, coordinates in reports.items %}
+                                    {% with counter=forloop.counter %}
+                                        <div style="margin-left: 20px;">
+                                            <span style="cursor: pointer;"
+                                                  onclick="toggleContent('report-{{ counter }}')">
+                                                <span id="report-{{ counter }}_toggle"
+                                                      class="toggle-icon">+</span>
+                                            </span>
+                                            <label for="report-{{ counter }}_checkbox"
+                                                   style="margin-right: 10px;"><input
+                                                    type="checkbox"
+                                                    id="report-{{ counter }}_checkbox"
+                                                    checked
+                                                    class="report-{{ report_type }}_point"
+                                                    onclick="toggleGroup('report-{{ counter }}')"
+                                                    name="{{ report_name }}">{{ report_name }}
+                                            </label>
+                                        </div>
+                                        <div style="margin-left: 40px;" id="report-{{ counter }}_content">
+                                            {% for group, coords in coordinates.items %}
+                                                <div>
+                                                    <span style="cursor: pointer;"
+                                                          onclick="toggleContent('report-{{ counter }}_{{ group }}')">
+                                                        <span id="report-{{ counter }}_{{ group }}_toggle"
+                                                              class="toggle-icon">+</span>
+                                                    </span>
+                                                    <label for="report-{{ counter }}_{{ group }}"><input type="checkbox"
+                                                                                                         class="report-{{ counter }}_point report-{{ report_type }}_point"
+                                                                                                         id="report-{{ counter }}_{{ group }}"
+                                                                                                         checked
+                                                                                                         style="margin-right: 5px;"
+                                                                                                         name="{{ report_name }}-{{ group }}">{{ group }}
+                                                    </label>
+                                                </div>
+                                                <div id="report-{{ counter }}_{{ group }}_content"
+                                                     style="margin-left: 40px; display: none;">
+                                                    {% for point_name, coordinates in coords.items %}
+                                                        <input type="checkbox"
+                                                               class="report-{{ counter }}_point report-{{ report_type }}_point"
+                                                               checked
+                                                               id="{{ point_name }}_checkbox"
+                                                               name="{{ report_type }}-{{ report_name }}-{{ group }}-{{ point_name }}">
+                                                        <label for="{{ point_name }}_checkbox">{{ point_name }}
+                                                            ({{ coordinates.0 }},
+                                                            {{ coordinates.1 }})</label><br>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                        <br>
+                                    {% endwith %}
+                                {% endfor %}
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                    <div class="modal-footer">
+                        <button type="submit" class="btn-alt" style="border-radius: 25px">
+                            Скачать
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script>
+        function syncCheckboxes(reportType) {
+            const mainCheckbox = document.getElementById(`toggleMarkerGroup-${reportType}`);
+            const nestedCheckboxes = document.querySelectorAll(`.${reportType}_point`);
+            const changeEvent = new Event('change');
+
+            nestedCheckboxes.forEach(checkbox => {
+                checkbox.checked = mainCheckbox.checked;
+                checkbox.dispatchEvent(changeEvent);
+            });
+        }
+
+        function toggleGroup(group) {
+            const checkboxes = document.querySelectorAll(`.${group}_point`);
+            console.log(group)
+            console.log(checkboxes)
+            const groupCheckboxCoords = document.getElementById(`${group}_checkbox`);
+            console.log(groupCheckboxCoords)
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = groupCheckboxCoords.checked;
+            });
+        }
+
+        function toggleContent(group) {
+            const content = document.getElementById(`${group}_content`);
+            var toggleIcon = document.getElementById(`${group}_toggle`);
+            if (content.style.display === "none" || content.style.display === "") {
+                content.style.display = "block";
+                toggleIcon.textContent = "-";
+            } else {
+                content.style.display = "none";
+                toggleIcon.textContent = "+";
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const allContents = document.querySelectorAll('[id$="_content"]');
+            allContents.forEach(content => content.style.display = 'none');
+        });
+    </script>
+    <style>
+        .toggle-icon {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            margin-right: 5px;
+            transition: transform 0.2s;
+        }
+    </style>
+{% endblock modal_dialog %}

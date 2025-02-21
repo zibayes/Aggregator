@@ -44,6 +44,7 @@ urlpatterns = [
     path('open_lists_delete/<int:pk>/', views.open_lists_delete, name='open_lists_delete'),
     path('map/<str:report_type>/<int:pk>/', views.map, name='map'),
     path('map/<str:report_type>/<int:pk>/download/', views.download_coordinates, name='download_coordinates'),
+    path('interactive_map/download/', views.download_all_coordinates, name='download_all_coordinates'),
 
     path('api/download_delete/<str:task_id>/', views.download_delete, name='download_delete'),
     path('api/get_user_tasks_reports/', views.get_user_tasks_reports, name='get_user_tasks_reports'),
