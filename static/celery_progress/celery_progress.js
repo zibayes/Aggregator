@@ -66,12 +66,12 @@ class CeleryProgressBar {
     onRetryDefault(progressBarElement, progressBarMessageElement, excMessage, retrySeconds) {
         let message = 'Retrying after ' + retrySeconds + 's: ' + excMessage;
         progressBarElement.style.backgroundColor = this.barColors.error;
-        progressBarMessageElement.textContent =  message;
+        progressBarMessageElement.textContent = message;
     }
 
     onIgnoredDefault(progressBarElement, progressBarMessageElement, result) {
         progressBarElement.style.backgroundColor = this.barColors.ignored;
-        progressBarMessageElement.textContent =  result || 'Task result ignored!'
+        progressBarMessageElement.textContent = result || 'Task result ignored!'
     }
 
     onProgressDefault(progressBarElement, progressBarMessageElement, progress) {
@@ -142,20 +142,20 @@ class CeleryProgressBar {
         let success = false;
         let error = null;
         let attempts = 0;
-        while(!success && attempts < this.maxNetworkRetryAttempts) {
-          try {
-              response = await fetch(this.progressUrl);
-              success = true;
-          } catch (networkError) {
-              error = networkError;
-              this.onNetworkError(this.progressBarElement, this.progressBarMessageElement, "Network Error");
-              attempts++;
-              await new Promise(r => setTimeout(r, 1000));
-          }
+        while (!success && attempts < this.maxNetworkRetryAttempts) {
+            try {
+                response = await fetch(this.progressUrl);
+                success = true;
+            } catch (networkError) {
+                error = networkError;
+                this.onNetworkError(this.progressBarElement, this.progressBarMessageElement, "Network Error");
+                attempts++;
+                await new Promise(r => setTimeout(r, 1000));
+            }
         }
 
         if (!success) {
-          throw(error)
+            throw(error)
         }
 
         if (response.status === 200) {

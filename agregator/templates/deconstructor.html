@@ -179,6 +179,14 @@
                         data.forEach(function (task) {
                             if (task !== undefined && !document.getElementById('download-' + task)) {
                                 addTaskToInterface(task);
+                            } else {
+                                {% if tasks_id %}
+                                    {% for task_id in tasks_id %}
+                                        if (!data.includes(`{{ task_id }}`)) {
+                                            document.querySelector('#download-' + `{{ task_id }}`).style.display = 'none';
+                                        }
+                                    {% endfor  %}
+                                {% endif  %}
                             }
                         });
                     },
@@ -203,6 +211,10 @@
                         </div>
                         <div id="progress-bar-message-${task}">Задача добавлена...</div>
                         <div id="progress-result-${task}"></div>
+                        <div id="pb-progress-${task}"></div>
+                        <div id="pb-time-start-${task}"></div>
+                        <div id="pb-time-end-${task}"></div>
+                        <div id="pb-files-${task}"></div>
                     </div>
                     <br>
                 `;
@@ -236,12 +248,12 @@
 
             document.addEventListener("DOMContentLoaded", function () {
                 setInterval(fetchTasks, 5000);
-
                 const task_urls = [
-                    {% for task_id in tasks_id %}"{% url 'celery_progress:task_status' task_id %}",
+                    {% for task_id in tasks_id %}
+                        "/celery-progress/" + `{{ task_id }}`,
                     {% endfor %}];
                 {% for task_id in tasks_id %}
-                    CeleryProgressBar.initProgressBar(task_urls[{{ forloop.counter }}], {
+                    CeleryProgressBar.initProgressBar(task_urls[{{ forloop.counter }}-1], {
                         progressBarId: "progress-bar-" + `{{ task_id }}`,
                         progressBarMessageId: "progress-bar-message-" + `{{ task_id }}`,
                         resultElementId: "progress-result-" + `{{ task_id }}`,

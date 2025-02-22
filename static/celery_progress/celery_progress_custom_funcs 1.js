@@ -59,21 +59,33 @@ function onSuccessBody(progressBarElement, progressBarMessageElement, result) {
 
 function onErrorCustom(progressBarElement, progressBarMessageElement, result_exc) {
     try {
-        result_exc = JSON.parse(escapeDoubleQuotes(result_exc).replace(/'/g, '"'));
+        if (typeof result_exc === 'string') {
+            try {
+                result_exc = JSON.parse(escapeDoubleQuotes(result_exc));
+            } catch (error) {
+            }
+        }
     } finally {
-        progressBarElement.style.backgroundColor = this.barColors.error;
-        progressBarMessageElement.textContent = "Ошибка обработки задачи: " + result_exc;
+        if (progressBarElement) {
+            progressBarElement.style.backgroundColor = this.barColors.error;
+            progressBarMessageElement.textContent = "Ошибка обработки задачи: " + result_exc;
+            progressBarElement.style.backgroundColor = this.barColors.error;
+            progressBarMessageElement.nextElementSibling.textContent = result_exc.error_text;
+            let progress_div = progressBarMessageElement.nextElementSibling.nextElementSibling;
+            if (typeof result_exc !== 'string') {
+                result = result_exc.progress_json;
+                progressBarMessageElement.innerHTML = "Статус: Ошибка загрузки <strong>" + report_types[result.file_types] + "</strong> ";
+                progress_div.nextElementSibling.textContent = 'Время начала обработки: ' + result.time_started;
+                if (result.time_ended !== undefined) {
+                    progress_div.nextElementSibling.nextElementSibling.textContent = 'Время окончания обработки: ' + result.time_ended;
+                }
+                add_process_status(progressBarMessageElement, result, 'True')
+            } else {
+                result = result_exc;
+                progressBarMessageElement.innerHTML = "Статус: Ошибка загрузки <strong>" + result + "</strong> ";
+            }
+        }
     }
-    result = result_exc.progress_json;
-    progressBarElement.style.backgroundColor = this.barColors.error;
-    progressBarMessageElement.innerHTML = "Статус: Ошибка загрузки <strong>" + report_types[result.file_types] + "</strong> ";
-    progressBarMessageElement.nextElementSibling.textContent = result_exc.error_text;
-    let progress_div = progressBarMessageElement.nextElementSibling.nextElementSibling;
-    progress_div.nextElementSibling.textContent = 'Время начала обработки: ' + result.time_started;
-    if (result.time_ended !== undefined) {
-        progress_div.nextElementSibling.nextElementSibling.textContent = 'Время окончания обработки: ' + result.time_ended;
-    }
-    add_process_status(progressBarMessageElement, result, 'True')
 }
 
 function onTaskErrorCustom(progressBarElement, progressBarMessageElement, result) {
@@ -81,12 +93,17 @@ function onTaskErrorCustom(progressBarElement, progressBarMessageElement, result
 }
 
 function escapeDoubleQuotes(str) {
-    return str.replace(/"/g, '\\"');
+    if (typeof str === 'string')
+        return str.replace(/"/g, '\\"').replace(/'/g, '"').replace(/\\x1b\[[0-9;]*m/g, '').replace('/\\n/g', '');
+    else
+        return str
 }
 
 function onResultCustom(resultElement, result) {
     try {
-        result = JSON.parse(escapeDoubleQuotes(result).replace(/'/g, '"'));
+        if (typeof result === 'string') {
+            result = JSON.parse(escapeDoubleQuotes(result));
+        }
         if (resultElement) {
             // resultElement.textContent = result.error_text;
         }
@@ -117,8 +134,10 @@ function onIgnoredCustom(progressBarElement, progressBarMessageElement, result) 
 }
 
 function onProgressCustom(progressBarElement, progressBarMessageElement, progress) {
-    progressBarElement.style.backgroundColor = this.barColors.progress;
-    progressBarElement.style.width = progress.percent + "%";
+    if (progressBarElement) {
+        progressBarElement.style.backgroundColor = this.barColors.progress;
+        progressBarElement.style.width = progress.percent + "%";
+    }
     var description = progress.description || "";
     if (progress.current == 0) {
         if (progress.pending === true) {
@@ -128,20 +147,22 @@ function onProgressCustom(progressBarElement, progressBarMessageElement, progres
         }
     } else {
         if (description !== '') {
-            progressBarMessageElement.innerHTML = 'Статус: Идёт загрузка и обработка <strong>' +
-                report_types[description.file_types] + '</strong>';
-            let expected_time = ''
-            if (description.expected_time !== undefined) {
-                expected_time = 'Ожидаемое время выполнения: ' + description.expected_time
+            if (progressBarMessageElement) {
+                progressBarMessageElement.innerHTML = 'Статус: Идёт загрузка и обработка <strong>' +
+                    report_types[description.file_types] + '</strong>';
+                let progress_div = progressBarMessageElement.nextElementSibling.nextElementSibling;
+                progress_div.textContent = "Прогресс: Всего обработано " +
+                    progress.current + '/' + progress.total + ' страниц (' + progress.percent + "%" + ') ' + expected_time;
+                progress_div.nextElementSibling.textContent = 'Время начала обработки: ' + description.time_started;
+                if (description.time_ended !== undefined) {
+                    progress_div.nextElementSibling.nextElementSibling.textContent = 'Время окончания обработки: ' + description.time_ended + expected_time;
+                }
+                let expected_time = ''
+                if (description.expected_time !== undefined) {
+                    expected_time = 'Ожидаемое время выполнения: ' + description.expected_time
+                }
+                add_process_status(progressBarMessageElement, description, 'False')
             }
-            let progress_div = progressBarMessageElement.nextElementSibling.nextElementSibling;
-            progress_div.textContent = "Прогресс: Всего обработано " +
-                progress.current + '/' + progress.total + ' страниц (' + progress.percent + "%" + ') ' + expected_time;
-            progress_div.nextElementSibling.textContent = 'Время начала обработки: ' + description.time_started;
-            if (description.time_ended !== undefined) {
-                progress_div.nextElementSibling.nextElementSibling.textContent = 'Время окончания обработки: ' + description.time_ended + expected_time;
-            }
-            add_process_status(progressBarMessageElement, description, 'False')
         }
     }
 }
@@ -228,6 +249,7 @@ function add_process_icon(file, li, value, result, key, isError) {
 
 async function checkURL(link) {
     try {
+
         const response = await fetch(link.href, {method: 'HEAD'});
         if (response.ok) {
             // console.log(`URL доступен: ${link.href}`);
