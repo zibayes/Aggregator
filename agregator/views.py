@@ -635,8 +635,10 @@ def map(request, report_type, pk):
         report = ScientificReport.objects.get(id=pk)
     elif report_type == 'tech_report':
         report = TechReport.objects.get(id=pk)
+    report_name = report.source[0]['origin_filename']
     coordinates = report.coordinates if report else {}
-    return render(request, 'interactive_map.html', {'coordinates': coordinates, 'report_type': report_type, 'pk': pk})
+    return render(request, 'interactive_map.html',
+                  {'coordinates': coordinates, 'report_type': report_type, 'pk': pk, 'report_name': report_name})
 
 
 def download_coordinates(request, report_type, pk):

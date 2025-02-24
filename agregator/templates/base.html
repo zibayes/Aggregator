@@ -16,15 +16,7 @@
     <link rel="icon" href="{% static 'archeology/favicon.ico' %}" type="image/x-icon">
 
     <!-- Font Awesome -->
-    <link
-            rel="stylesheet"
-            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
-    />
-    <!-- Google Fonts Roboto -->
-    <link
-            rel="stylesheet"
-            href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700;900&display=swap"
-    />
+    <script src="https://kit.fontawesome.com/a840458b75.js" crossorigin="anonymous"></script>
     <!-- MDB -->
     <link rel="stylesheet" href="{% static 'css/mdb.min.css' %}"/>
     <script type="text/javascript" src="{% static 'js/mdb.umd.min.js' %}"></script>
@@ -44,6 +36,8 @@
         }
     </style>
 </head>
+{% block modal_dialog %}
+{% endblock modal_dialog %}
 <body>
 
 <!-- Навигационная панель -->
@@ -123,9 +117,6 @@
         </ul>
     </div>
 </nav>
-
-{% block modal_dialog %}
-{% endblock modal_dialog %}
 
 <div class="container mt-0">
     {% block content %}{% endblock %}
