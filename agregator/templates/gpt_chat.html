@@ -59,20 +59,39 @@
             chatItem.innerHTML = `
                 <span class="chat-title">${chats[chatId].title}</span>
                 <button class="btn-edit btn-edit-chat" onclick="editChatTitle(${chatId})">✏️</button>
-                <button class="btn-edit btn-delete-chat" onclick="deleteChat(${chatId})">🗑️</button>
+                <button class="btn-edit btn-delete-chat" data-bs-target="#delete_chat_${chatId}" data-bs-toggle="modal">🗑️</button>
+                {% block modal_dialog %}
+                    <div class="modal fade" id="delete_chat_${chatId}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Вы уверены, что хотите удалить этот чат?</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                        Отмена
+                                    </button>
+                                    <button type="button" onclick="deleteChat(${chatId})" class="btn btn-danger" data-bs-dismiss="modal">
+                                        Удалить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endblock modal_dialog %}
             `;
             chatItem.onclick = () => switchChat(chatId);
             chatList.appendChild(chatItem);
         }
 
         function deleteChat(chatId) {
-            if (confirm('Вы уверены, что хотите удалить этот чат?')) {
-                delete chats[chatId];
-                const chatList = document.getElementById('chat-list');
-                chatList.innerHTML = '';
-                for (const id in chats) {
-                    addChatToList(id);
-                }
+            delete chats[chatId];
+            const chatList = document.getElementById('chat-list');
+            chatList.innerHTML = '';
+            for (const id in chats) {
+                addChatToList(id);
             }
         }
 

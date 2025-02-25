@@ -81,15 +81,38 @@
             </div>
             -->
 
-            <button type="submit" class="btn btn-primary">Сохранить</button>
-        </form>
-
-        <form method="POST" action="{% url 'scientific_reports_delete' report.id %}" class="mt-3">
-            {% csrf_token %}
-            <button type="submit" class="btn btn-danger" style="border-radius: 12px; margin-right:10px;"
-                    onclick="return confirm('Вы уверены, что хотите удалить этот отчёт?');">Удалить
+            <button type="submit" class="btn btn-primary" style="margin-right: 5px;">
+                Сохранить
+            </button>
+            <button type="button" class="btn btn-danger" data-bs-target="#delete_report" data-bs-toggle="modal">
+                Удалить
             </button>
         </form>
+
+        {% block modal_dialog %}
+            <div class="modal fade" id="delete_report" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Вы уверены, что хотите удалить этот отчёт?</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                        </div>
+                        <div class="modal-footer">
+                            <form method="POST" action="{% url 'scientific_reports_delete' report.id %}" class="mt-3">
+                                {% csrf_token %}
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    Отмена
+                                </button>
+                                <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
+                                    Удалить
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endblock modal_dialog %}
 
         <br>
         <h2 id="supplement">Приложение</h2>

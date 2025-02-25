@@ -20,14 +20,36 @@
                     Редактировать
                 </button>
             </a>
-            <form method="POST" action="{% url 'open_lists_delete' open_list.id %}" class="mt-3">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-danger" style="border-radius: 12px; margin-right:10px;"
-                        onclick="return confirm('Вы уверены, что хотите удалить этот открытый лист?');">Удалить
-                </button>
-            </form>
+            <button type="button" class="btn btn-danger" data-bs-target="#delete_act" data-bs-toggle="modal">
+                Удалить
+            </button>
         {% endif %}
     </div>
+
+    {% block modal_dialog %}
+        <div class="modal fade" id="delete_act" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Вы уверены, что хотите удалить этот открытый лист?</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                aria-label="Close"></button>
+                    </div>
+                    <div class="modal-footer">
+                        <form method="POST" action="{% url 'open_lists_delete' open_list.id %}" class="mt-3">
+                            {% csrf_token %}
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                Отмена
+                            </button>
+                            <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
+                                Удалить
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endblock modal_dialog %}
 
     <hr>
     <h2>Содержание</h2>

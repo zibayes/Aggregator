@@ -140,13 +140,17 @@
                                 <div></div>
                                 <button class="btn btn-link"
                                         style="padding: 0; border: none; background: none; color: orangered; font-size: 25px; font-weight: bold; text-decoration: none;"
-                                        onclick="confirmDelete(`{{ task_id }}`)">
+                                        type="button" data-bs-target="#delete_download_{{ task_id }}"
+                                        data-bs-toggle="modal">
                                     &times;
                                 </button>
                             </div>
-                            <div class='progress-wrapper-{{ task_id }}'>
-                                <div id='progress-bar-{{ task_id }}' class='progress-bar'
-                                     style="background-color: #68a9ef; width: 0%;">&nbsp;
+                            <div class='progress-wrapper-{{ task_id }} progress'
+                                 style=" height: 100%; border-radius: 15px;">
+                                <div id='progress-bar-{{ task_id }}'
+                                     class='progress-bar progress-bar-striped'
+                                     role="progressbar"
+                                     style="background-color: #68a9ef; width: 0%; background-size: 2rem 2rem;">&nbsp;
                                 </div>
                             </div>
                             <div id="progress-bar-message-{{ task_id }}">Ожидание загрузки файла...</div>
@@ -158,6 +162,27 @@
                         </div>
                         <br>
                     </div>
+
+                    {% block modal_dialog %}
+                        <div class="modal fade" id="delete_download_{{ task_id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Вы уверены, что хотите удалить данную загрузку?</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена
+                                        </button>
+                                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
+                                                onclick="confirmDelete(`{{ task_id }}`)">Удалить
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endblock modal_dialog %}
                 {% endfor %}
             {% else %}
                 <a>Здесь будет отображён прогресс загрузки файлов</a>
@@ -204,7 +229,12 @@
                     <div class="border border-secondary" style="padding: 5px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div></div>
-                            <button class="btn btn-link" style="padding: 0; border: none; background: none; color: orangered; font-size: 25px; font-weight: bold; text-decoration: none;" onclick="confirmDelete(${task})">&times;</button>
+                            <button class="btn btn-link"
+                                    style="padding: 0; border: none; background: none; color: orangered; font-size: 25px; font-weight: bold; text-decoration: none;"
+                                    type="button" data-bs-target="#delete_download_{{ task_id }}"
+                                    data-bs-toggle="modal">
+                                &times;
+                            </button>
                         </div>
                         <div class='progress-wrapper-${task}'>
                             <div id='progress-bar-${task}' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
@@ -217,6 +247,27 @@
                         <div id="pb-files-${task}"></div>
                     </div>
                     <br>
+
+                    {% block modal_dialog_additional %}
+                        <div class="modal fade" id="delete_download_${task}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Вы уверены, что хотите удалить данную загрузку?</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                aria-label="Close"></button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена
+                                        </button>
+                                        <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
+                                                onclick="confirmDelete(`{{ task_id }}`)">Удалить
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    {% endblock modal_dialog_additional %}
                 `;
                 document.querySelector('.upload-section').prepend(taskElement);
                 CeleryProgressBar.initProgressBar("/celery-progress/" + task, {
@@ -235,15 +286,13 @@
             }
 
             function confirmDelete(task_id) {
-                if (confirm("Вы уверены, что хотите удалить этот элемент?")) {
-                    $.ajax({
-                        url: '/api/download_delete/' + task_id + '/',
-                        type: 'GET',
-                        success: function (response) {
-                            document.querySelector('#download-' + task_id).style.display = 'none';
-                        }
-                    });
-                }
+                $.ajax({
+                    url: '/api/download_delete/' + task_id + '/',
+                    type: 'GET',
+                    success: function (response) {
+                        document.querySelector('#download-' + task_id).style.display = 'none';
+                    }
+                });
             }
 
             document.addEventListener("DOMContentLoaded", function () {

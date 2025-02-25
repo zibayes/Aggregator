@@ -114,25 +114,25 @@
                 content += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleTooltips" style="margin-right: 3px;" checked> Названия точек</label>';
             {% elif all_coordinates %}
                 {% for report_type, reports in all_coordinates.items %}
-                    content += '<div><span id="report-{{ report_type }}_toggle" class="toggle-icon" onclick="toggleContent(\'report-{{ report_type }}\')">+</span><input type="checkbox" id="toggleMarkerGroup-{{ report_type|cut:" "|cut:"."|cut:":" }}" style="margin-right: 3px;" checked onchange="syncCheckboxes(\'{{ report_type|cut:" "|cut:"."|cut:":" }}\')"> {{ report_type }}</div>';
+                    content += '<div><span style="cursor: pointer;" id="report-{{ report_type }}_toggle" class="toggle-icon" onclick="toggleContent(\'report-{{ report_type }}\')">+</span><input type="checkbox" id="toggleMarkerGroup-{{ report_type|cut:" "|cut:"."|cut:":" }}" style="margin-right: 3px;" checked onchange="syncCheckboxes(\'{{ report_type|cut:" "|cut:"."|cut:":" }}\')"> {{ report_type }}</div>';
                     content += '<div id="report-{{ report_type }}_content" style="margin-left: 20px; display: none;">';
 
                     {% for report_name, coordinates in reports.items %}
-                        content += '<div style="margin-left: 20px;"><span id="report-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'report-{{ report_name }}\')">+</span><input type="checkbox" id="toggleMarkerGroup-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked> {{ report_name }}<button class="center-button" title="Центрировать карту на этом отчете" style="margin-left: 5px; cursor: pointer;" onclick="centerMap(\'{{ report_name }}\')">➔</button></div>';
+                        content += '<div style="cursor: pointer;" style="margin-left: 20px;"><span id="report-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'report-{{ report_name }}\')">+</span><input type="checkbox" id="toggleMarkerGroup-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked> {{ report_name }}<button class="center-button" title="Центрировать карту на этом отчете" style="margin-left: 5px; cursor: pointer;" onclick="centerMap(\'{{ report_name }}\')">➔</button></div>';
                         content += '<div id="report-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
 
                         {% for group, point in coordinates.items %}
 
                             {% if 'Шурфы' in group %}
-                                content += '<div style="margin-left: 40px;"><span id="shurfs-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'shurfs-{{ report_name }}\')">+</span><input type="checkbox" id="toggleShurfs-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: red;"></i> Шурфы</div>';
+                                content += '<div style="cursor: pointer;" style="margin-left: 40px;"><span id="shurfs-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'shurfs-{{ report_name }}\')">+</span><input type="checkbox" id="toggleShurfs-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: red;"></i> Шурфы</div>';
                                 content += '<div id="shurfs-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
                             {% endif %}
                             {% if 'Каталог' in group %}
-                                content += '<div style="margin-left: 40px;"><span id="catalog-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'catalog-{{ report_name }}\')">+</span><input type="checkbox" id="toggleCatalog-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: blue;"></i> Каталог координат участка</div>';
+                                content += '<div style="cursor: pointer;" style="margin-left: 40px;"><span id="catalog-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'catalog-{{ report_name }}\')">+</span><input type="checkbox" id="toggleCatalog-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: blue;"></i> Каталог координат участка</div>';
                                 content += '<div id="catalog-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
                             {% endif %}
                             {% if 'фото' in group %}
-                                content += '<div style="margin-left: 40px;"><span id="photos-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'photos-{{ report_name }}\')">+</span><input type="checkbox" id="togglePhotoPoints-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: green;"></i> Пункты фотофиксации</div>';
+                                content += '<div style="cursor: pointer;" style="margin-left: 40px;"><span id="photos-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'photos-{{ report_name }}\')">+</span><input type="checkbox" id="togglePhotoPoints-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: green;"></i> Пункты фотофиксации</div>';
                                 content += '<div id="photos-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
                             {% endif %}
 

@@ -295,7 +295,7 @@ def user_register(request):
         if form.is_valid():
             user = form.save()
             login(request, user)  # Автоматически авторизуем пользователя после регистрации
-            return redirect('index')  # Перенаправление на домашнюю страницу
+            return redirect('profile')
         else:
             return render(request, 'register.html', {'error': 'Неверные учетные данные'})
     else:
@@ -310,7 +310,7 @@ def user_login(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            return redirect('index')
+            return redirect('profile')
         else:
             return render(request, 'login.html', {'error': 'Неверные учетные данные'})
     return render(request, 'login.html')
