@@ -12,6 +12,7 @@ import numpy as np
 import re
 import pandas as pd
 import os
+import io
 
 from language_tool_python.utils import _4_bytes_encoded_positions, Match
 from transliterate import translit
@@ -22,7 +23,7 @@ from celery_progress.backend import ProgressRecorder
 import requests
 from fuzzywuzzy import fuzz
 from PIL import Image
-from skimage import io, filters
+from skimage import filters
 from .models import OpenLists
 from .hash import calculate_file_hash
 from .files_saving import delete_files_in_directory, load_raw_open_lists

@@ -10,7 +10,7 @@ import shutil
 
 
 def to_json(value):
-    if value and not isinstance(value, str):
+    if value is not None and not isinstance(value, str):
         return json.dumps(value, ensure_ascii=False)
     return value
 

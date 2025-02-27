@@ -21,7 +21,7 @@ from .models import User, Act, UserTasks
 
 
 @shared_task(bind=True)
-def external_sources_processing(self):
+def external_sources_processing(self, start_date, end_date):
     page = 1
     pages = [str(page)]
     ignore_ssl = False
@@ -48,15 +48,26 @@ def external_sources_processing(self):
                 if file.lower().endswith('.pdf') or file.lower().endswith('.zip') or file.lower().endswith('.rar'):
                     downloaded_files.append(file)
         '''
+        
+        for item in soup.find_all('p', class_='news-item'):
 
-        for link in soup.find_all('a'):
-            href = link.get('href')
-            if '/experts/?PAGEN_1=' in href:
-                page_num = href.replace('/experts/?PAGEN_1=', '')
-                if page_num not in pages:
-                    pages.append(page_num)
-            if '/upload/iblock/' in href and 'акт' in href.lower() or 'гикэ' in href.lower():
-                file = href[href.rfind('/') + 1:]
+            if start_date is not None and end_date is not None:
+                title = item.find('b').get_text(strip=True) if item.find('b') else ''
+
+                match = re.search(r"\d{2}\.\d{2}\.\d{4}", title)
+                if match:
+                    date_str = match.group(0)
+                    current_date = [int(x) for x in date_str.split('.')]
+                    if not (start_date <= current_date <= end_date):
+                        continue
+                else:
+                    continue
+
+            link = item.find('a', href=True)
+            if link and '/upload/iblock/' in link['href'] and (
+                    'акт' in link['href'].lower() or 'гикэ' in link['href'].lower()):
+                file = link['href'][link['href'].rfind('/') + 1:]
+                href = link['href']
 
                 if file in downloaded_files or file.endswith('.sig'):
                     continue

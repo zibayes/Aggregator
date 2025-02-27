@@ -10,6 +10,7 @@ from .ask import ask_question_with_context
 import os
 import pandas as pd
 import json
+import re
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import logout
 from django.contrib import messages
@@ -81,6 +82,10 @@ def deconstructor(request):
                 if 'file_type' in request.POST and 'upload_type' in request.POST:
                     file_type = request.POST['file_type']
                     upload_type = request.POST['upload_type']
+                    if user.is_superuser:
+                        is_public = True if request.POST['storage_type'] == 'public' else False
+                    else:
+                        is_public = False
                 else:
                     return render(request, 'deconstructor.html', {'form': form, 'tasks_id': tasks_id})
                 types_convert = {'текст': 'text', 'приложение': 'images', 'иллюстрации': 'images'}
@@ -118,18 +123,18 @@ def deconstructor(request):
                             else:
                                 file_groups[group_name] = [{'type': report_type, 'file': uploaded_files.pop(i)}]
                 if file_type == 'act':
-                    acts_ids = raw_reports_save(file_groups, uploaded_files, Act, user.id)
+                    acts_ids = raw_reports_save(file_groups, uploaded_files, Act, user.id, is_public)
                     task = process_acts.apply_async((acts_ids, user.id),
                                                     link_error=error_handler_acts.s())
                 elif file_type == 'scientific_report':
                     scientific_reports_ids = raw_reports_save(file_groups, uploaded_files, ScientificReport,
                                                               user.id)
-                    task = process_scientific_reports.apply_async((scientific_reports_ids, user.id),
+                    task = process_scientific_reports.apply_async((scientific_reports_ids, user.id, is_public),
                                                                   link_error=error_handler_scientific_reports.s())
                 elif file_type == 'tech_report':
                     tech_reports_ids = raw_reports_save(file_groups, uploaded_files, TechReport,
                                                         user.id)
-                    task = process_tech_reports.apply_async((tech_reports_ids, user.id),
+                    task = process_tech_reports.apply_async((tech_reports_ids, user.id, is_public),
                                                             link_error=error_handler_tech_reports.s())
                 tasks_id = [task.task_id] + tasks_id
                 user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type=file_type,
@@ -148,7 +153,23 @@ def deconstructor(request):
 def external_sources(request):
     is_processing = False
     if request.method == 'POST':
-        external_sources_processing.delay()
+        start_date = end_date = None
+        if 'enableDateRange' in request.POST.keys() and 'start_date' in request.POST.keys() and 'start_date' in request.POST.keys():
+            start_date = request.POST['start_date']
+            end_date = request.POST['end_date']
+            match = re.search(r"\d{2}\.\d{2}\.\d{4}", start_date)
+            if match:
+                date_str = match.group(0)
+                start_date = [int(x) for x in date_str.split('.')]
+            else:
+                start_date = None
+            match = re.search(r"\d{2}\.\d{2}\.\d{4}", end_date)
+            if match:
+                date_str = match.group(0)
+                end_date = [int(x) for x in date_str.split('.')]
+            else:
+                end_date = None
+        external_sources_processing.delay(start_date, end_date)
         is_processing = True
     admin = User.objects.get(is_superuser=True)
     tasks_id = get_user_tasks(admin.id, ('act', 'scientific_report', 'tech_report', 'open_list'), True)
@@ -264,7 +285,11 @@ def open_list_ocr(request):
         form = UploadOpenListsForm(request.POST, request.FILES)
         if form.is_valid():
             uploaded_files = form.cleaned_data['files']
-            open_lists_ids = raw_open_lists_save(uploaded_files, user_id)
+            if request.user.is_superuser:
+                is_public = True if request.POST['storage_type'] == 'public' else False
+            else:
+                is_public = False
+            open_lists_ids = raw_open_lists_save(uploaded_files, user_id, is_public)
             task = process_open_lists.apply_async((open_lists_ids, user_id),
                                                   link_error=error_handler_open_lists.s())
             tasks_id = [task.task_id] + tasks_id

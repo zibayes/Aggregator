@@ -758,7 +758,9 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         current_act.exp_conclusion = act_parts_info['Вывод экспертизы']
     if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('images', 'all'):
         current_act.supplement = supplement_content
-    if len(coordinates) == 1 and 'Шурфы' in coordinates.keys() and not coordinates['Шурфы']:
+    print(coordinates)
+    print(len(coordinates.keys()) == 1, 'Шурфы' in coordinates.keys(), len(coordinates['Шурфы'].keys()) == 0)
+    if len(coordinates.keys()) == 1 and 'Шурфы' in coordinates.keys() and len(coordinates['Шурфы'].keys()) == 0:
         coordinates = {}
     current_act.coordinates = coordinates
     current_act.is_processing = False

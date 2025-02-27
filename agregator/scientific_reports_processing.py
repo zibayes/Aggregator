@@ -381,6 +381,8 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
         current_report.content = report_parts_info
     if progress_json['file_groups'][str(report_id)][source_index]['type'] in ('images', 'all'):
         current_report.supplement = supplement_content
+    if len(coordinates.keys()) == 1 and 'Шурфы' in coordinates.keys() and len(coordinates['Шурфы'].keys()) == 0:
+        coordinates = {}
     current_report.coordinates = coordinates
     current_report.is_processing = False
     current_report.save()

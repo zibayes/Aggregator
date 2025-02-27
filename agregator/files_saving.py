@@ -28,10 +28,10 @@ def delete_files_in_directory(directory, files):
         print(f'Директория {directory} не существует или не является директорией.')
 
 
-def raw_open_lists_save(uploaded_files, user_id, origin_filename=None, upload_source=None):
+def raw_open_lists_save(uploaded_files, user_id, is_public, origin_filename=None, upload_source=None):
     open_lists_ids = []
     for file in uploaded_files:
-        open_list = OpenLists(user_id=user_id)
+        open_list = OpenLists(user_id=user_id, is_public=is_public)
         open_list.save()
         path = f'open_lists/{open_list.id}_open_list'
         full_path = f'uploaded_files/' + path
@@ -82,7 +82,7 @@ def load_raw_open_lists(open_lists_ids):
     return open_lists, pages_count
 
 
-def raw_reports_save(file_groups, uploaded_files, report_type, user_id, upload_source=None):
+def raw_reports_save(file_groups, uploaded_files, report_type, user_id, is_public, upload_source=None):
     if report_type == Act:
         report_directory = 'act'
     elif report_type == ScientificReport:
@@ -93,18 +93,18 @@ def raw_reports_save(file_groups, uploaded_files, report_type, user_id, upload_s
         report_directory = ''
     reports_ids = []
     for value in file_groups.values():
-        save_report(value, reports_ids, report_type, user_id, report_directory,
+        save_report(value, reports_ids, report_type, user_id, is_public, report_directory,
                     upload_source)
     for file in uploaded_files:
-        save_report(file, reports_ids, report_type, user_id, report_directory,
+        save_report(file, reports_ids, report_type, user_id, is_public, report_directory,
                     upload_source)
     return reports_ids
 
 
-def save_report(files, reports_ids, report_type, user_id, report_directory,
+def save_report(files, reports_ids, report_type, user_id, is_public, report_directory,
                 upload_source):
     source_content = []
-    report = report_type(user_id=user_id)
+    report = report_type(user_id=user_id, is_public=is_public)
     report.save()
     report_id = report.id
     reports_ids.append(report_id)

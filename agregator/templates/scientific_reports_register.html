@@ -100,9 +100,16 @@
         </div>
     </div>
 
-    <a href="/scientific_reports_register_download/">
-        Скачать реестр в формате .xlsx
-    </a>
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+        <a href="/scientific_reports_register_download/">
+            Скачать реестр в формате .xlsx
+        </a>
+        <div class="form-check form-switch d-inline-block ms-3">
+            <input class="form-check-input" type="checkbox" id="storageSwitch">
+            <label class="form-check-label" for="storageSwitch" id="storageLabel">Публичное хранилище</label>
+        </div>
+    </div>
+
 
     <div class="table-responsive overflow-auto">
         <table class="table table-striped w-100">
@@ -124,7 +131,8 @@
             <tbody>
             {% for report in reports %}
                 <tr data-act-id="{{ report.id }}" data-user-id="{{ report.user.id }}" data-name="{{ report.name }}"
-                    data-organization="{{ report.organization }}" data-author="{{ report.author }}">
+                    data-organization="{{ report.organization }}" data-author="{{ report.author }}"
+                    data-is-public="{{ report.is_public }}">
                     <td>
                         {{ report.name }}
                     </td>
@@ -292,6 +300,24 @@
 
         document.addEventListener("DOMContentLoaded", function () {
             setTimeout(updateFilterVisibility, 300);
+
+            const storageSwitch = document.getElementById('storageSwitch');
+            const storageLabel = document.getElementById('storageLabel');
+            const tableRows = document.querySelectorAll('.table tbody tr');
+
+            storageSwitch.addEventListener('change', function () {
+                const isPrivate = storageSwitch.checked;
+                storageLabel.textContent = isPrivate ? "Частное хранилище" : "Публичное хранилище";
+
+                tableRows.forEach(row => {
+                    const isPublic = row.dataset.isPublic === "True";
+                    if (isPrivate) {
+                        row.style.display = isPublic ? "none" : "";
+                    } else {
+                        row.style.display = isPublic ? "" : "none";
+                    }
+                });
+            });
         });
     </script>
 {% endblock %}

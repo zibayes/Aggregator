@@ -11,6 +11,24 @@
             края</h2>
         <form method="post" action="/external_sources/">
             {% csrf_token %}
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="dateToggle" name="enableDateRange">
+                <label class="form-check-label" for="dateToggle">Задать временной диапазон загружаемых отчётов</label>
+            </div>
+
+            <div id="dateFields" style="display: none;">
+                <div class="mb-3">
+                    <label for="startDate" class="form-label">Дата начала</label>
+                    <input type="text" id="startDate" class="form-control datepicker" name="startDate"
+                           placeholder="Выберите дату начала">
+                </div>
+                <div class="mb-3">
+                    <label for="endDate" class="form-label">Дата окончания</label>
+                    <input type="text" id="endDate" class="form-control datepicker" name="endDate"
+                           placeholder="Выберите дату окончания">
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить
                 файлы
             </button>
@@ -219,6 +237,31 @@
                         onProgress: onProgressCustom,
                     });
                 {% endfor %}
+            });
+
+            document.getElementById('dateToggle').addEventListener('change', function () {
+                const dateFields = document.getElementById('dateFields');
+                dateFields.style.display = this.checked ? 'block' : 'none';
+            });
+
+            const startDatePicker = flatpickr("#startDate", {
+                dateFormat: "d-m-Y",
+                defaultDate: "today",
+                locale: "ru",
+                maxDate: "today",
+                onChange: function (selectedDates, dateStr, instance) {
+                    endDatePicker.set("minDate", selectedDates[0]);
+                }
+            });
+
+            const endDatePicker = flatpickr("#endDate", {
+                dateFormat: "d-m-Y",
+                defaultDate: "today",
+                locale: "ru",
+                maxDate: "today",
+                onChange: function (selectedDates, dateStr, instance) {
+                    startDatePicker.set("maxDate", selectedDates[0]);
+                }
             });
         </script>
     </div>
