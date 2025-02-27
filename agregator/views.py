@@ -269,11 +269,23 @@ def download_all_coordinates(request):
 
 
 def acts_register(request):
-    acts = Act.objects.filter(is_processing=False).only('id', 'user_id', 'date_uploaded',
-                                                        'is_processing', 'year', 'finish_date',
-                                                        'type', 'name_number', 'place', 'customer', 'area',
-                                                        'expert', 'executioner', 'open_list', 'conclusion',
-                                                        'border_objects', 'source')
+    acts_public = Act.objects.filter(is_processing=False, is_public=True).only('id', 'user_id', 'date_uploaded',
+                                                                               'is_processing', 'year', 'finish_date',
+                                                                               'type', 'name_number', 'place',
+                                                                               'customer', 'area',
+                                                                               'expert', 'executioner', 'open_list',
+                                                                               'conclusion',
+                                                                               'border_objects', 'source')
+    acts_private = Act.objects.filter(is_processing=False,
+                                      user_id=request.user.id, is_public=False).only('id', 'user_id', 'date_uploaded',
+                                                                                     'is_processing', 'year',
+                                                                                     'finish_date',
+                                                                                     'type', 'name_number', 'place',
+                                                                                     'customer', 'area',
+                                                                                     'expert', 'executioner',
+                                                                                     'open_list', 'conclusion',
+                                                                                     'border_objects', 'source')
+    acts = acts_public | acts_private
     return render(request, 'acts_register.html', {'acts': acts})
 
 
@@ -374,7 +386,9 @@ def settings(request):
 
 
 def open_lists_register(request):
-    open_lists = OpenLists.objects.filter(is_processing=False)
+    open_lists_public = OpenLists.objects.filter(is_processing=False, is_public=True)
+    open_lists_private = OpenLists.objects.filter(is_processing=False, user_id=request.user.id, is_public=False)
+    open_lists = open_lists_public | open_lists_private
     return render(request, 'open_lists_register.html', {'open_lists': open_lists})
 
 
@@ -630,20 +644,45 @@ def tech_reports_register_download(request):
 
 
 def scientific_reports_register(request):
-    reports = ScientificReport.objects.filter(is_processing=False).only('id', 'user_id', 'date_uploaded',
-                                                                        'upload_source', 'is_processing', 'name',
-                                                                        'organization', 'author', 'open_list',
-                                                                        'writing_date', 'contractors', 'source',
-                                                                        'place', 'area_info', 'results', 'conclusion')
+    reports_public = ScientificReport.objects.filter(is_processing=False, is_public=True).only('id', 'user_id',
+                                                                                               'date_uploaded',
+                                                                                               'upload_source',
+                                                                                               'is_processing', 'name',
+                                                                                               'organization', 'author',
+                                                                                               'open_list',
+                                                                                               'writing_date',
+                                                                                               'contractors', 'source',
+                                                                                               'place', 'area_info',
+                                                                                               'results', 'conclusion')
+    reports_private = ScientificReport.objects.filter(is_processing=False, user_id=request.user.id,
+                                                      is_public=False).only('id', 'user_id', 'date_uploaded',
+                                                                            'upload_source', 'is_processing', 'name',
+                                                                            'organization', 'author', 'open_list',
+                                                                            'writing_date', 'contractors', 'source',
+                                                                            'place', 'area_info', 'results',
+                                                                            'conclusion')
+    reports = reports_public | reports_private
     return render(request, 'scientific_reports_register.html', {'reports': reports})
 
 
 def tech_reports_register(request):
-    reports = TechReport.objects.filter(is_processing=False).only('id', 'user_id', 'date_uploaded',
-                                                                  'upload_source', 'is_processing', 'name',
-                                                                  'organization', 'author', 'open_list',
-                                                                  'writing_date', 'contractors', 'source',
-                                                                  'place', 'area_info', 'results', 'conclusion')
+    reports_public = TechReport.objects.filter(is_processing=False, is_public=True).only('id', 'user_id',
+                                                                                         'date_uploaded',
+                                                                                         'upload_source',
+                                                                                         'is_processing', 'name',
+                                                                                         'organization', 'author',
+                                                                                         'open_list',
+                                                                                         'writing_date', 'contractors',
+                                                                                         'source',
+                                                                                         'place', 'area_info',
+                                                                                         'results', 'conclusion')
+    reports_private = TechReport.objects.filter(is_processing=False, user_id=request.user.id, is_public=False).only(
+        'id', 'user_id', 'date_uploaded',
+        'upload_source', 'is_processing', 'name',
+        'organization', 'author', 'open_list',
+        'writing_date', 'contractors', 'source',
+        'place', 'area_info', 'results', 'conclusion')
+    reports = reports_public | reports_private
     return render(request, 'tech_reports_register.html', {'reports': reports})
 
 

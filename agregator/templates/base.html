@@ -29,6 +29,10 @@
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ru.js"></script>
 
+    <!-- fancybox -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.css">
+    <script src="https://cdn.jsdelivr.net/npm/@fancyapps/ui@5.0/dist/fancybox/fancybox.umd.js"></script>
+
     <!--
     <script src="https://cdn.jsdelivr.net/npm/mdb-ui-kit/js/mdb.min.js"></script>
     <script type="module" src="{% static 'js/mdb.es.min.js' %}"></script>
@@ -140,7 +144,7 @@
 
 <script>
     $(document).ready(function () {
-        var table = $('table').DataTable({
+        window.dataTable = $('table').DataTable({
             language: {
                 "processing": "Подождите...",
                 "search": "Поиск:",
@@ -391,7 +395,7 @@
         });
 
         $('.column-toggle').each(function () {
-            var column = table.column($(this).data('column'));
+            var column = window.dataTable.column($(this).data('column'));
             var storedState = localStorage.getItem('column-' + $(this).data('column'));
             if (storedState !== null) {
                 var isChecked = (storedState === 'true');
@@ -406,7 +410,7 @@
 
         // Обработка события изменения состояния чекбоксов
         $('.column-toggle').change(function () {
-            var column = table.column($(this).data('column'));
+            var column = window.dataTable.column($(this).data('column'));
             var isVisible = $(this).is(':checked');
             column.visible(isVisible);
             // Сохранение состояния в localStorage
@@ -416,6 +420,30 @@
         $('.modal').modal({
             show: false
         });
+    });
+
+    Fancybox.bind('[data-fancybox="gallery"]', {
+        buttons: [
+            "zoom",
+            "share",
+            "slideShow",
+            "fullScreen",
+            "download",
+            "thumbs",
+            "close"
+        ]
+    });
+
+    Fancybox.bind('[data-fancybox="preview-link"]', {
+        buttons: [
+            "zoom",
+            "share",
+            "slideShow",
+            "fullScreen",
+            "download",
+            "thumbs",
+            "close"
+        ]
     });
 </script>
 

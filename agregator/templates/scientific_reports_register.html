@@ -303,20 +303,25 @@
 
             const storageSwitch = document.getElementById('storageSwitch');
             const storageLabel = document.getElementById('storageLabel');
-            const tableRows = document.querySelectorAll('.table tbody tr');
 
             storageSwitch.addEventListener('change', function () {
                 const isPrivate = storageSwitch.checked;
                 storageLabel.textContent = isPrivate ? "Частное хранилище" : "Публичное хранилище";
 
-                tableRows.forEach(row => {
-                    const isPublic = row.dataset.isPublic === "True";
+                $.fn.dataTable.ext.search.pop();
+
+                // Добавление нового фильтра
+                $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                    const row = window.dataTable.row(dataIndex).node();
+                    const isPublic = row.getAttribute('data-is-public') === "True";
+
                     if (isPrivate) {
-                        row.style.display = isPublic ? "none" : "";
+                        return !isPublic;
                     } else {
-                        row.style.display = isPublic ? "" : "none";
+                        return isPublic;
                     }
                 });
+                window.dataTable.draw();
             });
         });
     </script>
