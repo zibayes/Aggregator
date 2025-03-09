@@ -62,7 +62,8 @@ def process_scientific_reports(self, reports_ids, user_id):
                 continue
             progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'Processing'
             extract_text_and_images(current_report, source['path'], progress_recorder, pages_count,
-                                    total_processed, progress_json, current_report.id, i, self.request.id, user_id)
+                                    total_processed, progress_json, current_report.id, i, self.request.id, user_id,
+                                    current_report.is_public)
             progress_json['file_groups'][str(current_report.id)][i]['pages']['processed'] = \
                 progress_json['file_groups'][str(current_report.id)][i]['pages']['all']
             progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'True'
@@ -75,7 +76,7 @@ def process_scientific_reports(self, reports_ids, user_id):
 
 def extract_text_and_images(current_report, file, progress_recorder, pages_count, total_processed, progress_json,
                             report_id,
-                            source_index, task_id, user_id):
+                            source_index, task_id, user_id, is_public):
     if current_report.supplement:
         supplement_content = json.loads(current_report.supplement)
     else:
@@ -356,7 +357,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
             extract_images_with_captions(text, page, page_number, document, folder,
                                          supplement_content, extracted_images, user_id,
                                          progress_json['file_groups'][str(report_id)][source_index]['origin_filename'],
-                                         current_report.upload_source)
+                                         is_public, current_report.upload_source)
             extract_coordinates(file, document, page_number, folder, coordinates)
         total_processed[0] += len(document)
     document.close()

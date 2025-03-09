@@ -104,7 +104,8 @@ def process_acts(self, acts_ids, user_id):
                 continue
             progress_json['file_groups'][str(act.id)][i]['processed'] = 'Processing'
             new_table = extract_text_and_images(source['path'], progress_recorder, pages_count,
-                                                total_processed, progress_json, act.id, i, self.request.id, user_id)
+                                                total_processed, progress_json, act.id, i, self.request.id, user_id,
+                                                act.is_public)
             progress_json['file_groups'][str(act.id)][i]['pages']['processed'] = \
                 progress_json['file_groups'][str(act.id)][i]['pages']['all']
             progress_json['file_groups'][str(act.id)][i]['processed'] = 'True'
@@ -130,7 +131,7 @@ def process_acts(self, acts_ids, user_id):
 
 
 def extract_text_and_images(file, progress_recorder, pages_count, total_processed,
-                            progress_json, act_id, source_index, task_id, user_id):
+                            progress_json, act_id, source_index, task_id, user_id, is_public):
     supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
     coordinates = copy.deepcopy(COORDINATES_SAMPLE)
     pdf_file = file  # pdf_file = 'uploaded_files/' + file
@@ -715,7 +716,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
             extract_images_with_captions(text_to_write, page, page_number, document, folder,
                                          supplement_content, extracted_images, user_id,
                                          progress_json['file_groups'][str(act_id)][source_index]['origin_filename'],
-                                         current_act.upload_source)
+                                         is_public, current_act.upload_source)
             extract_coordinates(file, document, page_number, folder, coordinates)
         total_processed[0] += len(document)
 

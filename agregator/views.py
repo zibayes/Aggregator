@@ -239,7 +239,7 @@ def download_all_coordinates(request):
                 for report, groups in reports.items():
                     report_folder = report_type_folder.newfolder(name=report)
                     for group, point in groups.items():
-                        system_check = 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
+                        system_check = True  # 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
                         if 'фотофиксации' in group:
                             current_style = photos_style
                             photos_group = report_folder.newfolder(name=group)
@@ -734,7 +734,7 @@ def download_coordinates(request, report_type, pk):
             pits_style.iconstyle.color = simplekml.Color.red
             current_style = current_group = None
             for group, point in coordinates_to_download.items():
-                system_check = 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
+                system_check = True  # 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
                 if 'фотофиксации' in group:
                     current_style = photos_style
                     photos_group = kml.newfolder(name=group)

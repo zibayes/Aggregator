@@ -222,7 +222,8 @@ def preprocess_open_list(pix):
 
 
 def extract_images_with_captions(text, page, page_number, document, folder,
-                                 supplement_content, extracted_images, user_id, origin_name, upload_source=None):
+                                 supplement_content, extracted_images, user_id, origin_name, is_public,
+                                 upload_source=None):
     captions, captions_nums = extract_captions(text)
     image_list = page.get_images(full=True)
     caption_index = 0
@@ -309,7 +310,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 supplement_content["open_list"].append(
                     {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
 
-                open_lists_ids = raw_open_lists_save([pil_img], user_id, origin_name, upload_source)
+                open_lists_ids = raw_open_lists_save([pil_img], user_id, is_public, origin_name, upload_source)
                 task = process_open_lists.apply_async((open_lists_ids, user_id),
                                                       link_error=error_handler_open_lists.s())
                 user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
@@ -358,7 +359,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["open_list"].append(
                     {"source": current_folder + "/" + image_filename})
-                open_lists_ids = raw_open_lists_save([pil_img], user_id, origin_name, upload_source)
+                open_lists_ids = raw_open_lists_save([pil_img], user_id, is_public, origin_name, upload_source)
 
                 task = process_open_lists.apply_async((open_lists_ids, user_id),
                                                       link_error=error_handler_open_lists.s())

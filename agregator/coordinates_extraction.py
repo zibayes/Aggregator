@@ -5,8 +5,50 @@ import re
 import pdfplumber
 import pandas as pd
 import simplekml
+from pyproj import Proj, transform
 
 COORDINATES_SAMPLE = {'Шурфы': {}}
+
+projections = {
+    "wgs84": Proj(proj='latlong', datum='WGS84'),
+    "мск162": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=78 +k=1 +x_0=62728.20 +y_0=-7546013.80 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск163": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=81 +k=1 +x_0=65425.70 +y_0=-7434483.20 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск164": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=84 +k=1 +x_0=86209.80 +y_0=-6542783.50 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск165": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=87 +k=1 +x_0=105295.80 +y_0=-5652185.00 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск166": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=90 +k=1 +x_0=107543.30 +y_0=-5540944.50 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск167": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=93 +k=1 +x_0=106797.80 +y_0=-5578022.50 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск168": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=96 +k=1 +x_0=108285.20 +y_0=-5503868.60 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск169": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=99 +k=1 +x_0=117308.60 +y_0=-5503868.60 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск170": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=102 +k=1 +x_0=90338.90 +y_0=-6357146.10 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск171": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=105 +k=1 +x_0=87870.50 +y_0=-6468522.70 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск24зона1": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=81.51666667 +k=1 +x_0=1500000 +y_0=-5416586.442 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск24зона2": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=87.51666667 +k=1 +x_0=2500000 +y_0=-5416586.442 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск24зона3": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=93.51666667 +k=1 +x_0=3500000 +y_0=-5416586.442 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск24зона4": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=99.51666667 +k=1 +x_0=4500000 +y_0=-5416586.442 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск24зона5": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=105.51666667 +k=1 +x_0=5500000 +y_0=-5416586.442 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "мск24зона6": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=111.51666667 +k=1 +x_0=6500000 +y_0=-5416586.442 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs')
+}
+
+
+def convert_to_wgs84(x, y, system):
+    y, x = transform(projections[system], projections['wgs84'], y, x)
+    return x, y
 
 
 def choose_file() -> str:
@@ -31,14 +73,10 @@ def dms_to_decimal(dms):
     return decimal
 
 
-def convert_msk164_to_wgs84(x, y):
-    # Здесь должна быть ваша логика преобразования
-    # Например, просто возвращаем фиктивные значения
-    return y / 1000000 + 55, x / 1000000 + 37
-
-
 def extract_coordinates(file, document, page_number, folder, coordinates) -> None:
     found_table = False
+    points_type = None
+    coords_system = None
 
     page = document[page_number]
     text = page.get_text()
@@ -46,13 +84,20 @@ def extract_coordinates(file, document, page_number, folder, coordinates) -> Non
         next_page = document[page_number + 1]
         text += next_page.get_text()
     if not found_table:
-        points_type = re.search(r'Пункты\s+фотофиксации\.\s+Система\s+координат\S*\s+\S+\d+', text,
+        points_type = re.search(r'Пункты\s+фотофиксации\.\s+Система\s+координат\S*\s+\S+\d+(?:,\s*зона\s*\d+)?\b', text,
                                 re.IGNORECASE | re.MULTILINE)
         if not points_type:
-            points_type = re.search(r'Каталог\s+координат\s+Участка\.\s+Система\s+координат\S*\s+\S+\d+', text,
-                                    re.IGNORECASE | re.MULTILINE)
+            points_type = re.search(
+                r'Каталог\s+координат\s+Участка\.\s+Система\s+координат\S*\s+\S+\d+(?:,\s*зона\s*\d+)?\b', text,
+                re.IGNORECASE | re.MULTILINE)
         if points_type:
             points_type = points_type.group(0)
+            coords_system = re.search(r'\b(?:wgs|мск)-?\d+(?:,\s*зона\s*\d+)?\b', points_type,
+                                      re.IGNORECASE | re.MULTILINE)
+            if coords_system:
+                coords_system = coords_system.group(0).lower().replace(' ', '').replace('-', '').replace(',',
+                                                                                                         '').replace(
+                    ':', '')
     if points_type or found_table:
         with pdfplumber.open(file) as pdf:
             page_tables = pdf.pages[page_number].extract_tables()
@@ -86,9 +131,11 @@ def extract_coordinates(file, document, page_number, folder, coordinates) -> Non
                     point_number = row['№']
                     lat = row['Северная широта']
                     lon = row['Восточная долгота']
-                    if 'WGS-84' in points_type or 'WGS84' in points_type or 'WGS 84' in points_type:
+                    if 'wgs84' in coords_system:
                         lat = dms_to_decimal(lat)
                         lon = dms_to_decimal(lon)
+                    else:
+                        lat, lon = convert_to_wgs84(lat, lon, coords_system)
 
                     if 'S' in row['Северная широта']:
                         lat = -lat
@@ -100,7 +147,7 @@ def extract_coordinates(file, document, page_number, folder, coordinates) -> Non
                     coordinates[points_type][point_number] = [lat, lon]
 
     pits_coordinates = re.findall(
-        r'Шурф\s№\s\d+[\s\S]+?Координаты\s+шурфа\s+в\s+системе\s+WGS-\d+:\s+[NS]\d+°\d+\'\d+[\.,]\d+"\s+[EW]\d+°\d+\'\d+[\.,]\d+"',
+        r'Шурф\s№\s\d+[\s\S]+?Координаты\s+шурфа\s+в\s+системе\s+WGS-\d+:*\s+[NS]\d+°\d+\'\d+[\.,]\d+";*\s+[EW]\d+°\d+\'\d+[\.,]\d+"',
         text, re.IGNORECASE)
     # r'([NS])(\d{1,2})°(\d{1,2})\'(\d{1,2}\.\d{1,2})"\s+([EW])(\d{1,3})°(\d{1,2})\'(\d{1,2}\.\d{1,2})"'
     for coord in pits_coordinates:

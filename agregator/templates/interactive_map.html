@@ -1,10 +1,16 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Интерактивная карта{% endblock %}
 
 {% block content %}
-    <!-- Подключение CSS Leaflet -->
+    <!-- Подключение Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script src="https:\unpkg.com\leaflet-graphicscale@0.0.4\src\Leaflet.GraphicScale.js"></script>
+    <link rel="stylesheet" href="{% static 'css/Leaflet.GraphicScale.css' %}"/>
+    <script src="{% static 'js/Leaflet.GraphicScale.js' %}"></script>
+
     <style>
         #map {
             height: 720px;
@@ -49,6 +55,13 @@
         .link-button:hover {
             color: darkblue; /* Цвет текста при наведении */
         }
+
+        .leaflet-control-graphicscale {
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 15px;
+        }
     </style>
 
     <br>
@@ -64,9 +77,21 @@
                     data-bs-toggle="modal">
                 Скачать координаты в формате .kml
             </button>
-            <label style="display: flex; align-items: center;">
-                <input type="checkbox" id="toggleLegend" style="margin-right: 3px;" checked> Легенда
-            </label>
+            <div style="display: flex; align-items: center; margin-left: auto;">
+                <label style="display: flex; align-items: center; margin-left: 10px;">
+                    <input type="checkbox" id="toggleScale" style="margin-right: 3px;" checked> Переключение
+                    мастшаба
+                </label>
+                <label style="display: flex; align-items: center; margin-left: 10px;">
+                    <input type="checkbox" id="toggleNorthArrow" style="margin-right: 3px;" checked> Стрелка на север
+                </label>
+                <label style="display: flex; align-items: center; margin-left: 10px;">
+                    <input type="checkbox" id="toggleGraphicScale" style="margin-right: 3px;" checked> Линейка масштаба
+                </label>
+                <label style="display: flex; align-items: center; margin-left: 10px;">
+                    <input type="checkbox" id="toggleLegend" style="margin-right: 3px;" checked> Легенда
+                </label>
+            </div>
         </div>
     </div>
 
@@ -75,9 +100,8 @@
         <div id="map"></div>
     </div>
 
-    <!-- Подключение JS Leaflet -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script>
+        let groupCheckbox;
         // Инициализация карты
         var map = L.map('map').setView([55.7558, 37.6173], 8);
 
@@ -85,6 +109,22 @@
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
             maxZoom: 18,
         }).addTo(map);
+
+        // L.control.scale().addTo(map);
+        const graphicScale = L.control.graphicScale({
+            showSubunits: true,
+            fill: 'fill',
+            doubleLine: true,
+            position: 'bottomleft'
+        });
+        graphicScale.addTo(map);
+        var northArrowControl = L.control({position: 'topleft'});
+        northArrowControl.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'north-arrow');
+            div.innerHTML = '<img src="/static/img/north_arrow.png" alt="Север" style="width: 50px; height: auto;">';
+            return div;
+        };
+        northArrowControl.addTo(map);
 
         var legend = L.control({position: 'topright'});
 
@@ -109,6 +149,10 @@
                     {% for point_name, coords in point.items %}
                         content += '<div style="margin-left: 20px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>';
                     {% endfor %}
+
+                    {% if 'Каталог' in group %}
+                        content += '<div style="margin-left: 20px;"><input type="checkbox" id="toggleCatalogPolyline" style="margin-right: 3px;" checked> Полигон</div>';
+                    {% endif %}
                     content += '</div>';
                 {% endfor %}
                 content += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleTooltips" style="margin-right: 3px;" checked> Названия точек</label>';
@@ -137,8 +181,12 @@
                             {% endif %}
 
                             {% for point_name, coords in point.items %}
-                                content += '<div style="margin-left: 60px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>';
+                                content += '<div style="margin-left: 40px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>';
                             {% endfor %}
+
+                            {% if 'Каталог' in group %}
+                                content += '<div style="margin-left: 40px;"><input type="checkbox" id="toggleCatalogPolyline-{{ report_name }}" style="margin-right: 3px;" checked> Полигон</div>';
+                            {% endif %}
                             content += '</div>';
                         {% endfor %}
                         content += '</div>'; // Закрываем вложенный контент для report_name
@@ -166,7 +214,7 @@
         }
 
         var catalog_icons = new L.Icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x.png',
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
             // shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
             iconSize: [25, 41],
             iconAnchor: [12, 41],
@@ -193,6 +241,9 @@
         var markers = [];
         var all_markers = {};
         var bounds = L.latLngBounds();
+        var catalogCoords = [];
+        var all_catalogCoords = {};
+        var all_catalogPolyline = {};
 
         {% if coordinates %}
             {% for group, point in coordinates.items %}
@@ -203,32 +254,38 @@
                 {% elif 'фото' in group %}
                     current_icon = photos_icons;
                 {% endif %}
-                {% if 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group %}
-                    {% for point_name, coords in point.items %}
-                        var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
-                            color: 'red',
-                            icon: current_icon,
-                        }).addTo(map)
-                            .bindPopup("<b>" + `{{ point_name }}` + "</b><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
-                            .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
-                                permanent: true,
-                                direction: 'bottom'
-                            });
-                        markers.push({marker: marker, group: `{{ group }}`, point_name: `{{ point_name }}`});
-                        bounds.extend(marker.getLatLng());
-
-                        document.getElementById('togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}').addEventListener('change', function () {
-                            markers.forEach(function (item) {
-                                if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && this.checked) {
-                                    item.marker.addTo(map);
-                                } else if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && !this.checked) {
-                                    map.removeLayer(item.marker);
-                                }
-                            }, this);
+                {% for point_name, coords in point.items %}
+                    var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
+                        color: 'red',
+                        icon: current_icon,
+                    }).addTo(map)
+                        .bindPopup("<b>" + `{{ point_name }}` + "</b><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
+                        .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
+                            permanent: true,
+                            direction: 'bottom'
                         });
-                    {% endfor %}
-                {% endif %}
+                    {% if 'Каталог' in group %}
+                        catalogCoords.push([{{ coords.0 }}, {{ coords.1 }}]);
+                    {% endif %}
+                    markers.push({marker: marker, group: `{{ group }}`, point_name: `{{ point_name }}`});
+                    bounds.extend(marker.getLatLng());
+
+                    document.getElementById('togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}').addEventListener('change', function () {
+                        markers.forEach(function (item) {
+                            if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && this.checked) {
+                                item.marker.addTo(map);
+                            } else if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && !this.checked) {
+                                map.removeLayer(item.marker);
+                            }
+                        }, this);
+                    });
+                {% endfor %}
             {% endfor %}
+
+            if (catalogCoords.length > 0) {
+                catalogCoords.push(catalogCoords[0]);
+                var catalogPolyline = L.polyline(catalogCoords, {color: 'blue'}).addTo(map);
+            }
 
             {% if 'Шурфы' in coordinates.keys %}
                 document.getElementById('toggleShurfs-{{ report_name }}').addEventListener('change', function () {
@@ -242,6 +299,7 @@
                     const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
                     childCheckboxes.forEach(function (checkbox) {
                         checkbox.checked = this.checked;
+                        checkbox.dispatchEvent(new Event('change'));
                     }, this);
                 });
             {% endif %}
@@ -249,16 +307,27 @@
             {% if 'Каталог' in coordinates.keys|join:", " %}
                 document.getElementById('toggleCatalog-{{ report_name }}').addEventListener('change', function () {
                     markers.forEach(function (item) {
-                        if (item.group.includes('Каталог координат участка') && this.checked) {
+                        if (item.group.toLowerCase().includes('каталог координат участка') && this.checked) {
                             item.marker.addTo(map);
-                        } else if (item.group.includes('Каталог координат участка') && !this.checked) {
+                        } else if (item.group.toLowerCase().includes('каталог координат участка') && !this.checked) {
                             map.removeLayer(item.marker);
                         }
                     }, this);
                     const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
                     childCheckboxes.forEach(function (checkbox) {
                         checkbox.checked = this.checked;
+                        checkbox.dispatchEvent(new Event('change'));
                     }, this);
+                    const toggleCatalogPolyline = document.querySelectorAll('#toggleCatalogPolyline');
+                    toggleCatalogPolyline[0].checked = this.checked;
+                    toggleCatalogPolyline[0].dispatchEvent(new Event('change'));
+                });
+                document.getElementById('toggleCatalogPolyline').addEventListener('change', function () {
+                    if (this.checked) {
+                        catalogPolyline.addTo(map);
+                    } else {
+                        map.removeLayer(catalogPolyline);
+                    }
                 });
             {% endif %}
 
@@ -274,6 +343,7 @@
                     const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
                     childCheckboxes.forEach(function (checkbox) {
                         checkbox.checked = this.checked;
+                        checkbox.dispatchEvent(new Event('change'));
                     }, this);
                 });
             {% endif %}
@@ -283,6 +353,7 @@
             {% for report_type, reports in all_coordinates.items %}
                 {% for report_name, coordinates in reports.items %}
                     all_markers[`{{ report_name }}`] = []
+                    all_catalogCoords[`{{ report_name }}`] = []
                     {% for group, point in coordinates.items %}
                         {% if 'Каталог' in group %}
                             current_icon = catalog_icons;
@@ -291,54 +362,59 @@
                         {% elif 'фото' in group %}
                             current_icon = photos_icons;
                         {% endif %}
-                        {% if 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group %}
-                            {% for point_name, coords in point.items %}
-                                var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
-                                    color: 'red',
-                                    icon: current_icon,
-                                }).addTo(map)
-                                    .bindPopup("<b>" + `{{ point_name }}` + "</b><br><br>" + `<i>[{{ report_type }}]</i>` + "<br>" + `<i>{{ report_name }}</i>` + "<br><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
-                                    .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
-                                        permanent: true,
-                                        direction: 'bottom'
-                                    });
-                                all_markers[`{{ report_name }}`].push({
-                                    marker: marker,
-                                    group: `{{ group }}`,
-                                    point_name: `{{ point_name }}`
+                        {% for point_name, coords in point.items %}
+                            var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
+                                color: 'red',
+                                icon: current_icon,
+                            }).addTo(map)
+                                .bindPopup("<b>" + `{{ point_name }}` + "</b><br><br>" + `<i>[{{ report_type }}]</i>` + "<br>" + `<i>{{ report_name }}</i>` + "<br><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
+                                .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
+                                    permanent: true,
+                                    direction: 'bottom'
                                 });
-                                bounds.extend(marker.getLatLng());
+                            all_markers[`{{ report_name }}`].push({
+                                marker: marker,
+                                group: `{{ group }}`,
+                                point_name: `{{ point_name }}`
+                            });
+                            bounds.extend(marker.getLatLng());
 
-                                document.getElementById('togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}').addEventListener('change', function () {
-                                    all_markers[`{{ report_name }}`].forEach(function (item) {
-                                        if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && this.checked) {
-                                            item.marker.addTo(map);
-                                        } else if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && !this.checked) {
-                                            map.removeLayer(item.marker);
-                                        }
-                                    }, this);
-                                });
-                            {% endfor %}
-                        {% endif %}
+                            {% if 'Каталог' in group %}
+                                all_catalogCoords[`{{ report_name }}`].push([{{ coords.0 }}, {{ coords.1 }}]);
+                            {% endif %}
+
+                            document.getElementById('togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}').addEventListener('change', function () {
+                                all_markers[`{{ report_name }}`].forEach(function (item) {
+                                    if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && this.checked) {
+                                        item.marker.addTo(map);
+                                    } else if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && !this.checked) {
+                                        map.removeLayer(item.marker);
+                                    }
+                                }, this);
+                            });
+                        {% endfor %}
+
+                        if (all_catalogCoords[`{{ report_name }}`].length > 0) {
+                            all_catalogCoords[`{{ report_name }}`].push(all_catalogCoords[`{{ report_name }}`][0]);
+                            all_catalogPolyline[`{{ report_name }}`] = L.polyline(all_catalogCoords[`{{ report_name }}`], {color: 'blue'}).addTo(map);
+                        }
                     {% endfor %}
 
                     document.getElementById('toggleMarkerGroup-{{ report_name }}').addEventListener('change', function () {
-                        const changeEvent = new Event('change');
-                        let groupCheckbox;
                         {% if 'Шурфы' in coordinates.keys %}
                             groupCheckbox = document.getElementById(`toggleShurfs-{{ report_name }}`);
                             groupCheckbox.checked = this.checked;
-                            groupCheckbox.dispatchEvent(changeEvent);
+                            groupCheckbox.dispatchEvent(new Event('change'));
                         {% endif %}
                         {% if 'Каталог' in coordinates.keys|join:", " %}
                             groupCheckbox = document.getElementById(`toggleCatalog-{{ report_name }}`);
                             groupCheckbox.checked = this.checked;
-                            groupCheckbox.dispatchEvent(changeEvent);
+                            groupCheckbox.dispatchEvent(new Event('change'));
                         {% endif %}
                         {% if 'фото' in coordinates.keys|join:", " %}
                             groupCheckbox = document.getElementById(`togglePhotoPoints-{{ report_name }}`);
                             groupCheckbox.checked = this.checked;
-                            groupCheckbox.dispatchEvent(changeEvent);
+                            groupCheckbox.dispatchEvent(new Event('change'));
                         {% endif %}
                     });
 
@@ -361,9 +437,9 @@
                     {% if 'Каталог' in coordinates.keys|join:", " %}
                         document.getElementById('toggleCatalog-{{ report_name }}').addEventListener('change', function () {
                             all_markers[`{{ report_name }}`].forEach(function (item) {
-                                if (item.group.includes('Каталог координат участка') && this.checked) {
+                                if (item.group.toLowerCase().includes('каталог координат участка') && this.checked) {
                                     item.marker.addTo(map);
-                                } else if (item.group.includes('Каталог координат участка') && !this.checked) {
+                                } else if (item.group.toLowerCase().includes('каталог координат участка') && !this.checked) {
                                     map.removeLayer(item.marker);
                                 }
                             }, this);
@@ -371,6 +447,16 @@
                             childCheckboxes.forEach(function (checkbox) {
                                 checkbox.checked = this.checked;
                             }, this);
+                            const toggleCatalogPolyline = document.getElementById('toggleCatalogPolyline-{{ report_name }}');
+                            toggleCatalogPolyline.checked = this.checked;
+                            toggleCatalogPolyline.dispatchEvent(new Event('change'));
+                        });
+                        document.getElementById('toggleCatalogPolyline-{{ report_name }}').addEventListener('change', function () {
+                            if (this.checked) {
+                                all_catalogPolyline[`{{ report_name }}`].addTo(map);
+                            } else {
+                                map.removeLayer(all_catalogPolyline[`{{ report_name }}`]);
+                            }
                         });
                     {% endif %}
 
@@ -393,9 +479,6 @@
                 {% endfor %}
             {% endfor %}
             map.fitBounds(bounds);
-        {% else %}
-            var marker = L.marker([55.7558, 37.6173]).addTo(map);
-            marker.bindPopup("<b>Москва</b><br>Столица России").openPopup();
         {% endif %}
 
         var element = document.querySelector('.leaflet-bottom.leaflet-right');
@@ -445,6 +528,29 @@
                 legend.getContainer().style.display = 'none';
             }
         });
+        document.getElementById('toggleNorthArrow').addEventListener('change', function () {
+            if (this.checked) {
+                northArrowControl.addTo(map);
+            } else {
+                map.removeControl(northArrowControl);
+            }
+        });
+        document.getElementById('toggleGraphicScale').addEventListener('change', function () {
+            if (this.checked) {
+                graphicScale.addTo(map);
+            } else {
+                map.removeControl(graphicScale);
+            }
+        });
+        document.getElementById('toggleScale').addEventListener('change', function () {
+            var zoomControl = map.zoomControl;
+            if (this.checked) {
+                zoomControl.getContainer().style.display = 'block';
+            } else {
+                zoomControl.getContainer().style.display = 'none';
+            }
+        });
+
     </script>
 {% endblock %}
 
@@ -577,11 +683,10 @@
         function syncCheckboxes(reportType) {
             const mainCheckbox = document.getElementById(`toggleMarkerGroup-${reportType}`);
             const nestedCheckboxes = document.querySelectorAll(`.${reportType}_point`);
-            const changeEvent = new Event('change');
 
             nestedCheckboxes.forEach(checkbox => {
                 checkbox.checked = mainCheckbox.checked;
-                checkbox.dispatchEvent(changeEvent);
+                checkbox.dispatchEvent(new Event('change'));
             });
         }
 
