@@ -46,6 +46,20 @@
         body {
             background-color: #f8f9fa;
         }
+
+        .link-button {
+            background: none; /* Убираем фон */
+            border: none; /* Убираем границу */
+            color: blue; /* Цвет текста, как у гиперссылки */
+            text-decoration: underline; /* Подчеркивание текста */
+            cursor: pointer; /* Указатель при наведении */
+            padding: 0; /* Убираем отступы */
+            font: inherit; /* Унаследовать шрифт от родителя */
+        }
+
+        .link-button:hover {
+            color: darkblue; /* Цвет текста при наведении */
+        }
     </style>
 </head>
 {% block modal_dialog %}
@@ -95,6 +109,24 @@
                         </li>
                         {% if user.is_authenticated %}
                             <li><a class="dropdown-item" href="{% url 'open_list_ocr' %}">OCR для документов</a></li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </li>
+            <li class="nav-item" style="margin-right:10px;">
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton3"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        Памятники
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                        <li><a class="dropdown-item" href="{% url 'archaeological_heritage_sites' %}">Перечень объектов
+                            археологического наследия</a>
+                        </li>
+                        {% if user.is_authenticated %}
+                            <li><a class="dropdown-item" href="{% url 'identified_archaeological_heritage_sites' %}">Перечень
+                                выявленных объектов
+                                культурного наследия</a></li>
                         {% endif %}
                     </ul>
                 </div>

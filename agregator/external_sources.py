@@ -7,6 +7,8 @@ from pathlib import Path
 from urllib.parse import quote
 from bs4 import BeautifulSoup
 import requests
+import pandas as pd
+from docx import Document
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import InMemoryUploadedFile
 
@@ -17,7 +19,7 @@ import fitz
 import patoolib
 
 from .files_saving import raw_reports_save
-from .models import User, Act, UserTasks
+from .models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
 
 
 @shared_task(bind=True)
@@ -48,7 +50,7 @@ def external_sources_processing(self, start_date, end_date):
                 if file.lower().endswith('.pdf') or file.lower().endswith('.zip') or file.lower().endswith('.rar'):
                     downloaded_files.append(file)
         '''
-        
+
         for item in soup.find_all('p', class_='news-item'):
 
             if start_date is not None and end_date is not None:
@@ -169,3 +171,108 @@ def convert_file_to_uploaded_file(file_path):
             charset=None
         )
     return uploaded_file
+
+
+def extract_tables_from_docx(docx_file):
+    doc = Document(docx_file)
+    tables = []
+    for table in doc.tables:
+        data = []
+        for row in table.rows:
+            data.append([cell.text.strip() for cell in row.cells])
+        tables.append(data)
+
+    return tables
+
+
+def tables_to_dataframes(tables):
+    dataframes = []
+    for table in tables:
+        df = pd.DataFrame(table[1:], columns=table[0])
+        dataframes.append(df)
+    return dataframes
+
+
+def external_voan_list_processing():
+    r = requests.get(f"https://ookn.ru/gosohrana/", verify=False)
+    data = r.text
+    soup = BeautifulSoup(data, 'html.parser')
+    downloaded_files = []
+
+    for root, dirs, files in os.walk('.'):
+        for file in files:
+            if file.lower().endswith('.pdf') or file.lower().endswith('.zip') or file.lower().endswith('.rar'):
+                downloaded_files.append(file)
+
+    for item in soup.find_all('p', class_='news-item'):
+        title = item.find('b').get_text(strip=True) if item.find('b') else ''
+        if title not in (
+                'Перечень объектов археологического наследия', 'Перечень выявленных объектов культурного наследия'):
+            continue
+
+        link = item.find('a', href=True)
+        if link and '/upload/iblock/' in link['href']:
+            file = link['href'][link['href'].rfind('/') + 1:]
+
+            file_encoded = file.replace(' ', '%20')
+            if file_encoded in downloaded_files:
+                continue
+            path_to_download = 'uploaded_files/voan_list/' + file_encoded
+
+            print(f"Заголовок: {title}")
+            print(f"Ссылка: {link['href']}")
+
+            href = link['href'][:link['href'].rfind('/')]
+            params = urllib.parse.urlencode({'address': file})
+            href = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace('%29', ')')
+            url = f"https://ookn.ru{href}"
+
+            context = ssl._create_unverified_context()
+            with urllib.request.urlopen(url, context=context) as response:
+                with open(path_to_download, 'wb') as out_file:
+                    out_file.write(response.read())
+                tables = extract_tables_from_docx(path_to_download)
+                dataframes = tables_to_dataframes(tables)
+                for i, df in enumerate(dataframes):
+                    # df = df.replace('\n', '', regex=True)
+                    df.columns = df.columns.str.replace('\n', '', regex=True)
+                    print(f"Таблица {i + 1}:")
+                    print(df)
+                    print("\n")
+
+                    if title == 'Перечень выявленных объектов культурного наследия' and 'Адрес объекта (или описание местоположения объекта)*' in df.columns:
+                        # df['Адрес объекта (или описание местоположения объекта)*'].str.contains('ВОАН', na=False)
+                        for index, row in df.iterrows():
+                            if not IdentifiedArchaeologicalHeritageSite.objects.filter(
+                                    name=row['Наименование выявленного объекта культурного наследия'],
+                                    address=row['Адрес объекта (или описание местоположения объекта)*'],
+                                    obj_info=row['Сведения об историко-культурной ценности объекта'],
+                                    document=row['Документ о включении в перечень выявленных объектов'],
+                            ).exists():
+                                identified_site = IdentifiedArchaeologicalHeritageSite(
+                                    name=row['Наименование выявленного объекта культурного наследия'],
+                                    address=row['Адрес объекта (или описание местоположения объекта)*'],
+                                    obj_info=row['Сведения об историко-культурной ценности объекта'],
+                                    document=row['Документ о включении в перечень выявленных объектов'],
+                                )
+                                identified_site.save()
+
+                    elif title == 'Перечень объектов археологического наследия':
+                        for index, row in df.iterrows():
+                            if not ArchaeologicalHeritageSite.objects.filter(
+                                    doc_name=row[
+                                        'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
+                                    district=row['Район местонахождения'],
+                                    document=row['Документ о постановке на государственную охрану'],
+                                    register_num=row[
+                                        'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
+                            ).exists():
+                                archaeological_site = ArchaeologicalHeritageSite(
+                                    doc_name=row[
+                                        'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
+                                    district=row['Район местонахождения'],
+                                    document=row['Документ о постановке на государственную охрану'],
+                                    register_num=row[
+                                        'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
+                                )
+                                archaeological_site.save()

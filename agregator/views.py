@@ -4,7 +4,7 @@ from .forms import UploadReportsForm, UploadOpenListsForm
 from .acts_processing import process_acts, error_handler_acts
 from .scientific_reports_processing import process_scientific_reports, error_handler_scientific_reports
 from .tech_reports_processing import process_tech_reports, error_handler_tech_reports
-from .external_sources import external_sources_processing
+from .external_sources import external_sources_processing, external_voan_list_processing
 from .open_lists_ocr import process_open_lists, error_handler_open_lists
 from .ask import ask_question_with_context
 import os
@@ -21,7 +21,8 @@ from django.http import JsonResponse
 from django.contrib.auth import login, authenticate
 from .forms import UserRegisterForm
 from django_celery_results.models import TaskResult
-from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks
+from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks, \
+    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
@@ -912,6 +913,21 @@ def open_lists_delete(request, pk):
     list_instance = OpenLists.objects.get(id=pk)
     list_instance.delete()
     return redirect(f'open_lists_register')
+
+
+def archaeological_heritage_sites(request):
+    oan = ArchaeologicalHeritageSite.objects.all()
+    return render(request, 'archaeological_heritage_site.html', {'oan': oan})
+
+
+def identified_archaeological_heritage_sites(request):
+    voan = IdentifiedArchaeologicalHeritageSite.objects.all()
+    return render(request, 'identified_archaeological_heritage_site.html', {'voan': voan})
+
+
+def update_voan_list(request):
+    external_voan_list_processing()
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
 class UserList(generics.ListAPIView):
