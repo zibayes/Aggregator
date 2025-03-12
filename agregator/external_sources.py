@@ -197,12 +197,24 @@ def external_voan_list_processing():
     r = requests.get(f"https://ookn.ru/gosohrana/", verify=False)
     data = r.text
     soup = BeautifulSoup(data, 'html.parser')
-    downloaded_files = []
+    current_lists = 'uploaded_files/voan_list/current_lists.txt'
+    Path('uploaded_files/voan_list/').mkdir(exist_ok=True)
 
-    for root, dirs, files in os.walk('.'):
-        for file in files:
-            if file.lower().endswith('.pdf') or file.lower().endswith('.zip') or file.lower().endswith('.rar'):
-                downloaded_files.append(file)
+    with open(current_lists, 'a+') as file:
+        file.seek(0)
+        text = file.read()
+        lines = [line for line in text.split('\n') if line.strip()]
+        file.seek(0)
+        file.truncate()
+        for line in lines:
+            if 'list_voan - ' in line:
+                line = line.replace('list_voan - ', '')
+                if os.path.exists(line):
+                    os.remove(line)
+            elif 'list_oan - ' in line:
+                line = line.replace('list_oan - ', '')
+                if os.path.exists(line):
+                    os.remove(line)
 
     for item in soup.find_all('p', class_='news-item'):
         title = item.find('b').get_text(strip=True) if item.find('b') else ''
@@ -215,8 +227,6 @@ def external_voan_list_processing():
             file = link['href'][link['href'].rfind('/') + 1:]
 
             file_encoded = file.replace(' ', '%20')
-            if file_encoded in downloaded_files:
-                continue
             path_to_download = 'uploaded_files/voan_list/' + file_encoded
 
             print(f"Заголовок: {title}")
@@ -231,31 +241,52 @@ def external_voan_list_processing():
             with urllib.request.urlopen(url, context=context) as response:
                 with open(path_to_download, 'wb') as out_file:
                     out_file.write(response.read())
+
+                with open(current_lists, 'a+') as file:
+                    if title == 'Перечень выявленных объектов культурного наследия':
+                        file.write('list_voan - ' + path_to_download + '\n')
+                    elif title == 'Перечень объектов археологического наследия':
+                        file.write('list_oan - ' + path_to_download + '\n')
                 tables = extract_tables_from_docx(path_to_download)
                 dataframes = tables_to_dataframes(tables)
                 for i, df in enumerate(dataframes):
                     # df = df.replace('\n', '', regex=True)
                     df.columns = df.columns.str.replace('\n', '', regex=True)
+                    '''
                     print(f"Таблица {i + 1}:")
                     print(df)
                     print("\n")
+                    '''
 
                     if title == 'Перечень выявленных объектов культурного наследия' and 'Адрес объекта (или описание местоположения объекта)*' in df.columns:
                         # df['Адрес объекта (или описание местоположения объекта)*'].str.contains('ВОАН', na=False)
+                        existing_sites = IdentifiedArchaeologicalHeritageSite.objects.all()
+                        existing_sites_set = set(
+                            (site.name, site.address, site.obj_info, site.document) for site in existing_sites)
                         for index, row in df.iterrows():
+                            address = row['Адрес объекта (или описание местоположения объекта)*']
+                            if isinstance(address, str):
+                                address = address.strip()
+                            else:
+                                address = row.iat[2].strip()
+                            identified_site = IdentifiedArchaeologicalHeritageSite(
+                                name=row['Наименование выявленного объекта культурного наследия'],
+                                address=address,
+                                obj_info=row['Сведения об историко-культурной ценности объекта'],
+                                document=row['Документ о включении в перечень выявленных объектов'],
+                            )
                             if not IdentifiedArchaeologicalHeritageSite.objects.filter(
-                                    name=row['Наименование выявленного объекта культурного наследия'],
-                                    address=row['Адрес объекта (или описание местоположения объекта)*'],
-                                    obj_info=row['Сведения об историко-культурной ценности объекта'],
-                                    document=row['Документ о включении в перечень выявленных объектов'],
+                                    name=identified_site.name,
+                                    address=identified_site.address,
+                                    obj_info=identified_site.obj_info,
+                                    document=identified_site.document,
                             ).exists():
-                                identified_site = IdentifiedArchaeologicalHeritageSite(
-                                    name=row['Наименование выявленного объекта культурного наследия'],
-                                    address=row['Адрес объекта (или описание местоположения объекта)*'],
-                                    obj_info=row['Сведения об историко-культурной ценности объекта'],
-                                    document=row['Документ о включении в перечень выявленных объектов'],
-                                )
                                 identified_site.save()
+
+                            for site in existing_sites:
+                                if (site.name, site.address, site.obj_info, site.document) not in existing_sites_set:
+                                    site.is_excluded = True
+                                    site.save()
 
                     elif title == 'Перечень объектов археологического наследия':
                         for index, row in df.iterrows():

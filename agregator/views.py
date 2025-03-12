@@ -16,6 +16,7 @@ from django.contrib.auth import logout
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from rest_framework import generics
+from urllib.parse import quote
 from . import serializers
 from django.http import JsonResponse
 from django.contrib.auth import login, authenticate
@@ -923,6 +924,30 @@ def archaeological_heritage_sites(request):
 def identified_archaeological_heritage_sites(request):
     voan = IdentifiedArchaeologicalHeritageSite.objects.all()
     return render(request, 'identified_archaeological_heritage_site.html', {'voan': voan})
+
+
+def archaeological_heritage_sites_download(request):
+    current_lists = 'uploaded_files/voan_list/current_lists.txt'
+    link = None
+    with open(current_lists, 'r') as file:
+        for line in file.readlines():
+            if 'list_voan - ' in line:
+                link = line.replace('list_voan - ', '').strip()
+    if link is None:
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+    return redirect('/' + quote(link))
+
+
+def identified_archaeological_heritage_sites_download(request):
+    current_lists = 'uploaded_files/voan_list/current_lists.txt'
+    link = None
+    with open(current_lists, 'r') as file:
+        for line in file.readlines():
+            if 'list_oan - ' in line:
+                link = line.replace('list_oan - ', '').strip()
+    if link is None:
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+    return redirect('/' + quote(link))
 
 
 def update_voan_list(request):

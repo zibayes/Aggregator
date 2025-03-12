@@ -123,11 +123,11 @@
                         <li><a class="dropdown-item" href="{% url 'archaeological_heritage_sites' %}">Перечень объектов
                             археологического наследия</a>
                         </li>
-                        {% if user.is_authenticated %}
-                            <li><a class="dropdown-item" href="{% url 'identified_archaeological_heritage_sites' %}">Перечень
+                        <li>
+                            <a class="dropdown-item" href="{% url 'identified_archaeological_heritage_sites' %}">Перечень
                                 выявленных объектов
-                                культурного наследия</a></li>
-                        {% endif %}
+                                археологического наследия</a>
+                        </li>
                     </ul>
                 </div>
             </li>
