@@ -3,13 +3,14 @@
 
 {% block title %}Интерактивная карта{% endblock %}
 
-{% block content %}
+{% block map %}
     <!-- Подключение Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
     <script src="https:\unpkg.com\leaflet-graphicscale@0.0.4\src\Leaflet.GraphicScale.js"></script>
     <link rel="stylesheet" href="{% static 'css/Leaflet.GraphicScale.css' %}"/>
     <script src="{% static 'js/Leaflet.GraphicScale.js' %}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 
     <style>
         #map {
@@ -48,6 +49,17 @@
             border-radius: 4px;
             padding: 15px;
         }
+
+        .coordinates {
+            background-color: rgba(255, 255, 255, 0.8);
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            padding: 5px;
+            border-radius: 5px;
+            width: 280px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
     </style>
 
     <br>
@@ -57,12 +69,52 @@
         <h2 align="center">Интерактивная Карта</h2>
     {% endif %}
 
-    <div class="container mt-1">
-        <div class="controls" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+    <div style="align-items: center; width: 1800px; margin: 0 auto;">
+        <div class="controls"
+             style="display: flex; justify-content: space-between; align-items: center;">
             <button class="link-button" type="button" data-bs-target="#download"
                     data-bs-toggle="modal">
                 Скачать координаты в формате .kml
             </button>
+            <button id="screenshotButton" class="link-button" type="button" style="margin-left:10px;">Сделать скриншот
+                карты
+            </button>
+            <label for="baseLayerSelect" style="margin-left: 10px;">Подложка:</label>
+            <select id="baseLayerSelect" class="form-select" style="margin-left: 10px; width: 270px;">
+                <optgroup label="OpenStreetMap">
+                    <option value="OpenStreetMap">OpenStreetMap Карта</option>
+                </optgroup>
+                <optgroup label="Google">
+                    <option value="Google">Google Карта</option>
+                    <option value="Google satellite">Google Спутник</option>
+                    <option value="Google hybrid">Google Гибрид</option>
+                    <option value="Google Roads">Google Дороги</option>
+                    <option value="Google Streets">Google Улицы</option>
+                    <option value="Google Streets Alternative">Google Улицы (альтернативный)</option>
+                    <option value="Google Terrain">Google Рельеф</option>
+                    <option value="Google Terrain Alternative">Google Рельеф (альтернативный)</option>
+                </optgroup>
+                <optgroup label="Yandex">
+                    <option value="Yandex">Yandex Карта</option>
+                    <option value="Yandex satellite">Yandex Спутник</option>
+                    <option value="Yandex hybrid">Yandex Гибрид</option>
+                </optgroup>
+                <optgroup label="2GIS">
+                    <option value="2GIS">2GIS Карта</option>
+                </optgroup>
+                <optgroup label="Bing">
+                    <option value="Bing Maps">Bing Карта</option>
+                    <option value="Bing Satellite">Bing Спутник</option>
+                    <option value="Bing Roads (en)">Bing Дороги (en)</option>
+                    <option value="Bing Roads (ru)">Bing Дороги (ru)</option>
+                    <option value="Bing Hybrid">Bing Гибрид</option>
+                </optgroup>
+                <optgroup label="ArcGIS">
+                    <option value="ArcGIS Imagery">ArcGIS Спутник</option>
+                    <option value="ArcGIS Hybrid">ArcGIS Гибрид</option>
+                    <option value="ArcGIS Streets">ArcGIS Улицы</option>
+                </optgroup>
+            </select>
             <div style="display: flex; align-items: center; margin-left: auto;">
                 <label style="display: flex; align-items: center; margin-left: 10px;">
                     <input type="checkbox" id="toggleScale" style="margin-right: 3px;" checked> Переключение
@@ -75,6 +127,9 @@
                     <input type="checkbox" id="toggleGraphicScale" style="margin-right: 3px;" checked> Линейка масштаба
                 </label>
                 <label style="display: flex; align-items: center; margin-left: 10px;">
+                    <input type="checkbox" id="toggleCoordinates" style="margin-right: 3px;" checked> Координаты
+                </label>
+                <label style="display: flex; align-items: center; margin-left: 10px;">
                     <input type="checkbox" id="toggleLegend" style="margin-right: 3px;" checked> Легенда
                 </label>
             </div>
@@ -82,19 +137,236 @@
     </div>
 
     <!-- Секция карты -->
-    <div class="container mt-2">
+    <div style="width: 1800px; margin: 0 auto; margin-top:10px;">
         <div id="map"></div>
     </div>
 
     <script>
+
+        function TileXYToQuadKey(tileX, tileY, levelOfDetail) {
+            var quadKey = '';
+            for (var i = levelOfDetail; i > 0; i--) {
+                var digit = '0';
+                var mask = 1 << (i - 1);
+                if ((tileX & mask) != 0) {
+                    digit++;
+                }
+                if ((tileY & mask) != 0) {
+                    digit++;
+                    digit++;
+                }
+                quadKey += digit;
+            }
+            return quadKey;
+        }
+
         let groupCheckbox;
         // Инициализация карты
-        var map = L.map('map').setView([55.7558, 37.6173], 8);
+        var map = L.map('map').setView([55.7558, 37.6173], 8);  // , {crs: L.CRS.EPSG3395}
+        var maxZoom = 20;
+
+        L.TileLayer.Bing = L.TileLayer.extend({
+            getTileUrl: function (coords) {
+                var quadKey = TileXYToQuadKey(coords.x, coords.y, coords.z);
+                return 'http://ecn.t0.tiles.virtualearth.net/tiles/r' + quadKey + '.jpeg?g=1180&mkt=en-us&lbl=l1&stl=h&shading=hill&n=z';
+            },
+            getAttribution: function () {
+                return "<a href='https://www.bing.com/maps'>Bing Maps</a>";
+            }
+        });
+
+        L.tileLayer.bing = function () {
+            return new L.TileLayer.Bing();
+        };
+
+        L.TileLayer.BingSattelite = L.TileLayer.extend({
+            getTileUrl: function (coords) {
+                var quadKey = TileXYToQuadKey(coords.x, coords.y, coords.z);
+                return 'http://ecn.t0.tiles.virtualearth.net/tiles/a' + quadKey + '.jpeg?g=1180&mkt=en-us&lbl=l1&stl=h&shading=hill&n=z';
+            },
+            getAttribution: function () {
+                return "<a href='https://www.bing.com/maps'>Bing Maps</a>";
+            }
+        });
+
+        L.tileLayer.bingSattelite = function () {
+            return new L.TileLayer.BingSattelite();
+        };
+
+        L.TileLayer.BingRoadsEn = L.TileLayer.extend({
+            getTileUrl: function (coords) {
+                var quadKey = TileXYToQuadKey(coords.x, coords.y, coords.z);
+                return 'http://ecn.t0.tiles.virtualearth.net/tiles/r' + quadKey + '.jpeg?g=1180&mkt=en-us&it=G,VE,BX,L,LA&shading=hill';
+            },
+            getAttribution: function () {
+                return "<a href='https://www.bing.com/maps'>Bing Maps - Roads</a>";
+            }
+        });
+
+        L.tileLayer.bingRoadsEn = function () {
+            return new L.TileLayer.BingRoadsEn();
+        };
+
+        L.TileLayer.BingRoadsRu = L.TileLayer.extend({
+            getTileUrl: function (coords) {
+                var quadKey = TileXYToQuadKey(coords.x, coords.y, coords.z);
+                return 'http://ecn.t0.tiles.virtualearth.net/tiles/r' + quadKey + '.jpeg?g=1180&mkt=ru-RU&it=G,VE,BX,L,LA&shading=hill';
+            },
+            getAttribution: function () {
+                return "<a href='https://www.bing.com/maps'>Bing Maps - Roads (ru)</a>";
+            }
+        });
+
+        L.tileLayer.bingRoadsRu = function () {
+            return new L.TileLayer.BingRoadsRu();
+        };
+
+        function getRandomSubdomain() {
+            const subdomains = ['t0', 't1', 't2', 't3']; // Поддомены Bing Maps
+            return subdomains[Math.floor(Math.random() * subdomains.length)];
+        }
+
+        L.TileLayer.BingHybrid = L.TileLayer.extend({
+            getTileUrl: function (coords) {
+                var quadKey = TileXYToQuadKey(coords.x, coords.y, coords.z);
+                var subdomain = getRandomSubdomain();
+                return 'http://ak.dynamic.' + subdomain + '.tiles.virtualearth.net/comp/ch/' + quadKey + '.jpeg?g=1180&mkt=ru-RU&it=A,G,L&shading=hill&og=8&n=z';
+            },
+            getAttribution: function () {
+                return "<a href='https://www.bing.com/maps'>Bing Maps - Hybrid</a>";
+            }
+        });
+
+        L.tileLayer.bingHybrid = function () {
+            return new L.TileLayer.BingHybrid();
+        };
+
+        var baseLayers = {
+            'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
+            }),
+
+            'Google': L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '<a href="https://google.com" target="_blank">Google</a>'
+            }),
+
+            'Google satellite': L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '<a href="https://google.com" target="_blank">Google</a>'
+            }),
+
+            'Google hybrid': L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '<a href="https://google.com" target="_blank">Google</a>'
+            }),
+
+            'Google Roads': new L.LayerGroup([
+                L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                    attribution: '<a href="https://google.com" target="_blank">Google</a>'
+                }),
+                L.tileLayer('http://{s}.google.com/vt/lyrs=h&x={x}&y={y}&z={z}', {
+                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                    attribution: '<a href="https://google.com" target="_blank">Google</a>'
+                }),
+            ]),
+            'Google Streets': L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '<a href="https://google.com" target="_blank">Google</a>'
+            }),
+
+            'Google Streets Alternative': L.tileLayer('http://{s}.google.com/vt/lyrs=r&x={x}&y={y}&z={z}', {
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '<a href="https://google.com" target="_blank">Google</a>'
+            }),
+
+            'Google Terrain': L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '<a href="https://google.com" target="_blank">Google</a>'
+            }),
+
+            'Google Terrain Alternative': L.tileLayer('http://{s}.google.com/vt/lyrs=t&x={x}&y={y}&z={z}', {
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '<a href="https://google.com" target="_blank">Google</a>'
+            }),
+
+            'Yandex': L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=2', {
+                attribution: '<a href="https://yandex.ru" target="_blank">Yandex</a>',
+            }),
+
+            'Yandex satellite': L.tileLayer('https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1', {
+                attribution: '<a href="https://yandex.ru" target="_blank">Yandex</a>',
+            }),
+
+            'Yandex hybrid': new L.LayerGroup([
+                L.tileLayer('https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1'),
+                L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=1'),
+            ]),
+
+            '2GIS': L.tileLayer('https://{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1', {
+                subdomains: ['tile1', 'tile2', 'tile3'],
+                attribution: '<a href="https://2gis.com" target="_blank">2GIS </a>'
+            }),
+
+            'Bing Maps': L.tileLayer.bing(),
+            'Bing Satellite': L.tileLayer.bingSattelite(),
+            'Bing Roads (en)': L.tileLayer.bingRoadsEn(),
+            'Bing Roads (ru)': L.tileLayer.bingRoadsRu(),
+            'Bing Hybrid': L.tileLayer.bingHybrid(),
+
+            "ArcGIS Hybrid": new L.LayerGroup([
+                L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: maxZoom,
+                    attribution: 'ArcGIS.Imagery'
+                }),
+                L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: maxZoom,
+                    attribution: 'ArcGIS online Hybrid'
+                })
+            ]),
+
+            "ArcGIS Imagery": L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: maxZoom,
+                attribution: 'ArcGIS.Imagery'
+            }),
+
+            "ArcGIS Streets": L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: maxZoom,
+                attribution: 'ArcGIS.Streets'
+            }),
+        };
+
+        baseLayers["OpenStreetMap"].addTo(map);
+
+        document.getElementById('baseLayerSelect').addEventListener('change', function () {
+            var selectedLayer = this.value;
+            // Удаляем все слои
+            for (var layer in baseLayers) {
+                map.removeLayer(baseLayers[layer]);
+            }
+            baseLayers[selectedLayer].addTo(map);
+        });
 
         // Добавление слоя с OpenStreetMap
+        /*
         L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: 18,
+            maxZoom: maxZoom,
         }).addTo(map);
+        */
+
+
+        var coordinatesControl = L.control({position: 'bottomright'});
+        coordinatesControl.onAdd = function (map) {
+            var div = L.DomUtil.create('div', 'coordinates');
+            div.innerHTML = 'Координаты: '; // Начальное значение
+            return div;
+        };
+        coordinatesControl.addTo(map);
+
+        map.on('mousemove', function (e) {
+            coordinatesControl.getContainer().innerHTML = 'Координаты: ' + e.latlng.toString();
+        });
 
         // L.control.scale().addTo(map);
         const graphicScale = L.control.graphicScale({
@@ -104,6 +376,7 @@
             position: 'bottomleft'
         });
         graphicScale.addTo(map);
+
         var northArrowControl = L.control({position: 'topleft'});
         northArrowControl.onAdd = function (map) {
             var div = L.DomUtil.create('div', 'north-arrow');
@@ -467,7 +740,7 @@
             map.fitBounds(bounds);
         {% endif %}
 
-        var element = document.querySelector('.leaflet-bottom.leaflet-right');
+        var element = document.querySelector('.leaflet-control-attribution.leaflet-control');
         if (element) {
             element.remove();
         }
@@ -528,6 +801,13 @@
                 map.removeControl(graphicScale);
             }
         });
+        document.getElementById('toggleCoordinates').addEventListener('change', function () {
+            if (this.checked) {
+                coordinatesControl.addTo(map);
+            } else {
+                map.removeControl(coordinatesControl);
+            }
+        });
         document.getElementById('toggleScale').addEventListener('change', function () {
             var zoomControl = map.zoomControl;
             if (this.checked) {
@@ -535,6 +815,15 @@
             } else {
                 zoomControl.getContainer().style.display = 'none';
             }
+        });
+
+        document.getElementById('screenshotButton').addEventListener('click', function () {
+            html2canvas(document.getElementById('map')).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'div-screenshot.png';
+                link.href = canvas.toDataURL();
+                link.click();
+            });
         });
 
     </script>
