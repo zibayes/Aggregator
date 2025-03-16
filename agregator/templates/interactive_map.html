@@ -5,12 +5,15 @@
 
 {% block map %}
     <!-- Подключение Leaflet -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https:\unpkg.com\leaflet-graphicscale@0.0.4\src\Leaflet.GraphicScale.js"></script>
+    <link rel="stylesheet" href="{% static 'css/leaflet.css' %}"/>
+    <script src="{% static 'js/leaflet.js' %}"></script>
     <link rel="stylesheet" href="{% static 'css/Leaflet.GraphicScale.css' %}"/>
+    <script src="{% static 'js/Leaflet.GraphicScale.min.js' %}"></script>
     <script src="{% static 'js/Leaflet.GraphicScale.js' %}"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="{% static 'js/proj4.js' %}"></script>
+    <script src="{% static 'js/html2canvas.min.js' %}"></script>
+    <script src="{% static 'js/dom-to-image.min.js' %}"></script>
+    <script src="{% static 'js/FileSaver.min.js' %}"></script>
 
     <style>
         #map {
@@ -69,7 +72,7 @@
         <h2 align="center">Интерактивная Карта</h2>
     {% endif %}
 
-    <div style="align-items: center; width: 1800px; margin: 0 auto;">
+    <div style="align-items: center; max-width: 1800px; margin: 0 auto;">
         <div class="controls"
              style="display: flex; justify-content: space-between; align-items: center;">
             <button class="link-button" type="button" data-bs-target="#download"
@@ -137,7 +140,7 @@
     </div>
 
     <!-- Секция карты -->
-    <div style="width: 1800px; margin: 0 auto; margin-top:10px;">
+    <div style="max-width: 1800px; margin: 0 auto; margin-top:10px;">
         <div id="map"></div>
     </div>
 
@@ -241,6 +244,45 @@
             return new L.TileLayer.BingHybrid();
         };
 
+        function latLngToTile(lat, lng, zoom) {
+            var x = Math.floor((lng + 180) / 360 * Math.pow(2, zoom));
+            var y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
+            return [x, y];
+        }
+
+        function tileToLatLng(x, y, zoom) {
+            const n = Math.pow(2, zoom);
+            const lon_deg = x / n * 360.0 - 180.0;
+            const lat_rad = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n)));
+            const lat_deg = lat_rad * (180.0 / Math.PI);
+
+            return {lat: lat_deg, lng: lon_deg};
+        }
+
+        proj4.defs("EPSG:3395", "+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs");
+        proj4.defs("EPSG:3785", "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs +type=crs");
+
+        L.TileLayer.Yandex = L.TileLayer.extend({
+            getTileUrl: function (coords) {
+                // var latLng = crs.projection.unproject([coords.x, coords.y]);
+                var latLng = tileToLatLng(coords.x, coords.y, coords.z);
+
+                // Преобразование географических координат в нужную проекцию
+                var point = proj4('EPSG:3395', 'EPSG:3785', [latLng.lng, latLng.lat]);
+
+                var tilePoint = latLngToTile(point[1], point[0], coords.z);
+
+                return 'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x=' + tilePoint[0] + '&y=' + tilePoint[1] + '&z=' + coords.z + '&scale=2';
+            },
+            getAttribution: function () {
+                return '<a href="https://yandex.ru" target="_blank">Яндекс</a>';
+            }
+        });
+
+        L.tileLayer.yandex = function () {
+            return new L.TileLayer.Yandex();
+        };
+
         var baseLayers = {
             'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
@@ -291,7 +333,7 @@
                 attribution: '<a href="https://google.com" target="_blank">Google</a>'
             }),
 
-            'Yandex': L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=2', {
+            'Yandex1': L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=2', {
                 attribution: '<a href="https://yandex.ru" target="_blank">Yandex</a>',
             }),
 
@@ -314,6 +356,7 @@
             'Bing Roads (en)': L.tileLayer.bingRoadsEn(),
             'Bing Roads (ru)': L.tileLayer.bingRoadsRu(),
             'Bing Hybrid': L.tileLayer.bingHybrid(),
+            'Yandex': L.tileLayer.yandex(),
 
             "ArcGIS Hybrid": new L.LayerGroup([
                 L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
@@ -818,12 +861,26 @@
         });
 
         document.getElementById('screenshotButton').addEventListener('click', function () {
+            const mapElement = document.getElementById('map');
+            const width = mapElement.offsetWidth;
+            const height = mapElement.offsetHeight;
+            // const dataURL = domtoimage.toPng(mapElement, {width, height});
+            domtoimage.toBlob(mapElement, {width, height})
+                .then(function (blob) {
+                    saveAs(blob, 'map.png');
+                })
+                .catch(function (error) {
+                    console.error('Ошибка при создании Blob:', error);
+                });
+            saveAs(blob, 'map.png');
+            /*
             html2canvas(document.getElementById('map')).then(canvas => {
                 const link = document.createElement('a');
                 link.download = 'div-screenshot.png';
                 link.href = canvas.toDataURL();
                 link.click();
             });
+             */
         });
 
     </script>
