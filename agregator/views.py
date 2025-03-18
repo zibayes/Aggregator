@@ -17,6 +17,7 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from rest_framework import generics
 from urllib.parse import quote
+from shapely.geometry import shape, Point
 from . import serializers
 from django.http import JsonResponse
 from django.contrib.auth import login, authenticate
@@ -705,6 +706,67 @@ def map(request, report_type, pk):
     coordinates = report.coordinates if report else {}
     return render(request, 'interactive_map.html',
                   {'coordinates': coordinates, 'report_type': report_type, 'pk': pk, 'report_name': report_name})
+
+
+def get_geojson_polygons(request):
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.body)
+            points = json.loads(data.get('points', []))
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Неверный формат данных'}, status=400)
+
+        geojson_folder = os.path.join(os.getcwd(), 'uploaded_files/regions_polygons')
+        geojson_data = {
+            "type": "FeatureCollection",
+            "features": []
+        }
+
+        for filename in os.listdir(geojson_folder):
+            if filename.endswith('.geojson'):
+                file_path = os.path.join(geojson_folder, filename)
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    try:
+                        data = json.load(file)
+                        geojson_data['features'].extend(data['features'])
+                    except json.JSONDecodeError:
+                        return JsonResponse({'error': f'Ошибка при чтении файла {filename}'}, status=400)
+
+        matching_polygons = {'Russia': [], 'Subject': [], 'Regions': []}
+        for feature in geojson_data['features']:
+            # polygon = shape(feature['geometry'])
+            matching_polygons['Russia'].append(feature)
+
+        for dirpath, dirnames, filenames in os.walk(geojson_folder):
+            if 'Красноярский край' not in dirpath:
+                continue
+            for filename in filenames:
+                if filename.endswith('.geojson'):
+                    file_path = os.path.join(dirpath, filename)
+                    with open(file_path, 'r', encoding='utf-8') as file:
+                        try:
+                            data = json.load(file)
+                            for feature in data['features']:
+                                polygon = shape(feature['geometry'])
+                                for group, elements in points.items():
+                                    for name, point_coords in elements.items():
+                                        if isinstance(point_coords, list) and len(point_coords) == 2:
+                                            point = Point([point_coords[1], point_coords[0]])
+                                            if polygon.contains(point):
+                                                if filename == 'Красноярский край.geojson':
+                                                    matching_polygons['Subject'].append(feature)
+                                                else:
+                                                    matching_polygons['Regions'].append(feature)
+                                                    break
+                        except json.JSONDecodeError:
+                            return JsonResponse({'error': f'Ошибка при чтении файла {filename}'}, status=400)
+
+        if matching_polygons:
+            return JsonResponse({'matching_polygons': matching_polygons}, status=200)
+        else:
+            return JsonResponse({'message': 'Нет совпадений с полигонами'}, status=404)
+
+    return JsonResponse({'error': 'Метод не поддерживается'}, status=405)
 
 
 def download_coordinates(request, report_type, pk):

@@ -14,11 +14,16 @@
     <script src="{% static 'js/html2canvas.min.js' %}"></script>
     <script src="{% static 'js/dom-to-image.min.js' %}"></script>
     <script src="{% static 'js/FileSaver.min.js' %}"></script>
+    <script src="{% static 'js/turf.min.js' %}"></script>
+    <script src="{% static 'js/Leaflet.RepeatedMarkers.js' %}"></script>
 
     <style>
         #map {
             height: 720px;
             width: 100%;
+            max-width: 1800px;
+            margin: 0 auto;
+            margin-top: 10px;
         }
 
         .legend {
@@ -50,7 +55,10 @@
             background-color: rgba(255, 255, 255, 0.8);
             border: 1px solid #ccc;
             border-radius: 4px;
-            padding: 15px;
+            padding-top: 0px;
+            padding-bottom: 0px;
+            padding-right: 12px;
+            padding-left: 12px;
         }
 
         .coordinates {
@@ -62,6 +70,15 @@
             border-radius: 5px;
             width: 280px;
             box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+        }
+
+        .polygon-label {
+            padding: 5px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: bold;
+            color: black;
         }
     </style>
 
@@ -79,9 +96,12 @@
                     data-bs-toggle="modal">
                 Скачать координаты в формате .kml
             </button>
-            <button id="screenshotButton" class="link-button" type="button" style="margin-left:10px;">Сделать скриншот
-                карты
-            </button>
+            {% if coordinates %}
+                <button id="screenshotButton" class="link-button" type="button" style="margin-left:10px;">Сделать
+                    скриншот
+                    карты для вставки в отчёт
+                </button>
+            {% endif %}
             <label for="baseLayerSelect" style="margin-left: 10px;">Подложка:</label>
             <select id="baseLayerSelect" class="form-select" style="margin-left: 10px; width: 270px;">
                 <optgroup label="OpenStreetMap">
@@ -140,7 +160,7 @@
     </div>
 
     <!-- Секция карты -->
-    <div style="max-width: 1800px; margin: 0 auto; margin-top:10px;">
+    <div>
         <div id="map"></div>
     </div>
 
@@ -167,6 +187,7 @@
         // Инициализация карты
         var map = L.map('map').setView([55.7558, 37.6173], 8);  // , {crs: L.CRS.EPSG3395}
         var maxZoom = 20;
+        var zoomControl = map.zoomControl;
 
         L.TileLayer.Bing = L.TileLayer.extend({
             getTileUrl: function (coords) {
@@ -423,7 +444,7 @@
         var northArrowControl = L.control({position: 'topleft'});
         northArrowControl.onAdd = function (map) {
             var div = L.DomUtil.create('div', 'north-arrow');
-            div.innerHTML = '<img src="/static/img/north_arrow.png" alt="Север" style="width: 50px; height: auto;">';
+            div.innerHTML = '<img src="/static/img/north_arrow.png" alt="Север" style="width: 40px; height: auto;">';
             return div;
         };
         northArrowControl.addTo(map);
@@ -852,7 +873,6 @@
             }
         });
         document.getElementById('toggleScale').addEventListener('change', function () {
-            var zoomControl = map.zoomControl;
             if (this.checked) {
                 zoomControl.getContainer().style.display = 'block';
             } else {
@@ -860,29 +880,260 @@
             }
         });
 
-        document.getElementById('screenshotButton').addEventListener('click', function () {
-            const mapElement = document.getElementById('map');
-            const width = mapElement.offsetWidth;
-            const height = mapElement.offsetHeight;
-            // const dataURL = domtoimage.toPng(mapElement, {width, height});
-            domtoimage.toBlob(mapElement, {width, height})
-                .then(function (blob) {
-                    saveAs(blob, 'map.png');
-                })
-                .catch(function (error) {
-                    console.error('Ошибка при создании Blob:', error);
-                });
-            saveAs(blob, 'map.png');
-            /*
-            html2canvas(document.getElementById('map')).then(canvas => {
-                const link = document.createElement('a');
-                link.download = 'div-screenshot.png';
-                link.href = canvas.toDataURL();
-                link.click();
-            });
-             */
-        });
+        {% if coordinates %}
+            const apiUrl = '/api/get_geojson_polygons/';
 
+            function fetchGeoJSON(coordinates) {
+                const headers = {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`};
+                return fetch(apiUrl, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({points: coordinates})
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Сеть ответила с ошибкой: ' + response.status);
+                        }
+                        return response.json();
+                    });
+            }
+
+            function displayDataOnMap(polygons, color, fill, opacity, label) {
+                var border_opacity = 1;
+                var bounds = [];
+                var layers = [];
+                var labels = [];
+                var last_name = '';
+
+                polygons.forEach(function (feature) {
+                    if (feature.geometry.coordinates.some(polygon =>
+                        polygon.some(coord =>
+                            coord.some(point => point[0] < -160)
+                        )
+                    )) {
+                        var duplicatedFeature = JSON.parse(JSON.stringify(feature));
+
+                        duplicatedFeature.geometry.coordinates = duplicatedFeature.geometry.coordinates.map(polygon =>
+                            polygon.map(coord =>
+                                coord.map(point => {
+                                    if (point[0] < -160) {
+                                        return [point[0] + 360, point[1]];
+                                    }
+                                    return point;
+                                })
+                            )
+                        );
+
+                        var duplicatedLayer = L.geoJSON(duplicatedFeature, {
+                            style: {
+                                color: color,
+                                weight: 5,
+                                opacity: border_opacity,
+                                fill: fill,
+                                fillColor: color,
+                                fillOpacity: opacity
+                            }
+                        }).addTo(map);
+
+                        bounds.push(duplicatedLayer.getBounds());
+                        layers.push(duplicatedLayer);
+                    } else {
+                        var geojsonLayer = L.geoJSON(feature, {
+                            style: {
+                                color: color,
+                                weight: 5,
+                                opacity: border_opacity,
+                                fill: fill,
+                                fillColor: color,
+                                fillOpacity: opacity
+                            }
+                        }).addTo(map);
+                        bounds.push(geojsonLayer.getBounds());
+                        layers.push(geojsonLayer);
+                    }
+
+                    if (label && last_name !== feature.properties.name && feature.properties && feature.properties.name) {
+                        console.log(feature.properties.name)
+                        var center = geojsonLayer.getBounds().getCenter();
+                        label_object = L.marker(center, {
+                            icon: L.divIcon({
+                                className: 'polygon-label',
+                                html: feature.properties.name,
+                                iconSize: [170, 40]
+                            })
+                        }).addTo(map);
+                        labels.push(label_object);
+                        last_name = feature.properties.name;
+                    }
+                });
+
+                return [layers, bounds, labels];
+            }
+
+            function takeScreenshot() {
+                const mapElement = document.getElementById('map');
+                const width = mapElement.offsetWidth;
+                const height = mapElement.offsetHeight;
+                domtoimage.toBlob(mapElement, {width, height})
+                    .then(function (blob) {
+                        saveAs(blob, 'map.png');
+                    })
+                    .catch(function (error) {
+                        console.error('Ошибка при создании Blob:', error);
+                    });
+                saveAs(blob, 'map.png');
+            }
+
+            function delay(ms) {
+                return new Promise(resolve => setTimeout(resolve, ms));
+            }
+
+            async function showLayers(data) {
+                const mapElement = document.getElementById('map');
+                var result, allBounds;
+                mapElement.style.maxWidth = '1100px';
+                mapElement.style.height = '770px';
+                map.invalidateSize();
+                await delay(500);
+                result = displayDataOnMap(data.matching_polygons.Russia, '#ff0000', false, 0.3, false)
+                layers_russia = result[0];
+                borders_bounds = result[1];
+                result = displayDataOnMap(data.matching_polygons.Subject, '#3fb7ed', true, 0.3, true)
+                layers_subject = result[0];
+                borders_bounds.push(result[1]);
+                labels_subject = result[2];
+                if (borders_bounds.length > 0) {
+                    allBounds = L.latLngBounds(borders_bounds);
+                    map.fitBounds(allBounds);
+                }
+                setTimeout(function () {
+                    takeScreenshot();
+                }, 2000);
+
+                await delay(2500);
+                layers_russia.forEach(function (layer) {
+                    map.removeLayer(layer);
+                });
+                layers_subject.forEach(function (layer) {
+                    map.removeLayer(layer);
+                });
+                mapElement.style.maxWidth = '500px';
+                mapElement.style.height = '1150px';
+                map.invalidateSize();
+                await delay(500);
+                result = displayDataOnMap(data.matching_polygons.Subject, '#ff0000', false, 0.3, false)
+                layers_subject = result[0];
+                borders_bounds = result[1];
+                result = displayDataOnMap(data.matching_polygons.Regions, '#3fb7ed', true, 0.3, true)
+                layers_regions = result[0];
+                borders_bounds.push(result[1]);
+                labels_regions = result[2]
+                if (borders_bounds.length > 0) {
+                    allBounds = L.latLngBounds(borders_bounds);
+                    map.fitBounds(allBounds);
+                }
+                setTimeout(function () {
+                    takeScreenshot();
+                }, 2000);
+
+                await delay(4000);
+                labels_subject.forEach(function (layer) {
+                    map.removeLayer(layer);
+                });
+                layers_subject.forEach(function (layer) {
+                    map.removeLayer(layer);
+                });
+                layers_regions.forEach(function (layer) {
+                    map.removeLayer(layer);
+                });
+                mapElement.style.maxWidth = '1800px';
+                mapElement.style.height = '720px';
+                map.invalidateSize();
+                await delay(500);
+                result = displayDataOnMap(data.matching_polygons.Regions, '#ff0000', false, 0.3, false)
+                layers_regions = result[0];
+                borders_bounds = result[1];
+                if (borders_bounds.length > 0) {
+                    allBounds = L.latLngBounds(borders_bounds);
+                    map.fitBounds(allBounds);
+                }
+                setTimeout(function () {
+                    takeScreenshot();
+                }, 2000);
+
+                await delay(2500);
+                labels_regions.forEach(function (layer) {
+                    map.removeLayer(layer);
+                });
+                layers_regions.forEach(function (layer) {
+                    map.removeLayer(layer);
+                });
+                checkbox = document.getElementById('toggleTooltips')
+                if (checkbox.checked === false) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+                checkbox = document.getElementById('toggleLegend');
+                if (checkbox.checked === false) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+                map.fitBounds(bounds);
+                setTimeout(function () {
+                    takeScreenshot();
+                }, 2000);
+            }
+
+            function screenshotInit() {
+                var coordinatesJson = JSON.stringify({{ coordinates|safe }});
+                console.log(coordinatesJson);
+                fetchGeoJSON(coordinatesJson)
+                    .then(data => {
+                        if (data && data.matching_polygons) {
+                            showLayers(data);
+                        } else {
+                            console.log('Нет данных для отображения');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Произошла ошибка при получении данных:', error);
+                    });
+            }
+
+            document.getElementById('screenshotButton').addEventListener('click', function () {
+                checkbox = document.getElementById('toggleLegend');
+                if (checkbox.checked === true) {
+                    checkbox.checked = false;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+                checkbox = document.getElementById('toggleNorthArrow');
+                if (checkbox.checked === false) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+                checkbox = document.getElementById('toggleGraphicScale');
+                if (checkbox.checked === false) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+                checkbox = document.getElementById('toggleCoordinates');
+                if (checkbox.checked === true) {
+                    checkbox.checked = false;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+                checkbox = document.getElementById('toggleScale');
+                if (checkbox.checked === true) {
+                    checkbox.checked = false;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+                checkbox = document.getElementById('toggleTooltips')
+                if (checkbox.checked === true) {
+                    checkbox.checked = false;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+                screenshotInit();
+            });
+        {% endif %}
     </script>
 {% endblock %}
 

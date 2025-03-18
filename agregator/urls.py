@@ -59,6 +59,7 @@ urlpatterns = [
     path('api/get_user_tasks_reports/', views.get_user_tasks_reports, name='get_user_tasks_reports'),
     path('api/get_user_tasks_open_lists/', views.get_user_tasks_open_lists, name='get_user_tasks_open_lists'),
     path('api/get_user_tasks_external/', views.get_user_tasks_external, name='get_user_tasks_external'),
+    path('api/get_geojson_polygons/', views.get_geojson_polygons, name='get_geojson_polygons'),
 
     path('api/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
