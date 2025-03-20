@@ -15,15 +15,15 @@
     <script src="{% static 'js/dom-to-image.min.js' %}"></script>
     <script src="{% static 'js/FileSaver.min.js' %}"></script>
     <script src="{% static 'js/turf.min.js' %}"></script>
-    <script src="{% static 'js/Leaflet.RepeatedMarkers.js' %}"></script>
 
     <style>
         #map {
-            height: 720px;
+            height: 690px;
             width: 100%;
             max-width: 1800px;
             margin: 0 auto;
             margin-top: 10px;
+            margin-bottom: 5px;
         }
 
         .legend {
@@ -76,9 +76,24 @@
             padding: 5px;
             border-radius: 5px;
             text-align: center;
-            font-size: 14px;
             font-weight: bold;
-            color: black;
+            font-size: 14px;
+        }
+
+        #manualScreenshotControls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        #manualScreenshotControls input[type="color"] {
+            width: 30px;
+            padding: 3px;
+        }
+
+        #manualScreenshotControls input[type="number"] {
+            width: 70px;
+            padding: 3px;
         }
     </style>
 
@@ -96,12 +111,6 @@
                     data-bs-toggle="modal">
                 Скачать координаты в формате .kml
             </button>
-            {% if coordinates %}
-                <button id="screenshotButton" class="link-button" type="button" style="margin-left:10px;">Сделать
-                    скриншот
-                    карты для вставки в отчёт
-                </button>
-            {% endif %}
             <label for="baseLayerSelect" style="margin-left: 10px;">Подложка:</label>
             <select id="baseLayerSelect" class="form-select" style="margin-left: 10px; width: 270px;">
                 <optgroup label="OpenStreetMap">
@@ -163,6 +172,290 @@
     <div>
         <div id="map"></div>
     </div>
+
+    {% if coordinates %}
+        <div style="align-items: center; max-width: 1800px; margin: 0 auto;">
+            <div class="controls" style="display: flex;">
+                <button id="screenshotButton" class="link-button" type="button" style="margin-left:10px;">Сделать
+                    скриншот карты
+                </button>
+                <select id="screenshotModeSelect" class="form-select" style="margin-left: 10px; width: 350px;">
+                    <option value="automaticScreenshot">Автоматическое создание скриншотов</option>
+                    <option value="manualScreenshot">Ручное создание скриншотов</option>
+                </select>
+                <div id="manualScreenshotControls" style="display: none; align-items: center; margin-left: auto;">
+                    <label for="mapWidth" style="margin-left: 10px;">Ширина карты:</label>
+                    <input type="number" id="mapWidth" style="margin-left: 5px;" placeholder="Ширина карты" value="1800"
+                           oninput="updateMapSize()">
+                    <label for="mapHeight" style="margin-left: 10px;">Высота карты:</label>
+                    <input type="number" id="mapHeight" style="margin-left: 5px;" placeholder="Высота карты" value="690"
+                           oninput="updateMapSize()">
+                    <select id="screenshotStageSelect" class="form-select" style="margin-left: 10px; width: 200px;">
+                        <option value="excavation">Масштаб раскопок</option>
+                        <option value="region">Масштаб района</option>
+                        <option value="subject">Масштаб субъекта</option>
+                        <option value="russia">Масштаб страны</option>
+                    </select>
+                </div>
+            </div>
+            <div id="stagesControls">
+                <div id="countryControls" style="display: none; margin-top: 10px;">
+                    <label for="countryBorderColor" style="margin-left: 10px;">Цвет границ страны:</label>
+                    <input type="color" id="countryBorderColor" style="margin-left: 5px;" value="#ff0000"
+                           onchange="updateCountryBorderColor(this.value)">
+                    <label for="countryBorderOpacity" style="margin-left: 10px;">Прозрачность границ страны:</label>
+                    <input type="number" id="countryBorderOpacity" style="margin-left: 5px;" min="0" max="1" step="0.1"
+                           value="1" onchange="updateCountryBorderOpacity(this.value)">
+                </div>
+                <div id="subjectControls" style="display: none; margin-top: 10px;">
+                    <label for="subjectBorderColor" style="margin-left: 10px;">Цвет границ субъекта:</label>
+                    <input type="color" id="subjectBorderColor" style="margin-left: 5px;" value="#0000ff"
+                           onchange="updateSubjectBorderColor(this.value)">
+                    <label for="subjectBorderOpacity" style="margin-left: 10px;">Прозрачность границ субъекта:</label>
+                    <input type="number" id="subjectBorderOpacity" style="margin-left: 5px;" min="0" max="1" step="0.1"
+                           value="1" onchange="updateSubjectBorderOpacity(this.value)">
+                    <label for="subjectLabelColor" id="subjectLabelColorLabel" style="margin-left: 10px;">Цвет подписи
+                        субъекта:</label>
+                    <input type="color" id="subjectLabelColor" style="margin-left: 5px;" value="#000000"
+                           onchange="updateSubjectLabelColor(this.value)">
+                    <!--
+                    <label for="subjectLabelSize" style="margin-left: 10px;">Размер подписи субъекта:</label>
+                    <input type="number" id="subjectLabelSize" style="margin-left: 5px;" min="10" max="50" value="14"
+                           onchange="updateSubjectLabelSize(this.value)">
+                    -->
+                </div>
+                <div id="regionControls" style="display: none; margin-top: 10px;">
+                    <label for="regionBorderColor" style="margin-left: 10px;">Цвет границ района:</label>
+                    <input type="color" id="regionBorderColor" style="margin-left: 5px;" value="#00ff00"
+                           onchange="updateRegionBorderColor(this.value)">
+                    <label for="regionBorderOpacity" style="margin-left: 10px;">Прозрачность границ района:</label>
+                    <input type="number" id="regionBorderOpacity" style="margin-left: 5px;" min="0" max="1" step="0.1"
+                           value="1" onchange="updateRegionBorderOpacity(this.value)">
+                    <label for="regionLabelColor" id="regionLabelColorLabel" style="margin-left: 10px;">Цвет подписи
+                        района:</label>
+                    <input type="color" id="regionLabelColor" style="margin-left: 5px;" value="#000000"
+                           onchange="updateRegionLabelColor(this.value)">
+                    <!--
+                    <label for="regionLabelSize" style="margin-left: 10px;">Размер подписи района:</label>
+                    <input type="number" id="regionLabelSize" style="margin-left: 5px;" min="10" max="50" value="14"
+                           onchange="updateRegionLabelSize(this.value)">
+                    -->
+                </div>
+            </div>
+        </div>
+
+        <script>
+            document.getElementById('screenshotModeSelect').addEventListener('change', function () {
+                const manualControls = document.getElementById('manualScreenshotControls');
+                const stagesControls = document.getElementById('stagesControls');
+                if (this.value === 'manualScreenshot') {
+                    manualControls.style.display = 'flex';
+                    stagesControls.style.display = 'flex';
+                } else {
+                    manualControls.style.display = 'none';
+                    stagesControls.style.display = 'none';
+                }
+            });
+
+            document.getElementById('manualScreenshotControls').addEventListener('change', function (event) {
+                const stageSelect = document.getElementById('screenshotStageSelect');
+
+                if (event.target === stageSelect) {
+                    const selectedStage = stageSelect.value;
+                    countryControls.style.display = 'none';
+                    subjectControls.style.display = 'none';
+                    regionControls.style.display = 'none';
+
+                    if (selectedStage === 'russia') {
+                        countryControls.style.display = 'block';
+                        subjectControls.style.display = 'block';
+                    } else if (selectedStage === 'subject') {
+                        subjectControls.style.display = 'block';
+                        regionControls.style.display = 'block';
+                    } else if (selectedStage === 'region') {
+                        regionControls.style.display = 'block';
+                    }
+
+                    if (window.layers_russia) {
+                        window.layers_russia.forEach(layer => map.removeLayer(layer));
+                    }
+                    if (window.layers_subject) {
+                        window.layers_subject.forEach(layer => map.removeLayer(layer));
+                    }
+                    if (window.labels_regions) {
+                        window.labels_regions.forEach(layer => map.removeLayer(layer));
+                    }
+                    if (window.layers_regions) {
+                        window.layers_regions.forEach(layer => map.removeLayer(layer));
+                    }
+                    if (window.labels_subject) {
+                        window.labels_subject.forEach(layer => map.removeLayer(layer));
+                    }
+
+                    const mapWidth = document.getElementById('mapWidth').value;
+                    const mapHeight = document.getElementById('mapHeight').value;
+                    const mapElement = document.getElementById('map');
+
+                    // Элементы для страны
+                    const countryBorderColor = document.getElementById('countryBorderColor');
+                    const countryBorderOpacity = document.getElementById('countryBorderOpacity');
+
+                    // Элементы для субъекта
+                    const subjectBorderColor = document.getElementById('subjectBorderColor');
+                    const subjectBorderOpacity = document.getElementById('subjectBorderOpacity');
+                    const subjectLabelColor = document.getElementById('subjectLabelColor');
+                    // const subjectLabelSize = document.getElementById('subjectLabelSize');
+
+                    // Элементы для района
+                    const regionBorderColor = document.getElementById('regionBorderColor');
+                    const regionBorderOpacity = document.getElementById('regionBorderOpacity');
+
+                    if (selectedStage === 'region') {
+                        result = prtScrRegion(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value);
+                        window.layers_regions = result[0];
+                        borders_bounds = result[1];
+                        if (borders_bounds.length > 0) {
+                            allBounds = L.latLngBounds(borders_bounds);
+                            map.fitBounds(allBounds);
+                        }
+                    } else if (selectedStage === 'subject') {
+                        result = prtScrSubject(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, regionLabelColor.value, 14);
+                        window.layers_subject = result[0][0];
+                        borders_bounds = result[0][1];
+                        window.layers_regions = result[1][0];
+                        borders_bounds.push(result[1][1]);
+                        labels_regions = result[1][2];
+                        if (borders_bounds.length > 0) {
+                            map.fitBounds(L.latLngBounds(borders_bounds));
+                        }
+                    } else if (selectedStage === 'russia') {
+                        result = prtScrCountry(mapElement, window.data, mapWidth, mapHeight, countryBorderColor.value, countryBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, subjectLabelColor.value, 14);
+                        window.layers_russia = result[0][0];
+                        borders_bounds = result[0][1];
+                        window.layers_subject = result[1][0];
+                        borders_bounds.push(result[1][1]);
+                        window.labels_subject = result[1][2];
+                        if (borders_bounds.length > 0) {
+                            map.fitBounds(L.latLngBounds(borders_bounds));
+                        }
+                    } else if (selectedStage === 'excavation') {
+                        prtScrExcavation(mapElement, window.data);
+                    }
+                }
+            });
+
+            function updatePolygon() {
+                const mapWidth = document.getElementById('mapWidth').value;
+                const mapHeight = document.getElementById('mapHeight').value;
+                const mapElement = document.getElementById('map');
+
+                // Элементы для страны
+                const countryBorderColor = document.getElementById('countryBorderColor');
+                const countryBorderOpacity = document.getElementById('countryBorderOpacity');
+
+                // Элементы для субъекта
+                const subjectBorderColor = document.getElementById('subjectBorderColor');
+                const subjectBorderOpacity = document.getElementById('subjectBorderOpacity');
+                const subjectLabelColor = document.getElementById('subjectLabelColor');
+                const subjectLabelSize = document.getElementById('subjectLabelSize');
+
+                // Элементы для района
+                const regionBorderColor = document.getElementById('regionBorderColor');
+                const regionBorderOpacity = document.getElementById('regionBorderOpacity');
+                const regionLabelColor = document.getElementById('regionLabelColor');
+                const regionLabelSize = document.getElementById('regionLabelSize');
+
+                const stageSelect = document.getElementById('screenshotStageSelect');
+                const selectedStage = stageSelect.value;
+
+                if (window.layers_russia) {
+                    window.layers_russia.forEach(layer => map.removeLayer(layer));
+                }
+                if (window.layers_subject) {
+                    window.layers_subject.forEach(layer => map.removeLayer(layer));
+                }
+                if (window.labels_regions) {
+                    window.labels_regions.forEach(layer => map.removeLayer(layer));
+                }
+                if (window.layers_regions) {
+                    window.layers_regions.forEach(layer => map.removeLayer(layer));
+                }
+                if (window.labels_subject) {
+                    window.labels_subject.forEach(layer => map.removeLayer(layer));
+                }
+
+                if (selectedStage === 'region') {
+                    result = prtScrRegion(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value);
+                    window.layers_regions = result[0];
+                } else if (selectedStage === 'subject') {
+                    result = prtScrSubject(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, regionLabelColor.value, 14);
+                    window.layers_subject = result[0][0];
+                    window.layers_regions = result[1][0];
+                    window.labels_regions = result[1][2];
+                } else if (selectedStage === 'russia') {
+                    result = prtScrCountry(mapElement, window.data, mapWidth, mapHeight, countryBorderColor.value, countryBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, subjectLabelColor.value, 14);
+                    window.layers_russia = result[0][0];
+                    window.layers_subject = result[1][0];
+                    window.labels_subject = result[1][2];
+                } else if (selectedStage === 'excavation') {
+                    prtScrExcavation(mapElement, window.data);
+                }
+            }
+
+            // Функции для обновления параметров
+            function updateCountryBorderColor(color) {
+                updatePolygon();
+            }
+
+            function updateCountryBorderOpacity(opacity) {
+                updatePolygon();
+            }
+
+            function updateSubjectBorderColor(color) {
+                updatePolygon();
+            }
+
+            function updateSubjectBorderOpacity(opacity) {
+                updatePolygon();
+            }
+
+            function updateSubjectLabelColor(color) {
+                updatePolygon();
+            }
+
+            function updateSubjectLabelSize(size) {
+                updatePolygon();
+            }
+
+            function updateRegionBorderColor(color) {
+                updatePolygon();
+            }
+
+            function updateRegionBorderOpacity(opacity) {
+                updatePolygon();
+            }
+
+            function updateRegionLabelColor(color) {
+                updatePolygon();
+            }
+
+            function updateRegionLabelSize(size) {
+                updatePolygon();
+            }
+
+            function updateMapSize() {
+                const mapWidth = document.getElementById('mapWidth').value;
+                const mapHeight = document.getElementById('mapHeight').value;
+                const mapElement = document.getElementById('map');
+
+                if (mapWidth && mapHeight) {
+                    mapElement.style.width = `${mapWidth}px`;
+                    mapElement.style.height = `${mapHeight}px`;
+                    map.invalidateSize();
+                }
+            }
+        </script>
+    {% endif %}
 
     <script>
 
@@ -898,7 +1191,7 @@
                     });
             }
 
-            function displayDataOnMap(polygons, color, fill, opacity, label) {
+            function displayDataOnMap(polygons, color, fill, opacity, label, label_color = '#000000', label_size = 14) {
                 var border_opacity = 1;
                 var bounds = [];
                 var layers = [];
@@ -906,65 +1199,68 @@
                 var last_name = '';
 
                 polygons.forEach(function (feature) {
-                    if (feature.geometry.coordinates.some(polygon =>
-                        polygon.some(coord =>
-                            coord.some(point => point[0] < -160)
-                        )
-                    )) {
-                        var duplicatedFeature = JSON.parse(JSON.stringify(feature));
-
-                        duplicatedFeature.geometry.coordinates = duplicatedFeature.geometry.coordinates.map(polygon =>
-                            polygon.map(coord =>
-                                coord.map(point => {
-                                    if (point[0] < -160) {
-                                        return [point[0] + 360, point[1]];
-                                    }
-                                    return point;
-                                })
+                    if (last_name !== feature.properties.name) {
+                        if (feature.geometry.coordinates.some(polygon =>
+                            polygon.some(coord =>
+                                coord.some(point => point[0] < -160)
                             )
-                        );
+                        )) {
+                            var duplicatedFeature = JSON.parse(JSON.stringify(feature));
 
-                        var duplicatedLayer = L.geoJSON(duplicatedFeature, {
-                            style: {
-                                color: color,
-                                weight: 5,
-                                opacity: border_opacity,
-                                fill: fill,
-                                fillColor: color,
-                                fillOpacity: opacity
-                            }
-                        }).addTo(map);
+                            duplicatedFeature.geometry.coordinates = duplicatedFeature.geometry.coordinates.map(polygon =>
+                                polygon.map(coord =>
+                                    coord.map(point => {
+                                        if (point[0] < -160) {
+                                            return [point[0] + 360, point[1]];
+                                        }
+                                        return point;
+                                    })
+                                )
+                            );
 
-                        bounds.push(duplicatedLayer.getBounds());
-                        layers.push(duplicatedLayer);
-                    } else {
-                        var geojsonLayer = L.geoJSON(feature, {
-                            style: {
-                                color: color,
-                                weight: 5,
-                                opacity: border_opacity,
-                                fill: fill,
-                                fillColor: color,
-                                fillOpacity: opacity
-                            }
-                        }).addTo(map);
-                        bounds.push(geojsonLayer.getBounds());
-                        layers.push(geojsonLayer);
+                            var duplicatedLayer = L.geoJSON(duplicatedFeature, {
+                                style: {
+                                    color: color,
+                                    weight: 5,
+                                    opacity: border_opacity,
+                                    fill: fill,
+                                    fillColor: color,
+                                    fillOpacity: opacity
+                                }
+                            }).addTo(map);
+
+                            bounds.push(duplicatedLayer.getBounds());
+                            layers.push(duplicatedLayer);
+                        } else {
+                            var geojsonLayer = L.geoJSON(feature, {
+                                style: {
+                                    color: color,
+                                    weight: 5,
+                                    opacity: border_opacity,
+                                    fill: fill,
+                                    fillColor: color,
+                                    fillOpacity: opacity
+                                }
+                            }).addTo(map);
+                            bounds.push(geojsonLayer.getBounds());
+                            layers.push(geojsonLayer);
+                        }
+
+                        if (label && last_name !== feature.properties.name && feature.properties && feature.properties.name) {
+                            console.log(feature.properties.name)
+                            var center = geojsonLayer.getBounds().getCenter();
+                            label_object = L.marker(center, {
+                                icon: L.divIcon({
+                                    className: 'polygon-label',
+                                    html: `<span style="color: ${label_color}; font-size: ${label_size};">${feature.properties.name}</span>`,
+                                    iconSize: [170, 40]
+                                })
+                            }).addTo(map);
+                            labels.push(label_object);
+                            last_name = feature.properties.name;
+                        }
                     }
 
-                    if (label && last_name !== feature.properties.name && feature.properties && feature.properties.name) {
-                        console.log(feature.properties.name)
-                        var center = geojsonLayer.getBounds().getCenter();
-                        label_object = L.marker(center, {
-                            icon: L.divIcon({
-                                className: 'polygon-label',
-                                html: feature.properties.name,
-                                iconSize: [170, 40]
-                            })
-                        }).addTo(map);
-                        labels.push(label_object);
-                        last_name = feature.properties.name;
-                    }
                 });
 
                 return [layers, bounds, labels];
@@ -988,28 +1284,60 @@
                 return new Promise(resolve => setTimeout(resolve, ms));
             }
 
+            function prtScrCountry(mapElement, data, maxWidth, height, color_country, opacity_country, color_subject, opacity_subject, label_color, label_size, fill_all = true) {
+                mapElement.style.maxWidth = maxWidth;
+                mapElement.style.height = height;
+                map.invalidateSize();
+                result1 = displayDataOnMap(data.matching_polygons.Russia, color_country, fill_all, opacity_country, false);
+                result2 = displayDataOnMap(data.matching_polygons.Subject, color_subject, true, opacity_subject, true, label_color, label_size);
+                return [result1, result2];
+            }
+
+            function prtScrSubject(mapElement, data, maxWidth, height, color_region, opacity_region, color_subject, opacity_subject, label_color, label_size, fill_all = true) {
+                mapElement.style.maxWidth = maxWidth;
+                mapElement.style.height = height;
+                map.invalidateSize();
+                result1 = displayDataOnMap(data.matching_polygons.Subject, color_subject, fill_all, opacity_subject, false);
+                result2 = displayDataOnMap(data.matching_polygons.Regions, color_region, true, opacity_region, true, label_color, label_size);
+                return [result1, result2];
+            }
+
+            function prtScrRegion(mapElement, data, maxWidth, height, color_region, opacity_region, fill_all = true) {
+                mapElement.style.maxWidth = maxWidth;
+                mapElement.style.height = height;
+                map.invalidateSize();
+                result = displayDataOnMap(data.matching_polygons.Regions, color_region, fill_all, opacity_region, false);
+                return result;
+            }
+
+            async function prtScrExcavation(mapElement, data) {
+                checkbox = document.getElementById('toggleTooltips');
+                if (checkbox.checked === false) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+                checkbox = document.getElementById('toggleLegend');
+                if (checkbox.checked === false) {
+                    checkbox.checked = true;
+                    checkbox.dispatchEvent(new Event('change'));
+                }
+                map.fitBounds(bounds);
+            }
+
             async function showLayers(data) {
                 const mapElement = document.getElementById('map');
-                var result, allBounds;
-                mapElement.style.maxWidth = '1100px';
-                mapElement.style.height = '770px';
-                map.invalidateSize();
-                await delay(500);
-                result = displayDataOnMap(data.matching_polygons.Russia, '#ff0000', false, 0.3, false)
-                layers_russia = result[0];
-                borders_bounds = result[1];
-                result = displayDataOnMap(data.matching_polygons.Subject, '#3fb7ed', true, 0.3, true)
-                layers_subject = result[0];
-                borders_bounds.push(result[1]);
-                labels_subject = result[2];
+                result = prtScrCountry(mapElement, data, '1100px', '770px', '#ff0000', 0.3, '#3fb7ed', 0.3, false)
+                layers_russia = result[0][0];
+                borders_bounds = result[0][1];
+                layers_subject = result[1][0];
+                borders_bounds.push(result[1][1]);
+                labels_subject = result[1][2];
                 if (borders_bounds.length > 0) {
-                    allBounds = L.latLngBounds(borders_bounds);
-                    map.fitBounds(allBounds);
+                    map.fitBounds(L.latLngBounds(borders_bounds));
                 }
                 setTimeout(function () {
                     takeScreenshot();
                 }, 2000);
-
                 await delay(2500);
                 layers_russia.forEach(function (layer) {
                     map.removeLayer(layer);
@@ -1017,20 +1345,15 @@
                 layers_subject.forEach(function (layer) {
                     map.removeLayer(layer);
                 });
-                mapElement.style.maxWidth = '500px';
-                mapElement.style.height = '1150px';
-                map.invalidateSize();
-                await delay(500);
-                result = displayDataOnMap(data.matching_polygons.Subject, '#ff0000', false, 0.3, false)
-                layers_subject = result[0];
-                borders_bounds = result[1];
-                result = displayDataOnMap(data.matching_polygons.Regions, '#3fb7ed', true, 0.3, true)
-                layers_regions = result[0];
-                borders_bounds.push(result[1]);
-                labels_regions = result[2]
+
+                result = prtScrSubject(mapElement, data, '500px', '1150px', '#3fb7ed', 0.3, '#ff0000', 0.3, false)
+                layers_subject = result[0][0];
+                borders_bounds = result[0][1];
+                layers_regions = result[1][0];
+                borders_bounds.push(result[1][1]);
+                labels_regions = result[1][2]
                 if (borders_bounds.length > 0) {
-                    allBounds = L.latLngBounds(borders_bounds);
-                    map.fitBounds(allBounds);
+                    map.fitBounds(L.latLngBounds(borders_bounds));
                 }
                 setTimeout(function () {
                     takeScreenshot();
@@ -1046,11 +1369,8 @@
                 layers_regions.forEach(function (layer) {
                     map.removeLayer(layer);
                 });
-                mapElement.style.maxWidth = '1800px';
-                mapElement.style.height = '720px';
-                map.invalidateSize();
-                await delay(500);
-                result = displayDataOnMap(data.matching_polygons.Regions, '#ff0000', false, 0.3, false)
+
+                result = prtScrRegion(mapElement, data, '1800px', '720px', '#ff0000', 0.3, false)
                 layers_regions = result[0];
                 borders_bounds = result[1];
                 if (borders_bounds.length > 0) {
@@ -1059,7 +1379,7 @@
                 }
                 setTimeout(function () {
                     takeScreenshot();
-                }, 2000);
+                }, 2500);
 
                 await delay(2500);
                 labels_regions.forEach(function (layer) {
@@ -1068,70 +1388,50 @@
                 layers_regions.forEach(function (layer) {
                     map.removeLayer(layer);
                 });
-                checkbox = document.getElementById('toggleTooltips')
-                if (checkbox.checked === false) {
-                    checkbox.checked = true;
-                    checkbox.dispatchEvent(new Event('change'));
-                }
-                checkbox = document.getElementById('toggleLegend');
-                if (checkbox.checked === false) {
-                    checkbox.checked = true;
-                    checkbox.dispatchEvent(new Event('change'));
-                }
-                map.fitBounds(bounds);
+
+                prtScrExcavation(mapElement, data)
                 setTimeout(function () {
                     takeScreenshot();
                 }, 2000);
             }
 
-            function screenshotInit() {
-                var coordinatesJson = JSON.stringify({{ coordinates|safe }});
-                console.log(coordinatesJson);
-                fetchGeoJSON(coordinatesJson)
-                    .then(data => {
-                        if (data && data.matching_polygons) {
-                            showLayers(data);
-                        } else {
-                            console.log('Нет данных для отображения');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Произошла ошибка при получении данных:', error);
-                    });
-            }
-
             document.getElementById('screenshotButton').addEventListener('click', function () {
-                checkbox = document.getElementById('toggleLegend');
-                if (checkbox.checked === true) {
-                    checkbox.checked = false;
-                    checkbox.dispatchEvent(new Event('change'));
+                const screenshotMode = document.getElementById('screenshotModeSelect').value;
+                if (screenshotMode === 'automaticScreenshot') {
+                    checkbox = document.getElementById('toggleLegend');
+                    if (checkbox.checked === true) {
+                        checkbox.checked = false;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                    checkbox = document.getElementById('toggleNorthArrow');
+                    if (checkbox.checked === false) {
+                        checkbox.checked = true;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                    checkbox = document.getElementById('toggleGraphicScale');
+                    if (checkbox.checked === false) {
+                        checkbox.checked = true;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                    checkbox = document.getElementById('toggleCoordinates');
+                    if (checkbox.checked === true) {
+                        checkbox.checked = false;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                    checkbox = document.getElementById('toggleScale');
+                    if (checkbox.checked === true) {
+                        checkbox.checked = false;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                    checkbox = document.getElementById('toggleTooltips')
+                    if (checkbox.checked === true) {
+                        checkbox.checked = false;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }
+                    showLayers(window.data);
+                } else {
+                    takeScreenshot();
                 }
-                checkbox = document.getElementById('toggleNorthArrow');
-                if (checkbox.checked === false) {
-                    checkbox.checked = true;
-                    checkbox.dispatchEvent(new Event('change'));
-                }
-                checkbox = document.getElementById('toggleGraphicScale');
-                if (checkbox.checked === false) {
-                    checkbox.checked = true;
-                    checkbox.dispatchEvent(new Event('change'));
-                }
-                checkbox = document.getElementById('toggleCoordinates');
-                if (checkbox.checked === true) {
-                    checkbox.checked = false;
-                    checkbox.dispatchEvent(new Event('change'));
-                }
-                checkbox = document.getElementById('toggleScale');
-                if (checkbox.checked === true) {
-                    checkbox.checked = false;
-                    checkbox.dispatchEvent(new Event('change'));
-                }
-                checkbox = document.getElementById('toggleTooltips')
-                if (checkbox.checked === true) {
-                    checkbox.checked = false;
-                    checkbox.dispatchEvent(new Event('change'));
-                }
-                screenshotInit();
             });
         {% endif %}
     </script>
@@ -1300,6 +1600,24 @@
         document.addEventListener('DOMContentLoaded', function () {
             const allContents = document.querySelectorAll('[id$="_content"]');
             allContents.forEach(content => content.style.display = 'none');
+            var coordinatesJson = JSON.stringify({{ coordinates|safe }});
+            window.labels_regions = undefined;
+            window.labels_subject = undefined;
+            window.layers_regions = undefined;
+            window.layers_russia = undefined;
+            window.layers_subject = undefined;
+            fetchGeoJSON(coordinatesJson)
+                .then(received_data => {
+                    if (received_data && received_data.matching_polygons) {
+                        window.data = received_data;
+                        console.log(window.data)
+                    } else {
+                        console.log('Нет данных для отображения');
+                    }
+                })
+                .catch(error => {
+                    console.error('Произошла ошибка при получении данных:', error);
+                });
         });
     </script>
     <style>
