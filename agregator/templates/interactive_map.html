@@ -77,7 +77,6 @@
             border-radius: 5px;
             text-align: center;
             font-weight: bold;
-            font-size: 14px;
         }
 
         #manualScreenshotControls {
@@ -203,7 +202,7 @@
                     <label for="countryBorderColor" style="margin-left: 10px;">Цвет границ страны:</label>
                     <input type="color" id="countryBorderColor" style="margin-left: 5px;" value="#ff0000"
                            onchange="updateCountryBorderColor(this.value)">
-                    <label for="countryBorderOpacity" style="margin-left: 10px;">Прозрачность границ страны:</label>
+                    <label for="countryBorderOpacity" style="margin-left: 10px;">Прозрачность заливки страны:</label>
                     <input type="number" id="countryBorderOpacity" style="margin-left: 5px;" min="0" max="1" step="0.1"
                            value="1" onchange="updateCountryBorderOpacity(this.value)">
                 </div>
@@ -211,35 +210,31 @@
                     <label for="subjectBorderColor" style="margin-left: 10px;">Цвет границ субъекта:</label>
                     <input type="color" id="subjectBorderColor" style="margin-left: 5px;" value="#0000ff"
                            onchange="updateSubjectBorderColor(this.value)">
-                    <label for="subjectBorderOpacity" style="margin-left: 10px;">Прозрачность границ субъекта:</label>
+                    <label for="subjectBorderOpacity" style="margin-left: 10px;">Прозрачность заливки субъекта:</label>
                     <input type="number" id="subjectBorderOpacity" style="margin-left: 5px;" min="0" max="1" step="0.1"
                            value="1" onchange="updateSubjectBorderOpacity(this.value)">
                     <label for="subjectLabelColor" id="subjectLabelColorLabel" style="margin-left: 10px;">Цвет подписи
                         субъекта:</label>
                     <input type="color" id="subjectLabelColor" style="margin-left: 5px;" value="#000000"
                            onchange="updateSubjectLabelColor(this.value)">
-                    <!--
                     <label for="subjectLabelSize" style="margin-left: 10px;">Размер подписи субъекта:</label>
                     <input type="number" id="subjectLabelSize" style="margin-left: 5px;" min="10" max="50" value="14"
                            onchange="updateSubjectLabelSize(this.value)">
-                    -->
                 </div>
                 <div id="regionControls" style="display: none; margin-top: 10px;">
                     <label for="regionBorderColor" style="margin-left: 10px;">Цвет границ района:</label>
                     <input type="color" id="regionBorderColor" style="margin-left: 5px;" value="#00ff00"
                            onchange="updateRegionBorderColor(this.value)">
-                    <label for="regionBorderOpacity" style="margin-left: 10px;">Прозрачность границ района:</label>
+                    <label for="regionBorderOpacity" style="margin-left: 10px;">Прозрачность заливки района:</label>
                     <input type="number" id="regionBorderOpacity" style="margin-left: 5px;" min="0" max="1" step="0.1"
                            value="1" onchange="updateRegionBorderOpacity(this.value)">
                     <label for="regionLabelColor" id="regionLabelColorLabel" style="margin-left: 10px;">Цвет подписи
                         района:</label>
                     <input type="color" id="regionLabelColor" style="margin-left: 5px;" value="#000000"
                            onchange="updateRegionLabelColor(this.value)">
-                    <!--
                     <label for="regionLabelSize" style="margin-left: 10px;">Размер подписи района:</label>
                     <input type="number" id="regionLabelSize" style="margin-left: 5px;" min="10" max="50" value="14"
                            onchange="updateRegionLabelSize(this.value)">
-                    -->
                 </div>
             </div>
         </div>
@@ -319,7 +314,7 @@
                             map.fitBounds(allBounds);
                         }
                     } else if (selectedStage === 'subject') {
-                        result = prtScrSubject(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, regionLabelColor.value, 14);
+                        result = prtScrSubject(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, regionLabelColor.value, regionLabelSize.value);
                         window.layers_subject = result[0][0];
                         borders_bounds = result[0][1];
                         window.layers_regions = result[1][0];
@@ -329,7 +324,7 @@
                             map.fitBounds(L.latLngBounds(borders_bounds));
                         }
                     } else if (selectedStage === 'russia') {
-                        result = prtScrCountry(mapElement, window.data, mapWidth, mapHeight, countryBorderColor.value, countryBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, subjectLabelColor.value, 14);
+                        result = prtScrCountry(mapElement, window.data, mapWidth, mapHeight, countryBorderColor.value, countryBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, subjectLabelColor.value, subjectLabelSize.value);
                         window.layers_russia = result[0][0];
                         borders_bounds = result[0][1];
                         window.layers_subject = result[1][0];
@@ -388,12 +383,12 @@
                     result = prtScrRegion(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value);
                     window.layers_regions = result[0];
                 } else if (selectedStage === 'subject') {
-                    result = prtScrSubject(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, regionLabelColor.value, 14);
+                    result = prtScrSubject(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, regionLabelColor.value, regionLabelSize.value);
                     window.layers_subject = result[0][0];
                     window.layers_regions = result[1][0];
                     window.labels_regions = result[1][2];
                 } else if (selectedStage === 'russia') {
-                    result = prtScrCountry(mapElement, window.data, mapWidth, mapHeight, countryBorderColor.value, countryBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, subjectLabelColor.value, 14);
+                    result = prtScrCountry(mapElement, window.data, mapWidth, mapHeight, countryBorderColor.value, countryBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, subjectLabelColor.value, subjectLabelSize.value);
                     window.layers_russia = result[0][0];
                     window.layers_subject = result[1][0];
                     window.labels_subject = result[1][2];
@@ -1205,9 +1200,7 @@
                                 coord.some(point => point[0] < -160)
                             )
                         )) {
-                            var duplicatedFeature = JSON.parse(JSON.stringify(feature));
-
-                            duplicatedFeature.geometry.coordinates = duplicatedFeature.geometry.coordinates.map(polygon =>
+                            feature.geometry.coordinates = feature.geometry.coordinates.map(polygon =>
                                 polygon.map(coord =>
                                     coord.map(point => {
                                         if (point[0] < -160) {
@@ -1217,42 +1210,33 @@
                                     })
                                 )
                             );
-
-                            var duplicatedLayer = L.geoJSON(duplicatedFeature, {
-                                style: {
-                                    color: color,
-                                    weight: 5,
-                                    opacity: border_opacity,
-                                    fill: fill,
-                                    fillColor: color,
-                                    fillOpacity: opacity
-                                }
-                            }).addTo(map);
-
-                            bounds.push(duplicatedLayer.getBounds());
-                            layers.push(duplicatedLayer);
-                        } else {
-                            var geojsonLayer = L.geoJSON(feature, {
-                                style: {
-                                    color: color,
-                                    weight: 5,
-                                    opacity: border_opacity,
-                                    fill: fill,
-                                    fillColor: color,
-                                    fillOpacity: opacity
-                                }
-                            }).addTo(map);
-                            bounds.push(geojsonLayer.getBounds());
-                            layers.push(geojsonLayer);
                         }
+                    }
+                });
 
-                        if (label && last_name !== feature.properties.name && feature.properties && feature.properties.name) {
+                polygons.forEach(function (feature) {
+                    if (last_name !== feature.properties.name) {
+
+                        var geojsonLayer = L.geoJSON(feature, {
+                            style: {
+                                color: color,
+                                weight: 5,
+                                opacity: border_opacity,
+                                fill: fill,
+                                fillColor: color,
+                                fillOpacity: opacity
+                            }
+                        }).addTo(map);
+                        bounds.push(geojsonLayer.getBounds());
+                        layers.push(geojsonLayer);
+
+                        if (label) {
                             console.log(feature.properties.name)
                             var center = geojsonLayer.getBounds().getCenter();
                             label_object = L.marker(center, {
                                 icon: L.divIcon({
                                     className: 'polygon-label',
-                                    html: `<span style="color: ${label_color}; font-size: ${label_size};">${feature.properties.name}</span>`,
+                                    html: `<span style="color: ${label_color}; font-size: ${label_size}px;">${feature.properties.name}</span>`,
                                     iconSize: [170, 40]
                                 })
                             }).addTo(map);

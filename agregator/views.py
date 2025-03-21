@@ -734,7 +734,6 @@ def get_geojson_polygons(request):
 
         matching_polygons = {'Russia': [], 'Subject': [], 'Regions': []}
         for feature in geojson_data['features']:
-            # polygon = shape(feature['geometry'])
             matching_polygons['Russia'].append(feature)
 
         for dirpath, dirnames, filenames in os.walk(geojson_folder):
