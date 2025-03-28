@@ -308,3 +308,41 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
 
     def __str__(self):
         return self.name or f"Объект {self.id}"
+
+
+class ObjectAccountCard(models.Model):
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+    upload_source = models.JSONField(null=True, blank=True)
+    is_processing = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=True)
+    origin_filename = models.TextField()
+
+    name = models.TextField()
+    creation_time = models.TextField()
+    address = models.TextField()
+    object_type = models.TextField()
+    general_classification = models.TextField()
+    description = models.TextField()
+    usage = models.TextField()
+    discovery_info = models.TextField()
+    supplement = models.JSONField(null=True, blank=True)
+    coordinates = models.JSONField(null=True, blank=True)
+    source = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Object Account Card {self.id} by {self.user.username}"
+
+    class Meta:
+        db_table = 'object_account_cards'
+
+    def save(self, *args, **kwargs):
+        self.supplement = to_json(self.supplement)
+        self.coordinates = to_json(self.coordinates)
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.source and len(self.source) > 0:
+            delete_files(self.source)
+        super().delete(*args, **kwargs)

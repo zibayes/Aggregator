@@ -1,0 +1,320 @@
+{% extends 'base.html' %}
+
+{% block title %}Реестр учётных карт{% endblock %}
+
+{% block content %}
+
+    <br>
+    <h2 align="center">Реестр учётных карт</h2>
+    <br>
+
+    <div class="accordion" id="accordionColumns">
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseColumns" aria-expanded="false" aria-controls="collapseColumns">
+                    Отображение колонок
+                </button>
+            </h2>
+            <div id="collapseColumns" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+                <div class="accordion-body">
+                    <label><input type="checkbox" class="column-toggle" data-column="0" checked> Наименование
+                        объекта</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="1" checked> Время
+                        создания</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="2" checked> Адрес</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="3" checked> Вид объекта</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="4" checked> Общая видовая
+                        принадлежность</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="5" checked> Описание</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="6" checked>
+                        Использование</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="7" checked> Сведения о
+                        выявлении</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Дата
+                        загрузки</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="9" checked> Публичный
+                        доступ</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="10" checked> Редактирование</label><br>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
+                    Фильтры
+                </button>
+            </h2>
+            <div id="collapseFilters" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+                <div class="accordion-body">
+                    <form id="filterForm">
+                        <div class="mb-3" id="filterNameContainer">
+                            <label for="filterName" class="form-label">Наименование объекта</label>
+                            <input type="text" class="form-control" id="filterName"
+                                   placeholder="Введите наименование объекта">
+                        </div>
+                        <div class="mb-3" id="filterCreationTimeContainer">
+                            <label for="filterCreationTime" class="form-label">Время создания</label>
+                            <input type="text" class="form-control" id="filterCreationTime"
+                                   placeholder="Введите время создания">
+                        </div>
+                        <div class="mb-3" id="filterAddressContainer">
+                            <label for="filterAddress" class="form-label">Адрес</label>
+                            <input type="text" class="form-control" id="filterAddress" placeholder="Введите адрес">
+                        </div>
+                        <div class="mb-3" id="filterObjectTypeContainer">
+                            <label for="filterObjectType" class="form-label">Вид объекта</label>
+                            <input type="text" class="form-control" id="filterObjectType"
+                                   placeholder="Введите вид объекта">
+                        </div>
+                        <div class="mb-3" id="filterGeneralClassificationContainer">
+                            <label for="filterGeneralClassification" class="form-label">Общая видовая
+                                принадлежность</label>
+                            <input type="text" class="form-control" id="filterGeneralClassification"
+                                   placeholder="Введите общую видовую принадлежность">
+                        </div>
+                        <div class="mb-3" id="filterDescriptionContainer">
+                            <label for="filterDescription" class="form-label">Описание</label>
+                            <input type="text" class="form-control" id="filterDescription"
+                                   placeholder="Введите описание">
+                        </div>
+                        <div class="mb-3" id="filterUsageContainer">
+                            <label for="filterUsage" class="form-label">Использование</label>
+                            <input type="text" class="form-control" id="filterUsage"
+                                   placeholder="Введите использование">
+                        </div>
+                        <div class="mb-3" id="filterDiscoveryInfoContainer">
+                            <label for="filterDiscoveryInfo" class="form-label">Сведения о выявлении</label>
+                            <input type="text" class="form-control" id="filterDiscoveryInfo"
+                                   placeholder="Введите сведения о выявлении">
+                        </div>
+                        <div class="mb-3">
+                            <label>
+                                <input type="checkbox" id="showMyDocs"/> Показать только свои документы
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Применить фильтры</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+        <a href="/account_cards_register_download/">
+            Скачать реестр в формате .xlsx
+        </a>
+        <div class="form-check form-switch d-inline-block ms-3">
+            <input class="form-check-input" type="checkbox" id="storageSwitch">
+            <label class="form-check-label" for="storageSwitch" id="storageLabel">Публичное хранилище</label>
+        </div>
+    </div>
+
+    <div class="table-responsive overflow-auto">
+        <table class="table table-striped w-100">
+            <thead>
+            <tr>
+                <th>Наименование объекта</th>
+                <th>Время создания</th>
+                <th>Адрес</th>
+                <th>Вид объекта</th>
+                <th>Общая видовая принадлежность</th>
+                <th>Описание</th>
+                <th>Использование</th>
+                <th>Сведения о выявлении</th>
+                <th>Дата загрузки</th>
+                <th>Публичный доступ</th>
+                <th>Редактирование</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for account_card in account_cards %}
+                <tr data-name="{{ account_card.name }}"
+                    data-act-id="{{ account_card.id }}" data-user-id="{{ account_card.user.id }}"
+                    data-creation_time="{{ account_card.creation_time }}"
+                    data-address="{{ account_card.address }}"
+                    data-object_type="{{ account_card.object_type }}"
+                    data-general_classification="{{ account_card.general_classification }}"
+                    data-description="{{ account_card.description }}"
+                    data-usage="{{ account_card.usage }}"
+                    data-discovery_info="{{ account_card.discovery_info }}"
+                    data-date_uploaded="{{ account_card.date_uploaded }}"
+                    data-is-public="{{ account_card.is_public }}">
+                    <td>
+                        {{ account_card.name }}
+                    </td>
+                    <td>
+                        {{ account_card.creation_time }}
+                    </td>
+                    <td>
+                        {{ account_card.address }}
+                    </td>
+                    <td>
+                        {{ account_card.object_type }}
+                    </td>
+                    <td>
+                        {{ account_card.general_classification }}
+                    </td>
+                    <td>
+                        {{ account_card.description }}
+                    </td>
+                    <td>
+                        {{ account_card.usage }}
+                    </td>
+                    <td>
+                        {{ account_card.discovery_info }}
+                    </td>
+                    <td>
+                        {{ account_card.date_uploaded }}
+                    </td>
+                    <td>
+                        {{ account_card.is_public|yesno:"Да,Нет" }}
+                    </td>
+                    <td>
+                        {% if account_card.user.id == user.id or user.is_superuser %}
+                            <a href="/account_card_edit/{{ account_card.id }}">
+                                <button type="button" class="btn btn-primary"
+                                        style="border-radius: 12px; margin-right:10px;">
+                                    Редактировать
+                                </button>
+                            </a>
+                            <button type="button" class="btn btn-danger" style="margin-top: 8px;"
+                                    data-bs-target="#delete_account_card_{{ account_card.id }}"
+                                    data-bs-toggle="modal">
+                                Удалить
+                            </button>
+                        {% else %}
+                            Нет доступа
+                        {% endif %}
+                    </td>
+                </tr>
+                {% block modal_dialog %}
+                    <div class="modal fade" id="delete_account_card_{{ account_card.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Вы уверены, что хотите удалить эту учётную карту?</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                </div>
+                                <div class="modal-footer">
+                                    <form method="POST" action="/account_cards_delete/{{ account_card.id }}/"
+                                          class="mt-3">
+                                        {% csrf_token %}
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                            Отмена
+                                        </button>
+                                        <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
+                                            Удалить
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endblock modal_dialog %}
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        document.getElementById('filterForm').addEventListener('submit', function (e) {
+            e.preventDefault(); // Отменяем стандартное действие формы
+
+            const nameFilter = document.getElementById('filterName').value.toLowerCase();
+            const creationTimeFilter = document.getElementById('filterCreationTime').value.toLowerCase();
+            const addressFilter = document.getElementById('filterAddress').value.toLowerCase();
+            const objectTypeFilter = document.getElementById('filterObjectType').value.toLowerCase();
+            const generalClassificationFilter = document.getElementById('filterGeneralClassification').value.toLowerCase();
+            const descriptionFilter = document.getElementById('filterDescription').value.toLowerCase();
+            const usageFilter = document.getElementById('filterUsage').value.toLowerCase();
+            const discoveryInfoFilter = document.getElementById('filterDiscoveryInfo').value.toLowerCase();
+            const showMyDocs = document.getElementById('showMyDocs').checked;
+
+            const rows = document.querySelectorAll('.table tbody tr');
+            rows.forEach(row => {
+                const nameText = row.dataset.name.toLowerCase();
+                const creationTimeText = row.dataset.creation_time.toLowerCase();
+                const addressText = row.dataset.address.toLowerCase();
+                const objectTypeText = row.dataset.object_type.toLowerCase();
+                const generalClassificationText = row.dataset.general_classification.toLowerCase();
+                const descriptionText = row.dataset.description.toLowerCase();
+                const usageText = row.dataset.usage.toLowerCase();
+                const discoveryInfoText = row.dataset.discovery_info.toLowerCase();
+                const userId = row.dataset.userId;
+
+                const isNameMatch = nameText.includes(nameFilter);
+                const isCreationTimeMatch = creationTimeText.includes(creationTimeFilter);
+                const isAddressMatch = addressText.includes(addressFilter);
+                const isObjectTypeMatch = objectTypeText.includes(objectTypeFilter);
+                const isGeneralClassificationMatch = generalClassificationText.includes(generalClassificationFilter);
+                const isDescriptionMatch = descriptionText.includes(descriptionFilter);
+                const isUsageMatch = usageText.includes(usageFilter);
+                const isDiscoveryInfoMatch = discoveryInfoText.includes(discoveryInfoFilter);
+                const isOwnerMatch = userId === "{{ user.id }}";
+
+                const showRow = (isNameMatch && isCreationTimeMatch && isAddressMatch && isObjectTypeMatch &&
+                        isGeneralClassificationMatch && isDescriptionMatch && isUsageMatch && isDiscoveryInfoMatch) &&
+                    (!showMyDocs || isOwnerMatch);
+
+                if (showRow) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+
+        function updateFilterVisibility() {
+            let columnToggles = document.querySelectorAll('.column-toggle');
+            columnToggles.forEach(toggle => {
+                let columnIndex = toggle.getAttribute('data-column');
+                let columns_count = 11;
+                if (columnIndex > columns_count - 3) {
+                    return;
+                }
+                let filterContainer = document.getElementById('filterForm').children[columnIndex];
+
+                if (toggle.checked) {
+                    filterContainer.style.display = '';
+                } else {
+                    filterContainer.style.display = 'none';
+                }
+            });
+        }
+
+        document.querySelectorAll('.column-toggle').forEach(toggle => {
+            toggle.addEventListener('change', updateFilterVisibility);
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            setTimeout(updateFilterVisibility, 300);
+
+            const storageSwitch = document.getElementById('storageSwitch');
+            const storageLabel = document.getElementById('storageLabel');
+
+            storageSwitch.addEventListener('change', function () {
+                const isPrivate = storageSwitch.checked;
+                storageLabel.textContent = isPrivate ? "Частное хранилище" : "Публичное хранилище";
+
+                $.fn.dataTable.ext.search.pop();
+
+                // Добавление нового фильтра
+                $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                    const row = window.dataTable.row(dataIndex).node();
+                    const isPublic = row.getAttribute('data-is-public') === "True";
+
+                    if (isPrivate) {
+                        return !isPublic;
+                    } else {
+                        return isPublic;
+                    }
+                });
+                window.dataTable.draw();
+            });
+        });
+    </script>
+{% endblock %}

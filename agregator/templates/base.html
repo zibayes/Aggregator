@@ -135,6 +135,22 @@
                 </div>
             </li>
             <li class="nav-item" style="margin-right:10px;">
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton4"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        Учётные карты
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                        <li><a class="dropdown-item" href="{% url 'account_cards_register' %}">Реестр учётных карт</a>
+                        </li>
+                        {% if user.is_authenticated %}
+                            <li><a class="dropdown-item" href="{% url 'account_cards_upload' %}">Менеджер загрузок</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </li>
+            <li class="nav-item" style="margin-right:10px;">
                 <a class="nav-link" href="{% url 'interactive_map' %}">Интерактивная карта</a>
             </li>
             <li class="nav-item" style="margin-right:10px;">

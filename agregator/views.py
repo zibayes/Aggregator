@@ -24,7 +24,7 @@ from django.contrib.auth import login, authenticate
 from .forms import UserRegisterForm
 from django_celery_results.models import TaskResult
 from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks, \
-    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
+    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
@@ -1014,6 +1014,164 @@ def identified_archaeological_heritage_sites_download(request):
 def update_voan_list(request):
     external_voan_list_processing()
     return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+def account_cards(request, pk):
+    account_card = ObjectAccountCard.objects.get(id=pk)
+    return render(request, 'account_card.html', {'account_card': account_card})
+
+
+@login_required
+@owner_or_admin_required(ObjectAccountCard)
+def account_cards_edit(request, pk):
+    account_card = ObjectAccountCard.objects.get(id=pk)
+    if request.method == 'POST':
+        account_card.name = request.POST['name']
+        account_card.creation_time = request.POST['creation_time']
+        account_card.address = request.POST['address']
+        account_card.object_type = request.POST['object_type']
+        account_card.general_classification = request.POST['general_classification']
+        account_card.description = request.POST['description']
+        account_card.usage = request.POST['usage']
+        account_card.discovery_info = request.POST['discovery_info']
+        account_card.save()
+        messages.success(request, 'Учётная карта успешно обновлена.')
+        return redirect(f'/account_cards/{account_card.id}')
+
+    return render(request, 'account_card_edit.html', {'account_card': account_card})
+
+
+@login_required
+@owner_or_admin_required(ObjectAccountCard)
+def account_cards_delete(request, pk):
+    account_card_instance = ObjectAccountCard.objects.get(id=pk)
+    account_card_instance.delete()
+    return redirect(f'account_cards_register')
+
+
+@login_required
+def account_cards_upload(request):
+    user_id = request.user.id
+    tasks_id = get_user_tasks(user_id, ('open_list',))
+    if request.method == 'POST':
+        form = UploadOpenListsForm(request.POST, request.FILES)
+        if form.is_valid():
+            uploaded_files = form.cleaned_data['files']
+            if request.user.is_superuser:
+                is_public = True if request.POST['storage_type'] == 'public' else False
+            else:
+                is_public = False
+            open_lists_ids = raw_open_lists_save(uploaded_files, user_id, is_public)
+            task = process_open_lists.apply_async((open_lists_ids, user_id),
+                                                  link_error=error_handler_open_lists.s())
+            tasks_id = [task.task_id] + tasks_id
+            user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
+                                  upload_source={'source': 'Пользовательский файл'})
+            user_task.save()
+            return render(request, 'account_cards_upload.html', {'form': form, 'tasks_id': tasks_id})
+    else:
+        form = UploadOpenListsForm()
+    return render(request, 'account_cards_upload.html', {'form': form, 'tasks_id': tasks_id})
+
+
+def account_cards_register_download(request):
+    table_path = "uploaded_files/tech_reports/РЕЕСТР ПНТО.xlsx"
+    table_columns = ['Год написания отчёта', 'Название отчёта', 'Организация', 'Автор',
+                     'Открытый лист', 'Населённый пункт',
+                     'Вид работ', 'Площадь', 'Исполнители',
+                     'Заключение']
+    reports = TechReport.objects.all()
+    if not reports:
+        return redirect(scientific_reports_register)
+    df_existing = None
+    for report in reports:
+        table_columns_info = {i: '' for i in table_columns}
+        table_columns_info['Год написания отчёта'] = report.writing_date
+        table_columns_info['Название отчёта'] = report.name
+        table_columns_info['Организация'] = report.organization
+        table_columns_info['Автор'] = report.author
+        table_columns_info['Открытый лист'] = report.open_list
+        table_columns_info['Населённый пункт'] = report.place
+        table_columns_info['Исполнители'] = report.contractors
+        table_columns_info['Площадь'] = report.area_info
+        df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
+        if df_existing is None:
+            df_existing = df_new
+        else:
+            df_existing = df_existing._append(df_new, ignore_index=True)
+    with pd.ExcelWriter(table_path) as writer:
+        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
+    wb = load_workbook(table_path)
+    ws = wb.active
+    ws.column_dimensions['A'].width = 24
+    ws.column_dimensions['B'].width = 24
+    ws.column_dimensions['C'].width = 24
+    ws.column_dimensions['D'].width = 24
+    ws.column_dimensions['E'].width = 24
+    ws.column_dimensions['F'].width = 26
+    ws.column_dimensions['G'].width = 20.71
+    ws.column_dimensions['H'].width = 18.43
+    ws.column_dimensions['I'].width = 24.71
+    ws.column_dimensions['J'].width = 21.29
+    ws.column_dimensions['K'].width = 26
+    ws.column_dimensions['L'].width = 27.29
+    font = Font(
+        name='Times New Roman',
+        size=11,
+        bold=False,
+        italic=False,
+        vertAlign=None,
+        underline='none',
+        strike=False,
+        color='FF000000'
+    )
+    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
+    for i in range(1, len(df_existing.values) + 2):
+        if i == 1:
+            ws.row_dimensions[0].height = 50
+        else:
+            ws.row_dimensions[i].height = 80
+        for cell in ws[i]:
+            if cell.value:
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    wb.save(table_path)
+    return redirect("/uploaded_files/tech_reports/РЕЕСТР ПНТО.xlsx")
+
+
+def account_cards_register(request):
+    account_cards_public = ObjectAccountCard.objects.filter(is_processing=False, is_public=True).only('id', 'user_id',
+                                                                                                      'date_uploaded',
+                                                                                                      'upload_source',
+                                                                                                      'is_processing',
+                                                                                                      'is_public',
+                                                                                                      'origin_filename',
+                                                                                                      'name',
+                                                                                                      'creation_time',
+                                                                                                      'address',
+                                                                                                      'object_type',
+                                                                                                      'general_classification',
+                                                                                                      'description',
+                                                                                                      'usage',
+                                                                                                      'discovery_info',
+                                                                                                      'source')
+    account_cards_private = ObjectAccountCard.objects.filter(is_processing=False, user_id=request.user.id,
+                                                             is_public=False).only('id', 'user_id',
+                                                                                   'date_uploaded',
+                                                                                   'upload_source',
+                                                                                   'is_processing',
+                                                                                   'is_public',
+                                                                                   'origin_filename',
+                                                                                   'name',
+                                                                                   'creation_time',
+                                                                                   'address',
+                                                                                   'object_type',
+                                                                                   'general_classification',
+                                                                                   'description',
+                                                                                   'usage',
+                                                                                   'discovery_info',
+                                                                                   'source')
+    account_cards = account_cards_public | account_cards_private
+    return render(request, 'account_cards_register.html', {'account_cards': account_cards})
 
 
 class UserList(generics.ListAPIView):

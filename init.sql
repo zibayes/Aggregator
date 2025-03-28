@@ -186,6 +186,31 @@ CREATE TABLE identified_archaeological_heritage_sites
     is_excluded   BOOLEAN DEFAULT FALSE          -- Является ли объект исключенным из списка
 );
 
+-- Учётные карты
+CREATE TABLE object_account_cards
+(
+    id                     serial PRIMARY KEY,            -- идентификатор (первичный ключ)
+    user_id                integer REFERENCES users (id), -- идентификатор пользователя (внешний ключ)
+
+    date_uploaded          TIMESTAMP WITH TIME ZONE NULL, -- дата загрузки учётной карты на сервер
+    upload_source          json                     NULL, -- источник загрузки
+    is_processing          BOOLEAN DEFAULT TRUE,          -- находится ли учётная карта в процессе обработки
+    is_public              BOOLEAN DEFAULT TRUE,          -- находится ли учётная карта в открытом доступе
+    origin_filename        VARCHAR(255)             NULL, -- исходное имя файла учётной карты
+
+    name                   text                     NULL, -- I. Наименование объекта
+    creation_time          text                     NULL, -- II. Время создания (возникновения) объекта
+    address                text                     NULL, -- III. Адрес (местонахождение) объекта
+    object_type            text                     NULL, -- IV. Вид объекта
+    general_classification text                     NULL, -- V. Общая видовая принадлежность объекта
+    description            text                     NULL, -- VI. Общее описание объекта и вывод о его историко-культурной ценности
+    usage                  text                     NULL, -- VII. Использование объекта культурного наследия или пользователь
+    discovery_info         text                     NULL, -- VIII. Сведения о дате и обстоятельствах выявления (обнаружения) объекта
+    supplement             json                     NULL, -- приложение к учётной карте (иллюстрации)
+    coordinates            json                     NULL, -- каталог координат
+    source                 text                     NULL  -- путь к файлам учётной карты а на сервере
+);
+
 -- GRANT ALL PRIVILEGES ON DATABASE postgres TO agregator;
 -- GRANT ALL PRIVILEGES ON TABLE users TO agregator;
 -- GRANT ALL PRIVILEGES ON TABLE user_tasks TO agregator;
