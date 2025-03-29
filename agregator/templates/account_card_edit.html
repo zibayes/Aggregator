@@ -83,7 +83,7 @@
                                     aria-label="Close"></button>
                         </div>
                         <div class="modal-footer">
-                            <form method="POST" action="{% url 'account_card_delete' account_card.id %}" class="mt-3">
+                            <form method="POST" action="{% url 'account_cards_delete' account_card.id %}" class="mt-3">
                                 {% csrf_token %}
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
                                     Отмена

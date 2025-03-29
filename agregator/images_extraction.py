@@ -38,6 +38,12 @@ SUPPLEMENT_CONTENT = {
     "open_list": [],
 }
 
+ACCOUNT_CARD_CONTENT = {
+    "maps": [],
+    "schemas": [],
+    "object_fotos": [],
+}
+
 
 def hex_to_rgb(hex_color):
     # Удаляем символ '#' если он есть

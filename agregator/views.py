@@ -6,6 +6,7 @@ from .scientific_reports_processing import process_scientific_reports, error_han
 from .tech_reports_processing import process_tech_reports, error_handler_tech_reports
 from .external_sources import external_sources_processing, external_voan_list_processing
 from .open_lists_ocr import process_open_lists, error_handler_open_lists
+from .account_cards_processing import process_account_cards, error_handler_account_cards
 from .ask import ask_question_with_context
 import os
 import pandas as pd
@@ -28,7 +29,7 @@ from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTask
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
-from .files_saving import raw_open_lists_save, raw_reports_save
+from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save
 
 
 def get_user_tasks(user_id, file_types, upload_source=False):
@@ -1052,25 +1053,25 @@ def account_cards_delete(request, pk):
 @login_required
 def account_cards_upload(request):
     user_id = request.user.id
-    tasks_id = get_user_tasks(user_id, ('open_list',))
+    tasks_id = get_user_tasks(user_id, ('account_card',))
     if request.method == 'POST':
-        form = UploadOpenListsForm(request.POST, request.FILES)
+        form = UploadReportsForm(request.POST, request.FILES)
         if form.is_valid():
             uploaded_files = form.cleaned_data['files']
             if request.user.is_superuser:
                 is_public = True if request.POST['storage_type'] == 'public' else False
             else:
                 is_public = False
-            open_lists_ids = raw_open_lists_save(uploaded_files, user_id, is_public)
-            task = process_open_lists.apply_async((open_lists_ids, user_id),
-                                                  link_error=error_handler_open_lists.s())
+            account_cards_ids = raw_account_cards_save(uploaded_files, user_id, is_public)
+            task = process_account_cards.apply_async((account_cards_ids, user_id),
+                                                     link_error=error_handler_account_cards.s())
             tasks_id = [task.task_id] + tasks_id
-            user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
+            user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='account_card',
                                   upload_source={'source': 'Пользовательский файл'})
             user_task.save()
             return render(request, 'account_cards_upload.html', {'form': form, 'tasks_id': tasks_id})
     else:
-        form = UploadOpenListsForm()
+        form = UploadReportsForm()
     return render(request, 'account_cards_upload.html', {'form': form, 'tasks_id': tasks_id})
 
 

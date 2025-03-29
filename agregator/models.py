@@ -338,6 +338,7 @@ class ObjectAccountCard(models.Model):
         db_table = 'object_account_cards'
 
     def save(self, *args, **kwargs):
+        self.upload_source = to_json(self.upload_source)
         self.supplement = to_json(self.supplement)
         self.coordinates = to_json(self.coordinates)
         super().save(*args, **kwargs)

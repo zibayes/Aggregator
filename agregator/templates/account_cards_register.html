@@ -31,11 +31,16 @@
                         Использование</label><br>
                     <label><input type="checkbox" class="column-toggle" data-column="7" checked> Сведения о
                         выявлении</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Дата
+                    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Владелец
+                        документа</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="9" checked> Дата
                         загрузки</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="9" checked> Публичный
-                        доступ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="10" checked> Редактирование</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="10" checked> Источник</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="11" checked> Формализованный
+                        документ</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="12" checked> Исходный
+                        документ</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="13" checked> Редактирование</label><br>
                 </div>
             </div>
         </div>
@@ -65,7 +70,7 @@
                             <input type="text" class="form-control" id="filterAddress" placeholder="Введите адрес">
                         </div>
                         <div class="mb-3" id="filterObjectTypeContainer">
-                            <label for="filterObjectType" class="form-label">Вид объекта</label>
+                            < label for="filterObjectType" class="form-label">Вид объекта</label>
                             <input type="text" class="form-control" id="filterObjectType"
                                    placeholder="Введите вид объекта">
                         </div>
@@ -89,6 +94,30 @@
                             <label for="filterDiscoveryInfo" class="form-label">Сведения о выявлении</label>
                             <input type="text" class="form-control" id="filterDiscoveryInfo"
                                    placeholder="Введите сведения о выявлении">
+                        </div>
+                        <div class="mb-3" id="filterOwnerContainer">
+                            <label for="filterOwner" class="form-label">Владелец документа</label>
+                            <input type="text" class="form-control" id="filterOwner"
+                                   placeholder="Введите владельца документа">
+                        </div>
+                        <div class="mb-3" id="filterDateUploadedContainer">
+                            <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+                            <input type="text" class="form-control" id="filterDateUploaded"
+                                   placeholder="Введите дату загрузки">
+                        </div>
+                        <div class="mb-3" id="filterSourceContainer">
+                            <label for="filterSource" class="form-label">Источник</label>
+                            <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
+                        </div>
+                        <div class="mb-3" id="filterFormalizedDocumentContainer">
+                            <label for="filterFormalizedDocument" class="form-label">Формализованный документ</label>
+                            <input type="text" class="form-control" id="filterFormalizedDocument"
+                                   placeholder="Введите формализованный документ">
+                        </div>
+                        <div class="mb-3" id="filterOriginalDocumentContainer">
+                            <label for="filterOriginalDocument" class="form-label">Исходный документ</label>
+                            <input type="text" class="form-control" id="filterOriginalDocument"
+                                   placeholder="Введите исходный документ">
                         </div>
                         <div class="mb-3">
                             <label>
@@ -124,8 +153,11 @@
                 <th>Описание</th>
                 <th>Использование</th>
                 <th>Сведения о выявлении</th>
+                <th>Владелец документа</th>
                 <th>Дата загрузки</th>
-                <th>Публичный доступ</th>
+                <th>Источник</th>
+                <th>Формализованный документ</th>
+                <th>Исходный документ</th>
                 <th>Редактирование</th>
             </tr>
             </thead>
@@ -141,7 +173,10 @@
                     data-usage="{{ account_card.usage }}"
                     data-discovery_info="{{ account_card.discovery_info }}"
                     data-date_uploaded="{{ account_card.date_uploaded }}"
-                    data-is-public="{{ account_card.is_public }}">
+                    data-source="{{ account_card.source }}"
+                    data-formalized_document="{{ account_card.formalized_document }}"
+                    data-original_document="{{ account_card.original_document }}"
+                    data-owner="{{ account_card.user.username }}">
                     <td>
                         {{ account_card.name }}
                     </td>
@@ -167,14 +202,36 @@
                         {{ account_card.discovery_info }}
                     </td>
                     <td>
+                        <a href="/users/{{ account_card.user.id }}">
+                            <img src="{{ account_card.user.avatar.url }}" class="rounded-circle" height="25" width="25"
+                                 loading="lazy"
+                                 style="object-fit: cover;" alt=""/>
+                            {{ account_card.user.username }}
+                        </a>
+                    </td>
+                    <td>
                         {{ account_card.date_uploaded }}
                     </td>
                     <td>
-                        {{ account_card.is_public|yesno:"Да,Нет" }}
+                        <a{% if account_card.upload_source.link %}
+                            href="{{ account_card.upload_source.link }}" {% endif %}>{{ account_card.upload_source.source }}</a>
+                    </td>
+                    <td>
+                        <a href="/account_cards/{{ account_card.id }}">
+                            <button type="button" class="btn btn-primary"
+                                    style="border-radius: 12px; margin-right:10px;">
+                                Просмотр
+                            </button>
+                        </a>
+                    </td>
+                    <td>
+                        <a href="/{{ account_card.source }}">
+                            {{ account_card.origin_filename }}
+                        </a>
                     </td>
                     <td>
                         {% if account_card.user.id == user.id or user.is_superuser %}
-                            <a href="/account_card_edit/{{ account_card.id }}">
+                            <a href="/account_cards_edit/{{ account_card.id }}">
                                 <button type="button" class="btn btn-primary"
                                         style="border-radius: 12px; margin-right:10px;">
                                     Редактировать
@@ -224,6 +281,7 @@
         document.getElementById('filterForm').addEventListener('submit', function (e) {
             e.preventDefault(); // Отменяем стандартное действие формы
 
+            const ownerFilter = document.getElementById('filterOwner').value.toLowerCase();
             const nameFilter = document.getElementById('filterName').value.toLowerCase();
             const creationTimeFilter = document.getElementById('filterCreationTime').value.toLowerCase();
             const addressFilter = document.getElementById('filterAddress').value.toLowerCase();
@@ -232,10 +290,15 @@
             const descriptionFilter = document.getElementById('filterDescription').value.toLowerCase();
             const usageFilter = document.getElementById('filterUsage').value.toLowerCase();
             const discoveryInfoFilter = document.getElementById('filterDiscoveryInfo').value.toLowerCase();
+            const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
+            const sourceFilter = document.getElementById('filterSource').value.toLowerCase();
+            const formalizedDocumentFilter = document.getElementById('filterFormalizedDocument').value.toLowerCase();
+            const originalDocumentFilter = document.getElementById('filterOriginalDocument').value.toLowerCase();
             const showMyDocs = document.getElementById('showMyDocs').checked;
 
             const rows = document.querySelectorAll('.table tbody tr');
             rows.forEach(row => {
+                const ownerText = row.dataset.owner.toLowerCase();
                 const nameText = row.dataset.name.toLowerCase();
                 const creationTimeText = row.dataset.creation_time.toLowerCase();
                 const addressText = row.dataset.address.toLowerCase();
@@ -244,6 +307,10 @@
                 const descriptionText = row.dataset.description.toLowerCase();
                 const usageText = row.dataset.usage.toLowerCase();
                 const discoveryInfoText = row.dataset.discovery_info.toLowerCase();
+                const dateUploadedText = row.dataset.date_uploaded.toLowerCase();
+                const sourceText = row.dataset.source.toLowerCase();
+                const formalizedDocumentText = row.dataset.formalized_document.toLowerCase();
+                const originalDocumentText = row.dataset.original_document.toLowerCase();
                 const userId = row.dataset.userId;
 
                 const isNameMatch = nameText.includes(nameFilter);
@@ -254,11 +321,16 @@
                 const isDescriptionMatch = descriptionText.includes(descriptionFilter);
                 const isUsageMatch = usageText.includes(usageFilter);
                 const isDiscoveryInfoMatch = discoveryInfoText.includes(discoveryInfoFilter);
+                const isDateUploadedMatch = dateUploadedText.includes(dateUploadedFilter);
+                const isSourceMatch = sourceText.includes(sourceFilter);
+                const isFormalizedDocumentMatch = formalizedDocumentText.includes(formalizedDocumentFilter);
+                const isOriginalDocumentMatch = originalDocumentText.includes(originalDocumentFilter);
                 const isOwnerMatch = userId === "{{ user.id }}";
 
-                const showRow = (isNameMatch && isCreationTimeMatch && isAddressMatch && isObjectTypeMatch &&
-                        isGeneralClassificationMatch && isDescriptionMatch && isUsageMatch && isDiscoveryInfoMatch) &&
-                    (!showMyDocs || isOwnerMatch);
+                const showRow = (isNameMatch && isCreationTimeMatch && isAddressMatch &&
+                    isObjectTypeMatch && isGeneralClassificationMatch && isDescriptionMatch && isUsageMatch &&
+                    isDiscoveryInfoMatch && isDateUploadedMatch && isSourceMatch && isFormalizedDocumentMatch &&
+                    isOriginalDocumentMatch) && (!showMyDocs || isOwnerMatch);
 
                 if (showRow) {
                     row.style.display = '';
@@ -272,7 +344,7 @@
             let columnToggles = document.querySelectorAll('.column-toggle');
             columnToggles.forEach(toggle => {
                 let columnIndex = toggle.getAttribute('data-column');
-                let columns_count = 11;
+                let columns_count = 14;
                 if (columnIndex > columns_count - 3) {
                     return;
                 }
@@ -302,7 +374,6 @@
 
                 $.fn.dataTable.ext.search.pop();
 
-                // Добавление нового фильтра
                 $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
                     const row = window.dataTable.row(dataIndex).node();
                     const isPublic = row.getAttribute('data-is-public') === "True";

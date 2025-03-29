@@ -9,7 +9,7 @@ import pythoncom
 from PIL import Image
 import io
 
-from .models import Act, ScientificReport, TechReport, OpenLists
+from .models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard
 
 SOURCE_CONTENT = []  # [{'type': 'text/images/all', 'path': 'path/to/file.pdf'}, {}, ...]
 
@@ -178,5 +178,58 @@ def load_raw_reports(reports_ids, report_type):
     return reports, pages_count
 
 
-if __name__ == '__main__':
-    pass
+def raw_account_cards_save(uploaded_files, user_id, is_public, upload_source=None):
+    account_cards_ids = []
+    for file in uploaded_files:
+        account_card = ObjectAccountCard(user_id=user_id, is_public=is_public)
+        account_card.save()
+        account_card_id = account_card.id
+        account_cards_ids.append(account_card_id)
+        path = f'uploaded_files/account_cards/{account_card_id}_account_card'
+        Path(path).mkdir(exist_ok=True)
+        origin_name = file.name
+        account_card.origin_filename = origin_name
+        account_card.upload_source = {'source': 'Пользовательский файл'}
+        file.name = f'{account_card_id}_account_card' + file.name[file.name.rfind('.'):]
+
+        with open(path + '/' + file.name, 'wb+') as destination:
+            if upload_source:
+                destination.write(file.read())
+                file.close()
+            else:
+                for chunk in file.chunks():
+                    destination.write(chunk)
+        account_card.source = path + '/' + file.name
+        account_card.save()
+    return account_cards_ids
+
+
+def load_raw_account_cards(account_cards_ids):
+    account_cards = []
+    pages_count = {}
+    for account_card_id in account_cards_ids:
+        account_card = ObjectAccountCard.objects.get(id=account_card_id)
+        i = 0
+        word = comtypes.client.CreateObject('Word.Application')
+        word.visible = False
+        wd_format_docx = 16
+        in_file = os.path.abspath(account_card.source)
+        try:
+            doc = word.Documents.Open(in_file)
+        except Exception as e:
+            word.Quit()
+            raise RuntimeError(f"Ошибка при открытии файла: {e}")
+        if account_card.source.lower().endswith('.doc'):
+            new_filename = account_card.source[:account_card.source.rfind('.')] + '.docx'
+            out_file = os.path.abspath(new_filename)
+            doc.SaveAs(out_file, FileFormat=wd_format_docx)
+            account_card.source = new_filename
+            pages_count[account_card.source] = doc.ComputeStatistics(2)
+            i += 1
+        else:
+            pages_count[account_card.source] = doc.ComputeStatistics(2)
+        doc.Close()
+        word.Quit()
+        account_card.save()
+        account_cards.append(account_card)
+    return account_cards, pages_count
