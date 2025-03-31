@@ -89,9 +89,6 @@
         {% if account_card.discovery_info %}
             <li><a href="#discovery_info">Сведения о выявлении</a></li>
         {% endif %}
-        {% if account_card.supplement %}
-            <li><a href="#supplement">Приложение</a></li>
-        {% endif %}
     </ul>
     <hr>
 
@@ -108,6 +105,22 @@
     {% if account_card.address %}
         <h2 id="address">Адрес</h2>
         <p>{{ account_card.address | safe }}</p>
+
+        {% if account_card.supplement %}
+            {% if account_card.supplement.address %}
+                {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
+                    {% for map in account_card.supplement.address %}
+                        <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
+                            <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
+                                 alt="{{ map.source }}"
+                                 style="max-width: 400px;"/>
+                            <p>{{ map.label }}</p>
+                        </a>
+                        <br>
+                    {% endfor %}
+                {% endwith %}
+            {% endif %}
+        {% endif %}
     {% endif %}
 
     {% if account_card.object_type %}
@@ -123,6 +136,22 @@
     {% if account_card.description %}
         <h2 id="description">Описание</h2>
         <p>{{ account_card.description | safe }}</p>
+
+        {% if account_card.supplement %}
+            {% if account_card.supplement.description %}
+                {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
+                    {% for map in account_card.supplement.description %}
+                        <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
+                            <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
+                                 alt="{{ map.source }}"
+                                 style="max-width: 400px;"/>
+                            <p>{{ map.label }}</p>
+                        </a>
+                        <br>
+                    {% endfor %}
+                {% endwith %}
+            {% endif %}
+        {% endif %}
     {% endif %}
 
     {% if account_card.usage %}
@@ -133,50 +162,6 @@
     {% if account_card.discovery_info %}
         <h2 id="discovery_info">Сведения о выявлении</h2>
         <p>{{ account_card.discovery_info | safe }}</p>
-    {% endif %}
-
-    {% if account_card.supplement %}
-        {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
-
-            <h2 id="supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</h2>
-
-            {% if account_card.supplement.maps %}
-                <h3 id="maps-{{ forloop.counter }}">Карты</h3>
-                {% for map in account_card.supplement.maps %}
-                    <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
-                        <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
-                             alt="{{ map.source }}"
-                             style="max-width: 400px;"/>
-                        <p>{{ map.label }}</p>
-                    </a>
-                    <br>
-                {% endfor %}
-            {% endif %}
-
-            {% if account_card.supplement.schemas %}
-                <h3 id="schemas-{{ forloop.counter }}">Схемы</h3>
-                {% for scheme in account_card.supplement.schemas %}
-                    <a data-fancybox="gallery" href="/{{ scheme.source }}" data-caption="{{ scheme.label }}">
-                        <img id="image-link-{{ scheme.image_num }}" src="/{{ scheme.source }}" loading="lazy"
-                             alt="{{ scheme.source }}" style="max-width: 400px;"/>
-                        <p>{{ scheme.label }}</p>
-                    </a>
-                    <br>
-                {% endfor %}
-            {% endif %}
-
-            {% if account_card.supplement.object_fotos %}
-                <h3 id="object_fotos-{{ forloop.counter }}">Общий вид</h3>
-                {% for object in account_card.supplement.object_fotos %}
-                    <a data-fancybox="gallery" href="/{{ object.source }}" data-caption="{{ object.label }}">
-                        <img id="image-link-{{ object.image_num }}" src="/{{ object.source }}" loading="lazy"
-                             alt="{{ object.source }}" style="max-width: 400px;"/>
-                        <p>{{ object.label }}</p>
-                    </a>
-                    <br>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
     {% endif %}
 
     <style>

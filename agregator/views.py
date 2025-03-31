@@ -132,12 +132,12 @@ def deconstructor(request):
                                                     link_error=error_handler_acts.s())
                 elif file_type == 'scientific_report':
                     scientific_reports_ids = raw_reports_save(file_groups, uploaded_files, ScientificReport,
-                                                              user.id)
+                                                              user.id, is_public)
                     task = process_scientific_reports.apply_async((scientific_reports_ids, user.id, is_public),
                                                                   link_error=error_handler_scientific_reports.s())
                 elif file_type == 'tech_report':
                     tech_reports_ids = raw_reports_save(file_groups, uploaded_files, TechReport,
-                                                        user.id)
+                                                        user.id, is_public)
                     task = process_tech_reports.apply_async((tech_reports_ids, user.id, is_public),
                                                             link_error=error_handler_tech_reports.s())
                 tasks_id = [task.task_id] + tasks_id
@@ -697,13 +697,17 @@ def users(request, pk):
 
 def map(request, report_type, pk):
     report = None
-    if report_type == 'act':
-        report = Act.objects.get(id=pk)
-    elif report_type == 'scientific_report':
-        report = ScientificReport.objects.get(id=pk)
-    elif report_type == 'tech_report':
-        report = TechReport.objects.get(id=pk)
-    report_name = report.source[0]['origin_filename']
+    if report_type == 'account_card':
+        report = ObjectAccountCard.objects.get(id=pk)
+        report_name = report.origin_filename
+    else:
+        if report_type == 'act':
+            report = Act.objects.get(id=pk)
+        elif report_type == 'scientific_report':
+            report = ScientificReport.objects.get(id=pk)
+        elif report_type == 'tech_report':
+            report = TechReport.objects.get(id=pk)
+        report_name = report.source[0]['origin_filename']
     coordinates = report.coordinates if report else {}
     return render(request, 'interactive_map.html',
                   {'coordinates': coordinates, 'report_type': report_type, 'pk': pk, 'report_name': report_name})
@@ -778,6 +782,8 @@ def download_coordinates(request, report_type, pk):
             report = ScientificReport.objects.get(id=pk)
         elif report_type == 'tech_report':
             report = TechReport.objects.get(id=pk)
+        elif report_type == 'account_card':
+            report = ObjectAccountCard.objects.get(id=pk)
         coordinates = report.coordinates if report else {}
         coordinates_to_download = {}
 
@@ -822,7 +828,7 @@ def download_coordinates(request, report_type, pk):
             file_path = f'uploaded_files/{report_type}s/{pk}_{report_type}/{pk}_{report_type}/coordinates.kml'
             kml.save(file_path)
             return redirect('/' + file_path)
-        return JsonResponse({'response': f'There is no selected coordinates'})
+        return JsonResponse({'response': f'Не выбраны координаты для скачивания'})
     return JsonResponse({'response': f'Method {request.method} is not available for this URL'})
 
 
@@ -1075,7 +1081,7 @@ def account_cards_upload(request):
     return render(request, 'account_cards_upload.html', {'form': form, 'tasks_id': tasks_id})
 
 
-def account_cards_register_download(request):
+def account_cards_register_download(request):  # TODO!!!!!!
     table_path = "uploaded_files/tech_reports/РЕЕСТР ПНТО.xlsx"
     table_columns = ['Год написания отчёта', 'Название отчёта', 'Организация', 'Автор',
                      'Открытый лист', 'Населённый пункт',

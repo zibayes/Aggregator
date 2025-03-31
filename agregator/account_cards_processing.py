@@ -14,9 +14,8 @@ import requests
 import json
 from .models import ObjectAccountCard
 from .files_saving import delete_files_in_directory, load_raw_account_cards
-from .images_extraction import ACCOUNT_CARD_CONTENT
-from .coordinates_extraction import COORDINATES_SAMPLE
 from .hash import calculate_file_hash
+from .coordinates_extraction import dms_to_decimal
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -26,6 +25,13 @@ def choose_file() -> str:
     file_path = filedialog.askopenfilename(title="Выберите DOC или DOCX файл")
     if file_path:
         return file_path
+
+
+def normalize_coordinates(coord: str) -> str:
+    coord = coord.strip()
+    coord = coord.replace(' 0', ' ').replace(' ', '"')
+    coord = coord[1:] if coord[0] == '0' else coord
+    return coord
 
 
 @shared_task(bind=True)
@@ -39,7 +45,7 @@ def process_account_cards(self, account_cards_ids, user_id):
     file_groups = {}
     print("---" + str(pages_count))
     for account_card in account_cards:
-        file = {'path': folder + account_card.source, 'origin_filename': account_card.origin_filename,
+        file = {'path': account_card.source, 'origin_filename': account_card.origin_filename,
                 'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[account_card.source]}}
         file_groups[str(account_card.id)] = file
     progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'account_cards',
@@ -65,8 +71,11 @@ def process_account_cards(self, account_cards_ids, user_id):
 
 def extract_text_tables_and_images(file, progress_recorder, pages_count, total_processed,
                                    account_card_id, progress_json, task_id, time_on_start):
-    supplement_content = copy.deepcopy(ACCOUNT_CARD_CONTENT)
-    coordinates = copy.deepcopy(COORDINATES_SAMPLE)
+    supplement_content = {
+        "address": [],
+        "description": [],
+    }
+    coordinates = {}
 
     account_cards = ObjectAccountCard.objects.all()
     for account_card in account_cards:
@@ -104,22 +113,33 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
     for paragraph in doc.paragraphs:
         text.append(paragraph.text)
 
+    full_text = []
     tables = []
+    nested_tables = []
     for table in doc.tables:
         table_data = []
+        nested_table_data = []
         for row in table.rows:
             row_data = []
             for cell in row.cells:
                 row_data.append(cell.text)
+                full_text.append(cell.text.strip())
+                if cell.tables:
+                    nested_table = cell.tables[0]
+                    for nested_row in nested_table.rows:
+                        nested_table_data.append([cell.text for cell in nested_row.cells])
+                    nested_tables.append(nested_table_data)
             table_data.append(row_data)
         tables.append(table_data)
 
     i = 0
     for table in tables:
+        '''
         print(i)
         print(table)
         print(len(table))
         print('*' * 50)
+        '''
         if i == 1 and len(table) == 1:
             current_account_card.name = table[0][0]
         elif i == 2 and len(table) == 1:  # and 'время создания' in table[0][0].lower()
@@ -144,14 +164,47 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
     if not os.path.exists(folder):
         os.makedirs(folder)
 
+    image_captions = {}
+    is_first = True
     with zipfile.ZipFile(file, 'r') as zip_file:
-        for file_zip in zip_file.namelist():
+        for file_zip in sorted(zip_file.namelist()):
             if file_zip.startswith('word/media/'):
                 image_name = os.path.basename(file_zip)
                 image_path = os.path.join(folder, image_name)
                 with open(image_path, 'wb') as img_file:
                     img_file.write(zip_file.read(file_zip))
-                supplement_content['maps'].append({"label": '', "source": image_path})
+
+                image_captions[image_name] = None
+                category = 'address'
+                for image_name in image_captions:
+                    for text in full_text:
+                        for part in text.split('\n'):
+                            part = part.strip()
+                            if 'объект расположен' in part.lower():
+                                category = 'description'
+                                continue
+                            if current_account_card.name in part and part not in image_captions.values():
+                                if not is_first:
+                                    image_captions[image_name] = part
+                                    break
+                                else:
+                                    is_first = False
+                        if image_captions[image_name]:
+                            break
+                supplement_content[category].append({"label": image_captions[image_name], "source": image_path})
+
+    coordinates['Каталог координат'] = {}
+    for table in nested_tables:
+        for row in table:
+            if 'угол поворота' in row[0].lower() or 'северная широта' in row[1].lower() or 'восточная долгота' in row[
+                2].lower():
+                continue
+            else:
+                point_number = row[0]
+                lat = dms_to_decimal(normalize_coordinates(row[1]))
+                lon = dms_to_decimal(normalize_coordinates(row[2]))
+                coordinates['Каталог координат'][point_number] = [lat, lon]
+                # coordinates['GPS координаты углов поворотов объекта'][point_number] = [lat, lon]
 
     current_account_card.supplement = supplement_content
     current_account_card.coordinates = coordinates
