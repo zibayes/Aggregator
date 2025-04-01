@@ -59,11 +59,20 @@ def choose_file() -> str:
         return file_path
 
 
+def normalize_coordinates(coord: str) -> str:
+    coord = coord.strip()
+    coord = coord.replace(' 0', ' ').replace(' ', '"')
+    coord = coord[1:] if coord[0] == '0' else coord
+    return coord
+
+
 def dms_to_decimal(dms):
     """Преобразует координаты из формата DMS в десятичный формат."""
     dms = dms.replace(',', '.')
     dms = re.sub(r'[^\d°\'".]', '', dms)
+    print('!!' + str(dms))
     parts = re.split('[°\'"]+', dms)
+    print('!!' + str(parts))
 
     degrees = float(parts[0])
     minutes = float(parts[1])

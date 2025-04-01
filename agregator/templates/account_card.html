@@ -89,6 +89,9 @@
         {% if account_card.discovery_info %}
             <li><a href="#discovery_info">Сведения о выявлении</a></li>
         {% endif %}
+        {% if account_card.compiler %}
+            <li><a href="#compiler">Составитель учетной карты</a></li>
+        {% endif %}
     </ul>
     <hr>
 
@@ -162,6 +165,11 @@
     {% if account_card.discovery_info %}
         <h2 id="discovery_info">Сведения о выявлении</h2>
         <p>{{ account_card.discovery_info | safe }}</p>
+    {% endif %}
+
+    {% if account_card.compiler %}
+        <h2 id="compiler">Составитель учетной карты</h2>
+        <p>{{ account_card.compiler | safe }}</p>
     {% endif %}
 
     <style>

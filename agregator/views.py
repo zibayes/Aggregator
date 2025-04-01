@@ -1082,25 +1082,30 @@ def account_cards_upload(request):
 
 
 def account_cards_register_download(request):  # TODO!!!!!!
-    table_path = "uploaded_files/tech_reports/РЕЕСТР ПНТО.xlsx"
-    table_columns = ['Год написания отчёта', 'Название отчёта', 'Организация', 'Автор',
-                     'Открытый лист', 'Населённый пункт',
-                     'Вид работ', 'Площадь', 'Исполнители',
-                     'Заключение']
-    reports = TechReport.objects.all()
-    if not reports:
-        return redirect(scientific_reports_register)
+    table_path = "uploaded_files/account_cards/РЕЕСТР Учётных карт.xlsx"
+    table_columns = ['Наименование объекта', 'Время создания (возникновения) объекта',
+                     'Адрес (местонахождение) объекта', 'Вид объекта',
+                     'Общая видовая принадлежность объекта',
+                     'Общее описание объекта и вывод о его историко-культурной ценности',
+                     'Использование объекта культурного наследия или пользователь',
+                     'Сведения о дате и обстоятельствах выявления (обнаружения) объекта', 'Составитель учетной карты']
+    account_cards = ObjectAccountCard.objects.all()
+    if not account_cards:
+        return redirect(account_cards_register)
     df_existing = None
-    for report in reports:
+    for account_card in account_cards:
         table_columns_info = {i: '' for i in table_columns}
-        table_columns_info['Год написания отчёта'] = report.writing_date
-        table_columns_info['Название отчёта'] = report.name
-        table_columns_info['Организация'] = report.organization
-        table_columns_info['Автор'] = report.author
-        table_columns_info['Открытый лист'] = report.open_list
-        table_columns_info['Населённый пункт'] = report.place
-        table_columns_info['Исполнители'] = report.contractors
-        table_columns_info['Площадь'] = report.area_info
+        table_columns_info['Наименование объекта'] = account_card.name
+        table_columns_info['Время создания (возникновения) объекта'] = account_card.creation_time
+        table_columns_info['Адрес (местонахождение) объекта'] = account_card.address
+        table_columns_info['Вид объекта'] = account_card.object_type
+        table_columns_info['Общая видовая принадлежность объекта'] = account_card.general_classification
+        table_columns_info[
+            'Общее описание объекта и вывод о его историко-культурной ценности'] = account_card.description
+        table_columns_info['Использование объекта культурного наследия или пользователь'] = account_card.usage
+        table_columns_info[
+            'Сведения о дате и обстоятельствах выявления (обнаружения) объекта'] = account_card.discovery_info
+        table_columns_info['Составитель учетной карты'] = account_card.compiler
         df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
         if df_existing is None:
             df_existing = df_new
@@ -1112,16 +1117,13 @@ def account_cards_register_download(request):  # TODO!!!!!!
     ws = wb.active
     ws.column_dimensions['A'].width = 24
     ws.column_dimensions['B'].width = 24
-    ws.column_dimensions['C'].width = 24
-    ws.column_dimensions['D'].width = 24
-    ws.column_dimensions['E'].width = 24
-    ws.column_dimensions['F'].width = 26
-    ws.column_dimensions['G'].width = 20.71
-    ws.column_dimensions['H'].width = 18.43
-    ws.column_dimensions['I'].width = 24.71
-    ws.column_dimensions['J'].width = 21.29
-    ws.column_dimensions['K'].width = 26
-    ws.column_dimensions['L'].width = 27.29
+    ws.column_dimensions['C'].width = 50
+    ws.column_dimensions['D'].width = 16
+    ws.column_dimensions['E'].width = 18
+    ws.column_dimensions['F'].width = 62
+    ws.column_dimensions['G'].width = 20
+    ws.column_dimensions['H'].width = 28
+    ws.column_dimensions['I'].width = 25
     font = Font(
         name='Times New Roman',
         size=11,
@@ -1135,14 +1137,14 @@ def account_cards_register_download(request):  # TODO!!!!!!
     {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
     for i in range(1, len(df_existing.values) + 2):
         if i == 1:
-            ws.row_dimensions[0].height = 50
+            ws.row_dimensions[0].height = 80
         else:
-            ws.row_dimensions[i].height = 80
+            ws.row_dimensions[i].height = 100
         for cell in ws[i]:
             if cell.value:
                 cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     wb.save(table_path)
-    return redirect("/uploaded_files/tech_reports/РЕЕСТР ПНТО.xlsx")
+    return redirect("/uploaded_files/account_cards/РЕЕСТР Учётных карт.xlsx")
 
 
 def account_cards_register(request):

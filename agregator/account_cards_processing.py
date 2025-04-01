@@ -12,10 +12,11 @@ from celery_progress.backend import ProgressRecorder
 import redis
 import requests
 import json
+import re
 from .models import ObjectAccountCard
 from .files_saving import delete_files_in_directory, load_raw_account_cards
 from .hash import calculate_file_hash
-from .coordinates_extraction import dms_to_decimal
+from .coordinates_extraction import dms_to_decimal, normalize_coordinates
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -25,13 +26,6 @@ def choose_file() -> str:
     file_path = filedialog.askopenfilename(title="Выберите DOC или DOCX файл")
     if file_path:
         return file_path
-
-
-def normalize_coordinates(coord: str) -> str:
-    coord = coord.strip()
-    coord = coord.replace(' 0', ' ').replace(' ', '"')
-    coord = coord[1:] if coord[0] == '0' else coord
-    return coord
 
 
 @shared_task(bind=True)
@@ -159,6 +153,8 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                     break
         elif i == 8 and len(table) == 1:
             current_account_card.discovery_info = table[0][0]
+        elif i == 9 and len(table) == 2:
+            current_account_card.compiler = table[0][0] + ' ' + table[0][2]
         i += 1
 
     if not os.path.exists(folder):
@@ -180,6 +176,21 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                     for text in full_text:
                         for part in text.split('\n'):
                             part = part.strip()
+                            center = re.search(
+                                r'Координат[\S ]+?центр[\S ]+?WGS-\d+\)*\s*–*\s*[NS]\s*\d+[°\s]+\d+[\'\s]+\d+[\.,]\d+["\s]+;*\s*[EW]\s*\d+[°\s]+\d+[\'\s]+\d+[\.,]\d+"*',
+                                part, re.IGNORECASE)
+                            if center:
+                                center = center.group(0)
+                                lat = dms_to_decimal(
+                                    normalize_coordinates(re.search(r'[NS]\s*\d+[°\s]+\d+[\'\s]+\d+[\.,]\d+"*', center,
+                                                                    re.IGNORECASE).group(0).replace('N ', '').replace(
+                                        'S ', '').strip()))
+                                lon = dms_to_decimal(
+                                    normalize_coordinates(
+                                        re.search(r'[EW]\s*\d+[°\s]+\d+[\'\s]+\d+[\.,]\d+"*', center,
+                                                  re.IGNORECASE).group(0).replace('E ', '').replace('W ', '').strip()))
+                                coordinates['Центр объекта'] = {}
+                                coordinates['Центр объекта']['Центр объекта'] = [lat, lon]
                             if 'объект расположен' in part.lower():
                                 category = 'description'
                                 continue
@@ -206,10 +217,30 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                 coordinates['Каталог координат'][point_number] = [lat, lon]
                 # coordinates['GPS координаты углов поворотов объекта'][point_number] = [lat, lon]
 
+    if 'Каталог координат' in coordinates and len(coordinates['Каталог координат']) == 4:
+        points = list(coordinates['Каталог координат'].keys())
+        if intersect(coordinates['Каталог координат'][points[0]], coordinates['Каталог координат'][points[1]],
+                     coordinates['Каталог координат'][points[2]],
+                     coordinates['Каталог координат'][points[3]]) or intersect(
+            coordinates['Каталог координат'][points[1]], coordinates['Каталог координат'][points[2]],
+            coordinates['Каталог координат'][points[3]], coordinates['Каталог координат'][points[0]]):
+            coordinates['Каталог координат'][points[2]], coordinates['Каталог координат'][points[3]] = \
+                coordinates['Каталог координат'][points[3]], coordinates['Каталог координат'][points[2]]
+            coordinates['Каталог координат'] = {k: coordinates['Каталог координат'][k] for k in
+                                                sorted(coordinates['Каталог координат'])}
+
     current_account_card.supplement = supplement_content
     current_account_card.coordinates = coordinates
     current_account_card.is_processing = False
     current_account_card.save()
+
+
+def ccw(A, B, C):
+    return (C[0] - A[0]) * (B[1] - A[1]) > (B[0] - A[0]) * (C[1] - A[1])
+
+
+def intersect(A, B, C, D):
+    return ccw(A, C, D) != ccw(B, C, D) and ccw(A, B, C) != ccw(A, B, D)
 
 
 @shared_task

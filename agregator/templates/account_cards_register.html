@@ -31,16 +31,18 @@
                         Использование</label><br>
                     <label><input type="checkbox" class="column-toggle" data-column="7" checked> Сведения о
                         выявлении</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Владелец
+                    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Составитель учетной
+                        карты</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="9" checked> Владелец
                         документа</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="9" checked> Дата
+                    <label><input type="checkbox" class="column-toggle" data-column="10" checked> Дата
                         загрузки</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="10" checked> Источник</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="11" checked> Формализованный
+                    <label><input type="checkbox" class="column-toggle" data-column="11" checked> Источник</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="12" checked> Формализованный
                         документ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="12" checked> Исходный
+                    <label><input type="checkbox" class="column-toggle" data-column="13" checked> Исходный
                         документ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="13" checked> Редактирование</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="14" checked> Редактирование</label><br>
                 </div>
             </div>
         </div>
@@ -94,6 +96,11 @@
                             <label for="filterDiscoveryInfo" class="form-label">Сведения о выявлении</label>
                             <input type="text" class="form-control" id="filterDiscoveryInfo"
                                    placeholder="Введите сведения о выявлении">
+                        </div>
+                        <div class="mb-3" id="filterCompilerContainer">
+                            <label for="filterCompiler" class="form-label">Составитель учетной карты</label>
+                            <input type="text" class="form-control" id="filterCompiler"
+                                   placeholder="Введите составителя учетной карты">
                         </div>
                         <div class="mb-3" id="filterOwnerContainer">
                             <label for="filterOwner" class="form-label">Владелец документа</label>
@@ -153,6 +160,7 @@
                 <th>Описание</th>
                 <th>Использование</th>
                 <th>Сведения о выявлении</th>
+                <th>Составитель учетной карты</th>
                 <th>Владелец документа</th>
                 <th>Дата загрузки</th>
                 <th>Источник</th>
@@ -172,6 +180,7 @@
                     data-description="{{ account_card.description }}"
                     data-usage="{{ account_card.usage }}"
                     data-discovery_info="{{ account_card.discovery_info }}"
+                    data-compiler="{{ account_card.compiler }}"
                     data-date_uploaded="{{ account_card.date_uploaded }}"
                     data-source="{{ account_card.source }}"
                     data-formalized_document="{{ account_card.formalized_document }}"
@@ -200,6 +209,9 @@
                     </td>
                     <td>
                         {{ account_card.discovery_info }}
+                    </td>
+                    <td>
+                        {{ account_card.compiler }}
                     </td>
                     <td>
                         <a href="/users/{{ account_card.user.id }}">
@@ -290,6 +302,7 @@
             const descriptionFilter = document.getElementById('filterDescription').value.toLowerCase();
             const usageFilter = document.getElementById('filterUsage').value.toLowerCase();
             const discoveryInfoFilter = document.getElementById('filterDiscoveryInfo').value.toLowerCase();
+            const compilerFilter = document.getElementById('filterCompiler').value.toLowerCase();
             const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
             const sourceFilter = document.getElementById('filterSource').value.toLowerCase();
             const formalizedDocumentFilter = document.getElementById('filterFormalizedDocument').value.toLowerCase();
@@ -307,6 +320,7 @@
                 const descriptionText = row.dataset.description.toLowerCase();
                 const usageText = row.dataset.usage.toLowerCase();
                 const discoveryInfoText = row.dataset.discovery_info.toLowerCase();
+                const compilerText = row.dataset.compiler.toLowerCase();
                 const dateUploadedText = row.dataset.date_uploaded.toLowerCase();
                 const sourceText = row.dataset.source.toLowerCase();
                 const formalizedDocumentText = row.dataset.formalized_document.toLowerCase();
@@ -321,6 +335,7 @@
                 const isDescriptionMatch = descriptionText.includes(descriptionFilter);
                 const isUsageMatch = usageText.includes(usageFilter);
                 const isDiscoveryInfoMatch = discoveryInfoText.includes(discoveryInfoFilter);
+                const isCompilerMatch = compilerText.includes(compilerFilter);
                 const isDateUploadedMatch = dateUploadedText.includes(dateUploadedFilter);
                 const isSourceMatch = sourceText.includes(sourceFilter);
                 const isFormalizedDocumentMatch = formalizedDocumentText.includes(formalizedDocumentFilter);
@@ -329,7 +344,7 @@
 
                 const showRow = (isNameMatch && isCreationTimeMatch && isAddressMatch &&
                     isObjectTypeMatch && isGeneralClassificationMatch && isDescriptionMatch && isUsageMatch &&
-                    isDiscoveryInfoMatch && isDateUploadedMatch && isSourceMatch && isFormalizedDocumentMatch &&
+                    isDiscoveryInfoMatch && isCompilerMatch && isDateUploadedMatch && isSourceMatch && isFormalizedDocumentMatch &&
                     isOriginalDocumentMatch) && (!showMyDocs || isOwnerMatch);
 
                 if (showRow) {
@@ -344,7 +359,7 @@
             let columnToggles = document.querySelectorAll('.column-toggle');
             columnToggles.forEach(toggle => {
                 let columnIndex = toggle.getAttribute('data-column');
-                let columns_count = 14;
+                let columns_count = 15;
                 if (columnIndex > columns_count - 3) {
                     return;
                 }

@@ -756,6 +756,10 @@
                         content += '<div><span style="cursor: pointer;" id="photos-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'photos-{{ report_name }}\')">+</span><input type="checkbox" id="togglePhotoPoints-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: green;"></i> Пункты фотофиксации</div>';
                         content += '<div id="photos-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
                     {% endif %}
+                    {% if 'Центр' in group %}
+                        content += '<div><span style="cursor: pointer;" id="center-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'center-{{ report_name }}\')">+</span><input type="checkbox" id="toggleCenterPoints-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: yellow;"></i> Центр объекта</div>';
+                        content += '<div id="center-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
+                    {% endif %}
 
                     {% for point_name, coords in point.items %}
                         content += '<div style="margin-left: 20px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>';
@@ -848,6 +852,14 @@
             popupAnchor: [1, -34],
             shadowSize: [41, 41]
         });
+        var center_icons = new L.Icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
+            // shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
+        });
         var current_icon;
         var markers = [];
         var all_markers = {};
@@ -864,6 +876,8 @@
                     current_icon = pits_icons;
                 {% elif 'фото' in group %}
                     current_icon = photos_icons;
+                {% elif 'Центр' in group %}
+                    current_icon = center_icons;
                 {% endif %}
                 {% for point_name, coords in point.items %}
                     var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
@@ -948,6 +962,23 @@
                         if (item.group.includes('Пункты фотофиксации') && this.checked) {
                             item.marker.addTo(map);
                         } else if (item.group.includes('Пункты фотофиксации') && !this.checked) {
+                            map.removeLayer(item.marker);
+                        }
+                    }, this);
+                    const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
+                    childCheckboxes.forEach(function (checkbox) {
+                        checkbox.checked = this.checked;
+                        checkbox.dispatchEvent(new Event('change'));
+                    }, this);
+                });
+            {% endif %}
+
+            {% if 'Центр' in coordinates.keys|join:", " %}
+                document.getElementById('toggleCenterPoints-{{ report_name }}').addEventListener('change', function () {
+                    markers.forEach(function (item) {
+                        if (item.group.includes('Центр объекта') && this.checked) {
+                            item.marker.addTo(map);
+                        } else if (item.group.includes('Центр объекта') && !this.checked) {
                             map.removeLayer(item.marker);
                         }
                     }, this);

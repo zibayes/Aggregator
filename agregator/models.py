@@ -327,6 +327,7 @@ class ObjectAccountCard(models.Model):
     description = models.TextField()
     usage = models.TextField()
     discovery_info = models.TextField()
+    compiler = models.TextField()
     supplement = models.JSONField(null=True, blank=True)
     coordinates = models.JSONField(null=True, blank=True)
     source = models.TextField(null=True, blank=True)
