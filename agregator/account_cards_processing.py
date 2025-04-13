@@ -23,6 +23,8 @@ from pytesseract import Output
 from fuzzywuzzy import fuzz
 import cv2
 import numpy as np
+import io
+from PIL import Image
 
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
@@ -283,9 +285,14 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
         for page_number in range(len(doc)):
             page = doc.load_page(page_number)
             pix = page.get_pixmap(dpi=300)
-            pix.save(f"page_{page_number}.png")
 
-            image = cv2.imread(f"page_{page_number}.png")
+            pil_img = Image.open(io.BytesIO(pix.tobytes("png")))
+            img_np = np.array(pil_img)
+            if img_np.shape[2] == 4:
+                image = cv2.cvtColor(img_np, cv2.COLOR_RGBA2BGR)
+            else:
+                image = cv2.cvtColor(img_np, cv2.COLOR_RGB2BGR)
+
             gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
             _, thresh = cv2.threshold(gray, 180, 255, cv2.THRESH_BINARY_INV)
 
@@ -434,7 +441,6 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                                     current_account_card.usage = 'Иное'
                 elif images_collecting:
                     image_desc = image[y:y + h, x:x + w]
-                    cv2.imwrite(f"description_{i}.png", image_desc)
                     label = extract_text_from_image(roi, '1').strip()
                     print(f'description_{i}.png: ' + label)
                 elif 'сведения о дате и обстоятельствах выявления (обнаружения) объекта' in text_lower:
