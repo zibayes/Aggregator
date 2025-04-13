@@ -210,26 +210,30 @@ def load_raw_account_cards(account_cards_ids):
     for account_card_id in account_cards_ids:
         account_card = ObjectAccountCard.objects.get(id=account_card_id)
         i = 0
-        word = comtypes.client.CreateObject('Word.Application')
-        word.visible = False
-        wd_format_docx = 16
-        in_file = os.path.abspath(account_card.source)
-        try:
-            doc = word.Documents.Open(in_file)
-        except Exception as e:
+        if account_card.source.lower().endswith(('.doc', '.docx')):
+            word = comtypes.client.CreateObject('Word.Application')
+            word.visible = False
+            wd_format_docx = 16
+            in_file = os.path.abspath(account_card.source)
+            try:
+                doc = word.Documents.Open(in_file)
+            except Exception as e:
+                word.Quit()
+                raise RuntimeError(f"Ошибка при открытии файла: {e}")
+            if account_card.source.lower().endswith('.doc'):
+                new_filename = account_card.source[:account_card.source.rfind('.')] + '.docx'
+                out_file = os.path.abspath(new_filename)
+                doc.SaveAs(out_file, FileFormat=wd_format_docx)
+                account_card.source = new_filename
+                pages_count[account_card.source] = doc.ComputeStatistics(2)
+                i += 1
+            else:
+                pages_count[account_card.source] = doc.ComputeStatistics(2)
+            doc.Close()
             word.Quit()
-            raise RuntimeError(f"Ошибка при открытии файла: {e}")
-        if account_card.source.lower().endswith('.doc'):
-            new_filename = account_card.source[:account_card.source.rfind('.')] + '.docx'
-            out_file = os.path.abspath(new_filename)
-            doc.SaveAs(out_file, FileFormat=wd_format_docx)
-            account_card.source = new_filename
-            pages_count[account_card.source] = doc.ComputeStatistics(2)
-            i += 1
-        else:
-            pages_count[account_card.source] = doc.ComputeStatistics(2)
-        doc.Close()
-        word.Quit()
+        elif account_card.source.lower().endswith('.pdf'):
+            with fitz.open(account_card.source) as pdf_doc:
+                pages_count[account_card.source] = len(pdf_doc)
         account_card.save()
         account_cards.append(account_card)
     return account_cards, pages_count

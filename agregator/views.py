@@ -70,6 +70,13 @@ def get_user_tasks_external(request):
 
 
 @login_required
+def get_user_tasks_object_account_cards(request):
+    user = request.user
+    tasks_id = get_user_tasks(user.id, ('account_card',))
+    return JsonResponse({'tasks_id': tasks_id})
+
+
+@login_required
 def deconstructor(request):
     user = request.user
     tasks_id = get_user_tasks(user.id, ('act', 'scientific_report', 'tech_report'))
@@ -1081,7 +1088,7 @@ def account_cards_upload(request):
     return render(request, 'account_cards_upload.html', {'form': form, 'tasks_id': tasks_id})
 
 
-def account_cards_register_download(request):  # TODO!!!!!!
+def account_cards_register_download(request):
     table_path = "uploaded_files/account_cards/РЕЕСТР Учётных карт.xlsx"
     table_columns = ['Наименование объекта', 'Время создания (возникновения) объекта',
                      'Адрес (местонахождение) объекта', 'Вид объекта',
