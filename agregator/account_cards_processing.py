@@ -146,9 +146,12 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                                        progress_json)
     '''
 
+    folder = file[:file.rfind(".")]
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
     if file.endswith(('.doc', '.docx')):
         doc = Document(file)
-        folder = file[:file.rfind(".")]
 
         text = []
         for paragraph in doc.paragraphs:
@@ -204,9 +207,6 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                 current_account_card.compiler = table[0][0] + ' ' + table[0][2]
             i += 1
 
-        if not os.path.exists(folder):
-            os.makedirs(folder)
-
         image_captions = {}
         is_first = True
         with zipfile.ZipFile(file, 'r') as zip_file:
@@ -224,7 +224,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                             for part in text.split('\n'):
                                 part = part.strip()
                                 center = re.search(
-                                    r'Координат[\S ]+?центр[\S ]+?WGS-\d+\)*\s*–*\s*[NS]\s*\d+[°\s]+\d+[\'\s]+\d+[\.,]\d+["\s]+;*\s*[EW]\s*\d+[°\s]+\d+[\'\s]+\d+[\.,]\d+"*',
+                                    r'Координат[\S ]+?центр[\S ]+?WGS-\d+\)*\s*–*—*\s*[NS]\s*\d+[°\s]+\d+[\'\s]+\d+[\.,]\d+["\s]+;*\s*[EW]\s*\d+[°\s]+\d+[\'\s]+\d+[\.,]\d+"*',
                                     part, re.IGNORECASE)
                                 if center:
                                     center = center.group(0)
@@ -335,7 +335,51 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                         if "описание местоположения)" in line.lower():
                             index = lines.index(line)
                             current_account_card.address = ' '.join(lines[index + 1:]).strip()
+
+                            address = current_account_card.address.replace('’', "'").replace('”', '"').replace('""',
+                                                                                                               '"').replace(
+                                'М',
+                                'N').replace(
+                                'M', 'N').replace('Е', 'E')
+                            center = re.search(
+                                r'Координат[\S ]+?центр[\S ]+?WGS-\d+\)*\s*–*—*\s*[NS]\s*\d+[\'’"°\s]+\d+[\'’"°\s]+\d+[\.,]\d+[\'’"°\s]+;*\s*[EW]\s*\d+[\'’"°\s]+\d+[\'’"°\s]+\d+[\.,]\d+[\'’"°]*',
+                                address, re.IGNORECASE)
+                            if center:
+                                center = center.group(0)
+                                lat = dms_to_decimal(
+                                    normalize_coordinates(
+                                        re.search(r'[NS]\s*\d+[\'’"°\s]+\d+[\'’"°\s]+\d+[\.,]\d+[\'’"°]*', center,
+                                                  re.IGNORECASE).group(0).replace('N ', '').replace(
+                                            'S ', '').strip()))
+                                lon = dms_to_decimal(
+                                    normalize_coordinates(
+                                        re.search(r'[EW]\s*\d+[\'’"°\s]+\d+[\'’"°\s]+\d+[\.,]\d+[\'’"°]*', center,
+                                                  re.IGNORECASE).group(0).replace('E ', '').replace('W ',
+                                                                                                    '').strip()))
+                                coordinates['Центр объекта'] = {}
+                                coordinates['Центр объекта']['Центр объекта'] = [lat, lon]
                             break
+
+                    thresh_type = thresh[y:y + h, x:x + w]
+                    image_type = image[y:y + h, x:x + w]
+                    kernel = np.ones((9, 9), np.uint8)  # (30, 30)
+                    dilated = cv2.dilate(thresh_type, kernel, iterations=1)
+                    contours_type, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    largest_contour = max(contours_type, key=cv2.contourArea)
+                    x, y, w, h = cv2.boundingRect(largest_contour)
+
+                    image_type = image_type[y:y + h, x:x + w]
+                    kernel = np.ones((80, 80), np.uint8)  # (30, 30)
+                    _, thresh_type = cv2.threshold(gray, 220, 255, cv2.THRESH_BINARY_INV)
+                    thresh_type = thresh_type[y:y + h, x:x + w]
+                    dilated = cv2.dilate(thresh_type, kernel, iterations=1)
+                    contours_type, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+                    largest_contour = max(contours_type, key=cv2.contourArea)
+                    x, y, w, h = cv2.boundingRect(largest_contour)
+                    image_path = os.path.join(folder, "address.png")
+                    caption = extract_text_from_image(image_type, '1').strip()
+                    cv2.imwrite(image_path, image_type)
+                    supplement_content['address'].append({"label": caption, "source": image_path})
 
                 elif 'вид объекта' in text_lower:
                     thresh_type = thresh[y:y + h, x:x + w]
@@ -347,12 +391,25 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                     x, y, w, h = cv2.boundingRect(largest_contour)
 
                     image_type = image_type[y:y + h, x:x + w]
-                    data = pytesseract.image_to_data(image_type, config=symbol_config, lang='rus',
+                    gray = cv2.cvtColor(image_type, cv2.COLOR_BGR2GRAY)
+                    _, image_type = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+                    '''
+                    for j in range(1, 14):
+                        if j == 2:
+                            continue
+                        print('j =', j)
+                    '''
+                    data = pytesseract.image_to_data(image_type, config=f'--oem 3 --psm {6}', lang='rus',
                                                      output_type=Output.DICT)
+                    # data = pytesseract.image_to_data(image_type, config=symbol_config, lang='rus',
+                    #                                 output_type=Output.DICT)
                     for i in range(len(data['text'])):
                         if data['text'][i] == '+':
                             x = data['left'][i]
-                            height, width, channels = image_type.shape
+                            if len(roi.shape) == 3:
+                                height, width, channels = roi.shape
+                            elif len(roi.shape) == 2:
+                                height, width = roi.shape
                             third = width // 3
                             if x <= third:
                                 current_account_card.object_type = 'Памятник'
@@ -365,7 +422,10 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                     for i in range(len(data['text'])):
                         if data['text'][i] == '+':
                             x = data['left'][i]
-                            height, width, channels = roi.shape
+                            if len(roi.shape) == 3:
+                                height, width, channels = roi.shape
+                            elif len(roi.shape) == 2:
+                                height, width = roi.shape
                             fourth = width // 4
                             if x <= fourth:
                                 current_account_card.general_classification = 'Памятник археологии'
@@ -382,6 +442,80 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                         if "историко-культурной ценности" in line.lower():
                             index = lines.index(line)
                             current_account_card.description = ' '.join(lines[index + 1:]).strip()
+
+                            data = pytesseract.image_to_data(roi, config=f'--oem 3 --psm {3}', lang='rus',
+                                                             output_type=Output.DICT)
+                            north_x = east_x = north_y = east_y = lat = lon = None
+                            max_offset = 100
+                            j = 0
+                            for i in range(len(data['text']) - 1):
+                                if i > len(data['text']) - 1:
+                                    continue
+                                text_to_check = (data['text'][i] + ' ' + data['text'][i + 1]).lower().replace('\n', '')
+                                if 'северная широта' in text_to_check or 'восточная долгота' in text_to_check:
+                                    y = data['top'][i]
+                                    image_type = roi[y:, :]
+                                    gray1 = cv2.cvtColor(image_type, cv2.COLOR_BGR2GRAY)
+                                    _, thresh1 = cv2.threshold(gray1, 170, 255, cv2.THRESH_BINARY)
+                                    data = pytesseract.image_to_data(thresh1, config=f'--oem 3 --psm {3}', lang='rus',
+                                                                     output_type=Output.DICT)
+                                    for i in range(len(data['text'])):
+                                        text_lower = data['text'][i].strip().lower()
+                                        if 'северная' in text_lower:
+                                            north_x = data['left'][i]
+                                            continue
+                                        elif 'восточная' in text_lower:
+                                            east_x = data['left'][i]
+                                            continue
+                                        if north_x and north_x - max_offset <= data['left'][i] <= north_x + max_offset:
+                                            lat = data['text'][i]
+                                            north_y = data['top'][i]
+                                            if len(lat) < 12:
+                                                if 11 <= len(lat) + len(
+                                                        data['text'][i + 1]) <= 12 and north_y - max_offset <= \
+                                                        data['top'][i + 1] <= north_y + max_offset:
+                                                    lat += data['text'][i + 1]
+                                        elif east_x and east_x - max_offset <= data['left'][i] <= east_x + max_offset:
+                                            lon = data['text'][i]
+                                            east_y = data['top'][i]
+                                            if len(lon) < 12:
+                                                if 11 <= len(lon) + len(
+                                                        data['text'][i + 1]) <= 12 and east_y - max_offset <= \
+                                                        data['top'][i + 1] <= east_y + max_offset:
+                                                    lon += data['text'][i + 1]
+                                        if lat and lon and re.search(r'\d+[\'’"°\s]+\d+[\'’"°\s]+\d+[\.,]\d+[\'’"°\s]+',
+                                                                     lat) and re.search(
+                                            r'\d+[\'’"°\s]+\d+[\'’"°\s]+\d+[\.,]\d+[\'’"°\s]+',
+                                            lon) and north_y - max_offset <= east_y <= north_y + max_offset:
+                                            # \d{2,3}[\'’"°\s]*\d{2}[\'’"°\s]*\d{2}[\.,]*\d{2}[\'’"°\s]*
+                                            if not 'Каталог координат' in coordinates.keys():
+                                                coordinates['Каталог координат'] = {}
+                                            lat = dms_to_decimal(
+                                                normalize_coordinates(lat.strip()))
+                                            lon = dms_to_decimal(
+                                                normalize_coordinates(lon.strip()))
+                                            coordinates['Каталог координат'][str(j + 1)] = [lat, lon]
+                                            lat = lon = None
+                                            j += 1
+
+                            '''
+                            description = current_account_card.description.replace('’', "'").replace('”', '"').replace(
+                                '""', '"').replace(
+                                'М', 'N').replace('M',
+                                                  'N').replace(
+                                'Е', 'E')
+                            coords = re.findall(
+                                r'\d+[\'’"°\s]+\d+[\'’"°\s]+\d+[\.,]\d+[\'’"°\s]+',
+                                description, re.IGNORECASE)
+                            half_length = len(coords) // 2
+                            coordinates['Каталог координат'] = {}
+                            for i in range(half_length):
+                                lat = dms_to_decimal(
+                                    normalize_coordinates(coords[i].strip()))
+                                lon = dms_to_decimal(
+                                    normalize_coordinates(coords[i + half_length].strip()))
+                                coordinates['Каталог координат'][str(i + 1)] = [lat, lon]
+                            '''
                             break
                 elif 'использование объекта культурного наследия или пользователь' in text_lower:
                     images_collecting = False
@@ -391,14 +525,25 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                     divided = [roi[:, :width//2], roi[:, width//2:]]
                     for part in divided:
                     '''
-                    data = pytesseract.image_to_data(roi, config=f'--oem 3 --psm {12}', lang='rus',
+                    gray = cv2.cvtColor(roi, cv2.COLOR_BGR2GRAY)
+                    _, roi = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
+                    '''
+                    for j in range(1, 14):
+                        if j == 2:
+                            continue
+                        print('j =', j)
+                    '''
+                    data = pytesseract.image_to_data(roi, config=f'--oem 3 --psm {6}', lang='rus',
                                                      output_type=Output.DICT)
                     for i in range(len(data['text'])):
                         # print(data['text'][i])
                         if data['text'][i] == '+':
                             x = data['left'][i]
                             y = data['top'][i]
-                            height, width, channels = roi.shape
+                            if len(roi.shape) == 3:
+                                height, width, channels = roi.shape
+                            elif len(roi.shape) == 2:
+                                height, width = roi.shape
                             x_second = width // 2
                             y_tenth = height // 10
                             if x <= x_second:
@@ -440,9 +585,15 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                                 elif y_tenth * 9 < y <= y_tenth * 10:
                                     current_account_card.usage = 'Иное'
                 elif images_collecting:
+                    image_path = os.path.join(folder, f"description_{i}.png")
                     image_desc = image[y:y + h, x:x + w]
-                    label = extract_text_from_image(roi, '1').strip()
-                    print(f'description_{i}.png: ' + label)
+                    label = extract_text_from_image(image_desc, '1').strip()
+                    if not label:
+                        label = extract_text_from_image(roi, '6').strip()
+                    if not label:
+                        label = extract_text_from_image(roi, '11').strip()
+                    cv2.imwrite(image_path, image_desc)
+                    supplement_content['description'].append({"label": label, "source": image_path})
                 elif 'сведения о дате и обстоятельствах выявления (обнаружения) объекта' in text_lower:
                     lines = text.replace('\n\n', '\n').splitlines()
                     index = []
