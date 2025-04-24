@@ -16,6 +16,14 @@
             <br>
             <br>
         {% endif %}
+        {% if account_card.heritage_url %}
+            <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+               href="{{ account_card.heritage_url }}">
+                Памятник
+            </a>
+            <br>
+            <br>
+        {% endif %}
         {% if account_card.coordinates %}
             <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
                href="/map/account_card/{{ account_card.id }}">

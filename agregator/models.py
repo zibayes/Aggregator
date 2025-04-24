@@ -276,40 +276,6 @@ class OpenLists(models.Model):
         super().delete(*args, **kwargs)
 
 
-class ArchaeologicalHeritageSite(models.Model):
-    date_uploaded = models.DateTimeField(auto_now_add=True)
-    doc_name = models.TextField(null=True, blank=True)
-    district = models.TextField(null=True, blank=True)
-    document = models.TextField(null=True, blank=True)
-    register_num = models.TextField(null=True, blank=True)
-    is_excluded = models.BooleanField(default=False)
-
-    class Meta:
-        verbose_name = "Археологический объект культурного наследия"
-        verbose_name_plural = "Археологические объекты культурного наследия"
-        db_table = 'archaeological_heritage_sites'
-
-    def __str__(self):
-        return self.doc_name or f"Объект {self.id}"
-
-
-class IdentifiedArchaeologicalHeritageSite(models.Model):
-    date_uploaded = models.DateTimeField(auto_now_add=True)
-    name = models.TextField(null=True, blank=True)
-    address = models.TextField(null=True, blank=True)
-    obj_info = models.TextField(null=True, blank=True)
-    document = models.TextField(null=True, blank=True)
-    is_excluded = models.BooleanField(default=False)
-
-    class Meta:
-        verbose_name = "Выявленный археологический объект культурного наследия"
-        verbose_name_plural = "Выявленные археологические объекты культурного наследия"
-        db_table = 'identified_archaeological_heritage_sites'
-
-    def __str__(self):
-        return self.name or f"Объект {self.id}"
-
-
 class ObjectAccountCard(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
 
@@ -348,3 +314,39 @@ class ObjectAccountCard(models.Model):
         if self.source and len(self.source) > 0:
             delete_files(self.source)
         super().delete(*args, **kwargs)
+
+
+class ArchaeologicalHeritageSite(models.Model):
+    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.CASCADE)
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+    doc_name = models.TextField(null=True, blank=True)
+    district = models.TextField(null=True, blank=True)
+    document = models.TextField(null=True, blank=True)
+    register_num = models.TextField(null=True, blank=True)
+    is_excluded = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Археологический объект культурного наследия"
+        verbose_name_plural = "Археологические объекты культурного наследия"
+        db_table = 'archaeological_heritage_sites'
+
+    def __str__(self):
+        return self.doc_name or f"Объект {self.id}"
+
+
+class IdentifiedArchaeologicalHeritageSite(models.Model):
+    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.CASCADE)
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+    name = models.TextField(null=True, blank=True)
+    address = models.TextField(null=True, blank=True)
+    obj_info = models.TextField(null=True, blank=True)
+    document = models.TextField(null=True, blank=True)
+    is_excluded = models.BooleanField(default=False)
+
+    class Meta:
+        verbose_name = "Выявленный археологический объект культурного наследия"
+        verbose_name_plural = "Выявленные археологические объекты культурного наследия"
+        db_table = 'identified_archaeological_heritage_sites'
+
+    def __str__(self):
+        return self.name or f"Объект {self.id}"

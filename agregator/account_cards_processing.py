@@ -14,7 +14,7 @@ import redis
 import requests
 import json
 import re
-from .models import ObjectAccountCard
+from .models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
 from .files_saving import delete_files_in_directory, load_raw_account_cards
 from .hash import calculate_file_hash
 from .coordinates_extraction import dms_to_decimal, normalize_coordinates
@@ -610,6 +610,8 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
     current_account_card.coordinates = coordinates
     current_account_card.is_processing = False
     current_account_card.save()
+    if current_account_card.name:
+        connect_account_card_to_heritage(current_account_card.name)
 
 
 def ccw(A, B, C):
@@ -631,3 +633,13 @@ def error_handler_account_cards(task, exception, exception_desc):
             account_card.delete()
     progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception
+
+
+def connect_account_card_to_heritage(object_name):
+    account_card = ObjectAccountCard.objects.filter(name=object_name)
+    heritage = IdentifiedArchaeologicalHeritageSite.objects.filter(name=object_name)
+    if not heritage:
+        heritage = ArchaeologicalHeritageSite.objects.filter(doc_name=object_name)
+    if account_card and heritage:
+        heritage[0].account_card_id = account_card[0].id
+        heritage[0].save()

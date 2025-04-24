@@ -20,6 +20,7 @@ import patoolib
 
 from .files_saving import raw_reports_save
 from .models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
+from .account_cards_processing import connect_account_card_to_heritage
 
 
 @shared_task(bind=True)
@@ -238,6 +239,8 @@ def external_voan_list_processing():
             url = f"https://ookn.ru{href}"
 
             context = ssl._create_unverified_context()
+            print('URLLL', url)
+            print(context)
             with urllib.request.urlopen(url, context=context) as response:
                 with open(path_to_download, 'wb') as out_file:
                     out_file.write(response.read())
@@ -282,6 +285,7 @@ def external_voan_list_processing():
                                     document=identified_site.document,
                             ).exists():
                                 identified_site.save()
+                            connect_account_card_to_heritage(identified_site.name)
 
                             for site in existing_sites:
                                 if (site.name, site.address, site.obj_info, site.document) not in existing_sites_set:
@@ -307,3 +311,4 @@ def external_voan_list_processing():
                                         'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
                                 )
                                 archaeological_site.save()
+                                connect_account_card_to_heritage(archaeological_site.doc_name)

@@ -993,12 +993,73 @@ def open_lists_delete(request, pk):
 
 def archaeological_heritage_sites(request):
     oan = ArchaeologicalHeritageSite.objects.all()
-    return render(request, 'archaeological_heritage_site.html', {'oan': oan})
+    return render(request, 'archaeological_heritage_site_register.html', {'oan': oan})
 
 
 def identified_archaeological_heritage_sites(request):
     voan = IdentifiedArchaeologicalHeritageSite.objects.all()
-    return render(request, 'identified_archaeological_heritage_site.html', {'voan': voan})
+    return render(request, 'identified_archaeological_heritage_site_register.html', {'voan': voan})
+
+
+def archaeological_heritage_site(request, pk):
+    oan = ArchaeologicalHeritageSite.objects.get(id=pk)
+    return render(request, 'archaeological_heritage_site.html', {'archaeological_heritage_site': oan})
+
+
+def identified_archaeological_heritage_site(request, pk):
+    voan = IdentifiedArchaeologicalHeritageSite.objects.get(id=pk)
+    return render(request, 'identified_archaeological_heritage_site.html',
+                  {'identified_archaeological_heritage_site': voan})
+
+
+@login_required
+@owner_or_admin_required(ArchaeologicalHeritageSite)
+def archaeological_heritage_site_edit(request, pk):
+    oan = ArchaeologicalHeritageSite.objects.get(id=pk)
+    if request.method == 'POST':
+        oan.doc_name = request.POST['doc_name']
+        oan.district = request.POST['district']
+        oan.document = request.POST['document']
+        oan.register_num = request.POST['register_num']
+        oan.is_excluded = request.POST['is_excluded']
+        messages.success(request, 'Памятник успешно обновлен.')
+        return redirect(f'/archaeological_heritage_site/{oan.id}')
+
+    return render(request, 'archaeological_heritage_site_edit.html', {'archaeological_heritage_site': oan})
+
+
+@login_required
+@owner_or_admin_required(IdentifiedArchaeologicalHeritageSite)
+def identified_archaeological_heritage_site_edit(request, pk):
+    voan = IdentifiedArchaeologicalHeritageSite.objects.get(id=pk)
+    if request.method == 'POST':
+        voan.name = request.POST['name']
+        voan.address = request.POST['address']
+        voan.obj_info = request.POST['obj_info']
+        voan.document = request.POST['document']
+        voan.is_excluded = request.POST['is_excluded']
+        voan.save()
+        messages.success(request, 'Отчёт успешно обновлен.')
+        return redirect(f'/identified_archaeological_heritage_site/{voan.id}')
+
+    return render(request, 'identified_archaeological_heritage_site_edit.html',
+                  {'identified_archaeological_heritage_site': voan})
+
+
+@login_required
+@owner_or_admin_required(ArchaeologicalHeritageSite)
+def archaeological_heritage_site_delete(request, pk):
+    oan = ArchaeologicalHeritageSite.objects.get(id=pk)
+    oan.delete()
+    return redirect(f'archaeological_heritage_sites')
+
+
+@login_required
+@owner_or_admin_required(IdentifiedArchaeologicalHeritageSite)
+def identified_archaeological_heritage_site_delete(request, pk):
+    voan = IdentifiedArchaeologicalHeritageSite.objects.get(id=pk)
+    voan.delete()
+    return redirect(f'identified_archaeological_heritage_sites')
 
 
 def archaeological_heritage_sites_download(request):
@@ -1032,6 +1093,15 @@ def update_voan_list(request):
 
 def account_cards(request, pk):
     account_card = ObjectAccountCard.objects.get(id=pk)
+    heritage = IdentifiedArchaeologicalHeritageSite.objects.filter(id=pk, name=account_card.name)
+    if not heritage:
+        heritage = ArchaeologicalHeritageSite.objects.filter(id=pk, doc_name=account_card.name)
+        if heritage:
+            account_card.heritage_url = '/archaeological_heritage_site/'
+    else:
+        account_card.heritage_url = '/identified_archaeological_heritage_site/'
+    if heritage:
+        account_card.heritage_url += str(heritage[0].id) + '/'
     return render(request, 'account_card.html', {'account_card': account_card})
 
 
