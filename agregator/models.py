@@ -350,3 +350,16 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
 
     def __str__(self):
         return self.name or f"Объект {self.id}"
+
+
+class GeojsonData(models.Model):
+    name = models.CharField(max_length=255, null=True, blank=True)
+    geojson = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Геоданные"
+        verbose_name_plural = "Геоданные"
+        db_table = 'geojson_data'
+
+    def __str__(self):
+        return self.name or f"Запись {self.id}"

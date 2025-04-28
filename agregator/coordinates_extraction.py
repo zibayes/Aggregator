@@ -1,3 +1,4 @@
+import json
 import os
 
 from tkinter import filedialog
@@ -5,7 +6,9 @@ import re
 import pdfplumber
 import pandas as pd
 import simplekml
+from django.http import JsonResponse
 from pyproj import Proj, transform
+from .models import GeojsonData
 
 COORDINATES_SAMPLE = {'Шурфы': {}}
 
@@ -164,3 +167,27 @@ def extract_coordinates(file, document, page_number, folder, coordinates) -> Non
         lat = dms_to_decimal(re.search(r'[NS]\d+°\d+\'\d+[\.,]\d+"', coord, re.IGNORECASE).group(0))
         lon = dms_to_decimal(re.search(r'[EW]\d+°\d+\'\d+[\.,]\d+"', coord, re.IGNORECASE).group(0))
         coordinates['Шурфы'][pit_number] = [lat, lon]
+
+
+def save_geojson_polygons_to_db():
+    geojson_folder = os.path.join(os.getcwd(), 'uploaded_files/regions_polygons')
+    for dirpath, dirnames, filenames in os.walk(geojson_folder):
+        for filename in filenames:
+            if filename.endswith('.geojson'):
+                short_filename = filename[:filename.rfind('.')]
+                file_path = os.path.join(dirpath, filename)
+                with open(file_path, 'r', encoding='utf-8') as file:
+                    try:
+                        data = json.load(file)
+                    except json.JSONDecodeError:
+                        return JsonResponse({'error': f'Ошибка при чтении файла {filename}'}, status=400)
+
+                    for feature in data.get('features', []):
+                        geojson_data, created = GeojsonData.objects.get_or_create(
+                            name=feature.get('properties', {}).get('name', short_filename),
+                            defaults={'geojson': feature}
+                        )
+
+                        if not created:
+                            geojson_data.geojson = feature
+                            geojson_data.save()

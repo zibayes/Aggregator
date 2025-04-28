@@ -1,3 +1,5 @@
+CREATE EXTENSION IF NOT EXISTS postgis;
+
 DROP TABLE archaeological_heritage_sites CASCADE;
 DROP TABLE identified_archaeological_heritage_sites CASCADE;
 DROP TABLE object_account_cards CASCADE;
@@ -215,6 +217,14 @@ CREATE TABLE identified_archaeological_heritage_sites
     obj_info        text                     NULL,                -- Сведения об историко-культурной ценности объекта
     document        text                     NULL,                -- Документ о включении в перечень выявленных объектов
     is_excluded     BOOLEAN DEFAULT FALSE                         -- Является ли объект исключенным из списка
+);
+
+-- GeoJSON данные
+CREATE TABLE geojson_data
+(
+    id      SERIAL PRIMARY KEY, -- Уникальный идентификатор
+    name    VARCHAR(255),       -- название участка
+    geojson JSONB               -- geojson-данные
 );
 
 -- GRANT ALL PRIVILEGES ON DATABASE postgres TO agregator;

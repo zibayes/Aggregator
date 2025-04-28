@@ -25,7 +25,7 @@ from django.contrib.auth import login, authenticate
 from .forms import UserRegisterForm
 from django_celery_results.models import TaskResult
 from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks, \
-    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard
+    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, GeojsonData
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
@@ -716,8 +716,10 @@ def map(request, report_type, pk):
             report = TechReport.objects.get(id=pk)
         report_name = report.source[0]['origin_filename']
     coordinates = report.coordinates if report else {}
+    matching_polygons = {'matching_polygons': get_geojson_polygons_sync(coordinates)}
     return render(request, 'interactive_map.html',
-                  {'coordinates': coordinates, 'report_type': report_type, 'pk': pk, 'report_name': report_name})
+                  {'coordinates': coordinates, 'matching_polygons': matching_polygons,
+                   'report_type': report_type, 'pk': pk, 'report_name': report_name})
 
 
 def get_geojson_polygons(request):
@@ -778,6 +780,22 @@ def get_geojson_polygons(request):
             return JsonResponse({'message': 'Нет совпадений с полигонами'}, status=404)
 
     return JsonResponse({'error': 'Метод не поддерживается'}, status=405)
+
+
+def get_geojson_polygons_sync(points):
+    matching_polygons = {'Russia': [GeojsonData.objects.get(name='Россия').geojson],
+                         'Subject': [GeojsonData.objects.get(name='Красноярский край').geojson], 'Regions': []}
+    regions = GeojsonData.objects.exclude(name__in=('Россия', 'Красноярский край'))
+    for feature in regions:
+        polygon = shape(feature.geojson['geometry'])
+        for group, elements in points.items():
+            for name, point_coords in elements.items():
+                if isinstance(point_coords, list) and len(point_coords) == 2:
+                    point = Point([point_coords[1], point_coords[0]])
+                    if polygon.contains(point):
+                        matching_polygons['Regions'].append(feature.geojson)
+
+    return matching_polygons
 
 
 def download_coordinates(request, report_type, pk):

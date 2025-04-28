@@ -1321,6 +1321,8 @@
                 mapElement.style.maxWidth = maxWidth;
                 mapElement.style.height = height;
                 map.invalidateSize();
+                console.log(data);
+                console.log(typeof data);
                 result = displayDataOnMap(data.matching_polygons.Regions, color_region, fill_all, opacity_region, false);
                 return result;
             }
@@ -1615,12 +1617,14 @@
         document.addEventListener('DOMContentLoaded', function () {
             const allContents = document.querySelectorAll('[id$="_content"]');
             allContents.forEach(content => content.style.display = 'none');
-            var coordinatesJson = JSON.stringify({{ coordinates|safe }});
+            // var coordinatesJson = JSON.stringify({{ coordinates|safe }});
+            window.data = {{ matching_polygons|safe }};
             window.labels_regions = undefined;
             window.labels_subject = undefined;
             window.layers_regions = undefined;
             window.layers_russia = undefined;
             window.layers_subject = undefined;
+            /*
             fetchGeoJSON(coordinatesJson)
                 .then(received_data => {
                     if (received_data && received_data.matching_polygons) {
@@ -1633,6 +1637,7 @@
                 .catch(error => {
                     console.error('Произошла ошибка при получении данных:', error);
                 });
+             */
         });
     </script>
     <style>
