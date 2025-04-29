@@ -1,3 +1,5 @@
+import time
+
 import simplekml
 from django.shortcuts import render, redirect
 from .forms import UploadReportsForm, UploadOpenListsForm
@@ -782,9 +784,18 @@ def get_geojson_polygons(request):
     return JsonResponse({'error': 'Метод не поддерживается'}, status=405)
 
 
+def check_point_in_polygon(feature, point_coords):
+    polygon = shape(feature.geojson['geometry'])
+    point = Point([point_coords[1], point_coords[0]])
+    return polygon.contains(point)
+
+
 def get_geojson_polygons_sync(points):
-    matching_polygons = {'Russia': [GeojsonData.objects.get(name='Россия').geojson],
-                         'Subject': [GeojsonData.objects.get(name='Красноярский край').geojson], 'Regions': []}
+    matching_polygons = {
+        'Russia': [GeojsonData.objects.get(name='Россия').geojson],
+        'Subject': [GeojsonData.objects.get(name='Красноярский край').geojson],
+        'Regions': []
+    }
     regions = GeojsonData.objects.exclude(name__in=('Россия', 'Красноярский край'))
     for feature in regions:
         polygon = shape(feature.geojson['geometry'])
