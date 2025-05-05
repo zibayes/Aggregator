@@ -27,7 +27,7 @@ from django.contrib.auth import login, authenticate
 from .forms import UserRegisterForm
 from django_celery_results.models import TaskResult
 from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks, \
-    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, GeojsonData
+    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, GeojsonData, Chat, Message
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
@@ -327,16 +327,85 @@ def open_list_ocr(request):
     return render(request, 'open_list_ocr.html', {'form': form, 'tasks_id': tasks_id})
 
 
+@login_required
 def gpt_chat(request):
-    return render(request, 'gpt_chat.html')
+    user_id = request.user.id
+    chats = Chat.objects.filter(user_id=user_id)
+    for i in range(len(chats)):
+        chats[i].messages = Message.objects.filter(chat_id=chats[i].id).order_by('sent_at')
+    return render(request, 'gpt_chat.html', {'chats': chats})
 
 
+@login_required
+def create_gpt_chat(request):
+    if request.method == 'POST':
+        body_unicode = request.body.decode('utf-8')
+        body_data = json.loads(body_unicode)
+        chat = Chat(user_id=request.user.id, name=body_data['name'])
+        chat.save()
+        return JsonResponse({'chat_id': chat.id})
+
+
+@login_required
+def edit_gpt_chat(request):
+    if request.method == 'POST':
+        body_unicode = request.body.decode('utf-8')
+        body_data = json.loads(body_unicode)
+        chat = Chat.objects.get(id=body_data['chat_id'])
+        chat.name = body_data['name']
+        chat.save()
+        return JsonResponse({'result': 'success'})
+
+
+@login_required
+def delete_gpt_chat(request):
+    if request.method == 'POST':
+        body_unicode = request.body.decode('utf-8')
+        body_data = json.loads(body_unicode)
+        chat_id = int(body_data['chat_id'])
+        Message.objects.filter(chat_id=chat_id).delete()
+        Chat.objects.get(id=chat_id).delete()
+        return JsonResponse({'result': 'success'})
+
+
+@login_required
 def ask_gpt(request):
     if request.method == 'POST':
         body_unicode = request.body.decode('utf-8')
         body_data = json.loads(body_unicode)
-        answer = ask_question_with_context(body_data['messages'][1]['content'])
-        return JsonResponse({'choices': [{'message': {'content': answer}}]})
+        msg = body_data['messages'][1]['content']
+        message_user = Message(chat_id=body_data['messages'][1]['chat_id'], sender='user', content=msg)
+        message_user.save()
+        answer = ask_question_with_context(msg)
+        print(answer)
+        message_ai = Message(chat_id=body_data['messages'][1]['chat_id'], sender='ai', content=answer)
+        message_ai.save()
+        return JsonResponse({'choices': [{'message': {'content': answer, 'message_id': message_ai.id}}]})
+
+
+@login_required
+def edit_chat_message(request):
+    if request.method == 'POST':
+        body_unicode = request.body.decode('utf-8')
+        body_data = json.loads(body_unicode)
+        message = Message.objects.get(id=body_data['message_id'])
+        message.content = body_data['content']
+        message.save()
+        return JsonResponse({'result': 'success'})
+
+
+@login_required
+def delete_chat_message(request):
+    if request.method == 'POST':
+        body_unicode = request.body.decode('utf-8')
+        body_data = json.loads(body_unicode)
+        chat_id = int(body_data['chat_id'])
+        message = Message.objects.filter(chat_id=chat_id).order_by('-sent_at').first()
+        if message.sender == 'ai':
+            message.delete()
+            message = Message.objects.filter(chat_id=chat_id, sender='user').order_by('-sent_at').first()
+        message.delete()
+        return JsonResponse({'result': 'success'})
 
 
 def user_register(request):

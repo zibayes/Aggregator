@@ -1,17 +1,13 @@
 # Используем официальный образ Python
-FROM python:3.12.6-slim
+FROM archeology-app:latest
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем файлы зависимостей
-COPY requirements.txt .
+# Устанавливаем PowerShell и скачиваем python установщик
+SHELL ["powershell", "-Command"]
 
-# Устанавливаем зависимости
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Копируем весь проект в контейнер
-COPY . .
+RUN pip install --upgrade opencv-python
 
 # Открываем порт, на котором будет работать приложение
 EXPOSE 8000

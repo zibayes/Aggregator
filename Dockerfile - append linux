@@ -1,0 +1,11 @@
+# Укажите базовый образ
+FROM archeology-app:latest
+
+RUN apt-get install -y tk
+RUN pip install tk
+
+# Открываем порт, на котором будет работать приложение
+EXPOSE 8000
+
+# Команда для запуска приложения
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

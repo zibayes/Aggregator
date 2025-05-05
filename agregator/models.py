@@ -363,3 +363,32 @@ class GeojsonData(models.Model):
 
     def __str__(self):
         return self.name or f"Запись {self.id}"
+
+
+class Chat(models.Model):
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Чат"
+        verbose_name_plural = "Чаты"
+        db_table = 'chats'
+
+    def __str__(self):
+        return self.name or f"Чат {self.id}"
+
+
+class Message(models.Model):
+    chat = models.ForeignKey(Chat, on_delete=models.CASCADE)
+    sender = models.CharField(max_length=255)
+    content = models.TextField()
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Сообщение"
+        verbose_name_plural = "Сообщения"
+        db_table = 'messages'
+
+    def __str__(self):
+        return f"Сообщение от {self.sender} в чате {self.chat.name}"

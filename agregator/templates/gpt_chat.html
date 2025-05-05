@@ -4,6 +4,31 @@
 {% block title %}Чат с нейросетью{% endblock %}
 
 {% block content %}
+    <style>
+        .chat-item {
+            padding: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .chat-item.active {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .chat-item:hover {
+            background-color: #0056b3;
+        }
+
+        .chat-item.active:hover {
+            background-color: #0056b3;
+            color: white;
+        }
+    </style>
+
+    <script>
+        const chats = {};
+    </script>
     <link rel="stylesheet" href="{% static 'css/gpt_chat.css' %}">
     <script src="{% static 'js/marked.min.js' %}"></script>
 
@@ -16,11 +41,56 @@
             <div class="card-body">
                 <div class="row">
                     <div class="col-3 chat-list-container">
-                        <div id="chat-list" class="chat-list"></div>
+                        <div id="chat-list" class="chat-list">
+                            {% for chat in chats %}
+                                <script>
+                                    chats[{{chat.id}}] = {messages: [], title: `{{ chat.name }}`};
+                                    {% for message in chat.messages %}
+                                        chats[{{chat.id}}].messages.push({
+                                            text: `{{ message.content }}`,
+                                            sender: `{{ message.sender }}`
+                                        });
+                                    {% endfor %}
+                                </script>
+                                <div class="chat-item chat-item-{{ chat.id }}" onclick="switchChat({{ chat.id }})">
+                                    <span class="chat-title">{{ chat.name }}</span>
+                                    <button class="btn-edit btn-edit-chat" onclick="editChatTitle({{ chat.id }})">✏️
+                                    </button>
+                                    <button class="btn-edit btn-delete-chat" data-bs-target="#delete_chat_{{ chat.id }}"
+                                            data-bs-toggle="modal">🗑️
+                                    </button>
+                                    {% block modal_dialog_additional %}
+                                        <div class="modal fade" id="delete_chat_{{ chat.id }}" tabindex="-1">
+                                            <div class="modal-dialog">
+                                                <div class="modal-content">
+                                                    <div class="modal-header">
+                                                        <h5 class="modal-title">Вы уверены, что хотите удалить этот
+                                                            чат?</h5>
+                                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                                                aria-label="Close"></button>
+                                                    </div>
+                                                    <div class="modal-footer">
+                                                        <button type="button" class="btn btn-secondary"
+                                                                data-bs-dismiss="modal">
+                                                            Отмена
+                                                        </button>
+                                                        <button type="button" onclick="deleteChat({{ chat.id }})"
+                                                                class="btn btn-danger" data-bs-dismiss="modal">
+                                                            Удалить
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endblock modal_dialog_additional %}
+                                </div>
+                            {% endfor %}
+                        </div>
                     </div>
                     <div class="col-9">
                         <div id="chat-container" class="chat-container">
-                            <div id="messages" class="messages"></div>
+                            <div id="messages" class="messages">
+                            </div>
                             <div id="input-container" class="input-container" style="display: none;">
                                 <input type="text" id="input" class="form-control"
                                        placeholder="Напишите ваше сообщение..."/>
@@ -35,7 +105,6 @@
 
     <script>
         let currentChatId = null;
-        const chats = {};
 
         document.getElementById('new-chat-btn').addEventListener('click', createNewChat);
         document.getElementById('send-btn').addEventListener('click', createMessage);
@@ -46,16 +115,34 @@
         });
 
         function createNewChat() {
-            const chatId = Date.now();
-            chats[chatId] = {messages: [], title: `Чат ${Object.keys(chats).length + 1}`};
-            addChatToList(chatId);
-            switchChat(chatId);
+            const data = {
+                "name": `Чат ${Object.keys(chats).length + 1}`
+            };
+            let chatId;
+
+            fetch("/create_gpt_chat/", {
+                method: 'POST',
+                headers: {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`},
+                body: JSON.stringify(data)
+            })
+                .then(response => response.json())
+                .then(result => {
+                    console.log(result)
+                    console.log(result.chat_id)
+                    chatId = result.chat_id
+                    chats[chatId] = {messages: [], title: `Чат ${Object.keys(chats).length + 1}`};
+                    addChatToList(chatId);
+                    switchChat(chatId);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
         }
 
         function addChatToList(chatId) {
             const chatList = document.getElementById('chat-list');
             const chatItem = document.createElement('div');
-            chatItem.className = 'chat-item';
+            chatItem.className = `chat-item chat-item-${chatId}`;
             chatItem.innerHTML = `
                 <span class="chat-title">${chats[chatId].title}</span>
                 <button class="btn-edit btn-edit-chat" onclick="editChatTitle(${chatId})">✏️</button>
@@ -87,6 +174,19 @@
         }
 
         function deleteChat(chatId) {
+            const data = {
+                "chat_id": chatId
+            };
+
+            fetch("/delete_gpt_chat/", {
+                method: 'POST',
+                headers: {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`},
+                body: JSON.stringify(data)
+            })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+
             delete chats[chatId];
             const chatList = document.getElementById('chat-list');
             chatList.innerHTML = '';
@@ -96,7 +196,7 @@
         }
 
         function editChatTitle(chatId) {
-            const chatItem = document.querySelector(`.chat-item:nth-child(${Object.keys(chats).indexOf(chatId.toString()) + 1})`);
+            const chatItem = document.querySelector(`.chat-item-${chatId}`);
             const chatTitleElement = chatItem.querySelector('.chat-title');
             const currentTitle = chatTitleElement.innerText;
 
@@ -123,6 +223,20 @@
                     editButton.innerText = '✏️';
                     editButton.onclick = () => editChatTitle(chatId);
                     chatItem.replaceChild(editButton, saveButton);
+
+                    const data = {
+                        "chat_id": chatId,
+                        "name": newTitle
+                    };
+
+                    fetch("/edit_gpt_chat/", {
+                        method: 'POST',
+                        headers: {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`},
+                        body: JSON.stringify(data)
+                    })
+                        .catch(error => {
+                            console.error('Error:', error);
+                        });
                 }
             };
 
@@ -135,7 +249,19 @@
             currentChatId = chatId;
             document.getElementById('chat-container').style.display = 'block';
             document.getElementById('messages').innerHTML = ''; // Очищаем сообщения
-            chats[chatId].messages.forEach(msg => addMessage(msg.text, msg.sender)); // Загружаем сообщения
+
+            // Удаляем класс active у всех чатов
+            const chatItems = document.querySelectorAll('.chat-item');
+            chatItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            // Добавляем класс active к текущему чату
+            const currentChatItem = document.querySelector(`.chat-item-${chatId}`);
+            if (currentChatItem) {
+                currentChatItem.classList.add('active');
+            }
+
+            chats[chatId].messages.forEach(msg => addMessage(msg.text, msg.sender, chatId)); // Загружаем сообщения
             document.getElementById('input-container').style.display = 'flex';
         }
 
@@ -150,19 +276,19 @@
         }
 
         function sendMessage(messageText, chatId) {
-            addMessage(messageText, 'user');
+            addMessage(messageText, 'user', chatId);
             chats[currentChatId].messages.push({text: messageText, sender: 'user'});
             const inputField = document.getElementById('input');
             inputField.value = '';
 
             const loadingMessage = {text: `Генерация ответа`, sender: 'ai'};
-            addMessage(loadingMessage.text, loadingMessage.sender);
+            addMessage(loadingMessage.text, loadingMessage.sender, chatId);
             chats[chatId].messages.push(loadingMessage);
 
             let dotCount = 0;
             const loadingElement = document.querySelector('.message.ai:last-child');
 
-            const url = "http://localhost:1234/v1/chat/completions";
+            const url = "/ask_gpt/";  // "http://localhost:1234/v1/chat/completions
             const headers = {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`};
             const data = {
                 "model": "llama-3.1-8b-lexi-uncensored-v2",
@@ -171,7 +297,7 @@
                         "role": "system",
                         "content": "Ты ассистент на сайте археологического агрегатора научно-технической информации. Отвечай на русском языке."
                     },
-                    {"role": "user", "content": messageText}
+                    {"role": "user", "content": messageText, 'chat_id': chatId}
                 ],
                 "temperature ": 0.7,
                 "max_tokens": -1,
@@ -197,17 +323,21 @@
                         if (lastMessage && lastMessage.innerText === loadingMessage.text) {
                             lastMessage.querySelector('.message-content').innerHTML = marked.marked(aiMessage);
                         } else {
-                            addMessage(aiMessage, 'ai');
+                            addMessage(aiMessage, 'ai', chatId);
                         }
                     }
-                    chats[chatId].messages.push({text: aiMessage, sender: 'ai'});
+                    chats[chatId].messages.push({
+                        text: aiMessage,
+                        sender: 'ai',
+                        message_id: result.choices[0].message.message_id
+                    });
                 })
                 .catch(error => {
                     console.error('Error:', error);
                 });
         }
 
-        function addMessage(text, sender) {
+        function addMessage(text, sender, chat_id) {
             const formattedText = marked.marked(text); // Преобразуем Markdown в HTML
             const messagesContainer = document.getElementById('messages');
             const messageDiv = document.createElement('div');
@@ -223,7 +353,7 @@
                     <img src="${avatar}" alt="${senderName}" class="avatar" />
                     <span class="sender-name">${senderName}</span>
                 </div>
-                <div class="message-content" style="display: inline-flex"><i style="margin-right: 5px;">${formattedText}</i><div class="loader"></div></div>
+                <div class="message-content chat-id-${chat_id}" style="display: inline-flex"><i style="margin-right: 5px;">${formattedText}</i><div class="loader"></div></div>
             `;
             } else {
                 messageDiv.innerHTML = `
@@ -234,7 +364,7 @@
                         <button class="btn-copy" onclick="copyMessage(this)">📋</button>
                     </div>
                 </div>
-                <div class="message-content">${formattedText}</div>
+                <div class="message-content chat-id-${chat_id}">${formattedText}</div>
             `;
             }
 
@@ -263,6 +393,28 @@
 
         function editMessage(button) {
             const messageContent = button.closest('.message').querySelector('.message-content');
+            const className = Array.from(messageContent.classList).find(c => c.startsWith('chat-id-'));
+            let chatId;
+            if (className) {
+                chatId = className.split('-')[2];
+                const data = {
+                    "chat_id": chatId
+                };
+
+                while (chats[chatId].messages[chats[chatId].messages.length - 1].sender !== 'user') {
+                    chats[chatId].messages.pop()
+                }
+                chats[chatId].messages.pop()
+
+                fetch("/delete_chat_message/", {
+                    method: 'POST',
+                    headers: {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`},
+                    body: JSON.stringify(data)
+                })
+                    .catch(error => {
+                        console.error('Error:', error);
+                    });
+            }
             const currentText = messageContent.innerText;
             const messageDiv = button.closest('.message');
 

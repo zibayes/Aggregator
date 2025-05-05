@@ -1,0 +1,34 @@
+# Используем официальный образ Python
+FROM mcr.microsoft.com/windows/servercore:ltsc2019
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Устанавливаем PowerShell и скачиваем python установщик
+SHELL ["powershell", "-Command"]
+
+# Скачиваем официальный MSI установщик Python 3.12.6 (64-bit) для Windows
+RUN Invoke-WebRequest -Uri https://www.python.org/ftp/python/3.12.6/python-3.12.6-amd64.exe -OutFile python-installer.exe ; \
+    Start-Process -FilePath .\python-installer.exe -ArgumentList '/quiet InstallAllUsers=1 PrependPath=1' -Wait ; \
+    Remove-Item -Force python-installer.exe
+	
+RUN Invoke-WebRequest -Uri https://aka.ms/vs/16/release/vc_redist.x64.exe -OutFile vc_redist.x64.exe ; \
+    Start-Process -FilePath .\vc_redist.x64.exe -ArgumentList '/install /quiet /norestart' -Wait ; \
+    Remove-Item -Force vc_redist.x64.exe
+
+# Копируем файлы зависимостей
+COPY requirements.txt .
+
+# Устанавливаем зависимости
+# RUN pip install --no-cache-dir -r requirements.txt
+COPY install-requirements.bat .
+RUN cmd /c install-requirements.bat
+
+# Копируем весь проект в контейнер
+COPY . .
+
+# Открываем порт, на котором будет работать приложение
+EXPOSE 8000
+
+# Команда для запуска приложения
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

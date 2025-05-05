@@ -227,6 +227,25 @@ CREATE TABLE geojson_data
     geojson JSONB               -- geojson-данные
 );
 
+-- Чаты
+CREATE TABLE chats
+(
+    id         SERIAL PRIMARY KEY,                                   -- Уникальный идентификатор
+    user_id    integer REFERENCES users (id),                        -- идентификатор пользователя (внешний ключ)
+    name       VARCHAR(255) NOT NULL,                                -- название чата
+    created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP -- время создания
+);
+
+-- Сообщения в чатах
+CREATE TABLE messages
+(
+    id      SERIAL PRIMARY KEY,                                            -- Уникальный идентификатор
+    chat_id INTEGER      NOT NULL REFERENCES chats (id) ON DELETE CASCADE, -- Уникальный идентификатор чата
+    sender  VARCHAR(255) NOT NULL,                                         -- отправитель
+    content TEXT         NOT NULL,                                         -- сообщение
+    sent_at TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP          -- время отправки сообщения
+);
+
 -- GRANT ALL PRIVILEGES ON DATABASE postgres TO agregator;
 -- GRANT ALL PRIVILEGES ON TABLE users TO agregator;
 -- GRANT ALL PRIVILEGES ON TABLE user_tasks TO agregator;

@@ -111,7 +111,7 @@
                 Скачать координаты в формате .kml
             </button>
             <label for="baseLayerSelect" style="margin-left: 10px;">Подложка:</label>
-            <select id="baseLayerSelect" class="form-select" style="margin-left: 10px; width: 270px;">
+            <select id="baseLayerSelect" class="form-select" style="margin-left: 3px; width: 270px;">
                 <optgroup label="OpenStreetMap">
                     <option value="OpenStreetMap">OpenStreetMap Карта</option>
                 </optgroup>
@@ -147,7 +147,7 @@
                 </optgroup>
             </select>
             <label for="additionalLayerSelect" style="margin-left: 10px;">Слой:</label>
-            <select id="additionalLayerSelect" class="form-select" style="margin-left: 10px; width: 270px;">
+            <select id="additionalLayerSelect" class="form-select" style="margin-left: 3px; width: 270px;">
                 <option value="No additional layer">Нет слоя</option>
                 <optgroup label="Кадастровые карты">
                     <option value="Cadastre quarter">Кадастровые кварталы</option>
@@ -725,24 +725,8 @@
         }
 
         baseLayers["OpenStreetMap"].addTo(map);
-        /*
-        const wmsLayer = L.tileLayer.wms('https://nspd.gov.ru/api/aeggis/v4/36071/wms?', {
-            version: '1.3.0',
-            format: 'image/png',
-            layers: '36071',
-            transparent: true,
-            attribution: '<a href="https://nspd.gov.ru" target="_blank">НСПД</a> contributors'
-        }).addTo(map);
-         */
 
-        document.getElementById('baseLayerSelect').addEventListener('change', function () {
-            var selectedLayer = this.value;
-            // Удаляем все слои
-            for (var layer in baseLayers) {
-                map.removeLayer(baseLayers[layer]);
-            }
-            baseLayers[selectedLayer].addTo(map);
-
+        function additionalLayerSwitch() {
             var additionalSelectedLayer = document.getElementById('additionalLayerSelect').value;
             for (layer in additionalLayers) {
                 map.removeLayer(additionalLayers[layer]);
@@ -750,24 +734,21 @@
             if (additionalSelectedLayer !== 'No additional layer') {
                 additionalLayers[additionalSelectedLayer].addTo(map);
             }
+        }
+
+        document.getElementById('baseLayerSelect').addEventListener('change', function () {
+            var selectedLayer = this.value;
+            for (var layer in baseLayers) {
+                map.removeLayer(baseLayers[layer]);
+            }
+            baseLayers[selectedLayer].addTo(map);
+
+            additionalLayerSwitch();
         });
 
         document.getElementById('additionalLayerSelect').addEventListener('change', function () {
-            var selectedLayer = this.value;
-            for (var layer in additionalLayers) {
-                map.removeLayer(additionalLayers[layer]);
-            }
-            if (selectedLayer !== 'No additional layer') {
-                additionalLayers[selectedLayer].addTo(map);
-            }
+            additionalLayerSwitch();
         });
-
-        // Добавление слоя с OpenStreetMap
-        /*
-        L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-            maxZoom: maxZoom,
-        }).addTo(map);
-        */
 
 
         var coordinatesControl = L.control({position: 'bottomright'});
