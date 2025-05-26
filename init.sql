@@ -219,6 +219,22 @@ CREATE TABLE identified_archaeological_heritage_sites
     is_excluded     BOOLEAN DEFAULT FALSE                         -- Является ли объект исключенным из списка
 );
 
+-- Коммерческие предложения
+CREATE TABLE commercial_offers
+(
+    id              serial PRIMARY KEY,            -- идентификатор (первичный ключ)
+    user_id         integer REFERENCES users (id), -- идентификатор пользователя (внешний ключ)
+
+    date_uploaded   TIMESTAMP WITH TIME ZONE NULL, -- дата загрузки коммерческого предложения на сервер
+    upload_source   json                     NULL, -- источник загрузки
+    is_processing   BOOLEAN DEFAULT TRUE,          -- находится ли коммерческое предложение в процессе обработки
+    is_public       BOOLEAN DEFAULT TRUE,          -- находится ли коммерческое предложение в открытом доступе
+    origin_filename VARCHAR(255)             NULL, -- исходное имя файла коммерческого предложения
+
+    coordinates     json                     NULL, -- каталог координат
+    source          text                     NULL  -- путь к файлам коммерческого предложения а на сервере
+);
+
 -- GeoJSON данные
 CREATE TABLE geojson_data
 (

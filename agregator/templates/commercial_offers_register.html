@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+
+{% block title %}Реестр коммерческих предложений{% endblock %}
+
+{% block content %}
+
+    <br>
+    <h2 align="center">Реестр коммерческих предложений</h2>
+    <br>
+
+    <div class="accordion" id="accordionColumns">
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseColumns" aria-expanded="false" aria-controls="collapseColumns">
+                    Отображение колонок
+                </button>
+            </h2>
+            <div id="collapseColumns" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+                <div class="accordion-body">
+                    <label><input type="checkbox" class="column-toggle" data-column="0" checked> Исходное имя
+                        файла</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="1" checked> Источник</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="2" checked>
+                        Владелец документа</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="3" checked> Дата
+                        загрузки</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="4" checked> Исходный
+                        документ</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="5" checked>
+                        Редактирование</label><br>
+                </div>
+            </div>
+        </div>
+
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
+                    Фильтры
+                </button>
+            </h2>
+            <div id="collapseFilters" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+                <div class="accordion-body">
+                    <form id="filterForm">
+                        <div class="mb-3" id="filterOwnerContainer">
+                            <label for="filterOwner" class="form-label">Владелец документа</label>
+                            <input type="text" class="form-control" id="filterOwner"
+                                   placeholder="Введите владельца документа">
+                        </div>
+                        <div class="mb-3" id="filterSourceContainer">
+                            <label for="filterSource" class="form-label">Источник</label>
+                            <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
+                        </div>
+                        <div class="mb-3" id="filterDateUploadedContainer">
+                            <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+                            <input type="text" class="form-control" id="filterDateUploaded"
+                                   placeholder="Введите дату загрузки">
+                        </div>
+                        <div class="mb-3">
+                            <label>
+                                <input type="checkbox" id="showMyDocs"/> Показать только свои документы
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Применить фильтры</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="form-check form-switch d-inline-block ms-3">
+            <input class="form-check-input" type="checkbox" id="storageSwitch">
+            <label class="form-check-label" for="storageSwitch" id="storageLabel">Публичное хранилище</label>
+        </div>
+    </div>
+
+    <div class="table-responsive overflow-auto">
+        <table class="table table-striped w-100">
+            <thead>
+            <tr>
+                <th>Исходное имя файла</th>
+                <th>Источник</th>
+                <th>Владелец документа</th>
+                <th>Дата загрузки</th>
+                <th>Исходный документ</th>
+                <th>Редактирование</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for commercial_offer in commercial_offers %}
+                <tr data-id="{{ commercial_offer.id }}" data-user-id="{{ commercial_offer.user.id }}"
+                    data-date_uploaded="{{ commercial_offer.date_uploaded }}"
+                    data-origin_filename="{{ commercial_offer.origin_filename }}"
+                    data-source="{{ commercial_offer.source }}"
+                    data-is-processing="{{ commercial_offer.is_processing }}"
+                    data-is-public="{{ commercial_offer.is_public }}"
+                    data-coordinates="{{ commercial_offer.coordinates }}">
+                    <td>
+                        {{ commercial_offer.origin_filename }}
+                    </td>
+                    <td>
+                        {{ commercial_offer.upload_source.source }}
+                    </td>
+                    <td>
+                        <a href="/users/{{ commercial_offer.user.id }}">
+                            <img src="{{ commercial_offer.user.avatar.url }}" class="rounded-circle" height="25"
+                                 width="25"
+                                 loading="lazy"
+                                 style="object-fit: cover;" alt=""/>
+                            {{ commercial_offer.user.username }}
+                        </a>
+                    </td>
+                    <td>
+                        {{ commercial_offer.date_uploaded }}
+                    </td>
+                    <td>
+                        {{ commercial_offer.original_document }}
+                    </td>
+                    <td>
+                        {% if commercial_offer.user.id == user.id or user.is_superuser %}
+                            <a href="/commercial_offers_edit/{{ commercial_offer.id }}">
+                                <button type="button" class="btn btn-primary"
+                                        style="border-radius: 12px; margin-right:10px;">
+                                    Редактировать
+                                </button>
+                            </a>
+                            <button type="button" class="btn btn-danger" style="margin-top: 8px;"
+                                    data-bs-target="#delete_commercial_offer_{{ commercial_offer.id }}"
+                                    data-bs-toggle="modal">
+                                Удалить
+                            </button>
+                        {% else %}
+                            Нет доступа
+                        {% endif %}
+                    </td>
+                </tr>
+                {% block modal_dialog %}
+                    <div class="modal fade" id="delete_commercial_offer_{{ commercial_offer.id }}" tabindex="-1">
+                        <div class="modal-dialog">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title">Вы уверены, что хотите удалить это коммерческое
+                                        предложение?</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                </div>
+                                <div class="modal-footer">
+                                    <form method="POST" action="/commercial_offers_delete/{{ commercial_offer.id }}/"
+                                          class="mt-3">
+                                        {% csrf_token %}
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                            Отмена
+                                        </button>
+                                        <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
+                                            Удалить
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endblock modal_dialog %}
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        document.getElementById('filterForm').addEventListener('submit', function (e) {
+            e.preventDefault(); // Отменяем стандартное действие формы
+
+            const ownerFilter = document.getElementById('filterOwner').value.toLowerCase();
+            const sourceFilter = document.getElementById('filterSource').value.toLowerCase();
+            const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
+            const showMyDocs = document.getElementById('showMyDocs').checked;
+
+            const rows = document.querySelectorAll('.table tbody tr');
+            rows.forEach(row => {
+                const ownerText = row.dataset.owner.toLowerCase();
+                const sourceText = row.dataset.source.toLowerCase();
+                const dateUploadedText = row.dataset.dateUploaded.toLowerCase();
+                const userId = row.dataset.userId;
+
+                const isAllOwnerMatch = ownerText.includes(ownerFilter);
+                const isSourceMatch = sourceText.includes(sourceFilter);
+                const isDateUploadedMatch = dateUploadedText.includes(dateUploadedFilter);
+                const isOwnerMatch = userId === "{{ user.id }}";
+
+                const showRow = (isAllOwnerMatch && isSourceMatch && isDateUploadedMatch) && (!showMyDocs || isOwnerMatch);
+
+                if (showRow) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+
+        function updateFilterVisibility() {
+            let columnToggles = document.querySelectorAll('.column-toggle');
+            columnToggles.forEach(toggle => {
+                let columnIndex = toggle.getAttribute('data-column');
+                let columns_count = 6;
+                if (columnIndex > columns_count - 1) {
+                    return;
+                }
+                let filterContainer = document.getElementById('filterForm').children[columnIndex];
+
+                if (toggle.checked) {
+                    filterContainer.style.display = '';
+                } else {
+                    filterContainer.style.display = 'none';
+                }
+            });
+        }
+
+        document.querySelectorAll('.column-toggle').forEach(toggle => {
+            toggle.addEventListener('change', updateFilterVisibility);
+        });
+
+        document.addEventListener("DOMContentLoaded", function () {
+            setTimeout(updateFilterVisibility, 300);
+
+            const storageSwitch = document.getElementById('storageSwitch');
+            const storageLabel = document.getElementById('storageLabel');
+
+            storageSwitch.addEventListener('change', function () {
+                const isPrivate = storageSwitch.checked;
+                storageLabel.textContent = isPrivate ? "Частное хранилище" : "Публичное хранилище";
+
+                $.fn.dataTable.ext.search.pop();
+
+                $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                    const row = window.dataTable.row(dataIndex).node();
+                    const isPublic = row.getAttribute('data-is-public') === "True";
+
+                    if (isPrivate) {
+                        return !isPublic;
+                    } else {
+                        return isPublic;
+                    }
+                });
+                window.dataTable.draw();
+            });
+        });
+    </script>
+{% endblock %}

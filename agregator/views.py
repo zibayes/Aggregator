@@ -2,12 +2,13 @@ import time
 
 import simplekml
 from django.shortcuts import render, redirect
-from .forms import UploadReportsForm, UploadOpenListsForm
+from .forms import UploadReportsForm, UploadOpenListsForm, UploadCommercialOffersForm
 from .acts_processing import process_acts, error_handler_acts
 from .scientific_reports_processing import process_scientific_reports, error_handler_scientific_reports
 from .tech_reports_processing import process_tech_reports, error_handler_tech_reports
 from .external_sources import external_sources_processing, external_voan_list_processing
 from .open_lists_ocr import process_open_lists, error_handler_open_lists
+from .commercial_offers_processing import process_commercial_offers, error_handler_commercial_offers
 from .account_cards_processing import process_account_cards, error_handler_account_cards
 from .ask import ask_question_with_context
 import os
@@ -27,11 +28,12 @@ from django.contrib.auth import login, authenticate
 from .forms import UserRegisterForm
 from django_celery_results.models import TaskResult
 from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks, \
-    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, GeojsonData, Chat, Message
+    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, CommercialOffers, GeojsonData, \
+    Chat, Message
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
-from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save
+from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, raw_commercial_offers_save
 
 
 def get_user_tasks(user_id, file_types, upload_source=False):
@@ -75,6 +77,13 @@ def get_user_tasks_external(request):
 def get_user_tasks_object_account_cards(request):
     user = request.user
     tasks_id = get_user_tasks(user.id, ('account_card',))
+    return JsonResponse({'tasks_id': tasks_id})
+
+
+@login_required
+def get_user_tasks_commercial_offers(request):
+    user = request.user
+    tasks_id = get_user_tasks(user.id, ('commercial_offer',))
     return JsonResponse({'tasks_id': tasks_id})
 
 
@@ -135,20 +144,30 @@ def deconstructor(request):
                                 file_groups[group_name].append({'type': report_type, 'file': uploaded_files.pop(i)})
                             else:
                                 file_groups[group_name] = [{'type': report_type, 'file': uploaded_files.pop(i)}]
+                select_text = select_image = select_coord = False
+                if 'select_text' in request.POST:
+                    select_text = True
+                if 'select_image' in request.POST:
+                    select_image = True
+                if 'select_coord' in request.POST:
+                    select_coord = True
+
                 if file_type == 'act':
                     acts_ids = raw_reports_save(file_groups, uploaded_files, Act, user.id, is_public)
-                    task = process_acts.apply_async((acts_ids, user.id),
+                    task = process_acts.apply_async((acts_ids, user.id, select_text, select_image, select_coord),
                                                     link_error=error_handler_acts.s())
                 elif file_type == 'scientific_report':
                     scientific_reports_ids = raw_reports_save(file_groups, uploaded_files, ScientificReport,
                                                               user.id, is_public)
-                    task = process_scientific_reports.apply_async((scientific_reports_ids, user.id, is_public),
-                                                                  link_error=error_handler_scientific_reports.s())
+                    task = process_scientific_reports.apply_async(
+                        (scientific_reports_ids, user.id, select_text, select_image, select_coord),
+                        link_error=error_handler_scientific_reports.s())
                 elif file_type == 'tech_report':
                     tech_reports_ids = raw_reports_save(file_groups, uploaded_files, TechReport,
                                                         user.id, is_public)
-                    task = process_tech_reports.apply_async((tech_reports_ids, user.id, is_public),
-                                                            link_error=error_handler_tech_reports.s())
+                    task = process_tech_reports.apply_async(
+                        (tech_reports_ids, user.id, select_text, select_image, select_coord),
+                        link_error=error_handler_tech_reports.s())
                 tasks_id = [task.task_id] + tasks_id
                 user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type=file_type,
                                       upload_source={'source': 'Пользовательский файл'})
@@ -975,6 +994,50 @@ def acts_delete(request, pk):
 
 
 @login_required
+def doc_reprocess(request, pk):
+    if request.method == 'POST':
+        report_type = None
+        url = request.META.get('HTTP_REFERER')
+        if 'act' in url:
+            report_type = 'act'
+        elif 'scientific' in url:
+            report_type = 'scientific_report'
+        elif 'tech' in url:
+            report_type = 'tech_report'
+        user = request.user
+        tasks_id = get_user_tasks(user.id, ('act', 'scientific_report', 'tech_report'))
+        form = UploadReportsForm()
+        select_text = select_image = select_coord = False
+        if 'select_text' in request.POST:
+            select_text = True
+        if 'select_image' in request.POST:
+            select_image = True
+        if 'select_coord' in request.POST:
+            select_coord = True
+        if report_type == 'act':
+            task = process_acts.apply_async(([pk], user.id, select_text, select_image, select_coord),
+                                            link_error=error_handler_acts.s())
+        elif report_type == 'scientific_report':
+            task = process_scientific_reports.apply_async(
+                ([pk], user.id, select_text, select_image, select_coord),
+                link_error=error_handler_scientific_reports.s())
+        elif report_type == 'tech_report':
+            task = process_tech_reports.apply_async(
+                ([pk], user.id, select_text, select_image, select_coord),
+                link_error=error_handler_tech_reports.s())
+        else:
+            return JsonResponse({'response': 'invalid doc type'})
+        tasks_id = [task.task_id] + tasks_id
+        user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type=report_type,
+                              upload_source={'source': 'Пользовательский файл'})
+        user_task.save()
+
+        return render(request, 'deconstructor.html', {'form': form,
+                                                      'tasks_id': tasks_id})
+    return JsonResponse({'response': 'invalid method'})
+
+
+@login_required
 # @owner_or_admin_required(UserTasks)
 def download_delete(request, task_id):
     user_task = UserTasks.objects.get(task_id=task_id)
@@ -1356,6 +1419,65 @@ def account_cards_register(request):
                                                                                    'source')
     account_cards = account_cards_public | account_cards_private
     return render(request, 'account_cards_register.html', {'account_cards': account_cards})
+
+
+def commercial_offers(request, pk):
+    commercial_offer = CommercialOffers.objects.get(id=pk)
+    return render(request, 'commercial_offer.html', {'commercial_offer': commercial_offer})
+
+
+@login_required
+@owner_or_admin_required(CommercialOffers)
+def commercial_offers_edit(request, pk):
+    commercial_offer = CommercialOffers.objects.get(id=pk)
+    if request.method == 'POST':
+        commercial_offer.coordinates = request.POST['coordinates']
+        commercial_offer.save()
+        messages.success(request, 'Учётная карта успешно обновлена.')
+        return redirect(f'/commercial_offers/{commercial_offer.id}')
+
+    return render(request, 'commercial_offer_edit.html', {'commercial_offer': commercial_offer})
+
+
+@login_required
+@owner_or_admin_required(CommercialOffers)
+def commercial_offers_delete(request, pk):
+    commercial_offer_instance = CommercialOffers.objects.get(id=pk)
+    commercial_offer_instance.delete()
+    return redirect(f'commercial_offers_register')
+
+
+@login_required
+def commercial_offers_upload(request):
+    user_id = request.user.id
+    tasks_id = get_user_tasks(user_id, ('commercial_offer',))
+    if request.method == 'POST':
+        form = UploadCommercialOffersForm(request.POST, request.FILES)
+        if form.is_valid():
+            uploaded_files = form.cleaned_data['files']
+            if request.user.is_superuser:
+                is_public = True if request.POST['storage_type'] == 'public' else False
+            else:
+                is_public = False
+            commercial_offers_ids = raw_commercial_offers_save(uploaded_files, user_id, is_public)
+            task = process_commercial_offers.apply_async((commercial_offers_ids, user_id),
+                                                         link_error=error_handler_commercial_offers.s())
+            tasks_id = [task.task_id] + tasks_id
+            user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='commercial_offer',
+                                  upload_source={'source': 'Пользовательский файл'})
+            user_task.save()
+            return render(request, 'commercial_offers_upload.html', {'form': form, 'tasks_id': tasks_id})
+    else:
+        form = UploadCommercialOffersForm()
+    return render(request, 'commercial_offers_upload.html', {'form': form, 'tasks_id': tasks_id})
+
+
+def commercial_offers_register(request):
+    commercial_offers_public = CommercialOffers.objects.filter(is_processing=False, is_public=True)
+    commercial_offers_private = CommercialOffers.objects.filter(is_processing=False, user_id=request.user.id,
+                                                                is_public=False)
+    commercial_offers = commercial_offers_public | commercial_offers_private
+    return render(request, 'commercial_offers_register.html', {'commercial_offers': commercial_offers})
 
 
 class UserList(generics.ListAPIView):

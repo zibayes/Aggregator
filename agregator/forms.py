@@ -63,6 +63,10 @@ class UploadReportsForm(forms.Form):
     files = MultipleFileField(allowed_extensions=['.doc', '.docx', '.pdf'])
 
 
+class UploadCommercialOffersForm(forms.Form):
+    files = MultipleFileField(allowed_extensions=['.doc', '.docx', '.odt', '.xlsx', '.xls', '.pdf'])
+
+
 class UploadOpenListsForm(forms.Form):
     files = MultipleFileField(allowed_extensions=['.pdf', '.jpg', '.png', '.bmp', '.tiff'])
 

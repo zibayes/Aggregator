@@ -352,6 +352,35 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
         return self.name or f"Объект {self.id}"
 
 
+class CommercialOffers(models.Model):
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+    upload_source = models.JSONField(null=True, blank=True)
+    is_processing = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=True)
+    origin_filename = models.TextField()
+
+    coordinates = models.JSONField(null=True, blank=True)
+    source = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Commercial Offer {self.id} by {self.user.username}"
+
+    class Meta:
+        db_table = 'commercial_offers'
+
+    def save(self, *args, **kwargs):
+        self.upload_source = to_json(self.upload_source)
+        self.coordinates = to_json(self.coordinates)
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.source and len(self.source) > 0:
+            delete_files(self.source)
+        super().delete(*args, **kwargs)
+
+
 class GeojsonData(models.Model):
     name = models.CharField(max_length=255, null=True, blank=True)
     geojson = models.JSONField(null=True, blank=True)

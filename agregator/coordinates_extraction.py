@@ -45,7 +45,9 @@ projections = {
     "мск24зона5": Proj(
         '+proj=tmerc +lat_0=0 +lon_0=105.51666667 +k=1 +x_0=5500000 +y_0=-5416586.442 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
     "мск24зона6": Proj(
-        '+proj=tmerc +lat_0=0 +lon_0=111.51666667 +k=1 +x_0=6500000 +y_0=-5416586.442 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs')
+        '+proj=tmerc +lat_0=0 +lon_0=111.51666667 +k=1 +x_0=6500000 +y_0=-5416586.442 +ellps=krass +towgs84=23.57,-140.95,-79.8,0,0.35,0.79,-0.22 +units=m +no_defs'),
+    "гск2011": Proj(
+        '+proj=tmerc +lat_0=0 +lon_0=81 +k=1 +x_0=14500000 +y_0=0 +ellps=GSK2011 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs +type=crs'),
 }
 
 

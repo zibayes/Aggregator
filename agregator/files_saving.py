@@ -5,11 +5,12 @@ from pathlib import Path
 import PIL
 import comtypes.client
 import fitz
+import pandas as pd
 import pythoncom
 from PIL import Image
 import io
 
-from .models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard
+from .models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers
 
 SOURCE_CONTENT = []  # [{'type': 'text/images/all', 'path': 'path/to/file.pdf'}, {}, ...]
 
@@ -237,3 +238,75 @@ def load_raw_account_cards(account_cards_ids):
         account_card.save()
         account_cards.append(account_card)
     return account_cards, pages_count
+
+
+def raw_commercial_offers_save(uploaded_files, user_id, is_public, upload_source=None):
+    commercial_offers_ids = []
+    for file in uploaded_files:
+        commercial_offer = CommercialOffers(user_id=user_id, is_public=is_public)
+        commercial_offer.save()
+        commercial_offer_id = commercial_offer.id
+        commercial_offers_ids.append(commercial_offer_id)
+        path = f'uploaded_files/commercial_offers/{commercial_offer_id}_commercial_offer'
+        Path(path).mkdir(exist_ok=True)
+        origin_name = file.name
+        commercial_offer.origin_filename = origin_name
+        commercial_offer.upload_source = {'source': 'Пользовательский файл'}
+        file.name = f'{commercial_offer_id}_commercial_offer' + file.name[file.name.rfind('.'):]
+
+        with open(path + '/' + file.name, 'wb+') as destination:
+            if upload_source:
+                destination.write(file.read())
+                file.close()
+            else:
+                for chunk in file.chunks():
+                    destination.write(chunk)
+        commercial_offer.source = path + '/' + file.name
+        commercial_offer.save()
+    return commercial_offers_ids
+
+
+def load_raw_commercial_offers(commercial_offers_ids):
+    commercial_offers = []
+    pages_count = {}
+    for commercial_offer_id in commercial_offers_ids:
+        commercial_offer = CommercialOffers.objects.get(id=commercial_offer_id)
+        i = 0
+        if commercial_offer.source.lower().endswith(('.doc', '.docx', '.odt')):
+            word = comtypes.client.CreateObject('Word.Application')
+            word.visible = False
+            wd_format_docx = 16
+            in_file = os.path.abspath(commercial_offer.source)
+            try:
+                doc = word.Documents.Open(in_file)
+            except Exception as e:
+                word.Quit()
+                raise RuntimeError(f"Ошибка при открытии файла: {e}")
+            if commercial_offer.source.lower().endswith(('.doc', '.odt')):
+                new_filename = commercial_offer.source[:commercial_offer.source.rfind('.')] + '.docx'
+                out_file = os.path.abspath(new_filename)
+                doc.SaveAs(out_file, FileFormat=wd_format_docx)
+                commercial_offer.source = new_filename
+                pages_count[commercial_offer.source] = doc.ComputeStatistics(2)
+                i += 1
+            else:
+                pages_count[commercial_offer.source] = doc.ComputeStatistics(2)
+            doc.Close()
+            word.Quit()
+        elif commercial_offer.source.lower().endswith('.pdf'):
+            with fitz.open(commercial_offer.source) as pdf_doc:
+                pages_count[commercial_offer.source] = len(pdf_doc)
+        elif commercial_offer.source.lower().endswith(('.xlsx', '.xls')):
+            new_filename = commercial_offer.source[
+                           :commercial_offer.source.rfind('.')] + '.xlsx' if commercial_offer.source.lower().endswith(
+                '.xls') else commercial_offer.source
+            if commercial_offer.source.lower().endswith('.xls'):
+                df = pd.read_excel(commercial_offer.source, engine='xlrd')
+                df.to_excel(new_filename, index=False, engine='openpyxl')
+            elif commercial_offer.source.lower().endswith('.xlsx'):
+                df = pd.read_excel(commercial_offer.source, engine='openpyxl')
+            commercial_offer.source = new_filename
+            pages_count[commercial_offer.source] = len(df)
+        commercial_offer.save()
+        commercial_offers.append(commercial_offer)
+    return commercial_offers, pages_count

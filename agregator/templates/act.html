@@ -44,6 +44,11 @@
             <button type="button" class="btn btn-danger" data-bs-target="#delete_act" data-bs-toggle="modal">
                 Удалить
             </button>
+            <br>
+            <br>
+            <button type="button" class="btn btn-primary" data-bs-target="#reprocess" data-bs-toggle="modal">
+                Повторная обработка документа
+            </button>
         {% endif %}
     </div>
 
@@ -68,6 +73,36 @@
                         </form>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="modal fade" id="reprocess" tabindex="-1">
+            <div class="modal-dialog">
+                <form method="POST" action="{% url 'doc_reprocess' act.id %}" class="mt-3">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Повторная обработка документа</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">Выберите разделы документа для повторной обработки:<br>
+                            <label><input type="checkbox" name="select_text" checked> Текст</label><br>
+                            <label><input type="checkbox" name="select_image" checked>
+                                Изображения</label><br>
+                            <label><input type="checkbox" name="select_coord" checked>
+                                Координаты</label><br>
+                        </div>
+                        <div class="modal-footer">
+                            {% csrf_token %}
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                Отмена
+                            </button>
+                            <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">
+                                Начать обработку
+                            </button>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
     {% endblock modal_dialog %}

@@ -20,8 +20,12 @@ function redirectPost(url, data) {
 
 let files_types = {'all': 'Отчёт', 'text': 'Текст', 'images': 'Приложение', 'scan': 'Скан'};
 let report_types = {
-    'acts': 'актов', 'scientific_reports': 'научных отчётов',
-    'tech_reports': 'научно-технических отчётов', 'open_lists': 'открытых листов', 'account_cards': 'учётных карт'
+    'acts': 'актов',
+    'scientific_reports': 'научных отчётов',
+    'tech_reports': 'научно-технических отчётов',
+    'open_lists': 'открытых листов',
+    'account_cards': 'учётных карт',
+    'commercial_offers': 'коммерческих предложений'
 };
 
 function onSuccessCustomRedirect(progressBarElement, progressBarMessageElement, result) {
@@ -158,7 +162,7 @@ function add_process_status(progressBarMessageElement, result, isError) {
             let file = document.createElement('a');
             file.textContent = 'Составной отчёт';
             li.appendChild(file);
-            if (result.file_types !== 'open_lists' && result.file_types !== 'account_cards') {
+            if (result.file_types !== 'open_lists' && result.file_types !== 'account_cards' && result.file_types !== 'commercial_offers') {
                 if (value.length > 1) {
                     let sub_ul = document.createElement('ul');
                     li.appendChild(sub_ul)
@@ -188,12 +192,14 @@ function add_process_icon(file, li, value, result, key, isError) {
     file.href = `/${result.file_types}/${key}`;
     file.className = 'link'
     let file_text;
-    if (result.file_types !== 'open_lists' && result.file_types !== 'account_cards') {
+    if (result.file_types !== 'open_lists' && result.file_types !== 'account_cards' && result.file_types !== 'commercial_offers') {
         file_text = files_types[value.type];
     } else if (result.file_types === 'open_lists') {
         file_text = 'Открытый лист';
     } else if (result.file_types === 'account_cards') {
         file_text = 'Учётная карта';
+    } else if (result.file_types === 'commercial_offers') {
+        file_text = 'Коммерческое предложение';
     }
     file.textContent = file_text;
     li.appendChild(file);

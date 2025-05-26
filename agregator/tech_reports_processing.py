@@ -33,7 +33,7 @@ def choose_file() -> str:
 
 
 @shared_task(bind=True)
-def process_tech_reports(self, reports_ids, user_id):
+def process_tech_reports(self, reports_ids, user_id, select_text, select_image, select_coord):
     progress_recorder = ProgressRecorder(self)
     progress_recorder.set_progress(0, 100, '')
     reports, pages_count = load_raw_reports(reports_ids, TechReport)
@@ -63,7 +63,7 @@ def process_tech_reports(self, reports_ids, user_id):
             progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'Processing'
             extract_text_and_images(current_report, source['path'], progress_recorder, pages_count,
                                     total_processed, progress_json, current_report.id, i, self.request.id, user_id,
-                                    current_report.is_public)
+                                    current_report.is_public, select_text, select_image, select_coord)
             progress_json['file_groups'][str(current_report.id)][i]['pages']['processed'] = \
                 progress_json['file_groups'][str(current_report.id)][i]['pages']['all']
             progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'True'
@@ -76,7 +76,7 @@ def process_tech_reports(self, reports_ids, user_id):
 
 def extract_text_and_images(current_report, file, progress_recorder, pages_count, total_processed, progress_json,
                             report_id,
-                            source_index, task_id, user_id, is_public):
+                            source_index, task_id, user_id, is_public, select_text, select_image, select_coord):
     if current_report.supplement:
         supplement_content = json.loads(current_report.supplement)
     else:
@@ -135,260 +135,265 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
 
             page = document[page_number]
             text = page.get_text()
-            while True:
-                current_index = re.search(
-                    report_parts[current_part].lower().replace('оглавление', r'оглавление|содержание').replace(' ',
-                                                                                                               r'[ \n]*'),
-                    text, re.IGNORECASE)
-                if current_index:
-                    current_index = current_index.end()
-                else:
-                    current_index = 0
+            if select_text:
+                while True:
+                    current_index = re.search(
+                        report_parts[current_part].lower().replace('оглавление', r'оглавление|содержание').replace(' ',
+                                                                                                                   r'[ \n]*'),
+                        text, re.IGNORECASE)
+                    if current_index:
+                        current_index = current_index.end()
+                    else:
+                        current_index = 0
 
-                next_index = None
-                if current_part + 1 < len(report_parts):
-                    next_index = re.search(
-                        report_parts[current_part + 1].replace('оглавление', r'оглавление|содержание').replace(' ',
-                                                                                                               r'[ \n]*')
-                        .replace('(', r'\(').replace(')', r'\)'), text, re.IGNORECASE)
-                    if next_index:
-                        reading_contents = False
+                    next_index = None
+                    if current_part + 1 < len(report_parts):
+                        next_index = re.search(
+                            report_parts[current_part + 1].replace('оглавление', r'оглавление|содержание').replace(' ',
+                                                                                                                   r'[ \n]*')
+                            .replace('(', r'\(').replace(')', r'\)'), text, re.IGNORECASE)
+                        if next_index:
+                            reading_contents = False
 
-                if introduction_part != current_part:
-                    is_introduction = False
-                if 'введение' in text.lower() and introduction_part is None:
-                    is_introduction = True
-                    introduction_part = current_part
+                    if introduction_part != current_part:
+                        is_introduction = False
+                    if 'введение' in text.lower() and introduction_part is None:
+                        is_introduction = True
+                        introduction_part = current_part
 
-                text_to_write = text[current_index:next_index.start() if next_index else len(text)]
-                report_parts_info[report_parts[current_part]] += text_to_write
-                text_file.write(
-                    f"--- {report_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
-                if next_index or reading_contents:
-                    if 'оглавление' in report_parts[current_part + 1].lower() or 'содержание' in report_parts[
-                        current_part + 1].lower() or reading_contents:
+                    text_to_write = text[current_index:next_index.start() if next_index else len(text)]
+                    report_parts_info[report_parts[current_part]] += text_to_write
+                    text_file.write(
+                        f"--- {report_parts[current_part]} --- (стр. {page_number + 1}):\n{text_to_write}\n")
+                    if next_index or reading_contents:
+                        if 'оглавление' in report_parts[current_part + 1].lower() or 'содержание' in report_parts[
+                            current_part + 1].lower() or reading_contents:
+                            with pdfplumber.open(file) as pdf:
+                                page_tables = pdf.pages[page_number].extract_tables()
+                            if page_tables:
+                                df_new = pd.DataFrame(page_tables[0], columns=['Раздел', 'Страницы'])
+                                if reading_contents:
+                                    df = df._append(df_new, ignore_index=True)
+                                else:
+                                    df = df_new
+                                for index, row in df.iterrows():
+                                    if '-' in row['Страницы']:
+                                        row['Страницы'] = row['Страницы'][:row['Страницы'].find('-')]
+                                report_parts = list(df['Раздел'])
+                                report_parts_info = {i: '' for i in report_parts}
+                                '''
+                                report_parts_info = dict(list({i: report_parts_info[i] for i in report_parts if
+                                                               i in report_parts_info.keys()}.items()) +
+                                                         list({i: '' for i in report_parts if
+                                                               i not in report_parts_info.keys()}.items()))
+                                '''
+                                continue
+                            else:
+                                titles = re.findall(r'^(?!\d+\s*$)\.*\d*\.*\d*.*?[\s\S]*?\s*\d+\.*\s*\d*\s*$',
+                                                    text, re.MULTILINE)
+                                structure = []
+                                for title_line in titles:
+                                    title = re.search(
+                                        r'(^(?!\d+\s*$)\d*\.*.*?(?=…))|(^(?!\d+\s*$)\d+\..*\s.+?(?=…))|^(?!\d+\s*$)\d*\.*.*[^…]*?(?=\n\d+)|^(?!\d+\s*$)\d*\.*[\s\S]*?(?=\.\.\.)',
+                                        title_line, re.MULTILINE)
+
+                                    if title:
+                                        title = title.group(0).replace('\n', '').replace('  ', ' ').strip()
+                                        title = title[:-1] if title[-1] == '.' else title
+                                        title_page = re.findall(r'\d+', title_line, re.IGNORECASE)
+                                        if title_page:
+                                            title_page = title_page[-1].replace('\n', '')
+                                            title = title[:-len(title_page) if title_page in title else len(title)]
+                                        structure.append({'Раздел': title, 'Страницы': title_page})
+                                df_new = pd.DataFrame(structure, columns=['Раздел', 'Страницы'])
+                                if reading_contents:
+                                    df = df._append(df_new, ignore_index=True)
+                                else:
+                                    df = df_new
+                                report_parts = list(df['Раздел'])
+                                report_parts_info = {i: '' for i in report_parts}
+                                current_part = 0
+                                report_parts_lower = [s.lower() for s in report_parts]
+                                index = -1
+                                if any('оглавление' in s.lower() for s in report_parts_lower):
+                                    for i, s in enumerate(report_parts_lower):
+                                        if 'оглавление' in s:
+                                            index = i
+                                    current_part = report_parts_lower.index('оглавление')
+                                elif any('содержание' in s.lower() for s in report_parts_lower):
+                                    for i, s in enumerate(report_parts_lower):
+                                        if 'содержание' in s.lower():
+                                            index = i
+                                if index > 0:
+                                    current_part = index
+                                # print(df)
+                            reading_contents = True
+                            break
+
+                    if page_number + 1 == 1:
+                        report_name = re.search(
+                            r'н*\s*а*\s*у*\s*ч*\s*н*\s*[оый]*\s*-*\s*т*\s*е*\s*х*\s*н*\s*и*\s*ч*\s*е*\s*с*\s*к*\s*и*\s*й*\s*о\s*т\s*ч\s*[её]\s*т[\s\S]*?(?=выполнил|открытый)',
+                            text,
+                            re.IGNORECASE)
+                        if report_name:
+                            report_name = report_name.group(0)
+                            table_columns_info['Название отчёта'] = report_name
+
+                            place = re.search(r'г\. *\w+', report_name, re.IGNORECASE)
+                            if place:
+                                table_columns_info['Населённый пункт'] = place.group(0)
+
+                        author = re.search(
+                            r'[Вв]ыполнил:\s+.*|[Аа]втор:\s+.*|[А-ЯЁ][а-яё]*[\. ]+[А-ЯЁ][а-яё]*[\. ]+[А-ЯЁ][а-яё]*[\.\s]+?(?=научн)',
+                            text,
+                            re.MULTILINE)
+                        if author:
+                            author = re.search(
+                                r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.|[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]+[а-яё]+',
+                                author.group(0), re.MULTILINE)
+                            if author:
+                                table_columns_info['Автор'] = author.group(0)
+
+                        open_list = re.search(
+                            r'[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*? от\s+\d{2}\.\d{2}\.\d{4}\s*г*\.*\s+№\s*\w*\d+-*\d*-*\d*\/*\\*\d*',
+                            text)
+                        if open_list:
+                            table_columns_info['Открытый лист'] = open_list.group(0)
+
+                        organization = re.search(r'Общество\s+с\s+ограниченной\s+ответственностью\s*[\n]*«[^»]+»', text,
+                                                 re.IGNORECASE)
+                        if not organization:
+                            organization = re.search(r'ООО\s+[^\n]+?(?:«[^»]+»|“[^”]+”|\"[^\"]+\")?\s*[\n]*\"?[^\n]*\"',
+                                                     text, re.IGNORECASE)
+                        if not organization:
+                            organization = re.search(r'ООО\s+«[^»]+»', text, re.IGNORECASE)
+                        if organization:
+                            table_columns_info['Организация'] = organization.group(0)
+
+                        customer = re.search(r'Заказчик:[\S ]+', text,
+                                             re.IGNORECASE)
+                        if customer:
+                            table_columns_info['Заказчик'] = customer.group(0)
+
+                        year_of_writing = re.search(
+                            r'[А-ЯЁ]{1}[а-яё,]+-*[А-ЯЁ]*[а-яё,]*\s*\d{4}', text)
+                        if year_of_writing:
+                            year_of_writing = year_of_writing.group(0)
+                            if not table_columns_info['Населённый пункт']:
+                                place = re.search(r'[\s\S]*?(?=\d{4})', year_of_writing, re.IGNORECASE)
+                                if place:
+                                    table_columns_info['Населённый пункт'] = place.group(
+                                        0).strip() + ' (место написания отчёта)'
+                            year_of_writing = re.search(r'\d{4}', year_of_writing, re.IGNORECASE)
+                            if year_of_writing:
+                                table_columns_info['Год написания отчёта'] = year_of_writing.group(0)
+
+                    if 'заключение' in report_parts[current_part].lower() or 'аннотация' in report_parts[
+                        current_part].lower():
+                        if 'аннотация' in report_parts[current_part].lower():
+                            works_type = re.search(
+                                r'работы\sпо[\s\S]+?наблюд[^\s]+|работы\sпо[\s\S]+?шур[^\s]+|результ[\s\S]+?раб[^\s]+|обслед[\s\S]+?наслед[^\s]+|археолог[\s\S]+?развед[^\s]+',
+                                text, re.IGNORECASE)
+                            if works_type:
+                                table_columns_info['Вид работ'] = works_type
+                        if not table_columns_info['Площадь']:
+                            square = re.search(
+                                r'Общ[аяей]*\sплощад[\s\S]*?[\d,.]+\s*.*?м2', text, re.IGNORECASE)
+                            if not square:
+                                square = re.search(
+                                    r'[Общаяей]*\sплощад[\s\S]*?[\d,.]+\s*.*?м2', text, re.IGNORECASE)
+                            if not square:
+                                square = re.search(
+                                    r'[Общаяей]*\sплощад[\s\S]*?[\d,.]+\s*.*?м', text, re.IGNORECASE)
+                            if square:
+                                square = re.search(r'\d+[,.]*\d*\s*.*?м2*', square.group(0), re.IGNORECASE)
+                                if square:
+                                    table_columns_info['Площадь'] = square.group(0)
+
+                    if is_introduction or 'список исполнителей' in report_parts[current_part].lower():
                         with pdfplumber.open(file) as pdf:
                             page_tables = pdf.pages[page_number].extract_tables()
-                        if page_tables:
-                            df_new = pd.DataFrame(page_tables[0], columns=['Раздел', 'Страницы'])
-                            if reading_contents:
-                                df = df._append(df_new, ignore_index=True)
-                            else:
-                                df = df_new
-                            for index, row in df.iterrows():
-                                if '-' in row['Страницы']:
-                                    row['Страницы'] = row['Страницы'][:row['Страницы'].find('-')]
-                            report_parts = list(df['Раздел'])
-                            report_parts_info = {i: '' for i in report_parts}
-                            '''
-                            report_parts_info = dict(list({i: report_parts_info[i] for i in report_parts if
-                                                           i in report_parts_info.keys()}.items()) +
-                                                     list({i: '' for i in report_parts if
-                                                           i not in report_parts_info.keys()}.items()))
-                            '''
-                            continue
-                        else:
-                            titles = re.findall(r'^(?!\d+\s*$)\.*\d*\.*\d*.*?[\s\S]*?\s*\d+\.*\s*\d*\s*$',
-                                                text, re.MULTILINE)
-                            structure = []
-                            for title_line in titles:
-                                title = re.search(
-                                    r'(^(?!\d+\s*$)\d*\.*.*?(?=…))|(^(?!\d+\s*$)\d+\..*\s.+?(?=…))|^(?!\d+\s*$)\d*\.*.*[^…]*?(?=\n\d+)|^(?!\d+\s*$)\d*\.*[\s\S]*?(?=\.\.\.)',
-                                    title_line, re.MULTILINE)
-
-                                if title:
-                                    title = title.group(0).replace('\n', '').replace('  ', ' ').strip()
-                                    title = title[:-1] if title[-1] == '.' else title
-                                    title_page = re.findall(r'\d+', title_line, re.IGNORECASE)
-                                    if title_page:
-                                        title_page = title_page[-1].replace('\n', '')
-                                        title = title[:-len(title_page) if title_page in title else len(title)]
-                                    structure.append({'Раздел': title, 'Страницы': title_page})
-                            df_new = pd.DataFrame(structure, columns=['Раздел', 'Страницы'])
-                            if reading_contents:
-                                df = df._append(df_new, ignore_index=True)
-                            else:
-                                df = df_new
-                            report_parts = list(df['Раздел'])
-                            report_parts_info = {i: '' for i in report_parts}
-                            current_part = 0
-                            report_parts_lower = [s.lower() for s in report_parts]
-                            index = -1
-                            if any('оглавление' in s.lower() for s in report_parts_lower):
-                                for i, s in enumerate(report_parts_lower):
-                                    if 'оглавление' in s:
-                                        index = i
-                                current_part = report_parts_lower.index('оглавление')
-                            elif any('содержание' in s.lower() for s in report_parts_lower):
-                                for i, s in enumerate(report_parts_lower):
-                                    if 'содержание' in s.lower():
-                                        index = i
-                            if index > 0:
-                                current_part = index
-                            # print(df)
-                        reading_contents = True
-                        break
-
-                if page_number + 1 == 1:
-                    report_name = re.search(
-                        r'н*\s*а*\s*у*\s*ч*\s*н*\s*[оый]*\s*-*\s*т*\s*е*\s*х*\s*н*\s*и*\s*ч*\s*е*\s*с*\s*к*\s*и*\s*й*\s*о\s*т\s*ч\s*[её]\s*т[\s\S]*?(?=выполнил|открытый)',
-                        text,
-                        re.IGNORECASE)
-                    if report_name:
-                        report_name = report_name.group(0)
-                        table_columns_info['Название отчёта'] = report_name
-
-                        place = re.search(r'г\. *\w+', report_name, re.IGNORECASE)
-                        if place:
-                            table_columns_info['Населённый пункт'] = place.group(0)
-
-                    author = re.search(
-                        r'[Вв]ыполнил:\s+.*|[Аа]втор:\s+.*|[А-ЯЁ][а-яё]*[\. ]+[А-ЯЁ][а-яё]*[\. ]+[А-ЯЁ][а-яё]*[\.\s]+?(?=научн)',
-                        text,
-                        re.MULTILINE)
-                    if author:
-                        author = re.search(
-                            r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.|[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]+[а-яё]+',
-                            author.group(0), re.MULTILINE)
-                        if author:
-                            table_columns_info['Автор'] = author.group(0)
-
-                    open_list = re.search(
-                        r'[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*? от\s+\d{2}\.\d{2}\.\d{4}\s*г*\.*\s+№\s*\w*\d+-*\d*-*\d*\/*\\*\d*',
-                        text)
-                    if open_list:
-                        table_columns_info['Открытый лист'] = open_list.group(0)
-
-                    organization = re.search(r'Общество\s+с\s+ограниченной\s+ответственностью\s*[\n]*«[^»]+»', text,
-                                             re.IGNORECASE)
-                    if not organization:
-                        organization = re.search(r'ООО\s+[^\n]+?(?:«[^»]+»|“[^”]+”|\"[^\"]+\")?\s*[\n]*\"?[^\n]*\"',
-                                                 text, re.IGNORECASE)
-                    if not organization:
-                        organization = re.search(r'ООО\s+«[^»]+»', text, re.IGNORECASE)
-                    if organization:
-                        table_columns_info['Организация'] = organization.group(0)
-
-                    customer = re.search(r'Заказчик:[\S ]+', text,
-                                         re.IGNORECASE)
-                    if customer:
-                        table_columns_info['Заказчик'] = customer.group(0)
-
-                    year_of_writing = re.search(
-                        r'[А-ЯЁ]{1}[а-яё,]+-*[А-ЯЁ]*[а-яё,]*\s*\d{4}', text)
-                    if year_of_writing:
-                        year_of_writing = year_of_writing.group(0)
-                        if not table_columns_info['Населённый пункт']:
-                            place = re.search(r'[\s\S]*?(?=\d{4})', year_of_writing, re.IGNORECASE)
-                            if place:
-                                table_columns_info['Населённый пункт'] = place.group(
-                                    0).strip() + ' (место написания отчёта)'
-                        year_of_writing = re.search(r'\d{4}', year_of_writing, re.IGNORECASE)
-                        if year_of_writing:
-                            table_columns_info['Год написания отчёта'] = year_of_writing.group(0)
-
-                if 'заключение' in report_parts[current_part].lower() or 'аннотация' in report_parts[
-                    current_part].lower():
-                    if 'аннотация' in report_parts[current_part].lower():
-                        works_type = re.search(
-                            r'работы\sпо[\s\S]+?наблюд[^\s]+|работы\sпо[\s\S]+?шур[^\s]+|результ[\s\S]+?раб[^\s]+|обслед[\s\S]+?наслед[^\s]+|археолог[\s\S]+?развед[^\s]+',
-                            text, re.IGNORECASE)
-                        if works_type:
-                            table_columns_info['Вид работ'] = works_type
-                    if not table_columns_info['Площадь']:
-                        square = re.search(
-                            r'Общ[аяей]*\sплощад[\s\S]*?[\d,.]+\s*.*?м2', text, re.IGNORECASE)
-                        if not square:
-                            square = re.search(
-                                r'[Общаяей]*\sплощад[\s\S]*?[\d,.]+\s*.*?м2', text, re.IGNORECASE)
-                        if not square:
-                            square = re.search(
-                                r'[Общаяей]*\sплощад[\s\S]*?[\d,.]+\s*.*?м', text, re.IGNORECASE)
-                        if square:
-                            square = re.search(r'\d+[,.]*\d*\s*.*?м2*', square.group(0), re.IGNORECASE)
-                            if square:
-                                table_columns_info['Площадь'] = square.group(0)
-
-                if is_introduction or 'список исполнителей' in report_parts[current_part].lower():
-                    with pdfplumber.open(file) as pdf:
-                        page_tables = pdf.pages[page_number].extract_tables()
-                    executors = []
-                    print(page_tables)
-                    if page_tables and len(page_tables[0]) > 0 and len(page_tables[0][0]) == 2:
-                        if 'ФИО' in page_tables[0][0] and 'Степень участия' in page_tables[0][0]:
-                            df_new = pd.DataFrame(page_tables[0], columns=['ФИО', 'Степень участия'])
-                            for cell in df_new['ФИО']:
-                                fio = re.search(r'[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+', cell)
-                                if fio:
-                                    executors.append(
-                                        fio.group(0) + ': ' + df_new[df_new['ФИО'] == cell]['Степень участия'])
-                            if executors:
-                                table_columns_info['Исполнители'] = ';\n'.join(executors)
-                        else:
-                            df_new = pd.DataFrame(page_tables[0], columns=['Параметр', 'Значение'])
-                            print(df_new)
-                            fio = None
-                            for index, cell in df_new.iterrows():
-                                if fio is None:
-                                    fio = re.search(r'[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+',
-                                                    cell['Параметр'])
+                        executors = []
+                        print(page_tables)
+                        if page_tables and len(page_tables[0]) > 0 and len(page_tables[0][0]) == 2:
+                            if 'ФИО' in page_tables[0][0] and 'Степень участия' in page_tables[0][0]:
+                                df_new = pd.DataFrame(page_tables[0], columns=['ФИО', 'Степень участия'])
+                                for cell in df_new['ФИО']:
+                                    fio = re.search(r'[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+', cell)
                                     if fio:
-                                        fio = fio.group(0)
+                                        executors.append(
+                                            fio.group(0) + ': ' + df_new[df_new['ФИО'] == cell]['Степень участия'])
+                                if executors:
+                                    table_columns_info['Исполнители'] = ';\n'.join(executors)
+                            else:
+                                df_new = pd.DataFrame(page_tables[0], columns=['Параметр', 'Значение'])
+                                print(df_new)
+                                fio = None
+                                for index, cell in df_new.iterrows():
+                                    if fio is None:
+                                        fio = re.search(r'[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+',
+                                                        cell['Параметр'])
+                                        if fio:
+                                            fio = fio.group(0)
+                                        elif 'Степень участия' in cell['Параметр']:
+                                            works = cell['Значение']
+                                            if fio and works:
+                                                executors.append(fio + ': ' + works)
+                                                fio = None
+                                        else:
+                                            fio = re.search(r'[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+',
+                                                            cell['Значение'])
+                                            if fio:
+                                                fio = fio.group(0)
                                     elif 'Степень участия' in cell['Параметр']:
                                         works = cell['Значение']
                                         if fio and works:
                                             executors.append(fio + ': ' + works)
                                             fio = None
-                                    else:
+                                table_columns_info['Исполнители'] = ';\n'.join(executors)
+                                print(executors)
+                                ''' IN CASE OF ONE PERSON
+                                df_new = pd.DataFrame(page_tables[0], columns=['Параметр', 'Значение'])
+                                fio = None
+                                works = None
+                                for index, cell in df_new.iterrows():
+                                    if fio is None:
                                         fio = re.search(r'[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+',
-                                                        cell['Значение'])
+                                                        cell['Параметр'])
                                         if fio:
                                             fio = fio.group(0)
-                                elif 'Степень участия' in cell['Параметр']:
-                                    works = cell['Значение']
-                                    if fio and works:
-                                        executors.append(fio + ': ' + works)
-                                        fio = None
-                            table_columns_info['Исполнители'] = ';\n'.join(executors)
-                            print(executors)
-                            ''' IN CASE OF ONE PERSON
-                            df_new = pd.DataFrame(page_tables[0], columns=['Параметр', 'Значение'])
-                            fio = None
-                            works = None
-                            for index, cell in df_new.iterrows():
-                                if fio is None:
-                                    fio = re.search(r'[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+',
-                                                    cell['Параметр'])
-                                    if fio:
-                                        fio = fio.group(0)
+                                        elif 'Степень участия' in cell['Параметр']:
+                                            works = cell['Значение']
                                     elif 'Степень участия' in cell['Параметр']:
                                         works = cell['Значение']
-                                elif 'Степень участия' in cell['Параметр']:
-                                    works = cell['Значение']
-                            if fio and works:
-                                table_columns_info['Исполнители'] = fio + ': ' + works
-                            '''
+                                if fio and works:
+                                    table_columns_info['Исполнители'] = fio + ': ' + works
+                                '''
 
-                if next_index:
-                    current_part += 1
-                    start_page = page_number + 1
-                    continue
-                elif current_part + 2 < len(report_parts) and re.search(
-                        report_parts[current_part + 2].replace(' ', r'[ \n]*')
-                                .replace('(', r'\(').replace(')', r'\)'), text):
-                    current_part += 2
-                    continue
-                break
+                    if next_index:
+                        current_part += 1
+                        start_page = page_number + 1
+                        continue
+                    elif current_part + 2 < len(report_parts) and re.search(
+                            report_parts[current_part + 2].replace(' ', r'[ \n]*')
+                                    .replace('(', r'\(').replace(')', r'\)'), text):
+                        current_part += 2
+                        continue
+                    break
 
-            extract_images_with_captions(text, page, page_number, document, folder,
-                                         supplement_content, extracted_images, user_id,
-                                         progress_json['file_groups'][str(report_id)][source_index]['origin_filename'],
-                                         is_public, current_report.upload_source)
-            extract_coordinates(file, document, page_number, folder, coordinates)
+            if select_image:
+                extract_images_with_captions(text, page, page_number, document, folder,
+                                             supplement_content, extracted_images, user_id,
+                                             progress_json['file_groups'][str(report_id)][source_index][
+                                                 'origin_filename'],
+                                             is_public, current_report.upload_source)
+            if select_coord:
+                extract_coordinates(file, document, page_number, folder, coordinates)
         total_processed[0] += len(document)
     document.close()
 
-    insert_supplement_links(report_parts_info)
+    if select_text and select_image:
+        insert_supplement_links(report_parts_info)
 
     if progress_json['file_groups'][str(report_id)][source_index]['type'] in ('text', 'all'):
         current_report.name = table_columns_info['Название отчёта']

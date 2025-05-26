@@ -1,121 +1,17 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Обработка отчётов{% endblock %}
+{% block title %}Менеджер загрузок коммерческих предложений{% endblock %}
 
 {% block content %}
 
-    <style>
-        .tooltipcustom {
-            position: relative;
-            display: inline-block;
-            cursor: pointer;
-        }
-
-        .tooltipcustom .tooltiptext {
-            visibility: hidden;
-            background-color: black;
-            color: #fff;
-            text-align: left;
-            border-radius: 5px;
-            padding: 5px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            transform: translateX(-50%);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .tooltipcustom:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-    </style>
-
     <br>
-    <h2 align="center">Менеджер загрузок</h2>
+    <h2 align="center">Менеджер загрузок коммерческих предложений</h2>
     <br>
 
     <div class="container upload-section-container">
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
-            <a>Выберите тип документа:</a>
-            <br>
-            <input required id="file_type_act" type="radio" name="file_type" value="act">
-            <label style="padding-right: 8px;" for="file_type_act">Акт</label>
-            <input required id="file_type_scientific_report" type="radio" name="file_type" value="scientific_report">
-            <label style="padding-right: 8px;" for="file_type_scientific_report">Научный отчёт</label>
-            <input required id="file_type_tech_report" type="radio" name="file_type" value="tech_report">
-            <label style="padding-right: 8px;" for="file_type_tech_report">Научно-технический отчёт</label>
-            <br>
-            <br>
-            <a>Выберите способ загрузки:</a>
-            <br>
-            <input required id="upload_type_detached" type="radio" name="upload_type" value="detached">
-            <label style="padding-right: 8px;" for="upload_type_detached">
-                Каждый файл - отдельный отчёт
-                <div class="tooltipcustom">
-                    <span>ℹ️</span>
-                    <span class="tooltiptext" style="width: 250px;">
-                        Каждый загружаемый файл будет идентифицирован как отдельный отчёт
-                        и будет обрабатываться и сохраняться отдельно. В результате обработки
-                        файлы не будут между собой связаны.
-                    </span>
-                </div>
-            </label>
-            <input required id="upload_type_fully" type="radio" name="upload_type" value="fully">
-            <label style="padding-right: 8px;" for="upload_type_fully">
-                Каждый файл - часть одного и того же отчёта
-                <div class="tooltipcustom">
-                    <span>ℹ️</span>
-                    <span class="tooltiptext" style="width: 650px;">
-                        Все файлы будут идентифицированы как части одного и того же отчёта
-                        и будут обрабатываться и сохраняться совместно. В результате обработки все файлы
-                        будут связаны между собой и будут входить в один отчёт.
-                        Для корректного разделения <span style="color: lightskyblue;">текста</span>
-                        и <span style="color: lightskyblue;">приложения</span> отчёта
-                        укажите в названии файла его <span style="color: lightskyblue;">тип</span>.
-                        <br>
-                        <br>
-                        Пример для отчёта из двух файлов:
-                        <br>
-                        &nbsp; • <span style="color: lightskyblue;">Приложение</span> ОПИ Аф-5(2018).pdf
-                        <br>
-                        &nbsp; • <span style="color: lightskyblue;">Текст</span> ОПИ Аф-5(2018).pdf
-                    </span>
-                </div>
-            </label>
-            <input required id="upload_type_mixed" type="radio" name="upload_type" value="mixed">
-            <label style="padding-right: 8px;" for="upload_type_mixed">
-                Смешанная загрузка
-                <div class="tooltipcustom">
-                    <span>ℹ️</span>
-                    <span class="tooltiptext" style="width: 850px;">
-                        Файлы, в зависимости от группировки, будут идентифицированы как части одного и того же отчёта и
-                        обработаются совместно или будут идентифицированы как отдельные отчёты и обработаются отдельно.
-                        Для корректного разделения <span style="color: lightskyblue;">текста</span>
-                        и <span style="color: lightskyblue;">приложения</span>, а также <span style="color: yellow;">группировки</span>
-                        отчёта укажите в названии файла его
-                        <span style="color: lightskyblue;">тип</span>, при этом <span style="color: yellow;">остальная часть названия</span>
-                        у файлов одного и того же отчёта <span style="color: yellow;">должна быть одинаковой</span>.
-                        <br>
-                        <br>
-                        Пример для трёх файлов, два из которых являются частями одного и того же отчёта:
-                        <br>
-                        &nbsp; • Норильск_Талнах_отрецензировано_05_07_2023.pdf
-                        <br>
-                        &nbsp; • <span style="color: lightskyblue;">Приложение</span> <span
-                            style="color: yellow;">ОПИ Аф-5(2018)</span>.pdf
-                        <br>
-                        &nbsp; • <span style="color: lightskyblue;">Текст</span> <span
-                            style="color: yellow;">ОПИ Аф-5(2018)</span>.pdf
-                    </span>
-                </div>
-            </label>
-            <br>
-            <br>
             <a>Выберите хранилище:</a>
             <br>
             <input required id="storage_type_private" type="radio" name="storage_type" value="private"
@@ -133,27 +29,6 @@
             <br>
             <br>
             {{ form.as_p }}
-
-            <div class="accordion" id="accordionColumns" style="margin-bottom: 12px;">
-                <div class="accordion-item">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                                data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
-                            Выбор разделов документа для обработки
-                        </button>
-                    </h2>
-                    <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
-                        <div class="accordion-body">
-                            <label><input type="checkbox" name="select_text" checked> Текст</label><br>
-                            <label><input type="checkbox" name="select_image" checked>
-                                Изображения</label><br>
-                            <label><input type="checkbox" name="select_coord" checked>
-                                Координаты</label><br>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             <button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить
             </button>
         </form>
@@ -233,7 +108,7 @@
 
             function fetchTasks() {
                 $.ajax({
-                    url: '/api/get_user_tasks_reports/',
+                    url: '/api/get_user_tasks_commercial_offers/',
                     type: 'GET',
                     success: function (data) {
                         data = data.tasks_id
@@ -267,7 +142,7 @@
                             <div></div>
                             <button class="btn btn-link"
                                     style="padding: 0; border: none; background: none; color: orangered; font-size: 25px; font-weight: bold; text-decoration: none;"
-                                    type="button" data-bs-target="#delete_download_{{ task_id }}"
+                                    type="button" data-bs-target="#delete_download_${task}"
                                     data-bs-toggle="modal">
                                 &times;
                             </button>
@@ -297,7 +172,7 @@
                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена
                                         </button>
                                         <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
-                                                onclick="confirmDelete(`{{ task_id }}`)">Удалить
+                                                onclick="confirmDelete(\`${task}\`)">Удалить
                                         </button>
                                     </div>
                                 </div>
@@ -355,5 +230,4 @@
             });
         </script>
     </div>
-
 {% endblock %}
