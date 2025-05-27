@@ -18,15 +18,15 @@
             </h2>
             <div id="collapseColumns" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
                 <div class="accordion-body">
-                    <label><input type="checkbox" class="column-toggle" data-column="0" checked> Исходное имя
-                        файла</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="0" checked> Исходный
+                        документ</label><br>
                     <label><input type="checkbox" class="column-toggle" data-column="1" checked> Источник</label><br>
                     <label><input type="checkbox" class="column-toggle" data-column="2" checked>
                         Владелец документа</label><br>
                     <label><input type="checkbox" class="column-toggle" data-column="3" checked> Дата
                         загрузки</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="4" checked> Исходный
-                        документ</label><br>
+                    <label><input type="checkbox" class="column-toggle" data-column="4" checked>
+                        Координаты</label><br>
                     <label><input type="checkbox" class="column-toggle" data-column="5" checked>
                         Редактирование</label><br>
                 </div>
@@ -80,11 +80,11 @@
         <table class="table table-striped w-100">
             <thead>
             <tr>
-                <th>Исходное имя файла</th>
+                <th>Исходный документ</th>
                 <th>Источник</th>
                 <th>Владелец документа</th>
                 <th>Дата загрузки</th>
-                <th>Исходный документ</th>
+                <th>Координаты</th>
                 <th>Редактирование</th>
             </tr>
             </thead>
@@ -98,7 +98,9 @@
                     data-is-public="{{ commercial_offer.is_public }}"
                     data-coordinates="{{ commercial_offer.coordinates }}">
                     <td>
-                        {{ commercial_offer.origin_filename }}
+                        <a href="/{{ commercial_offer.source }}">
+                            {{ commercial_offer.origin_filename }}
+                        </a>
                     </td>
                     <td>
                         {{ commercial_offer.upload_source.source }}
@@ -116,7 +118,19 @@
                         {{ commercial_offer.date_uploaded }}
                     </td>
                     <td>
-                        {{ commercial_offer.original_document }}
+                        {% if not commercial_offer.coordinates %}
+                            <button type="button" class="btn btn-success"
+                                    style="border-radius: 12px; margin-right:10px;" disabled>
+                                Просмотр
+                            </button>
+                        {% else %}
+                            <a href="/map/commercial_offer/{{ commercial_offer.id }}">
+                                <button type="button" class="btn btn-success"
+                                        style="border-radius: 12px; margin-right:10px;">
+                                    Просмотр
+                                </button>
+                            </a>
+                        {% endif %}
                     </td>
                     <td>
                         {% if commercial_offer.user.id == user.id or user.is_superuser %}
@@ -202,7 +216,7 @@
             let columnToggles = document.querySelectorAll('.column-toggle');
             columnToggles.forEach(toggle => {
                 let columnIndex = toggle.getAttribute('data-column');
-                let columns_count = 6;
+                let columns_count = 5;
                 if (columnIndex > columns_count - 1) {
                     return;
                 }

@@ -797,6 +797,9 @@ def map(request, report_type, pk):
     if report_type == 'account_card':
         report = ObjectAccountCard.objects.get(id=pk)
         report_name = report.origin_filename
+    elif report_type == 'commercial_offer':
+        report = CommercialOffers.objects.get(id=pk)
+        report_name = report.origin_filename
     else:
         if report_type == 'act':
             report = Act.objects.get(id=pk)
@@ -908,6 +911,8 @@ def download_coordinates(request, report_type, pk):
             report = TechReport.objects.get(id=pk)
         elif report_type == 'account_card':
             report = ObjectAccountCard.objects.get(id=pk)
+        elif report_type == 'commercial_offer':
+            report = CommercialOffers.objects.get(id=pk)
         coordinates = report.coordinates if report else {}
         coordinates_to_download = {}
 
@@ -952,7 +957,7 @@ def download_coordinates(request, report_type, pk):
             file_path = f'uploaded_files/{report_type}s/{pk}_{report_type}/{pk}_{report_type}/coordinates.kml'
             kml.save(file_path)
             return redirect('/' + file_path)
-        return JsonResponse({'response': f'Не выбраны координаты для скачивания'})
+        return JsonResponse({'response': f'Coordinates to download not selected'})
     return JsonResponse({'response': f'Method {request.method} is not available for this URL'})
 
 

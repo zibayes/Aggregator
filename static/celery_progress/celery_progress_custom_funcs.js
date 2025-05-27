@@ -200,6 +200,7 @@ function add_process_icon(file, li, value, result, key, isError) {
         file_text = 'Учётная карта';
     } else if (result.file_types === 'commercial_offers') {
         file_text = 'Коммерческое предложение';
+        file.href = `/map/commercial_offer/${key}`
     }
     file.textContent = file_text;
     li.appendChild(file);

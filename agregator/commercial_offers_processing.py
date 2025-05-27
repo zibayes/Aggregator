@@ -134,10 +134,11 @@ def extract_coordinates(file, progress_recorder, pages_count, total_processed,
 
     results = coordinate_systems = []
 
-    if file.endswith('.pdf'):
+    file_lower = file.lower()
+    if file_lower.endswith('.pdf'):
         tables = extract_tables_from_pdf(file)
         results, coordinate_systems = analyze_coordinates_in_tables_from_pdf(tables, file)
-    elif file.endswith(('.doc', '.docx', '.odt')):
+    elif file_lower.endswith(('.doc', '.docx', '.odt')):
         doc = Document(file)
         results = []
         for table in doc.tables:
@@ -146,7 +147,7 @@ def extract_coordinates(file, progress_recorder, pages_count, total_processed,
             for sys in coordinate_system:
                 coordinate_systems.append(sys)
         results = [item for sublist in results for item in sublist]
-    elif file.endswith(('.xlsx', '.xls')):
+    elif file_lower.endswith(('.xlsx', '.xls')):
         results, coordinate_systems = extract_coordinates_xlsx(file)
 
     if results is not None:
@@ -235,7 +236,7 @@ def fill_dataframe_from_pdf(target_cell, df, dfs, multiple_coord_sys, coordinate
             row_data.append(df.iat[r, c] if c < len(df.columns) else None)
 
         if row_data[0] and (
-                'участок' in str(row_data[0]).lower() or 'зона' in str(row_data[0]).lower()) and current_area[0] != \
+                'участок' in str(row_data[0]).lower() or 'зон' in str(row_data[0]).lower()) and current_area[0] != \
                 row_data[0] and row_data[0] != '1':
             if current_area[0] is not None:
                 data.append([])
@@ -262,6 +263,8 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
     last_num = last_width = last_target_cell = last_number_column = None
     appending = False
 
+    coordinate_systems = []
+    multiple_coord_sys = False
     for table_idx, table in enumerate(tables, 1):
         # Преобразуем таблицу в DataFrame
         df = pd.DataFrame(table)
@@ -275,8 +278,6 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
 
         found_longitude = found_latitude = False
         legend_length = 0
-        coordinate_systems = []
-        multiple_coord_sys = False
         target_cell = number_column = None
         current_area = [None]
 
@@ -313,7 +314,7 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
                     found_longitude = True
                     legend_length += 1
                     target_cell = cell_mock
-                elif 'номер' in cell_str or '№' in cell_str:
+                elif 'обознач' in cell_str or 'номер' in cell_str or '№' in cell_str:
                     legend_length += 1
                     number_column = col_idx
 
@@ -526,6 +527,7 @@ def extract_coordinates_xlsx(file_path):
     found_longitude = found_latitude = False
     coordinate_systems = []
     multiple_coord_sys = False
+    print('++()+++')
 
     for row in sheet.iter_rows():
         for cell in row:
@@ -543,12 +545,11 @@ def extract_coordinates_xlsx(file_path):
                             COORDINATE_MARKS[key] = True
     if sum([1 for x in COORDINATE_MARKS.values() if x is True]) > 1 and len(coordinate_systems) > 1:
         multiple_coord_sys = True
-
     print('multiple_coord_sys:', multiple_coord_sys)
     print(coordinate_systems)
 
-    # Проходим по первым 10 столбцам
-    for row in sheet.iter_rows(min_row=1, max_row=sheet.max_row, min_col=1, max_col=10):
+    # Проходим по первым 20 столбцам
+    for row in sheet.iter_rows(min_row=1, max_row=sheet.max_row, min_col=1, max_col=20):
         for cell in row:
             if not cell.value:
                 continue
@@ -593,7 +594,7 @@ def format_coordinates(results, coordinate_systems):
     coordinates = {}
     new_coordinate_systems = []
     for sys in coordinate_systems:
-        coords_system = re.search(r'\b(?:wgs|мск|гск)-?\d+(?:,\s*зона\s*\d+)?\b', sys,
+        coords_system = re.search(r'\b(?:wgs|мск|гск)-? ?\d+(?:,\s*зона\s*\d+)?\b', sys,
                                   re.IGNORECASE | re.MULTILINE)
         if coords_system:
             coords_system = coords_system.group(0).lower().replace(' ', '').replace('-', '').replace(',',
@@ -602,12 +603,19 @@ def format_coordinates(results, coordinate_systems):
             new_coordinate_systems.append(coords_system)
     coordinate_systems = new_coordinate_systems
 
-    title = {'zone': None, '№': None, 'x': None, 'y': None}
-    points_type = 'Каталог координат'
+    counter = 0
     for table in results:
+        title = {'zone': None, '№': None, 'x': None, 'y': None}
+        points_type = 'Каталог координат'
+        if len(results) > 1:
+            counter += 1
+            points_type += ' ' + str(counter)
+        print('TABLE: ' + str(table))
         for index, row in table.iterrows():
             for column, cell in row.items():
                 cell_str = str(cell).lower().strip()
+                if cell_str in (None, '', 'none'):
+                    continue
                 print(
                     str(title['№'] is not None) + ' ' + str(title['x'] is not None) + ' ' + str(title['y'] is not None))
                 if title['№'] is None or title['x'] is None or title['y'] is None:
@@ -615,21 +623,38 @@ def format_coordinates(results, coordinate_systems):
                         for i, pattern_mark in enumerate(key_mark):
                             if len(cell_str) > 1 and re.search(pattern_mark, cell_str,
                                                                re.IGNORECASE) or cell_str == pattern_mark:
+                                print(str(cell_str) + ' ' + str(title['x']) + ' ' + str(title['y']) + ' ' + str(
+                                    column))
                                 if i == 0:
                                     title['x'] = column
                                 elif i == 1:
                                     title['y'] = column
-                    if re.search(r'зона|участ', cell_str, re.IGNORECASE):
+                    if re.search(r'зон|участ', cell_str, re.IGNORECASE):
                         title['zone'] = column
-                    if re.search(r'№|номер', cell_str, re.IGNORECASE):
+                        print(str(column) + ' !HERE! ' + str(cell_str))
+                    elif re.search(r'№|номер|обознач', cell_str, re.IGNORECASE):
                         title['№'] = column
+                    elif title['№'] is None and title['x'] is not None and title['y'] is not None and table.columns[
+                        table.columns.get_loc(title['x']) - 1] not in (None, ''):
+                        title['№'] = table.columns[table.columns.get_loc(title['x']) - 1]
                 else:
+                    if title['zone']:
+                        print('!HERE!/// ' + str(row[title['zone']]))
                     if title['zone'] and not (pd.isna(row[title['zone']]) or row[title['zone']] == ""):
                         points_type = row[title['zone']]
                     point_number = row[title['№']]
-                    lat = row[title['x']]
-                    lon = row[title['y']]
-                    if lat is None or lon is None:
+                    if not pd.isna(point_number) and (isinstance(point_number, float) or isinstance(point_number,
+                                                                                                    str) and point_number.isdigit()):
+                        point_number = int(point_number)
+                    lat = lon = None
+                    if row[title['x']] not in (None, ''):
+                        lat = str(row[title['x']]).replace(',', '.')
+                    if row[title['y']] not in (None, ''):
+                        lon = str(row[title['y']]).replace(',', '.')
+                    if lat in (None, '') or lon in (None, '') or point_number in (None, '') or not (
+                            re.search(r'\d+°\s*\d+\'\s*\d+[\.,]\d+"|\d+[.,]+\d+', lat,
+                                      re.IGNORECASE) and re.search(r'\d+°\s*\d+\'\s*\d+[\.,]\d+"|\d+[.,]+\d+', lon,
+                                                                   re.IGNORECASE)):
                         continue
                     if 'wgs84' in coordinate_systems and re.search(r'\d+°\s*\d+\'\s*\d+[\.,]\d+"', lat,
                                                                    re.IGNORECASE) and re.search(
@@ -644,6 +669,7 @@ def format_coordinates(results, coordinate_systems):
                                     re.search(r'\d+°\s*\d+\'\s*\d+[\.,]\d+"', lat,
                                               re.IGNORECASE) and 'гск' in coord_sys_iter)):
                                 coord_sys = coord_sys_iter
+                        print('coord_sys: ' + str(coord_sys))
                         if coord_sys:
                             if 'гск' in coord_sys:
                                 lat = dms_to_decimal(lat)
