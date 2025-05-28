@@ -85,6 +85,8 @@ urlpatterns = [
     path('commercial_offers/<int:pk>/', views.commercial_offers, name='commercial_offers'),
     path('commercial_offers_edit/<int:pk>/', views.commercial_offers_edit, name='commercial_offers_edit'),
     path('commercial_offers_delete/<int:pk>/', views.commercial_offers_delete, name='commercial_offers_delete'),
+    path('download_commercial_offer_report/<int:pk>/', views.download_commercial_offer_report,
+         name='download_commercial_offer_report'),
 
     path('api/download_delete/<str:task_id>/', views.download_delete, name='download_delete'),
     path('api/get_user_tasks_reports/', views.get_user_tasks_reports, name='get_user_tasks_reports'),

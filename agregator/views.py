@@ -1485,6 +1485,71 @@ def commercial_offers_register(request):
     return render(request, 'commercial_offers_register.html', {'commercial_offers': commercial_offers})
 
 
+def download_commercial_offer_report(request, pk):
+    commercial_offer_instance = CommercialOffers.objects.get(id=pk)
+    table_path = f"uploaded_files/commercial_offers/{commercial_offer_instance.id}_commercial_offer/Отчёт.xlsx"
+    table_columns = ['Год написания отчёта', 'Название отчёта', 'Организация', 'Автор',
+                     'Открытый лист', 'Населённый пункт',
+                     'Вид работ', 'Площадь', 'Исполнители',
+                     'Заключение']
+    reports = TechReport.objects.all()
+    if not reports:
+        return redirect(scientific_reports_register)
+    df_existing = None
+    for report in reports:
+        table_columns_info = {i: '' for i in table_columns}
+        table_columns_info['Год написания отчёта'] = report.writing_date
+        table_columns_info['Название отчёта'] = report.name
+        table_columns_info['Организация'] = report.organization
+        table_columns_info['Автор'] = report.author
+        table_columns_info['Открытый лист'] = report.open_list
+        table_columns_info['Населённый пункт'] = report.place
+        table_columns_info['Исполнители'] = report.contractors
+        table_columns_info['Площадь'] = report.area_info
+        df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
+        if df_existing is None:
+            df_existing = df_new
+        else:
+            df_existing = df_existing._append(df_new, ignore_index=True)
+    with pd.ExcelWriter(table_path) as writer:
+        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
+    wb = load_workbook(table_path)
+    ws = wb.active
+    ws.column_dimensions['A'].width = 24
+    ws.column_dimensions['B'].width = 24
+    ws.column_dimensions['C'].width = 24
+    ws.column_dimensions['D'].width = 24
+    ws.column_dimensions['E'].width = 24
+    ws.column_dimensions['F'].width = 26
+    ws.column_dimensions['G'].width = 20.71
+    ws.column_dimensions['H'].width = 18.43
+    ws.column_dimensions['I'].width = 24.71
+    ws.column_dimensions['J'].width = 21.29
+    ws.column_dimensions['K'].width = 26
+    ws.column_dimensions['L'].width = 27.29
+    font = Font(
+        name='Times New Roman',
+        size=11,
+        bold=False,
+        italic=False,
+        vertAlign=None,
+        underline='none',
+        strike=False,
+        color='FF000000'
+    )
+    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
+    for i in range(1, len(df_existing.values) + 2):
+        if i == 1:
+            ws.row_dimensions[0].height = 50
+        else:
+            ws.row_dimensions[i].height = 80
+        for cell in ws[i]:
+            if cell.value:
+                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    wb.save(table_path)
+    return redirect(table_path)
+
+
 class UserList(generics.ListAPIView):
     queryset = User.objects.all()
     serializer_class = serializers.UserSerializer

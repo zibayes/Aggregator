@@ -791,7 +791,7 @@
                         content += '<div><span style="cursor: pointer;" id="shurfs-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'shurfs-{{ report_name }}\')">+</span><input type="checkbox" id="toggleShurfs-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: red;"></i> Шурфы</div>';
                         content += '<div id="shurfs-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
                     {% endif %}
-                    {% if 'Каталог' in group %}
+                    {% if 'Каталог' in group or report_type == 'commercial_offer' %}
                         content += '<div><span style="cursor: pointer;" id="catalog-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'catalog-{{ report_name }}\')">+</span><input type="checkbox" id="toggleCatalog-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: blue;"></i> Каталог координат участка</div>';
                         content += '<div id="catalog-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
                     {% endif %}
@@ -805,11 +805,11 @@
                     {% endif %}
 
                     {% for point_name, coords in point.items %}
-                        content += '<div style="margin-left: 20px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>';
+                        content += `<div style="margin-left: 20px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>`;
                     {% endfor %}
 
-                    {% if 'Каталог' in group %}
-                        content += '<div style="margin-left: 20px;"><input type="checkbox" id="toggleCatalogPolyline" style="margin-right: 3px;" checked> Полигон</div>';
+                    {% if 'Каталог' in group or report_type == 'commercial_offer' %}
+                        content += `<div style="margin-left: 20px;"><input type="checkbox" id="toggleCatalogPolyline" style="margin-right: 3px;" checked> Полигон</div>`;
                     {% endif %}
                     content += '</div>';
                 {% endfor %}
@@ -829,7 +829,7 @@
                                 content += '<div style="cursor: pointer;" style="margin-left: 40px;"><span id="shurfs-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'shurfs-{{ report_name }}\')">+</span><input type="checkbox" id="toggleShurfs-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: red;"></i> Шурфы</div>';
                                 content += '<div id="shurfs-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
                             {% endif %}
-                            {% if 'Каталог' in group %}
+                            {% if 'Каталог' in group or report_type == 'commercial_offer' %}
                                 content += '<div style="cursor: pointer;" style="margin-left: 40px;"><span id="catalog-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'catalog-{{ report_name }}\')">+</span><input type="checkbox" id="toggleCatalog-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: blue;"></i> Каталог координат участка</div>';
                                 content += '<div id="catalog-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
                             {% endif %}
@@ -842,7 +842,7 @@
                                 content += '<div style="margin-left: 40px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>';
                             {% endfor %}
 
-                            {% if 'Каталог' in group %}
+                            {% if 'Каталог' in group or report_type == 'commercial_offer' %}
                                 content += '<div style="margin-left: 40px;"><input type="checkbox" id="toggleCatalogPolyline-{{ report_name }}" style="margin-right: 3px;" checked> Полигон</div>';
                             {% endif %}
                             content += '</div>';
@@ -913,7 +913,7 @@
 
         {% if coordinates %}
             {% for group, point in coordinates.items %}
-                {% if 'Каталог' in group %}
+                {% if 'Каталог' in group or report_type == 'commercial_offer' %}
                     current_icon = catalog_icons;
                 {% elif 'Шурфы' in group %}
                     current_icon = pits_icons;
@@ -932,7 +932,7 @@
                             permanent: true,
                             direction: 'bottom'
                         });
-                    {% if 'Каталог' in group %}
+                    {% if 'Каталог' in group or report_type == 'commercial_offer' %}
                         catalogCoords.push([{{ coords.0 }}, {{ coords.1 }}]);
                     {% endif %}
                     markers.push({marker: marker, group: `{{ group }}`, point_name: `{{ point_name }}`});
@@ -972,7 +972,7 @@
                 });
             {% endif %}
 
-            {% if 'Каталог' in coordinates.keys|join:", " %}
+            {% if 'Каталог' in coordinates.keys|join:", " or report_type == 'commercial_offer' %}
                 document.getElementById('toggleCatalog-{{ report_name }}').addEventListener('change', function () {
                     markers.forEach(function (item) {
                         if (item.group.toLowerCase().includes('каталог координат участка') && this.checked) {
@@ -1040,7 +1040,7 @@
                     all_markers[`{{ report_name }}`] = []
                     all_catalogCoords[`{{ report_name }}`] = []
                     {% for group, point in coordinates.items %}
-                        {% if 'Каталог' in group %}
+                        {% if 'Каталог' in group or report_type == 'commercial_offer' %}
                             current_icon = catalog_icons;
                         {% elif 'Шурфы' in group %}
                             current_icon = pits_icons;
@@ -1064,7 +1064,7 @@
                             });
                             bounds.extend(marker.getLatLng());
 
-                            {% if 'Каталог' in group %}
+                            {% if 'Каталог' in group or report_type == 'commercial_offer' %}
                                 all_catalogCoords[`{{ report_name }}`].push([{{ coords.0 }}, {{ coords.1 }}]);
                             {% endif %}
 
@@ -1091,7 +1091,7 @@
                             groupCheckbox.checked = this.checked;
                             groupCheckbox.dispatchEvent(new Event('change'));
                         {% endif %}
-                        {% if 'Каталог' in coordinates.keys|join:", " %}
+                        {% if 'Каталог' in coordinates.keys|join:", " or report_type == 'commercial_offer' %}
                             groupCheckbox = document.getElementById(`toggleCatalog-{{ report_name }}`);
                             groupCheckbox.checked = this.checked;
                             groupCheckbox.dispatchEvent(new Event('change'));
@@ -1119,7 +1119,7 @@
                         });
                     {% endif %}
 
-                    {% if 'Каталог' in coordinates.keys|join:", " %}
+                    {% if 'Каталог' in coordinates.keys|join:", " or report_type == 'commercial_offer' %}
                         document.getElementById('toggleCatalog-{{ report_name }}').addEventListener('change', function () {
                             all_markers[`{{ report_name }}`].forEach(function (item) {
                                 if (item.group.toLowerCase().includes('каталог координат участка') && this.checked) {

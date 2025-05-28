@@ -329,13 +329,17 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
         if sum([1 for x in COORDINATE_MARKS.values() if x is True]) > 1 and len(coordinate_systems) > 1:
             multiple_coord_sys = True
 
-        print('multiple_coord_sys:', multiple_coord_sys)
-        print(coordinate_systems)
-
+        print('multiple_coord_sys: ' + str(multiple_coord_sys))
+        print('coordinate_systems: ' + str(coordinate_systems))
         # Если нашли координаты, извлекаем подтаблицу
-        print(found_latitude, found_longitude, target_cell)
-        print(last_width, len(df.columns))
+        print(str(found_latitude) + ' ' + str(found_longitude) + ' ' + str(target_cell))
+        print(str(last_width) + ' ' + str(len(df.columns)))
+
         length, width = df.shape
+        if width is not None and last_number_column is not None and width >= last_number_column and length > 1:
+            print(
+                'Stykovochnye nomera: ' + str(last_num) + ' ' + str(df.iloc[0, last_number_column]) + ' ' + str(df.iloc[
+                                                                                                                    1, last_number_column]))
         if found_latitude and found_longitude and target_cell:
             # Определяем границы подтаблицы
             current_area = [None]
@@ -363,9 +367,15 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
             current_area = [None]
 
         if number_column is not None:
-            last_num = df.iloc[-1, number_column]
+            if last_number_column is not None:
+                print('RESELCET last_num: ' + str(last_num) + ' ' + str(df.iloc[-1, last_number_column]) + ' . ' + str(
+                    df.iloc[0, last_number_column]) + ' , ' + str(last_number_column))
+            if appending:
+                last_num = df.iloc[-1, last_number_column]
+            else:
+                last_num = df.iloc[-1, number_column]
+                last_number_column = number_column
             last_width = len(df.columns)
-            last_number_column = number_column
         elif not appending:
             last_num = None
             last_width = None
@@ -605,11 +615,12 @@ def format_coordinates(results, coordinate_systems):
 
     counter = 0
     for table in results:
+        inside_counter = 0
         title = {'zone': None, '№': None, 'x': None, 'y': None}
         points_type = 'Каталог координат'
         if len(results) > 1:
             counter += 1
-            points_type += ' ' + str(counter)
+            points_type += ' [' + str(counter) + ']'
         print('TABLE: ' + str(table))
         for index, row in table.iterrows():
             for column, cell in row.items():
@@ -631,17 +642,22 @@ def format_coordinates(results, coordinate_systems):
                                     title['y'] = column
                     if re.search(r'зон|участ', cell_str, re.IGNORECASE):
                         title['zone'] = column
-                        print(str(column) + ' !HERE! ' + str(cell_str))
                     elif re.search(r'№|номер|обознач', cell_str, re.IGNORECASE):
                         title['№'] = column
                     elif title['№'] is None and title['x'] is not None and title['y'] is not None and table.columns[
                         table.columns.get_loc(title['x']) - 1] not in (None, ''):
                         title['№'] = table.columns[table.columns.get_loc(title['x']) - 1]
                 else:
-                    if title['zone']:
-                        print('!HERE!/// ' + str(row[title['zone']]))
-                    if title['zone'] and not (pd.isna(row[title['zone']]) or row[title['zone']] == ""):
-                        points_type = row[title['zone']]
+                    if title['zone'] is None and table.columns.get_loc(title['№']) - 1 >= 0:
+                        title['zone'] = table.columns[table.columns.get_loc(title['№']) - 1]
+                    if title['zone'] is not None and not (
+                            pd.isna(row[title['zone']]) or row[title['zone']] == "") and len(row[title['zone']]) > 1:
+                        new_name = row[title['zone']].replace('\n', '').replace('"', '').replace("'", '')
+                        if ' [' in points_type and points_type[:points_type.rfind(' [')] != new_name:
+                            points_type = new_name + ' [' + str(counter) + ']'
+                        else:
+                            inside_counter += 1
+                            points_type = new_name + ' [' + str(counter) + '-' + str(inside_counter) + ']'
                     point_number = row[title['№']]
                     if not pd.isna(point_number) and (isinstance(point_number, float) or isinstance(point_number,
                                                                                                     str) and point_number.isdigit()):
