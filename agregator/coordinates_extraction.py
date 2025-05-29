@@ -56,6 +56,11 @@ def convert_to_wgs84(x, y, system):
     return x, y
 
 
+def convert_proj4(x, y, init_system, final_system):
+    y, x = transform(projections[init_system], projections[final_system], y, x)
+    return x, y
+
+
 def choose_file() -> str:
     # Открываем окно выбора файла
     # file_path = filedialog.askopenfilename(title="Выберите PDF файл", filetypes=[("PDF файлы", "*.pdf")])
@@ -148,8 +153,10 @@ def extract_coordinates(file, document, page_number, folder, coordinates) -> Non
                     if 'wgs84' in coords_system:
                         lat = dms_to_decimal(lat)
                         lon = dms_to_decimal(lon)
+                        coordinates[points_type]['coordinate_system'] = 'wgs84'
                     else:
                         lat, lon = convert_to_wgs84(lat, lon, coords_system)
+                        coordinates[points_type]['coordinate_system'] = coords_system
 
                     if 'S' in row['Северная широта']:
                         lat = -lat

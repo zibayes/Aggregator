@@ -805,7 +805,9 @@
                     {% endif %}
 
                     {% for point_name, coords in point.items %}
-                        content += `<div style="margin-left: 20px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>`;
+                        {% if point_name != 'coordinate_system' %}
+                            content += `<div style="margin-left: 20px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>`;
+                        {% endif %}
                     {% endfor %}
 
                     {% if 'Каталог' in group or report_type == 'commercial_offer' %}
@@ -839,7 +841,9 @@
                             {% endif %}
 
                             {% for point_name, coords in point.items %}
-                                content += '<div style="margin-left: 40px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>';
+                                {% if point_name != 'coordinate_system' %}
+                                    content += '<div style="margin-left: 40px;"><input type="checkbox" id="togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}" class="single_point" style="margin-right: 3px;" checked> {{ point_name }}</div>';
+                                {% endif %}
                             {% endfor %}
 
                             {% if 'Каталог' in group or report_type == 'commercial_offer' %}
@@ -923,30 +927,32 @@
                     current_icon = center_icons;
                 {% endif %}
                 {% for point_name, coords in point.items %}
-                    var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
-                        color: 'red',
-                        icon: current_icon,
-                    }).addTo(map)
-                        .bindPopup("<b>" + `{{ point_name }}` + "</b><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
-                        .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
-                            permanent: true,
-                            direction: 'bottom'
-                        });
-                    {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                        catalogCoords.push([{{ coords.0 }}, {{ coords.1 }}]);
-                    {% endif %}
-                    markers.push({marker: marker, group: `{{ group }}`, point_name: `{{ point_name }}`});
-                    bounds.extend(marker.getLatLng());
+                    {% if point_name != 'coordinate_system' %}
+                        var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
+                            color: 'red',
+                            icon: current_icon,
+                        }).addTo(map)
+                            .bindPopup("<b>" + `{{ point_name }}` + "</b><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
+                            .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
+                                permanent: true,
+                                direction: 'bottom'
+                            });
+                        {% if 'Каталог' in group or report_type == 'commercial_offer' %}
+                            catalogCoords.push([{{ coords.0 }}, {{ coords.1 }}]);
+                        {% endif %}
+                        markers.push({marker: marker, group: `{{ group }}`, point_name: `{{ point_name }}`});
+                        bounds.extend(marker.getLatLng());
 
-                    document.getElementById('togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}').addEventListener('change', function () {
-                        markers.forEach(function (item) {
-                            if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && this.checked) {
-                                item.marker.addTo(map);
-                            } else if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && !this.checked) {
-                                map.removeLayer(item.marker);
-                            }
-                        }, this);
-                    });
+                        document.getElementById('togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}').addEventListener('change', function () {
+                            markers.forEach(function (item) {
+                                if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && this.checked) {
+                                    item.marker.addTo(map);
+                                } else if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && !this.checked) {
+                                    map.removeLayer(item.marker);
+                                }
+                            }, this);
+                        });
+                    {% endif %}
                 {% endfor %}
             {% endfor %}
 
@@ -1048,35 +1054,37 @@
                             current_icon = photos_icons;
                         {% endif %}
                         {% for point_name, coords in point.items %}
-                            var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
-                                color: 'red',
-                                icon: current_icon,
-                            }).addTo(map)
-                                .bindPopup("<b>" + `{{ point_name }}` + "</b><br><br>" + `<i>[{{ report_type }}]</i>` + "<br>" + `<i>{{ report_name }}</i>` + "<br><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
-                                .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
-                                    permanent: true,
-                                    direction: 'bottom'
+                            {% if point_name != 'coordinate_system' %}
+                                var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
+                                    color: 'red',
+                                    icon: current_icon,
+                                }).addTo(map)
+                                    .bindPopup("<b>" + `{{ point_name }}` + "</b><br><br>" + `<i>[{{ report_type }}]</i>` + "<br>" + `<i>{{ report_name }}</i>` + "<br><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
+                                    .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
+                                        permanent: true,
+                                        direction: 'bottom'
+                                    });
+                                all_markers[`{{ report_name }}`].push({
+                                    marker: marker,
+                                    group: `{{ group }}`,
+                                    point_name: `{{ point_name }}`
                                 });
-                            all_markers[`{{ report_name }}`].push({
-                                marker: marker,
-                                group: `{{ group }}`,
-                                point_name: `{{ point_name }}`
-                            });
-                            bounds.extend(marker.getLatLng());
+                                bounds.extend(marker.getLatLng());
 
-                            {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                all_catalogCoords[`{{ report_name }}`].push([{{ coords.0 }}, {{ coords.1 }}]);
+                                {% if 'Каталог' in group or report_type == 'commercial_offer' %}
+                                    all_catalogCoords[`{{ report_name }}`].push([{{ coords.0 }}, {{ coords.1 }}]);
+                                {% endif %}
+
+                                document.getElementById('togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}').addEventListener('change', function () {
+                                    all_markers[`{{ report_name }}`].forEach(function (item) {
+                                        if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && this.checked) {
+                                            item.marker.addTo(map);
+                                        } else if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && !this.checked) {
+                                            map.removeLayer(item.marker);
+                                        }
+                                    }, this);
+                                });
                             {% endif %}
-
-                            document.getElementById('togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}').addEventListener('change', function () {
-                                all_markers[`{{ report_name }}`].forEach(function (item) {
-                                    if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && this.checked) {
-                                        item.marker.addTo(map);
-                                    } else if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && !this.checked) {
-                                        map.removeLayer(item.marker);
-                                    }
-                                }, this);
-                            });
                         {% endfor %}
 
                         if (all_catalogCoords[`{{ report_name }}`].length > 0) {
@@ -1526,10 +1534,13 @@
                                 <label for="{{ group|cut:" "|cut:"." }}_checkbox">{{ group }}</label>
                                 <div id="{{ group }}_content" style="margin-left: 40px; display: none;">
                                     {% for point_name, coordinates in point.items %}
-                                        <input type="checkbox" class="{{ group|cut:" "|cut:"."|cut:":" }}_point" checked
-                                               id="{{ point_name }}_checkbox" name="{{ group }}-{{ point_name }}">
-                                        <label for="{{ point_name }}_checkbox">{{ point_name }} ({{ coordinates.0 }},
-                                            {{ coordinates.1 }})</label><br>
+                                        {% if point_name != 'coordinate_system' %}
+                                            <input type="checkbox" class="{{ group|cut:" "|cut:"."|cut:":" }}_point"
+                                                   checked
+                                                   id="{{ point_name }}_checkbox" name="{{ group }}-{{ point_name }}">
+                                            <label for="{{ point_name }}_checkbox">{{ point_name }} ({{ coordinates.0 }},
+                                                {{ coordinates.1 }})</label><br>
+                                        {% endif %}
                                     {% endfor %}
                                 </div>
                             </div>
@@ -1595,14 +1606,16 @@
                                                 <div id="report-{{ counter }}_{{ group|cut:" "|cut:"."|cut:":" }}_content"
                                                      style="margin-left: 40px; display: none;">
                                                     {% for point_name, coordinates in coords.items %}
-                                                        <input type="checkbox"
-                                                               class="report-{{ counter }}_{{ group|cut:" "|cut:"."|cut:":" }}_point report-{{ report_type|cut:" "|cut:"."|cut:":" }}_point report-{{ counter }}_point"
-                                                               checked
-                                                               id="{{ point_name }}_checkbox"
-                                                               name="{{ report_type }}-{{ report_name }}-{{ group }}-{{ point_name }}">
-                                                        <label for="{{ point_name }}_checkbox">{{ point_name }}
-                                                            ({{ coordinates.0 }},
-                                                            {{ coordinates.1 }})</label><br>
+                                                        {% if point_name != 'coordinate_system' %}
+                                                            <input type="checkbox"
+                                                                   class="report-{{ counter }}_{{ group|cut:" "|cut:"."|cut:":" }}_point report-{{ report_type|cut:" "|cut:"."|cut:":" }}_point report-{{ counter }}_point"
+                                                                   checked
+                                                                   id="{{ point_name }}_checkbox"
+                                                                   name="{{ report_type }}-{{ report_name }}-{{ group }}-{{ point_name }}">
+                                                            <label for="{{ point_name }}_checkbox">{{ point_name }}
+                                                                ({{ coordinates.0 }},
+                                                                {{ coordinates.1 }})</label><br>
+                                                        {% endif %}
                                                     {% endfor %}
                                                 </div>
                                             {% endfor %}

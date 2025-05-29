@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+
+{% block title %}Редактирование коммерческого предложения{% endblock %}
+
+{% block content %}
+    <style>
+        .tooltipcustom {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .tooltipcustom .tooltiptext {
+            visibility: hidden;
+            background-color: black;
+            color: #fff;
+            text-align: left;
+            border-radius: 5px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltipcustom:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+
+    <div class="container mt-5">
+        <h2>Редактирование коммерческого предложения</h2>
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+            <div id="coordinates_container">
+                <h4>Редактирование координат</h4>
+                {% for group, point in commercial_offer.coordinates.items %}
+                    <div class="mb-3" id="polygon-{{ group }}">
+                        <label for="group[{{ group }}]">Название полигона: </label>
+                        <input type="text" id="group[{{ group }}]" name="group[{{ group }}]" value="{{ group }}"
+                               class="form-control"
+                               placeholder="Введите координаты такого формата: [Название точки]: [x]; [y]">
+                        <br>
+                        <label for="coordinate_system[{{ group }}]">Система координат
+                            <div class="tooltipcustom">
+                                <span>ℹ️</span>
+                                <span class="tooltiptext" style="width: 850px;">
+                                    Для корректной конвертации координат не меняйте названия полигонов.<br><br>
+                                    Если система координат задана в исходном файле, тогда система изначально приведёт координаты в универсальный формат wgs84.<br><br>
+                                    Если система координат не определена автоматически, то нужно указать исходную систему координат, тогда система приведёт координаты в универсальный формат wgs84.<br><br>
+                                    Если система координат уже задана, то нужно указать ту систему, в которую вы хотите конвертировать данные координаты.
+                                </span>
+                            </div>
+                            :
+                        </label>
+                        <select id="coordinate_system[{{ group }}]" name="coordinate_system[{{ group }}]"
+                                class="form-select">
+                            <option value="None" {% if point.coordinate_system == "None" %}selected{% endif %}>Система
+                                координат не определена
+                            </option>
+                            <option value="wgs84" {% if point.coordinate_system == "wgs84" %}selected{% endif %}>wgs84
+                            </option>
+                            <option value="мск162" {% if point.coordinate_system == "мск162" %}selected{% endif %}>
+                                мск162
+                            </option>
+                            <option value="мск163" {% if point.coordinate_system == "мск163" %}selected{% endif %}>
+                                мск163
+                            </option>
+                            <option value="мск164" {% if point.coordinate_system == "мск164" %}selected{% endif %}>
+                                мск164
+                            </option>
+                            <option value="мск165" {% if point.coordinate_system == "мск165" %}selected{% endif %}>
+                                мск165
+                            </option>
+                            <option value="мск166" {% if point.coordinate_system == "мск166" %}selected{% endif %}>
+                                мск166
+                            </option>
+                            <option value="мск167" {% if point.coordinate_system == "мск167" %}selected{% endif %}>
+                                мск167
+                            </option>
+                            <option value="мск168" {% if point.coordinate_system == "мск168" %}selected{% endif %}>
+                                мск168
+                            </option>
+                            <option value="мск169" {% if point.coordinate_system == "мск169" %}selected{% endif %}>
+                                мск169
+                            </option>
+                            <option value="мск170" {% if point.coordinate_system == "мск170" %}selected{% endif %}>
+                                мск170
+                            </option>
+                            <option value="мск171" {% if point.coordinate_system == "мск171" %}selected{% endif %}>
+                                мск171
+                            </option>
+                            <option value="мск24зона1"
+                                    {% if point.coordinate_system == "мск24зона1" %}selected{% endif %}>мск24зона1
+                            </option>
+                            <option value="мск24зона2"
+                                    {% if point.coordinate_system == "мск24зона2" %}selected{% endif %}>мск24зона2
+                            </option>
+                            <option value="мск24зона3"
+                                    {% if point.coordinate_system == "мск24зона3" %}selected{% endif %}>мск24зона3
+                            </option>
+                            <option value="мск24зона4"
+                                    {% if point.coordinate_system == "мск24зона4" %}selected{% endif %}>мск24зона4
+                            </option>
+                            <option value="мск24зона5"
+                                    {% if point.coordinate_system == "мск24зона5" %}selected{% endif %}>мск24зона5
+                            </option>
+                            <option value="мск24зона6"
+                                    {% if point.coordinate_system == "мск24зона6" %}selected{% endif %}>мск24зона6
+                            </option>
+                            <option value="гск2011" {% if point.coordinate_system == "гск2011" %}selected{% endif %}>
+                                гск2011
+                            </option>
+                        </select>
+                        <br>
+                        <label for="point[{{ group }}-{{ point_name }}]">Координаты: </label>
+                        <div id="points-{{ group }}">
+                            {% for point_name, coordinates in point.items %}
+                                {% if point_name != 'coordinate_system' %}
+                                    <div class="input-group mb-3">
+                                        <input type="text" name="point[{{ group }}-{{ point_name }}]"
+                                               value="{{ point_name }}: {{ coordinates|join:'; ' }}"
+                                               class="form-control"
+                                               placeholder="Введите координаты такого формата: [Название точки]: [x]; [y]">
+                                        <button type="button" class="btn btn-danger" onclick="removeInput(this)">Удалить
+                                        </button>
+                                    </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <button type="button" class="btn btn-primary" onclick="addPoint('{{ group }}')">Добавить
+                            точку
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="removePolygon('{{ group }}')">Удалить
+                            полигон
+                        </button>
+                        <hr>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <script>
+                function removeInput(button) {
+                    var inputGroup = button.parentElement;
+                    inputGroup.parentElement.removeChild(inputGroup);
+                }
+
+                let counter = 0;
+
+                function addPoint(group) {
+                    counter += 1;
+                    var inputGroup = document.createElement('div');
+                    inputGroup.className = 'input-group mb-3';
+                    inputGroup.innerHTML = `
+                        <input type="text" name="point[{{ group }}-new${counter}]" class="form-control" placeholder="Введите координаты такого формата: [Название точки]: [x]; [y]">
+                        <button type="button" class="btn btn-danger" onclick="removeInput(this)">Удалить</button>
+                    `;
+                    document.getElementById('points-' + group).appendChild(inputGroup);
+                }
+
+                function removePolygon(group) {
+                    var polygon = document.getElementById('polygon-' + group);
+                    polygon.parentElement.removeChild(polygon);
+                }
+            </script>
+
+            <button type="submit" class="btn btn-primary" style="margin-right: 5px;">
+                Сохранить
+            </button>
+            <button type="button" class="btn btn-danger" data-bs-target="#delete_commercial_offer"
+                    data-bs-toggle="modal">
+                Удалить
+            </button>
+        </form>
+
+        {% block modal_dialog %}
+            <div class="modal fade" id="delete_commercial_offer" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Вы уверены, что хотите удалить это коммерческое предложение?</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                        </div>
+                        <div class="modal-footer">
+                            <form method="POST" action="{% url 'commercial_offers_delete' commercial_offer.id %}"
+                                  class="mt-3">
+                                {% csrf_token %}
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                    Отмена
+                                </button>
+                                <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
+                                    Удалить
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endblock modal_dialog %}
+    </div>
+{% endblock %}

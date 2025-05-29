@@ -1,6 +1,10 @@
 import time
 
 import simplekml
+from geopy.distance import great_circle
+from pyproj import Geod
+from shapely.geometry import Polygon, LineString, Point
+from shapely.ops import nearest_points
 from django.shortcuts import render, redirect
 from .forms import UploadReportsForm, UploadOpenListsForm, UploadCommercialOffersForm
 from .acts_processing import process_acts, error_handler_acts
@@ -34,6 +38,7 @@ from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
 from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, raw_commercial_offers_save
+from .coordinates_extraction import convert_proj4, convert_to_wgs84
 
 
 def get_user_tasks(user_id, file_types, upload_source=False):
@@ -1436,12 +1441,42 @@ def commercial_offers(request, pk):
 def commercial_offers_edit(request, pk):
     commercial_offer = CommercialOffers.objects.get(id=pk)
     if request.method == 'POST':
-        commercial_offer.coordinates = request.POST['coordinates']
+        coordinates = {}
+        current_group = None
+        for key, value in request.POST.dict().items():
+            if 'group[' in key:
+                current_group = value
+            elif 'coordinate_system[' in key:
+                if current_group not in coordinates.keys():
+                    coordinates[current_group] = {}
+                coordinates[current_group]['coordinate_system'] = value
+            elif 'point[' in key:
+                if current_group not in coordinates.keys():
+                    coordinates[current_group] = {}
+                point_name, x, y = [x.strip().replace(':', '').replace(';', '') for x in value.split(' ')]
+                coordinates[current_group][point_name] = [x, y]
+        for group, polygon in coordinates.items():
+            if polygon['coordinate_system'] == 'None':
+                continue
+            elif group in commercial_offer.coordinates.keys():
+                if 'coordinate_system' not in commercial_offer.coordinates[group]:
+                    commercial_offer.coordinates[group]['coordinate_system'] = polygon['coordinate_system']
+                    coordinates[group]['coordinate_system'] = 'wgs84'
+                if polygon['coordinate_system'] != commercial_offer.coordinates[group]['coordinate_system']:
+                    for point_name, coords in polygon.items():
+                        if point_name == 'coordinate_system':
+                            continue
+                        lat, lon = convert_proj4(coords[0], coords[1],
+                                                 commercial_offer.coordinates[group]['coordinate_system'],
+                                                 coordinates[group]['coordinate_system'])
+                        coordinates[group][point_name] = [lat, lon]
+        commercial_offer.coordinates = coordinates
         commercial_offer.save()
-        messages.success(request, 'Учётная карта успешно обновлена.')
-        return redirect(f'/commercial_offers/{commercial_offer.id}')
+        messages.success(request, 'Коммерческое предложение успешно обновлено.')
+        return redirect(f'/commercial_offers_edit/{commercial_offer.id}')
 
-    return render(request, 'commercial_offer_edit.html', {'commercial_offer': commercial_offer})
+    return render(request, 'commercial_offer_edit.html',
+                  {'commercial_offer': commercial_offer})
 
 
 @login_required
@@ -1486,47 +1521,68 @@ def commercial_offers_register(request):
 
 
 def download_commercial_offer_report(request, pk):
-    commercial_offer_instance = CommercialOffers.objects.get(id=pk)
-    table_path = f"uploaded_files/commercial_offers/{commercial_offer_instance.id}_commercial_offer/Отчёт.xlsx"
-    table_columns = ['Год написания отчёта', 'Название отчёта', 'Организация', 'Автор',
-                     'Открытый лист', 'Населённый пункт',
-                     'Вид работ', 'Площадь', 'Исполнители',
-                     'Заключение']
-    reports = TechReport.objects.all()
-    if not reports:
-        return redirect(scientific_reports_register)
+    commercial_offer = CommercialOffers.objects.get(id=pk)
+    table_path = f"uploaded_files/commercial_offers/{commercial_offer.id}_commercial_offer/Отчёт.xlsx"
+    table_columns = ['Памятник', 'Дистанция до памятника (км)']
+    account_cards = ObjectAccountCard.objects.all()
+    if not account_cards:
+        return redirect(commercial_offers_register)
     df_existing = None
-    for report in reports:
+    for account_card in account_cards:
         table_columns_info = {i: '' for i in table_columns}
-        table_columns_info['Год написания отчёта'] = report.writing_date
-        table_columns_info['Название отчёта'] = report.name
-        table_columns_info['Организация'] = report.organization
-        table_columns_info['Автор'] = report.author
-        table_columns_info['Открытый лист'] = report.open_list
-        table_columns_info['Населённый пункт'] = report.place
-        table_columns_info['Исполнители'] = report.contractors
-        table_columns_info['Площадь'] = report.area_info
-        df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
-        if df_existing is None:
-            df_existing = df_new
-        else:
-            df_existing = df_existing._append(df_new, ignore_index=True)
+
+        min_distance = None
+        for ac_polygon in account_card.coordinates.values():
+            if 'coordinate_system' not in ac_polygon.keys() or ac_polygon['coordinate_system'] == 'None':
+                continue
+            for co_polygon in commercial_offer.coordinates.values():
+                if 'coordinate_system' not in co_polygon.keys() or co_polygon['coordinate_system'] == 'None':
+                    continue
+                polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
+                            key != 'coordinate_system']
+                polygon2 = [[float(value[0]), float(value[1])] for key, value in ac_polygon.items() if
+                            key != 'coordinate_system']
+
+                if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
+                    polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in polygon1]
+                    polygon2 = [[convert_to_wgs84(x[0], x[1], ac_polygon['coordinate_system'])] for x in polygon2]
+
+                if len(polygon1) > 2:
+                    polygon1 = Polygon(polygon1)
+                elif len(polygon1) == 2:
+                    polygon1 = LineString(polygon1)
+                elif len(polygon1) == 1:
+                    polygon1 = Point(polygon1)
+
+                if len(polygon2) > 2:
+                    polygon2 = Polygon(polygon2)
+                elif len(polygon2) == 2:
+                    polygon2 = LineString(polygon2)
+                elif len(polygon2) == 1:
+                    polygon2 = Point(polygon2)
+
+                point1, point2 = nearest_points(polygon1, polygon2)
+                geod = Geod(ellps="WGS84")
+                az12, az21, distance = geod.inv(point1.y, point1.x, point2.y, point2.x)
+                if min_distance is None or min_distance > distance:
+                    min_distance = distance
+
+        if min_distance is not None:
+            table_columns_info['Памятник'] = account_card.name
+            table_columns_info['Дистанция до памятника (км)'] = min_distance / 1000
+            df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
+            if df_existing is None:
+                df_existing = df_new
+            else:
+                df_existing = df_existing._append(df_new, ignore_index=True)
+    if df_existing is None:
+        return redirect(commercial_offers_register)
     with pd.ExcelWriter(table_path) as writer:
         df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
     wb = load_workbook(table_path)
     ws = wb.active
-    ws.column_dimensions['A'].width = 24
-    ws.column_dimensions['B'].width = 24
-    ws.column_dimensions['C'].width = 24
-    ws.column_dimensions['D'].width = 24
-    ws.column_dimensions['E'].width = 24
-    ws.column_dimensions['F'].width = 26
-    ws.column_dimensions['G'].width = 20.71
-    ws.column_dimensions['H'].width = 18.43
-    ws.column_dimensions['I'].width = 24.71
-    ws.column_dimensions['J'].width = 21.29
-    ws.column_dimensions['K'].width = 26
-    ws.column_dimensions['L'].width = 27.29
+    ws.column_dimensions['A'].width = 50
+    ws.column_dimensions['B'].width = 40
     font = Font(
         name='Times New Roman',
         size=11,
@@ -1539,15 +1595,12 @@ def download_commercial_offer_report(request, pk):
     )
     {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
     for i in range(1, len(df_existing.values) + 2):
-        if i == 1:
-            ws.row_dimensions[0].height = 50
-        else:
-            ws.row_dimensions[i].height = 80
+        ws.row_dimensions[i].height = 40
         for cell in ws[i]:
             if cell.value:
                 cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
     wb.save(table_path)
-    return redirect(table_path)
+    return redirect('/' + table_path)
 
 
 class UserList(generics.ListAPIView):

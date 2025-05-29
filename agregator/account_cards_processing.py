@@ -265,10 +265,11 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                     lat = dms_to_decimal(normalize_coordinates(row[1]))
                     lon = dms_to_decimal(normalize_coordinates(row[2]))
                     coordinates['Каталог координат'][point_number] = [lat, lon]
+                    coordinates['Каталог координат']['coordinate_system'] = 'wgs84'
                     # coordinates['GPS координаты углов поворотов объекта'][point_number] = [lat, lon]
 
-        if 'Каталог координат' in coordinates and len(coordinates['Каталог координат']) == 4:
-            points = list(coordinates['Каталог координат'].keys())
+        points = [x for x in list(coordinates['Каталог координат'].keys()) if x != 'coordinate_system']
+        if 'Каталог координат' in coordinates and len(points) == 4:
             if intersect(coordinates['Каталог координат'][points[0]], coordinates['Каталог координат'][points[1]],
                          coordinates['Каталог координат'][points[2]],
                          coordinates['Каталог координат'][points[3]]) or intersect(
@@ -358,6 +359,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                                                                                                     '').strip()))
                                 coordinates['Центр объекта'] = {}
                                 coordinates['Центр объекта']['Центр объекта'] = [lat, lon]
+                                coordinates['Центр объекта']['coordinate_system'] = 'wgs84'
                             break
 
                     thresh_type = thresh[y:y + h, x:x + w]
@@ -495,6 +497,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                                             lon = dms_to_decimal(
                                                 normalize_coordinates(lon.strip()))
                                             coordinates['Каталог координат'][str(j + 1)] = [lat, lon]
+                                            coordinates['Каталог координат']['coordinate_system'] = 'wgs84'
                                             lat = lon = None
                                             j += 1
 

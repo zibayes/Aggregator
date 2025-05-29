@@ -652,7 +652,7 @@ def format_coordinates(results, coordinate_systems):
                         title['zone'] = table.columns[table.columns.get_loc(title['№']) - 1]
                     if title['zone'] is not None and not (
                             pd.isna(row[title['zone']]) or row[title['zone']] == "") and len(row[title['zone']]) > 1:
-                        new_name = row[title['zone']].replace('\n', '').replace('"', '').replace("'", '')
+                        new_name = row[title['zone']].replace('\n', ' ').replace('"', '').replace("'", '')
                         if ' [' in points_type and points_type[:points_type.rfind(' [')] != new_name:
                             points_type = new_name + ' [' + str(counter) + ']'
                         else:
@@ -677,6 +677,11 @@ def format_coordinates(results, coordinate_systems):
                         r'\d+°\s*\d+\'\s*\d+[\.,]\d+"', lon, re.IGNORECASE):
                         lat = dms_to_decimal(lat)
                         lon = dms_to_decimal(lon)
+                        if ' (wgs84)' not in points_type:
+                            points_type += ' (wgs84)'
+                            if points_type not in coordinates.keys():
+                                coordinates[points_type] = {}
+                            coordinates[points_type]['coordinate_system'] = 'wgs84'
                     else:
                         coord_sys = None
                         for coord_sys_iter in coordinate_systems:
@@ -691,6 +696,11 @@ def format_coordinates(results, coordinate_systems):
                                 lat = dms_to_decimal(lat)
                                 lon = dms_to_decimal(lon)
                             lat, lon = convert_to_wgs84(lat, lon, coord_sys)
+                            if f' ({coord_sys})' not in points_type:
+                                points_type += f' ({coord_sys})'
+                                if points_type not in coordinates.keys():
+                                    coordinates[points_type] = {}
+                                coordinates[points_type]['coordinate_system'] = 'wgs84'
 
                     x_cmp = str(row[title['x']]).lower()
                     y_cmp = str(row[title['y']]).lower()
