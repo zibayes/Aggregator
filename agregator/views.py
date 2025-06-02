@@ -27,7 +27,10 @@ from django.contrib.auth import update_session_auth_hash
 from rest_framework import generics
 from urllib.parse import quote
 from shapely.geometry import shape, Point
-from . import serializers
+from .serializers import UserSerializer, UserTasksSerializer, ActSerializer, ScientificReportSerializer, \
+    TechReportSerializer, OpenListsSerializer, ObjectAccountCardSerializer, ArchaeologicalHeritageSiteSerializer, \
+    IdentifiedArchaeologicalHeritageSiteSerializer, CommercialOffersSerializer, GeoObjectSerializer, \
+    GeojsonDataSerializer, ChatSerializer, MessageSerializer
 from django.http import JsonResponse
 from django.contrib.auth import login, authenticate
 from .forms import UserRegisterForm
@@ -1769,39 +1772,129 @@ def geo_objects_register(request):
 
 class UserList(generics.ListAPIView):
     queryset = User.objects.all()
-    serializer_class = serializers.UserSerializer
+    serializer_class = UserSerializer
 
 
 class UserDetail(generics.RetrieveAPIView):
     queryset = User.objects.all()
-    serializer_class = serializers.UserSerializer
+    serializer_class = UserSerializer
 
 
 class ActList(generics.ListAPIView):
     queryset = Act.objects.all()
-    serializer_class = serializers.ActSerializer
+    serializer_class = ActSerializer
 
 
 class ActDetail(generics.RetrieveAPIView):
     queryset = Act.objects.all()
-    serializer_class = serializers.ActSerializer
+    serializer_class = ActSerializer
 
 
 class ScientificReportList(generics.ListAPIView):
     queryset = ScientificReport.objects.all()
-    serializer_class = serializers.ScientificReport
+    serializer_class = ScientificReport
 
 
 class ScientificReportDetail(generics.RetrieveAPIView):
     queryset = ScientificReport.objects.all()
-    serializer_class = serializers.ScientificReportSerializer
+    serializer_class = ScientificReportSerializer
 
 
 class TechReportList(generics.ListAPIView):
     queryset = TechReport.objects.all()
-    serializer_class = serializers.TechReport
+    serializer_class = TechReport
 
 
 class TechReportDetail(generics.RetrieveAPIView):
     queryset = TechReport.objects.all()
-    serializer_class = serializers.TechReportSerializer
+    serializer_class = TechReportSerializer
+
+
+class OpenListsList(generics.ListAPIView):
+    queryset = OpenLists.objects.all()
+    serializer_class = OpenListsSerializer
+
+
+class OpenListsDetail(generics.RetrieveAPIView):
+    queryset = OpenLists.objects.all()
+    serializer_class = OpenListsSerializer
+
+
+class ObjectAccountCardList(generics.ListAPIView):
+    queryset = ObjectAccountCard.objects.all()
+    serializer_class = ObjectAccountCardSerializer
+
+
+class ObjectAccountCardDetail(generics.RetrieveAPIView):
+    queryset = ObjectAccountCard.objects.all()
+    serializer_class = ObjectAccountCardSerializer
+
+
+class ArchaeologicalHeritageSiteList(generics.ListAPIView):
+    queryset = ArchaeologicalHeritageSite.objects.all()
+    serializer_class = ArchaeologicalHeritageSiteSerializer
+
+
+class ArchaeologicalHeritageSiteDetail(generics.RetrieveAPIView):
+    queryset = ArchaeologicalHeritageSite.objects.all()
+    serializer_class = ArchaeologicalHeritageSiteSerializer
+
+
+class IdentifiedArchaeologicalHeritageSiteList(generics.ListAPIView):
+    queryset = IdentifiedArchaeologicalHeritageSite.objects.all()
+    serializer_class = IdentifiedArchaeologicalHeritageSiteSerializer
+
+
+class IdentifiedArchaeologicalHeritageSiteDetail(generics.RetrieveAPIView):
+    queryset = IdentifiedArchaeologicalHeritageSite.objects.all()
+    serializer_class = IdentifiedArchaeologicalHeritageSiteSerializer
+
+
+class CommercialOffersList(generics.ListAPIView):
+    queryset = CommercialOffers.objects.all()
+    serializer_class = CommercialOffersSerializer
+
+
+class CommercialOffersDetail(generics.RetrieveAPIView):
+    queryset = CommercialOffers.objects.all()
+    serializer_class = CommercialOffersSerializer
+
+
+class GeoObjectList(generics.ListAPIView):
+    queryset = GeoObject.objects.all()
+    serializer_class = GeoObjectSerializer
+
+
+class GeoObjectDetail(generics.RetrieveAPIView):
+    queryset = GeoObject.objects.all()
+    serializer_class = GeoObjectSerializer
+
+
+class GeojsonDataList(generics.ListAPIView):
+    queryset = GeojsonData.objects.all()
+    serializer_class = GeojsonDataSerializer
+
+
+class GeojsonDataDetail(generics.RetrieveAPIView):
+    queryset = GeojsonData.objects.all()
+    serializer_class = GeojsonDataSerializer
+
+
+class ChatList(generics.ListAPIView):
+    queryset = Chat.objects.all()
+    serializer_class = ChatSerializer
+
+
+class ChatDetail(generics.RetrieveAPIView):
+    queryset = Chat.objects.all()
+    serializer_class = ChatSerializer
+
+
+class MessageList(generics.ListAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer
+
+
+class MessageDetail(generics.RetrieveAPIView):
+    queryset = Message.objects.all()
+    serializer_class = MessageSerializer

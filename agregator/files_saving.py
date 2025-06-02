@@ -324,7 +324,7 @@ def raw_geo_objects_save(uploaded_files, user_id, is_public, upload_source=None)
         origin_name = file.name
         geo_object.origin_filename = origin_name
         geo_object.upload_source = {'source': 'Пользовательский файл'}
-        file.name = f'{geo_object_id}_account_card' + file.name[file.name.rfind('.'):]
+        file.name = f'{geo_object_id}_geo_object' + file.name[file.name.rfind('.'):]
 
         with open(path + '/' + file.name, 'wb+') as destination:
             if upload_source:
