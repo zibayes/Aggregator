@@ -10,7 +10,7 @@ import pythoncom
 from PIL import Image
 import io
 
-from .models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers
+from .models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers, GeoObject
 
 SOURCE_CONTENT = []  # [{'type': 'text/images/all', 'path': 'path/to/file.pdf'}, {}, ...]
 
@@ -310,3 +310,40 @@ def load_raw_commercial_offers(commercial_offers_ids):
         commercial_offer.save()
         commercial_offers.append(commercial_offer)
     return commercial_offers, pages_count
+
+
+def raw_geo_objects_save(uploaded_files, user_id, is_public, upload_source=None):
+    account_cards_ids = []
+    for file in uploaded_files:
+        geo_object = GeoObject(user_id=user_id, is_public=is_public)
+        geo_object.save()
+        geo_object_id = geo_object.id
+        account_cards_ids.append(geo_object_id)
+        path = f'uploaded_files/geo_objects/{geo_object_id}_geo_object'
+        Path(path).mkdir(exist_ok=True)
+        origin_name = file.name
+        geo_object.origin_filename = origin_name
+        geo_object.upload_source = {'source': 'Пользовательский файл'}
+        file.name = f'{geo_object_id}_account_card' + file.name[file.name.rfind('.'):]
+
+        with open(path + '/' + file.name, 'wb+') as destination:
+            if upload_source:
+                destination.write(file.read())
+                file.close()
+            else:
+                for chunk in file.chunks():
+                    destination.write(chunk)
+        geo_object.source = path + '/' + file.name
+        geo_object.save()
+    return account_cards_ids
+
+
+def load_raw_geo_objects(geo_objects_ids):
+    geo_objects = []
+    pages_count = {}
+    for geo_object_id in geo_objects_ids:
+        geo_object = GeoObject.objects.get(id=geo_object_id)
+        geo_object.save()
+        pages_count[geo_object.source] = 1
+        geo_objects.append(geo_object)
+    return geo_objects, pages_count

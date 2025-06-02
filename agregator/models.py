@@ -381,6 +381,39 @@ class CommercialOffers(models.Model):
         super().delete(*args, **kwargs)
 
 
+class GeoObject(models.Model):
+    user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
+
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+    upload_source = models.JSONField(null=True, blank=True)
+    is_processing = models.BooleanField(default=True)
+    is_public = models.BooleanField(default=True)
+    origin_filename = models.TextField()
+
+    name = models.CharField(max_length=255, null=True, blank=True)
+    type = models.CharField(max_length=255, null=True, blank=True)
+    coordinates = models.JSONField(null=True, blank=True)
+    source = models.TextField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Географический объект"
+        verbose_name_plural = "Географический объект"
+        db_table = 'geo_object'
+
+    def __str__(self):
+        return self.name or f"Географический объект {self.id}"
+
+    def save(self, *args, **kwargs):
+        self.upload_source = to_json(self.upload_source)
+        self.coordinates = to_json(self.coordinates)
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.source and len(self.source) > 0:
+            delete_files(self.source)
+        super().delete(*args, **kwargs)
+
+
 class GeojsonData(models.Model):
     name = models.CharField(max_length=255, null=True, blank=True)
     geojson = models.JSONField(null=True, blank=True)

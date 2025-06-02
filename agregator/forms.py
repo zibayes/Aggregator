@@ -71,6 +71,10 @@ class UploadOpenListsForm(forms.Form):
     files = MultipleFileField(allowed_extensions=['.pdf', '.jpg', '.png', '.bmp', '.tiff'])
 
 
+class UploadGeoObjectsForm(forms.Form):
+    files = MultipleFileField(allowed_extensions=['.kml', '.kmz'])
+
+
 class UserRegisterForm(UserCreationForm):
     email = forms.EmailField()
 

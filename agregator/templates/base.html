@@ -169,6 +169,24 @@
                 </div>
             </li>
             <li class="nav-item" style="margin-right:10px;">
+                <div class="dropdown">
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton5"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                        Географические объекты
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                        <li><a class="dropdown-item" href="{% url 'geo_objects_register' %}">Реестр географических
+                            объектов</a>
+                        </li>
+                        {% if user.is_authenticated %}
+                            <li><a class="dropdown-item" href="{% url 'geo_objects_upload' %}">Менеджер
+                                загрузок</a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </li>
+            <li class="nav-item" style="margin-right:10px;">
                 <a class="nav-link" href="{% url 'interactive_map' %}">Интерактивная карта</a>
             </li>
             <li class="nav-item" style="margin-right:10px;">
@@ -201,9 +219,8 @@
     </div>
 </nav>
 
-<div class="map"
-">
-{% block map %}{% endblock %}
+<div class="map">
+    {% block map %}{% endblock %}
 </div>
 <div class="container mt-0">
     {% block content %}{% endblock %}

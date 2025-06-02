@@ -36,6 +36,8 @@ urlpatterns = [
          name='account_cards_register_download'),
     path('commercial_offers_upload/', views.commercial_offers_upload, name='commercial_offers_upload'),
     path('commercial_offers_register/', views.commercial_offers_register, name='commercial_offers_register'),
+    path('geo_objects_upload/', views.geo_objects_upload, name='geo_objects_upload'),
+    path('geo_objects_register/', views.geo_objects_register, name='geo_objects_register'),
     path('gpt_chat/', views.gpt_chat, name='gpt_chat'),
     path('create_gpt_chat/', views.create_gpt_chat, name='create_gpt_chat'),
     path('edit_gpt_chat/', views.edit_gpt_chat, name='edit_gpt_chat'),
@@ -87,6 +89,8 @@ urlpatterns = [
     path('commercial_offers_delete/<int:pk>/', views.commercial_offers_delete, name='commercial_offers_delete'),
     path('download_commercial_offer_report/<int:pk>/', views.download_commercial_offer_report,
          name='download_commercial_offer_report'),
+    path('geo_objects_edit/<int:pk>/', views.geo_objects_edit, name='geo_objects_edit'),
+    path('geo_objects_delete/<int:pk>/', views.geo_objects_delete, name='geo_objects_delete'),
 
     path('api/download_delete/<str:task_id>/', views.download_delete, name='download_delete'),
     path('api/get_user_tasks_reports/', views.get_user_tasks_reports, name='get_user_tasks_reports'),
@@ -96,6 +100,7 @@ urlpatterns = [
          name='get_user_tasks_object_account_cards'),
     path('api/get_user_tasks_commercial_offers/', views.get_user_tasks_commercial_offers,
          name='get_user_tasks_commercial_offers'),
+    path('api/get_user_tasks_geo_objects/', views.get_user_tasks_geo_objects, name='get_user_tasks_geo_objects'),
     path('api/get_geojson_polygons/', views.get_geojson_polygons, name='get_geojson_polygons'),
 
     path('api/', include(router.urls)),

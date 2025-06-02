@@ -6,7 +6,7 @@ from pyproj import Geod
 from shapely.geometry import Polygon, LineString, Point
 from shapely.ops import nearest_points
 from django.shortcuts import render, redirect
-from .forms import UploadReportsForm, UploadOpenListsForm, UploadCommercialOffersForm
+from .forms import UploadReportsForm, UploadOpenListsForm, UploadCommercialOffersForm, UploadGeoObjectsForm
 from .acts_processing import process_acts, error_handler_acts
 from .scientific_reports_processing import process_scientific_reports, error_handler_scientific_reports
 from .tech_reports_processing import process_tech_reports, error_handler_tech_reports
@@ -14,6 +14,7 @@ from .external_sources import external_sources_processing, external_voan_list_pr
 from .open_lists_ocr import process_open_lists, error_handler_open_lists
 from .commercial_offers_processing import process_commercial_offers, error_handler_commercial_offers
 from .account_cards_processing import process_account_cards, error_handler_account_cards
+from .geo_objects_processing import process_geo_objects, error_handler_geo_objects
 from .ask import ask_question_with_context
 import os
 import pandas as pd
@@ -32,12 +33,14 @@ from django.contrib.auth import login, authenticate
 from .forms import UserRegisterForm
 from django_celery_results.models import TaskResult
 from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks, \
-    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, CommercialOffers, GeojsonData, \
+    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, CommercialOffers, GeoObject, \
+    GeojsonData, \
     Chat, Message
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from .decorators import owner_or_admin_required
-from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, raw_commercial_offers_save
+from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, raw_commercial_offers_save, \
+    raw_geo_objects_save
 from .coordinates_extraction import convert_proj4, convert_to_wgs84
 
 
@@ -89,6 +92,13 @@ def get_user_tasks_object_account_cards(request):
 def get_user_tasks_commercial_offers(request):
     user = request.user
     tasks_id = get_user_tasks(user.id, ('commercial_offer',))
+    return JsonResponse({'tasks_id': tasks_id})
+
+
+@login_required
+def get_user_tasks_geo_objects(request):
+    user = request.user
+    tasks_id = get_user_tasks(user.id, ('geo_object',))
     return JsonResponse({'tasks_id': tasks_id})
 
 
@@ -804,6 +814,9 @@ def map(request, report_type, pk):
         report_name = report.origin_filename
     elif report_type == 'commercial_offer':
         report = CommercialOffers.objects.get(id=pk)
+        report_name = report.origin_filename
+    elif report_type == 'geo_object':
+        report = GeoObject.objects.get(id=pk)
         report_name = report.origin_filename
     else:
         if report_type == 'act':
@@ -1528,46 +1541,107 @@ def download_commercial_offer_report(request, pk):
     if not account_cards:
         return redirect(commercial_offers_register)
     df_existing = None
+    geo_objects = GeoObject.objects.filter(type='heritage')
+    print('geo_objects' + str(geo_objects))
+    account_cards = list(account_cards) + list(geo_objects)
+    counter = 0
     for account_card in account_cards:
         table_columns_info = {i: '' for i in table_columns}
+        print('TYPE: ' + str(type(account_card)))
 
         min_distance = None
-        for ac_polygon in account_card.coordinates.values():
-            if 'coordinate_system' not in ac_polygon.keys() or ac_polygon['coordinate_system'] == 'None':
-                continue
-            for co_polygon in commercial_offer.coordinates.values():
-                if 'coordinate_system' not in co_polygon.keys() or co_polygon['coordinate_system'] == 'None':
+        if type(account_card) != GeoObject:
+            for ac_polygon in account_card.coordinates.values():
+                if 'coordinate_system' not in ac_polygon.keys() or ac_polygon['coordinate_system'] == 'None':
                     continue
-                polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
-                            key != 'coordinate_system']
-                polygon2 = [[float(value[0]), float(value[1])] for key, value in ac_polygon.items() if
-                            key != 'coordinate_system']
+                for co_polygon in commercial_offer.coordinates.values():
+                    if 'coordinate_system' not in co_polygon.keys() or co_polygon['coordinate_system'] == 'None':
+                        continue
+                    polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
+                                key != 'coordinate_system']
+                    polygon2 = [[float(value[0]), float(value[1])] for key, value in ac_polygon.items() if
+                                key != 'coordinate_system']
 
-                if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
-                    polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in polygon1]
-                    polygon2 = [[convert_to_wgs84(x[0], x[1], ac_polygon['coordinate_system'])] for x in polygon2]
+                    if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
+                        polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in polygon1]
+                        polygon2 = [[convert_to_wgs84(x[0], x[1], ac_polygon['coordinate_system'])] for x in polygon2]
 
-                if len(polygon1) > 2:
-                    polygon1 = Polygon(polygon1)
-                elif len(polygon1) == 2:
-                    polygon1 = LineString(polygon1)
-                elif len(polygon1) == 1:
-                    polygon1 = Point(polygon1)
+                    if len(polygon1) > 2:
+                        polygon1 = Polygon(polygon1)
+                    elif len(polygon1) == 2:
+                        polygon1 = LineString(polygon1)
+                    elif len(polygon1) == 1:
+                        polygon1 = Point(polygon1)
 
-                if len(polygon2) > 2:
-                    polygon2 = Polygon(polygon2)
-                elif len(polygon2) == 2:
-                    polygon2 = LineString(polygon2)
-                elif len(polygon2) == 1:
-                    polygon2 = Point(polygon2)
+                    if len(polygon2) > 2:
+                        polygon2 = Polygon(polygon2)
+                    elif len(polygon2) == 2:
+                        polygon2 = LineString(polygon2)
+                    elif len(polygon2) == 1:
+                        polygon2 = Point(polygon2)
 
-                point1, point2 = nearest_points(polygon1, polygon2)
-                geod = Geod(ellps="WGS84")
-                az12, az21, distance = geod.inv(point1.y, point1.x, point2.y, point2.x)
-                if min_distance is None or min_distance > distance:
-                    min_distance = distance
+                    point1, point2 = nearest_points(polygon1, polygon2)
+                    geod = Geod(ellps="WGS84")
+                    # print(str(polygon1) + ' HERE ' + str(polygon2))
+                    # print(str(point1) + ' HERE ' + str(point2))
+                    if not point1 or not point2:
+                        continue
+                    az12, az21, distance = geod.inv(point1.y, point1.x, point2.y, point2.x)
+                    if min_distance is None or min_distance > distance:
+                        min_distance = distance
+        else:
+            for ac_polygon in account_card.coordinates.values():
+                for point_name, coords in ac_polygon.items():
+                    print(str(counter) + '/' + str(len(ac_polygon.items())))
+                    counter += 1
+                    if 'coordinate_system' not in ac_polygon.keys() or ac_polygon[
+                        'coordinate_system'] == 'None' or point_name == 'coordinate_system':
+                        continue
+                    for co_polygon in commercial_offer.coordinates.values():
+                        if 'coordinate_system' not in co_polygon.keys() or co_polygon['coordinate_system'] == 'None':
+                            continue
+                        polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
+                                    key != 'coordinate_system']
+                        polygon2 = [[float(value) for value in coords]]
 
-        if min_distance is not None:
+                        if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
+                            polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in
+                                        polygon1]
+                            polygon2 = [[convert_to_wgs84(x[0], x[1], ac_polygon['coordinate_system'])] for x in
+                                        polygon2]
+
+                        if len(polygon1) > 2:
+                            polygon1 = Polygon(polygon1)
+                        elif len(polygon1) == 2:
+                            polygon1 = LineString(polygon1)
+                        elif len(polygon1) == 1:
+                            polygon1 = Point(polygon1)
+
+                        if len(polygon2) > 2:
+                            polygon2 = Polygon(polygon2)
+                        elif len(polygon2) == 2:
+                            polygon2 = LineString(polygon2)
+                        elif len(polygon2) == 1:
+                            polygon2 = Point(polygon2)
+
+                        point1, point2 = nearest_points(polygon1, polygon2)
+                        geod = Geod(ellps="WGS84")
+                        # print(str(polygon1) + ' HERE ' + str(polygon2))
+                        # print(str(point1) + ' HERE ' + str(point2))
+                        if not point1 or not point2:
+                            continue
+                        az12, az21, distance = geod.inv(point1.y, point1.x, point2.y, point2.x)
+                        if min_distance is None or min_distance > distance:
+                            min_distance = distance
+                    table_columns_info['Памятник'] = point_name
+                    table_columns_info['Дистанция до памятника (км)'] = distance / 1000
+                    df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
+                    if df_existing is None:
+                        df_existing = df_new
+                    else:
+                        df_existing = df_existing._append(df_new, ignore_index=True)
+
+        if min_distance is not None and type(account_card) != GeoObject:
             table_columns_info['Памятник'] = account_card.name
             table_columns_info['Дистанция до памятника (км)'] = min_distance / 1000
             df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
@@ -1575,13 +1649,16 @@ def download_commercial_offer_report(request, pk):
                 df_existing = df_new
             else:
                 df_existing = df_existing._append(df_new, ignore_index=True)
+    print('ALMOST')
     if df_existing is None:
         return redirect(commercial_offers_register)
+    df_existing = df_existing.sort_values(by='Дистанция до памятника (км)', ascending=True).reset_index(drop=True)
     with pd.ExcelWriter(table_path) as writer:
         df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
     wb = load_workbook(table_path)
     ws = wb.active
-    ws.column_dimensions['A'].width = 50
+    print('FINISHED')
+    ws.column_dimensions['A'].width = 100
     ws.column_dimensions['B'].width = 40
     font = Font(
         name='Times New Roman',
@@ -1593,14 +1670,101 @@ def download_commercial_offer_report(request, pk):
         strike=False,
         color='FF000000'
     )
+    '''
     {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
     for i in range(1, len(df_existing.values) + 2):
         ws.row_dimensions[i].height = 40
         for cell in ws[i]:
             if cell.value:
                 cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    '''
+    print('HOLY SHIT')
     wb.save(table_path)
     return redirect('/' + table_path)
+
+
+@login_required
+@owner_or_admin_required(GeoObject)
+def geo_objects_edit(request, pk):
+    geo_object = GeoObject.objects.get(id=pk)
+    if request.method == 'POST':
+        coordinates = {}
+        current_group = None
+        for key, value in request.POST.dict().items():
+            if 'group[' in key:
+                current_group = value
+            elif 'coordinate_system[' in key:
+                if current_group not in coordinates.keys():
+                    coordinates[current_group] = {}
+                coordinates[current_group]['coordinate_system'] = value
+            elif 'point[' in key:
+                if current_group not in coordinates.keys():
+                    coordinates[current_group] = {}
+                point_name, x, y = [x.strip().replace(':', '').replace(';', '') for x in value.split(' ')]
+                coordinates[current_group][point_name] = [x, y]
+        for group, polygon in coordinates.items():
+            if polygon['coordinate_system'] == 'None':
+                continue
+            elif group in geo_object.coordinates.keys():
+                if 'coordinate_system' not in geo_object.coordinates[group]:
+                    geo_object.coordinates[group]['coordinate_system'] = polygon['coordinate_system']
+                    coordinates[group]['coordinate_system'] = 'wgs84'
+                if polygon['coordinate_system'] != geo_object.coordinates[group]['coordinate_system']:
+                    for point_name, coords in polygon.items():
+                        if point_name == 'coordinate_system':
+                            continue
+                        lat, lon = convert_proj4(coords[0], coords[1],
+                                                 geo_object.coordinates[group]['coordinate_system'],
+                                                 coordinates[group]['coordinate_system'])
+                        coordinates[group][point_name] = [lat, lon]
+        geo_object.coordinates = coordinates
+        geo_object.save()
+        messages.success(request, 'Коммерческое предложение успешно обновлено.')
+        return redirect(f'/geo_objects_edit/{geo_object.id}')
+
+    return render(request, 'geo_object_edit.html',
+                  {'geo_object': geo_object})
+
+
+@login_required
+@owner_or_admin_required(GeoObject)
+def geo_objects_delete(request, pk):
+    geo_object = GeoObject.objects.get(id=pk)
+    geo_object.delete()
+    return redirect(f'geo_objects_register')
+
+
+@login_required
+def geo_objects_upload(request):
+    user_id = request.user.id
+    tasks_id = get_user_tasks(user_id, ('geo_object',))
+    if request.method == 'POST':
+        form = UploadGeoObjectsForm(request.POST, request.FILES)
+        if form.is_valid():
+            uploaded_files = form.cleaned_data['files']
+            if request.user.is_superuser:
+                is_public = True if request.POST['storage_type'] == 'public' else False
+            else:
+                is_public = False
+            geo_objects_ids = raw_geo_objects_save(uploaded_files, user_id, is_public)
+            task = process_geo_objects.apply_async((geo_objects_ids, user_id),
+                                                   link_error=error_handler_geo_objects.s())
+            tasks_id = [task.task_id] + tasks_id
+            user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='geo_object',
+                                  upload_source={'source': 'Пользовательский файл'})
+            user_task.save()
+            return render(request, 'geo_object_upload.html', {'form': form, 'tasks_id': tasks_id})
+    else:
+        form = UploadGeoObjectsForm()
+    return render(request, 'geo_object_upload.html', {'form': form, 'tasks_id': tasks_id})
+
+
+def geo_objects_register(request):
+    geo_objects_public = GeoObject.objects.filter(is_processing=False, is_public=True)
+    geo_objects_private = GeoObject.objects.filter(is_processing=False, user_id=request.user.id,
+                                                   is_public=False)
+    geo_objects = geo_objects_public | geo_objects_private
+    return render(request, 'geo_object_register.html', {'geo_objects': geo_objects})
 
 
 class UserList(generics.ListAPIView):

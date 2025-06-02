@@ -799,7 +799,7 @@
                         content += '<div><span style="cursor: pointer;" id="photos-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'photos-{{ report_name }}\')">+</span><input type="checkbox" id="togglePhotoPoints-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: green;"></i> Пункты фотофиксации</div>';
                         content += '<div id="photos-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
                     {% endif %}
-                    {% if 'Центр' in group %}
+                    {% if 'Центр' in group or report_type == 'geo_object' %}
                         content += '<div><span style="cursor: pointer;" id="center-{{ report_name }}_toggle" class="toggle-icon" onclick="toggleContent(\'center-{{ report_name }}\')">+</span><input type="checkbox" id="toggleCenterPoints-{{ report_name }}" class="{{ report_type|cut:" "|cut:"."|cut:":" }}_point" style="margin-right: 3px;" checked><i style="background: yellow;"></i> Центр объекта</div>';
                         content += '<div id="center-{{ report_name }}_content" style="margin-left: 20px; display: none;">';
                     {% endif %}
@@ -923,7 +923,7 @@
                     current_icon = pits_icons;
                 {% elif 'фото' in group %}
                     current_icon = photos_icons;
-                {% elif 'Центр' in group %}
+                {% elif 'Центр' in group or report_type == 'geo_object' %}
                     current_icon = center_icons;
                 {% endif %}
                 {% for point_name, coords in point.items %}
@@ -1022,7 +1022,7 @@
                 });
             {% endif %}
 
-            {% if 'Центр' in coordinates.keys|join:", " %}
+            {% if 'Центр' in coordinates.keys|join:", "  or report_type == 'geo_object' %}
                 document.getElementById('toggleCenterPoints-{{ report_name }}').addEventListener('change', function () {
                     markers.forEach(function (item) {
                         if (item.group.includes('Центр объекта') && this.checked) {

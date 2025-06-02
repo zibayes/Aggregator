@@ -235,6 +235,24 @@ CREATE TABLE commercial_offers
     source          text                     NULL  -- путь к файлам коммерческого предложения а на сервере
 );
 
+-- Географический объект
+CREATE TABLE geo_object
+(
+    id              SERIAL PRIMARY KEY,            -- Уникальный идентификатор
+    user_id         integer REFERENCES users (id), -- идентификатор пользователя (внешний ключ)
+
+    date_uploaded   TIMESTAMP WITH TIME ZONE NULL, -- дата загрузки коммерческого предложения на сервер
+    upload_source   json                     NULL, -- источник загрузки
+    is_processing   BOOLEAN DEFAULT TRUE,          -- находится ли коммерческое предложение в процессе обработки
+    is_public       BOOLEAN DEFAULT TRUE,          -- находится ли коммерческое предложение в открытом доступе
+    origin_filename VARCHAR(255)             NULL, -- исходное имя файла коммерческого предложения
+
+    name            VARCHAR(255),                  -- название объекта
+    type            VARCHAR(255),                  -- тип объекта
+    coordinates     json                     NULL, -- каталог координат
+    source          text                     NULL  -- путь к файлам географического объекта а на сервере
+);
+
 -- GeoJSON данные
 CREATE TABLE geojson_data
 (
