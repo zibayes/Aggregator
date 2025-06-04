@@ -4,6 +4,10 @@ from pathlib import Path
 
 import PIL
 import comtypes.client
+import platform
+import subprocess
+import xml.etree.ElementTree as ET
+import zipfile
 import fitz
 import pandas as pd
 import pythoncom
@@ -27,6 +31,189 @@ def delete_files_in_directory(directory, files):
                 os.remove(file_path)
     else:
         print(f'Директория {directory} не существует или не является директорией.')
+
+
+def convert_document(input_file, output_file=None, output_format="pdf"):
+    """
+    Универсальная конвертация документов между форматами с автоматическим выбором метода по ОС
+    Поддерживаемые форматы: .doc, .docx, .odt -> .pdf или .docx
+
+    :param input_file: путь к входному файлу
+    :param output_format: целевой формат ('pdf' или 'docx')
+    :param output_file: опциональный путь к выходному файлу
+    :return: путь к сконвертированному файлу
+    """
+    # Проверка входного файла
+    if not os.path.isfile(input_file):
+        raise FileNotFoundError(f"Входной файл не найден: {input_file}")
+
+    # Проверка поддерживаемого формата вывода
+    if output_format.lower() not in ('pdf', 'docx'):
+        raise ValueError("Неподдерживаемый формат вывода. Используйте 'pdf' или 'docx'")
+
+    # Формирование выходного пути
+    input_path = Path(input_file)
+    if not output_file:
+        output_file = input_path.with_suffix(f'.{output_format}')
+    output_path = Path(output_file)
+
+    # Определение ОС
+    os_type = platform.system().lower()
+
+    try:
+        if os_type == 'windows':
+            try:
+                return _convert_with_word(input_path, output_path, output_format)
+            except Exception as word_error:
+                print(f"Ошибка Word конвертации: {word_error}")
+                return _convert_with_libreoffice(input_path, output_path, output_format)
+
+        # Linux/MacOS
+        return _convert_with_libreoffice(input_path, output_path, output_format)
+
+    except Exception as e:
+        raise RuntimeError(f"Ошибка конвертации файла {input_file}: {e}")
+
+
+def _convert_with_word(input_path, output_path, output_format):
+    """Конвертация через MS Word (Windows only)"""
+    try:
+        word = comtypes.client.CreateObject('Word.Application')
+        doc = word.Documents.Open(str(input_path))
+
+        if output_format == 'pdf':
+            # Формат для PDF в Word
+            file_format = 17  # wdFormatPDF
+        else:  # docx
+            file_format = 16  # wdFormatDocumentDefault
+
+        doc.SaveAs(str(output_path), FileFormat=file_format)
+        doc.Close()
+        word.Quit()
+
+        return str(output_path)
+    except Exception as e:
+        # Передаем исключение для fallback-логики
+        raise
+
+
+def _convert_with_libreoffice(input_path, output_path, output_format):
+    """Конвертация через LibreOffice (кроссплатформенный)"""
+    output_dir = str(output_path.parent)
+
+    # Форматы LibreOffice
+    format_map = {
+        'pdf': 'pdf',
+        'docx': 'docx'
+    }
+
+    try:
+        subprocess.run([
+            'libreoffice',
+            '--headless',
+            '--convert-to',
+            format_map[output_format],
+            '--outdir',
+            output_dir,
+            str(input_path)
+        ], check=True, capture_output=True)
+
+        # LibreOffice создает файлы с базовым именем, но возможно другим расширением
+        base_filename = input_path.stem
+        generated_file = Path(output_dir) / f"{base_filename}.{output_format}"
+
+        # Если LibreOffice сохранил не туда, куда ожидалось
+        if generated_file != output_path:
+            generated_file.rename(output_path)
+
+        return str(output_path)
+    except subprocess.CalledProcessError as e:
+        raise RuntimeError(f"LibreOffice ошибка: {e.stderr.decode().strip()}")
+    except Exception as e:
+        raise RuntimeError(f"Ошибка LibreOffice конвертации: {e}")
+
+
+def get_page_count(file_path):
+    """Получает количество страниц в документе (кросс-платформенно)"""
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"Файл не найден: {file_path}")
+
+    ext = os.path.splitext(file_path)[1].lower()
+
+    try:
+        if ext == '.pdf':
+            with fitz.open(file_path) as doc:
+                return len(doc)
+
+        elif ext == '.doc' or ext == '.docx':
+            if platform.system() == 'Windows':
+                return _get_doc_page_count_win32(file_path)
+            return _get_doc_page_count_linux(file_path)
+
+        elif ext == '.odt':
+            if platform.system() == 'Windows':
+                return _get_odt_page_count_win32(file_path)
+            return _get_odt_page_count_linux(file_path)
+
+    except Exception as e:
+        print(f"Ошибка при обработке {file_path}: {e}")
+
+    # Фолбэк через LibreOffice
+    return _get_page_count_via_libreoffice(file_path)
+
+
+def _get_doc_page_count_win32(file_path):
+    """Подсчет страниц DOC через MS Word на Windows"""
+    import win32com.client
+
+    word = win32com.client.Dispatch("Word.Application")
+    doc = word.Documents.Open(os.path.abspath(file_path))
+    count = doc.ComputeStatistics(2)  # wdStatisticPages
+    doc.Close(False)
+    word.Quit()
+    return count
+
+
+def _get_odt_page_count_win32(file_path):
+    """Подсчет страниц ODT через MS Word на Windows"""
+    import win32com.client
+
+    word = win32com.client.Dispatch("Word.Application")
+    doc = word.Documents.Open(os.path.abspath(file_path))
+    count = doc.ComputeStatistics(2)  # wdStatisticPages
+    doc.Close(False)
+    word.Quit()
+    return count
+
+
+def _get_doc_page_count_linux(file_path):
+    """Подсчет страниц DOC на Linux через LibreOffice"""
+    return _get_page_count_via_libreoffice(file_path)
+
+
+def _get_odt_page_count_linux(file_path):
+    """Подсчет страниц ODT на Linux через LibreOffice"""
+    return _get_page_count_via_libreoffice(file_path)
+
+
+def _get_page_count_via_libreoffice(file_path):
+    """Универсальный подсчет через LibreOffice"""
+    try:
+        result = subprocess.run(
+            ['libreoffice', '--headless', '--cat', os.path.abspath(file_path)],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+
+        for line in result.stdout.splitlines():
+            if line.startswith('Number of pages:'):
+                return int(line.split(':')[1].strip())
+
+    except subprocess.CalledProcessError as e:
+        print(f"LibreOffice error: {e.stderr}")
+
+    raise RuntimeError(f"Не удалось определить количество страниц в файле {file_path}")
 
 
 def raw_open_lists_save(uploaded_files, user_id, is_public, origin_filename=None, upload_source=None):
@@ -157,16 +344,11 @@ def load_raw_reports(reports_ids, report_type):
         i = 0
         for source in report.source:
             if source['path'].lower().endswith(('.doc', '.docx')):
-                wd_format_pdf = 17
-                new_filename = source['path'][source['path'].rfind('.'):] + '.pdf'
+                new_filename = source['path'][:source['path'].rfind('.')] + '.pdf'
                 in_file = os.path.abspath(source['path'])
                 out_file = os.path.abspath(new_filename)
 
-                word = comtypes.client.CreateObject('Word.Application')
-                doc = word.Documents.Open(in_file)
-                doc.SaveAs(out_file, FileFormat=wd_format_pdf)
-                doc.Close()
-                word.Quit()
+                convert_document(in_file, out_file, 'pdf')
                 source['path'] = new_filename
                 report.source[i]['path'] = new_filename
                 report.save()
@@ -212,26 +394,13 @@ def load_raw_account_cards(account_cards_ids):
         account_card = ObjectAccountCard.objects.get(id=account_card_id)
         i = 0
         if account_card.source.lower().endswith(('.doc', '.docx')):
-            word = comtypes.client.CreateObject('Word.Application')
-            word.visible = False
-            wd_format_docx = 16
             in_file = os.path.abspath(account_card.source)
-            try:
-                doc = word.Documents.Open(in_file)
-            except Exception as e:
-                word.Quit()
-                raise RuntimeError(f"Ошибка при открытии файла: {e}")
             if account_card.source.lower().endswith('.doc'):
                 new_filename = account_card.source[:account_card.source.rfind('.')] + '.docx'
-                out_file = os.path.abspath(new_filename)
-                doc.SaveAs(out_file, FileFormat=wd_format_docx)
                 account_card.source = new_filename
-                pages_count[account_card.source] = doc.ComputeStatistics(2)
-                i += 1
-            else:
-                pages_count[account_card.source] = doc.ComputeStatistics(2)
-            doc.Close()
-            word.Quit()
+                out_file = os.path.abspath(new_filename)
+                convert_document(in_file, out_file, 'docx')
+            pages_count[account_card.source] = get_page_count(in_file)
         elif account_card.source.lower().endswith('.pdf'):
             with fitz.open(account_card.source) as pdf_doc:
                 pages_count[account_card.source] = len(pdf_doc)
@@ -273,26 +442,13 @@ def load_raw_commercial_offers(commercial_offers_ids):
         commercial_offer = CommercialOffers.objects.get(id=commercial_offer_id)
         i = 0
         if commercial_offer.source.lower().endswith(('.doc', '.docx', '.odt')):
-            word = comtypes.client.CreateObject('Word.Application')
-            word.visible = False
-            wd_format_docx = 16
             in_file = os.path.abspath(commercial_offer.source)
-            try:
-                doc = word.Documents.Open(in_file)
-            except Exception as e:
-                word.Quit()
-                raise RuntimeError(f"Ошибка при открытии файла: {e}")
             if commercial_offer.source.lower().endswith(('.doc', '.odt')):
                 new_filename = commercial_offer.source[:commercial_offer.source.rfind('.')] + '.docx'
-                out_file = os.path.abspath(new_filename)
-                doc.SaveAs(out_file, FileFormat=wd_format_docx)
                 commercial_offer.source = new_filename
-                pages_count[commercial_offer.source] = doc.ComputeStatistics(2)
-                i += 1
-            else:
-                pages_count[commercial_offer.source] = doc.ComputeStatistics(2)
-            doc.Close()
-            word.Quit()
+                out_file = os.path.abspath(new_filename)
+                convert_document(in_file, out_file, 'docx')
+            pages_count[commercial_offer.source] = get_page_count(in_file)
         elif commercial_offer.source.lower().endswith('.pdf'):
             with fitz.open(commercial_offer.source) as pdf_doc:
                 pages_count[commercial_offer.source] = len(pdf_doc)
