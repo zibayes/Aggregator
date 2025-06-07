@@ -2,7 +2,6 @@ import copy
 import json
 from datetime import datetime
 
-import comtypes.client
 import fitz  # PyMuPDF
 from pathlib import Path
 import tkinter as tk
@@ -21,8 +20,7 @@ import os
 from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
 from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
 from .files_saving import delete_files_in_directory, load_raw_reports
-
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+from .redis_config import redis_client
 
 
 def choose_file() -> str:
@@ -352,7 +350,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                                             fio = None
                                 table_columns_info['Исполнители'] = ';\n'.join(executors)
                                 print(executors)
-                                ''' IN CASE OF ONE PERSON
+                                r''' IN CASE OF ONE PERSON
                                 df_new = pd.DataFrame(page_tables[0], columns=['Параметр', 'Значение'])
                                 fio = None
                                 works = None

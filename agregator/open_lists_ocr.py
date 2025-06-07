@@ -27,6 +27,7 @@ from skimage import filters
 from .models import OpenLists
 from .hash import calculate_file_hash
 from .files_saving import delete_files_in_directory, load_raw_open_lists
+from .redis_config import redis_client
 
 FRAME_BORDERS = [204, 800, 48, 545]  # each need to '* koef' [204, 778, 63, 555]
 FIO_BORDERS = [390, 512, 40, 550]  # [390, 490, 60, 560]
@@ -54,7 +55,6 @@ WORKS_TYPES = [
 WORDS_TO_CHECK = ['участке', 'территории', 'объект', 'Красноярского', 'края', 'археологического', 'строительство']
 WORKS_TYPES_SHORTLY = ['раскопки', 'разведки', 'наблюдения']
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 # language_tool = language_tool_python.LanguageTool('ru-RU')

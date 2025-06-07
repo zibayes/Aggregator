@@ -2,7 +2,6 @@ import copy
 import json
 from datetime import datetime
 
-import comtypes.client
 import fitz  # PyMuPDF
 from pathlib import Path
 import tkinter as tk
@@ -21,8 +20,7 @@ import os
 from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
 from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
 from .files_saving import delete_files_in_directory, load_raw_reports
-
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+from .redis_config import redis_client
 
 
 def choose_file() -> str:

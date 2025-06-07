@@ -22,9 +22,9 @@ from .images_extraction import extract_images_with_captions, insert_supplement_l
 from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
 import redis
 from .files_saving import delete_files_in_directory, load_raw_reports
+from .redis_config import redis_client
 
 SQUARE_RESERVE = []
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 
 def choose_pdf_file() -> str:

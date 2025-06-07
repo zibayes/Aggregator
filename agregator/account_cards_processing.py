@@ -18,6 +18,7 @@ from .models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, Arc
 from .files_saving import delete_files_in_directory, load_raw_account_cards
 from .hash import calculate_file_hash
 from .coordinates_extraction import dms_to_decimal, normalize_coordinates
+from .redis_config import redis_client
 import pytesseract
 from pytesseract import Output
 from fuzzywuzzy import fuzz
@@ -27,8 +28,6 @@ import io
 from PIL import Image
 
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
-
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
 min_area = 80000  # 100000
 symbol_config = r'--oem 3 --psm 3 -c tessedit_char_whitelist=+'

@@ -1,4 +1,25 @@
-python.exe -m pip install --upgrade pip
+pip install --upgrade pip
+REM pip install comtypes==1.4.9
+pip install tensorflow-cpu
+pip install transformers
+pip install transformers==4.44.2
+pip install tokenizers
+pip install tokenizers==0.19.1
+pip install reportlab==4.4.1
+pip install pygeoif==1.5.1
+REM pip install pyautocad==0.2.0
+pip install pixellib==0.7.1
+pip install odfpy==1.4.1
+pip install iopath==0.1.10
+pip install geographiclib==2.0
+pip install geopy==2.4.1
+pip install fpdf==1.7.2
+pip install fastkml==1.1.0
+pip install ezdxf==1.4.1
+pip install duckduckgo_search==7.3.0
+pip install colorlog==6.9.0
+REM pip install aspose-cad
+REM pip install aspose-cad==25.3
 pip install psycopg2-binary
 pip install psycopg2
 pip install psycopg2==2.9.10
@@ -56,7 +77,7 @@ pip install argon2-cffi==23.1.0
 pip install argon2-cffi-bindings==21.2.0
 pip install arrow==1.3.0
 pip install asgiref==3.8.1
-pip install aspose-words==24.12.0
+REM pip install aspose-words==24.12.0
 pip install astor==0.8.1
 pip install asttokens==2.4.1
 pip install astunparse==1.6.3
@@ -105,7 +126,6 @@ pip install coloredlogs==15.0.1
 pip install colorful==0.5.6
 pip install comm==0.2.2
 pip install compressed-tensors==0.8.1
-pip install comtypes==1.4.9
 pip install configparser==7.1.0
 pip install constantly==23.10.4
 pip install contourpy==1.3.0
@@ -422,7 +442,7 @@ pip install pypdfium2==4.30.0
 pip install PyPika==0.48.9
 pip install pyproject_hooks==1.2.0
 pip install pyre-extensions==0.0.29
-pip install pyreadline3==3.5.4
+REM pip install pyreadline3==3.5.4
 pip install PyStemmer==2.2.0.3
 pip install pytesseract==0.3.13
 pip install python-bidi==0.6.3
@@ -434,7 +454,7 @@ pip install python-Levenshtein==0.26.1
 pip install python-multipart==0.0.20
 pip install pytz==2024.2
 pip install pyviz_comms==3.0.3
-pip install pywin32==308
+REM pip install pywin32==308
 pip install pywinpty==2.0.14
 pip install PyYAML==6.0.2
 pip install pyzmq==26.2.0
@@ -611,9 +631,9 @@ pip install py4j==0.10.9.7
 pip install pybboxes==0.1.6
 pip install pyogrio==0.10.0
 pip install pyproj==3.7.1
-pip install PyQt5==5.15.11
-pip install PyQt5-Qt5==5.15.2
-pip install PyQt5_sip==12.17.0
+REM pip install PyQt5==5.15.11
+REM pip install PyQt5-Qt5==5.15.2
+REM pip install PyQt5_sip==12.17.0
 pip install pyspark==3.5.5
 pip install python-docx==1.1.2
 pip install python-louvain==0.16

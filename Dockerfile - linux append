@@ -1,8 +1,7 @@
 # Укажите базовый образ
 FROM archeology-app:latest
 
-RUN apt-get install -y tk
-RUN pip install tk
+RUN pip install pywin32
 
 # Открываем порт, на котором будет работать приложение
 EXPOSE 8000

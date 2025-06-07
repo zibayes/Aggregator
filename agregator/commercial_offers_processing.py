@@ -28,8 +28,7 @@ import cv2
 import numpy as np
 import io
 from PIL import Image
-
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+from .redis_config import redis_client
 
 COORDINATE_SYSTEMS = [
     r'wgs.*?\d+',

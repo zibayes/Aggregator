@@ -1,13 +1,43 @@
 # Используем официальный образ Python
-FROM archeology-app:latest
+FROM python:3.12.6-slim
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Устанавливаем PowerShell и скачиваем python установщик
-SHELL ["powershell", "-Command"]
+# Копируем файлы зависимостей
+COPY requirements.txt .
+
+# Установка пакетов
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates \
+	libpq-dev \
+    gnupg \
+    wget && \
+    rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем зависимости
+RUN apt-get update && apt-get install -y curl
+# RUN apt-get install -y --fix-missing libreoffice-core \
+#    libreoffice-writer \
+#    libreoffice-calc
+RUN apt-get install -y tesseract-ocr libtesseract-dev
+RUN apt-get install -y tesseract-ocr-rus
+RUN apt-get install -y tesseract-ocr-eng
+RUN apt-get install -y tk
 
 RUN pip install --upgrade opencv-python
+RUN apt-get update && apt-get install -y \
+    libgl1 \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
+# RUN pip install --no-cache-dir -r requirements.txt
+COPY install-requirements.bat .
+RUN ./install-requirements.bat
+
+# Копируем весь проект в контейнер
+COPY . .
 
 # Открываем порт, на котором будет работать приложение
 EXPOSE 8000

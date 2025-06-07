@@ -3,14 +3,10 @@ import os
 from pathlib import Path
 
 import PIL
-import comtypes.client
 import platform
 import subprocess
-import xml.etree.ElementTree as ET
-import zipfile
 import fitz
 import pandas as pd
-import pythoncom
 from PIL import Image
 import io
 
@@ -78,6 +74,7 @@ def convert_document(input_file, output_file=None, output_format="pdf"):
 def _convert_with_word(input_path, output_path, output_format):
     """Конвертация через MS Word (Windows only)"""
     try:
+        import comtypes.client
         word = comtypes.client.CreateObject('Word.Application')
         doc = word.Documents.Open(str(input_path))
 
