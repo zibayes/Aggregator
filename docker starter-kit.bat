@@ -1,2 +1,4 @@
-docker-compose exec web python manage.py migrate
-docker-compose exec web python manage.py createsuperuser
+docker-compose exec app python manage.py makemigrations
+docker-compose exec app python manage.py migrate
+docker-compose exec app python manage.py createsuperuser
+pause

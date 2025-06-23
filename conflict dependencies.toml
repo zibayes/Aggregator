@@ -1,0 +1,10 @@
+vllm = ">=0.6.0,<0.7.0"
+optimum-intel = "1.21.0"
+outlines = "0.1.11"
+tokenizers = "0.19.1"
+transformers = "^4.44.2"
+
+langchain-upstage = "0.4.0"
+
+xformers = ">=0.0.20,<=0.0.28.post3"
+compressed-tensors = "0.8.1"

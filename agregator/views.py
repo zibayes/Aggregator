@@ -1,54 +1,56 @@
-import time
-
-import simplekml
-from geopy.distance import great_circle
-from pyproj import Geod
-from shapely.geometry import Polygon, LineString, Point
-from shapely.ops import nearest_points
-from django.shortcuts import render, redirect
-from .forms import UploadReportsForm, UploadOpenListsForm, UploadCommercialOffersForm, UploadGeoObjectsForm
-from .acts_processing import process_acts, error_handler_acts
-from .scientific_reports_processing import process_scientific_reports, error_handler_scientific_reports
-from .tech_reports_processing import process_tech_reports, error_handler_tech_reports
-from .external_sources import external_sources_processing, external_voan_list_processing
-from .open_lists_ocr import process_open_lists, error_handler_open_lists
-from .commercial_offers_processing import process_commercial_offers, error_handler_commercial_offers
-from .account_cards_processing import process_account_cards, error_handler_account_cards
-from .geo_objects_processing import process_geo_objects, error_handler_geo_objects
-from .ask import ask_question_with_context
-import os
-import pandas as pd
 import json
+import os
 import re
-from django.contrib.auth.decorators import login_required
-from django.contrib.auth import logout
-from django.contrib import messages
-from django.contrib.auth import update_session_auth_hash
-from rest_framework import generics
 from urllib.parse import quote
-from shapely.geometry import shape, Point
-from .serializers import UserSerializer, UserTasksSerializer, ActSerializer, ScientificReportSerializer, \
-    TechReportSerializer, OpenListsSerializer, ObjectAccountCardSerializer, ArchaeologicalHeritageSiteSerializer, \
-    IdentifiedArchaeologicalHeritageSiteSerializer, CommercialOffersSerializer, GeoObjectSerializer, \
-    GeojsonDataSerializer, ChatSerializer, MessageSerializer
-from django.http import JsonResponse
+
+import pandas as pd
+import simplekml
+from django.contrib import messages
 from django.contrib.auth import login, authenticate
-from .forms import UserRegisterForm
+from django.contrib.auth import logout
+from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.shortcuts import render, redirect
 from django_celery_results.models import TaskResult
+from openpyxl import load_workbook
+from openpyxl.styles import Alignment, DEFAULT_FONT, Font
+from pyproj import Geod
+from rest_framework import generics
+from shapely.geometry import Polygon, LineString
+from shapely.geometry import shape, Point
+from shapely.ops import nearest_points
+
+from .account_cards_processing import process_account_cards, error_handler_account_cards
+from .acts_processing import process_acts, error_handler_acts
+from .ask import ask_question_with_context
+from .commercial_offers_processing import process_commercial_offers, error_handler_commercial_offers
+from .coordinates_extraction import convert_proj4, convert_to_wgs84
+from .decorators import owner_or_admin_required
+from .external_sources import external_sources_processing, external_voan_list_processing
+from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, raw_commercial_offers_save, \
+    raw_geo_objects_save
+from .forms import UploadReportsForm, UploadOpenListsForm, UploadCommercialOffersForm, UploadGeoObjectsForm
+from .forms import UserRegisterForm
+from .geo_objects_processing import process_geo_objects, error_handler_geo_objects
 from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks, \
     ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, CommercialOffers, GeoObject, \
     GeojsonData, \
     Chat, Message
-from openpyxl import load_workbook
-from openpyxl.styles import Alignment, DEFAULT_FONT, Font
-from .decorators import owner_or_admin_required
-from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, raw_commercial_offers_save, \
-    raw_geo_objects_save
-from .coordinates_extraction import convert_proj4, convert_to_wgs84
+from .open_lists_ocr import process_open_lists, error_handler_open_lists
+from .scientific_reports_processing import process_scientific_reports, error_handler_scientific_reports
+from .serializers import UserSerializer, ActSerializer, ScientificReportSerializer, \
+    TechReportSerializer, OpenListsSerializer, ObjectAccountCardSerializer, ArchaeologicalHeritageSiteSerializer, \
+    IdentifiedArchaeologicalHeritageSiteSerializer, CommercialOffersSerializer, GeoObjectSerializer, \
+    GeojsonDataSerializer, ChatSerializer, MessageSerializer
+from .tech_reports_processing import process_tech_reports, error_handler_tech_reports
 
 
 def get_user_tasks(user_id, file_types, upload_source=False):
     user_tasks = list(UserTasks.objects.filter(user_id=user_id, files_type__in=file_types))
+    for i in range(len(user_tasks)):
+        user_tasks[i].upload_source = json.loads(user_tasks[i].upload_source) if not isinstance(
+            user_tasks[i].upload_source, dict) else user_tasks[i].upload_source
     if upload_source:
         user_tasks = [x for x in user_tasks if x.upload_source['source'] != 'Пользовательский файл']
     else:

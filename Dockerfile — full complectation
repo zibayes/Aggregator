@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.4
 
 # ==================== ЭТАП 1: Системные зависимости ====================
-FROM python:3.12 as system-deps
+FROM python:3.12-slim as system-deps
 
 # Устанавливаем альтернативные репозитории для Debian
 RUN --mount=type=cache,target=/var/cache/apt \
@@ -13,25 +13,34 @@ RUN --mount=type=cache,target=/var/cache/apt \
     apt-get install -y --no-install-recommends --fix-missing \
         build-essential \
         wget \
-        supervisor \
         curl \
         g++ \
         gcc \
         python3-dev \
-        libpython3-dev \
+        gnupg \
+        ca-certificates \
         libpq-dev \
-        libgl1 \
+        libasound2-dev \
+        libopenblas-dev \
+        liblapack-dev \
+        libomp-dev \
+        tesseract-ocr \
+        libtesseract-dev \
+        tesseract-ocr-rus \
+        tesseract-ocr-eng \
         tk \
+        libgl1 \
         libglib2.0-0 && \
     rm -rf /var/lib/apt/lists/*
 
 # ==================== ЭТАП 2: Python зависимости ====================
-FROM python:3.12 as python-builder
+FROM python:3.12-slim as python-builder
 
 # Копируем системные зависимости
 COPY --from=system-deps /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
 COPY --from=system-deps /usr/bin/ /usr/bin/
 COPY --from=system-deps /usr/include/ /usr/include/
+COPY --from=system-deps /usr/share/tesseract-ocr/ /usr/share/tesseract-ocr/
 
 WORKDIR /app
 
@@ -44,22 +53,21 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install scipy --no-build-isolation && \
     pip install -r requirements.txt
 
-RUN pip install celery redis
-RUN apt-get update
-RUN apt-get install -y supervisor
+# ==================== ЭТАП production: Web ====================
+FROM python:3.12-slim as production-web
 
-WORKDIR /app
+COPY --from=system-deps /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
+COPY --from=system-deps /usr/bin/tesseract /usr/bin/tesseract
+COPY --from=system-deps /usr/share/tesseract-ocr/ /usr/share/tesseract-ocr/
+COPY --from=python-builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=python-builder /usr/local/bin /usr/local/bin
 COPY . .
 
 EXPOSE 8000
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]
 
-RUN mkdir -p /var/log && chmod -R 777 /var/log
+# ==================== ЭТАП production: Celery ====================
+FROM production-web as production-celery
 
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-CMD ["/usr/bin/supervisord"]
-
-# CMD ["bash", "-c", "CMD ["bash", "-c", "python manage.py runserver 0.0.0.0:8000 & sleep 30 && celery -A archeology worker --loglevel=info & wait"]"]
-
-# COPY entrypoint.sh /app/entrypoint.sh
-# RUN chmod +x /app/entrypoint.sh
-# CMD ["/app/entrypoint.sh"]
+RUN pip install celery redis
+CMD ["celery", "-A", "config", "worker", "--loglevel=info"]

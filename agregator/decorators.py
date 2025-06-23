@@ -1,7 +1,7 @@
 from functools import wraps
+
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
-from .models import Act, ScientificReport, TechReport, OpenLists  # Импортируйте вашу модель
 
 
 def owner_or_admin_required(model, error_message="Вы не можете редактировать этот ресурс."):

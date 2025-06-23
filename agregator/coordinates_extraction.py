@@ -5,7 +5,6 @@ from tkinter import filedialog
 import re
 import pdfplumber
 import pandas as pd
-import simplekml
 from django.http import JsonResponse
 from pyproj import Proj, transform
 from .models import GeojsonData

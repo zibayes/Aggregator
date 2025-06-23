@@ -1,0 +1,74 @@
+# syntax=docker/dockerfile:1.4
+
+# ============ ЭТАП 1: Базовый научный образ ============
+FROM python:3.12-slim-bookworm AS science-base
+
+# Установка научных системных зависимостей
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        python3-dev \
+        libopenblas-dev \
+        liblapack-dev \
+        libomp-dev \
+        libgl1 \
+        libglib2.0-0 && \
+    rm -rf /var/lib/apt/lists/*
+
+# Предустановка основных научных пакетов
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip setuptools wheel && \
+    pip install numpy scipy pandas cython
+
+# ============ ЭТАП 2: Установка зависимостей проекта ============
+FROM python:3.12-slim-bookworm AS builder
+
+# Копируем только необходимые научные компоненты
+COPY --from=science-base /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=science-base /usr/lib/x86_64-linux-gnu/libopenblas* /usr/lib/x86_64-linux-gnu/
+COPY --from=science-base /usr/lib/x86_64-linux-gnu/liblapack* /usr/lib/x86_64-linux-gnu/
+
+# Установка системных зависимостей
+RUN --mount=type=cache,target=/var/cache/apt \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+        libpq-dev \
+        tesseract-ocr \
+        libtesseract-dev \
+        tesseract-ocr-rus \
+        tesseract-ocr-eng \
+        tk && \
+    rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Оптимизированная установка Python-зависимостей
+COPY requirements.txt .
+RUN --mount=type=cache,target=/root/.cache/pip \
+    --mount=type=bind,source=wheelhouse/,target=/wheels/ \
+    set -eux && \
+    pip install --upgrade pip && \
+    { [ -z "$(ls /wheels/*.whl 2>/dev/null)" ] || pip install --no-cache-dir --find-links=/wheels -r requirements.txt; } && \
+    pip install --no-build-isolation -r requirements.txt && \
+    pip check
+
+# ============ ЭТАП 3: Финальный образ ============
+FROM python:3.12-slim-bookworm AS production
+
+# Системные зависимости
+COPY --from=builder /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
+COPY --from=builder /usr/bin/tesseract /usr/bin/
+COPY --from=builder /usr/share/tesseract-ocr /usr/share/tesseract-ocr
+COPY --from=builder /usr/lib/libtesseract.so* /usr/lib/
+
+# Python-зависимости
+COPY --from=science-base /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Приложение
+WORKDIR /app
+COPY . .
+
+EXPOSE 8000

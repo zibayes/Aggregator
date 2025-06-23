@@ -1,31 +1,26 @@
-import copy
-from datetime import datetime
-
-import fitz
-from docx import Document
-from pathlib import Path
-import tkinter as tk
-from tkinter import filedialog
+import io
+import json
 import os
+import re
 import zipfile
+from datetime import datetime
+from tkinter import filedialog
+
+import cv2
+import fitz
+import numpy as np
+import pytesseract
+from PIL import Image
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
-import redis
-import requests
-import json
-import re
-from .models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
-from .files_saving import delete_files_in_directory, load_raw_account_cards
-from .hash import calculate_file_hash
-from .coordinates_extraction import dms_to_decimal, normalize_coordinates
-from .redis_config import redis_client
-import pytesseract
+from docx import Document
 from pytesseract import Output
-from fuzzywuzzy import fuzz
-import cv2
-import numpy as np
-import io
-from PIL import Image
+
+from .coordinates_extraction import dms_to_decimal, normalize_coordinates
+from .files_saving import load_raw_account_cards
+from .hash import calculate_file_hash
+from .models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
+from .redis_config import redis_client
 
 pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
@@ -627,7 +622,10 @@ def intersect(A, B, C, D):
 @shared_task
 def error_handler_account_cards(task, exception, exception_desc):
     print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = json.loads(redis_client.get(task.id))
+    progress_json = redis_client.get(task.id)
+    if progress_json is None:
+        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
+    progress_json = json.loads(progress_json)
     for account_card_id, source in progress_json['file_groups'].items():
         print(account_card_id, source)
         if source['processed'] != 'True':

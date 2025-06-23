@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-jzu6gf*$t^#7z9wyc+6z#5#or-#gnrxfc8^^@1*jja+^!d%jtr
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['176.49.253.129', 'localhost', '127.0.0.1', 'api.ipify.org', 'www.shadowserver.org']
 
 CSRF_TRUSTED_ORIGINS = [
     'https://*.cloudpub.ru',
@@ -169,7 +169,7 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 CELERY_BROKER_URL = REDIS_URL  # 'redis://redis:6379/0' / 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_BACKEND = REDIS_URL  # 'redis://redis:6379/0' / 'django-db'
+CELERY_RESULT_BACKEND = 'django-db'  # 'redis://redis:6379/0' / REDIS_URL
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field

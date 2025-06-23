@@ -1,16 +1,13 @@
-import os
-from pathlib import Path
-from typing import List
+import io
 import re
+from pathlib import Path
 
 import cv2
-import numpy as np
-from PIL import Image
-import io
 import fitz
+import numpy as np
 import pytesseract
-from matplotlib import pyplot as plt
-from tensorflow.keras.models import load_model
+from PIL import Image
+# from tensorflow.keras.models import load_model
 
 from agregator.models import UserTasks
 from .files_saving import raw_open_lists_save
@@ -21,7 +18,7 @@ pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesserac
 IMAGE_MIN_SIZE = 150
 CURRENT_OPEN_LIST_RGB = (205, 221, 229)
 RGB_ACCURACY = 20
-image_classification_model = load_model('image_classificator.keras')
+# image_classification_model = load_model('image_classificator.keras')
 
 SUPPLEMENT_CONTENT = {
     "maps": [],
@@ -150,8 +147,9 @@ def predict_image_class(img):
     img_array = np.array(img)
     img_array = np.expand_dims(img_array, axis=0)
     img_array = img_array / 255.0
-    y_pred = image_classification_model.predict(img_array)
-    predicted_class = np.argmax(y_pred, axis=1)
+    # y_pred = image_classification_model.predict(img_array)
+    # predicted_class = np.argmax(y_pred, axis=1)
+    predicted_class = [0]  # TODO!!! return TENSORFLOW
     labels = ['Документы', 'Карты', 'Материал', 'Общий вид', 'Открытый лист', 'Спутниковые снимки', 'Шурфы']
     return labels[predicted_class[0]]
 

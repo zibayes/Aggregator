@@ -1,25 +1,23 @@
 import copy
 import json
+import os
+import re
+import tkinter as tk
 from datetime import datetime
+from pathlib import Path
+from tkinter import filedialog
 
 import fitz  # PyMuPDF
-from pathlib import Path
-import tkinter as tk
-from tkinter import filedialog
-import re
-import pdfplumber
 import pandas as pd
+import pdfplumber
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
-from django_celery_results.models import TaskResult
-import redis
 
-from .models import TechReport, User
-from .hash import calculate_file_hash
-import os
-from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
 from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
-from .files_saving import delete_files_in_directory, load_raw_reports
+from .files_saving import load_raw_reports
+from .hash import calculate_file_hash
+from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
+from .models import TechReport
 from .redis_config import redis_client
 
 
@@ -421,7 +419,10 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
 @shared_task
 def error_handler_tech_reports(task, exception, exception_desc):
     print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = json.loads(redis_client.get(task.id))
+    progress_json = redis_client.get(task.id)
+    if progress_json is None:
+        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
+    progress_json = json.loads(progress_json)
     for report_id, sources in progress_json['file_groups'].items():
         deleted_report = False
         for source in sources:

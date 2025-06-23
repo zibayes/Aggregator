@@ -4,23 +4,22 @@ import shutil
 import ssl
 import urllib.request
 from pathlib import Path
+from time import sleep
 from urllib.parse import quote
-from bs4 import BeautifulSoup
-import requests
+
 import pandas as pd
-from docx import Document
+import patoolib
+import requests
+from bs4 import BeautifulSoup
+from celery import shared_task
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import InMemoryUploadedFile
+from docx import Document
 
+from .account_cards_processing import connect_account_card_to_heritage
 from .acts_processing import process_acts, error_handler_acts
-from celery import shared_task
-from time import sleep
-import fitz
-import patoolib
-
 from .files_saving import raw_reports_save
 from .models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
-from .account_cards_processing import connect_account_card_to_heritage
 
 
 @shared_task(bind=True)

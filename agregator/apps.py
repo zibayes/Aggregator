@@ -8,14 +8,17 @@ class AgregatorConfig(AppConfig):
     name = 'agregator'
 
     '''  Занесение всех районов Красноярского Края в БД
-    
+    '''
+
     def ready(self):
         from .coordinates_extraction import save_geojson_polygons_to_db
         save_geojson_polygons_to_db()
-    '''
 
     '''  Создание системных папок 
+    '''
     folders = [
+        'uploaded_files',
+        
         'uploaded_files/avatars',
 
         'uploaded_files/regions_polygons/Красноярский край/ЗАТО (городские округа)',
@@ -36,4 +39,3 @@ class AgregatorConfig(AppConfig):
     for folder in folders:
         nested_folders = Path(folder)
         nested_folders.mkdir(parents=True, exist_ok=True)
-    '''

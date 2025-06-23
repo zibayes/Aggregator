@@ -1,14 +1,14 @@
+import io
 import json
 import os
+import platform
+import subprocess
 from pathlib import Path
 
 import PIL
-import platform
-import subprocess
 import fitz
 import pandas as pd
 from PIL import Image
-import io
 
 from .models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers, GeoObject
 
@@ -339,6 +339,8 @@ def load_raw_reports(reports_ids, report_type):
     for report_id in reports_ids:
         report = report_type.objects.get(id=report_id)
         i = 0
+        if not isinstance(report.source, dict):
+            report.source = json.loads(report.source)
         for source in report.source:
             if source['path'].lower().endswith(('.doc', '.docx')):
                 new_filename = source['path'][:source['path'].rfind('.')] + '.pdf'
@@ -350,7 +352,7 @@ def load_raw_reports(reports_ids, report_type):
                 report.source[i]['path'] = new_filename
                 report.save()
 
-            with fitz.open(source['path']) as pdf_doc:
+            with fitz.open(os.path.abspath(source['path'])) as pdf_doc:
                 pages_count[source['path']] = len(pdf_doc)
             i += 1
         report.save()

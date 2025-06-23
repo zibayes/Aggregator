@@ -145,6 +145,8 @@ class Act(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
+        if not isinstance(self.source, dict):
+            self.source = json.loads(self.source)
         if self.source and len(self.source) > 0:
             delete_files(self.source[0]['path'])
         super().delete(*args, **kwargs)
@@ -191,6 +193,8 @@ class ScientificReport(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
+        if not isinstance(self.source, dict):
+            self.source = json.loads(self.source)
         if self.source and len(self.source) > 0:
             delete_files(self.source[0]['path'])
         super().delete(*args, **kwargs)
@@ -237,6 +241,8 @@ class TechReport(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
+        if not isinstance(self.source, dict):
+            self.source = json.loads(self.source)
         if self.source and len(self.source) > 0:
             delete_files(self.source[0]['path'])
         super().delete(*args, **kwargs)

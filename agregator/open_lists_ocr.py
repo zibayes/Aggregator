@@ -1,32 +1,30 @@
-import json
-from datetime import datetime
-from typing import List, Optional
-import redis
-
-import fitz
-import pytesseract
-import cv2
-import tkinter as tk
-from tkinter import filedialog
-import numpy as np
-import re
-import pandas as pd
-import os
 import io
+import json
+import os
+import re
+import tkinter as tk
+from datetime import datetime
+from tkinter import filedialog
+from typing import List, Optional
 
-from language_tool_python.utils import _4_bytes_encoded_positions, Match
-from transliterate import translit
 import Levenshtein
-import matplotlib.pyplot as plt
+import cv2
+import fitz
+import numpy as np
+import pandas as pd
+import pytesseract
+import requests
+from PIL import Image
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
-import requests
 from fuzzywuzzy import fuzz
-from PIL import Image
+from language_tool_python.utils import _4_bytes_encoded_positions, Match
 from skimage import filters
-from .models import OpenLists
+from transliterate import translit
+
+from .files_saving import load_raw_open_lists
 from .hash import calculate_file_hash
-from .files_saving import delete_files_in_directory, load_raw_open_lists
+from .models import OpenLists
 from .redis_config import redis_client
 
 FRAME_BORDERS = [204, 800, 48, 545]  # each need to '* koef' [204, 778, 63, 555]
@@ -1019,7 +1017,10 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
 @shared_task
 def error_handler_open_lists(task, exception, exception_desc):
     print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = json.loads(redis_client.get(task.id))
+    progress_json = redis_client.get(task.id)
+    if progress_json is None:
+        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
+    progress_json = json.loads(progress_json)
     for open_list_id, source in progress_json['file_groups'].items():
         print(open_list_id, source)
         if source['processed'] != 'True':

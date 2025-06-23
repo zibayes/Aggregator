@@ -1,28 +1,18 @@
-import copy
-from datetime import datetime
-
-import fitz
-import openpyxl
-import pandas as pd
-import pdfplumber
-from docx import Document
-from pathlib import Path
-import tkinter as tk
-from tkinter import filedialog
+import json
 import os
+import xml.etree.ElementTree as ET
 import zipfile
+from datetime import datetime
+from pathlib import Path
+from tkinter import filedialog
+
+import redis
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
-import redis
-import requests
-import json
-import re
-from .models import GeoObject
-from .files_saving import delete_files_in_directory, load_raw_geo_objects
-from .coordinates_extraction import projections, convert_to_wgs84, normalize_coordinates, dms_to_decimal
+
+from .files_saving import load_raw_geo_objects
 from .hash import calculate_file_hash
-import zipfile
-import xml.etree.ElementTree as ET
+from .models import GeoObject
 
 redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
 
@@ -200,7 +190,10 @@ def extract_coordinates(file, progress_recorder, pages_count, total_processed,
 @shared_task
 def error_handler_geo_objects(task, exception, exception_desc):
     print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = json.loads(redis_client.get(task.id))
+    progress_json = redis_client.get(task.id)
+    if progress_json is None:
+        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
+    progress_json = json.loads(progress_json)
     for geo_object_id, source in progress_json['file_groups'].items():
         print(geo_object_id, source)
         if source['processed'] != 'True':

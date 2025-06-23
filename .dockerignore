@@ -1,3 +1,5 @@
+.git
+.venv
 __pycache__
 *.pyc
 *.pyo
@@ -5,3 +7,23 @@ __pycache__
 *.db
 *.sqlite3
 *.log
+.env
+*.egg-info
+*.mp4
+*.zip
+*.tar
+*.log
+*.pdf
+*.tmp
+/tmp
+/dev
+/data
+
+.docker-cache/
+wheelhouse/
+uploaded_files/
+venv/
+staticfiles/
+
+# *.jpg
+# *.png

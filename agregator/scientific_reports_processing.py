@@ -1,25 +1,23 @@
 import copy
 import json
+import os
+import re
+import tkinter as tk
 from datetime import datetime
+from pathlib import Path
+from tkinter import filedialog
 
 import fitz  # PyMuPDF
-from pathlib import Path
-import tkinter as tk
-from tkinter import filedialog
-import re
-import pdfplumber
 import pandas as pd
+import pdfplumber
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
-from django_celery_results.models import TaskResult
-import redis
 
-from .models import ScientificReport, User
-from .hash import calculate_file_hash
-import os
-from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
 from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
-from .files_saving import delete_files_in_directory, load_raw_reports
+from .files_saving import load_raw_reports
+from .hash import calculate_file_hash
+from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
+from .models import ScientificReport
 from .redis_config import redis_client
 
 
@@ -39,7 +37,8 @@ def process_scientific_reports(self, reports_ids, user_id, select_text, select_i
     total_processed = [0]
     file_groups = {}
     for report in reports:
-        report.source = json.loads(report.source)
+        if not isinstance(report.source, dict):
+            report.source = json.loads(report.source)
         for source in report.source:
             file = source.copy()
             file['processed'] = 'False'
@@ -76,15 +75,17 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                             report_id,
                             source_index, task_id, user_id, is_public, select_text, select_image, select_coord):
     if current_report.supplement:
-        supplement_content = json.loads(current_report.supplement)
+        supplement_content = current_report.supplement  # json.loads(current_report.supplement)
     else:
         supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
     if current_report.coordinates:
-        coordinates = json.loads(current_report.coordinates)
+        coordinates = current_report.coordinates  # json.loads(current_report.coordinates)
     else:
         coordinates = copy.deepcopy(COORDINATES_SAMPLE)
     reports = ScientificReport.objects.all()
     for report in reports:
+        if not isinstance(report.source, dict):
+            report.source = json.loads(report.source)
         for source in report.source:
             source_path = source['path']
             if report_id != report.id and os.path.isfile(source_path):
@@ -396,7 +397,11 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
 @shared_task
 def error_handler_scientific_reports(task, exception, exception_desc):
     print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = json.loads(redis_client.get(task.id))
+    progress_json = redis_client.get(task.id)
+    if progress_json is None:
+        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
+    if not isinstance(progress_json, dict):
+        progress_json = json.loads(progress_json)
     for report_id, sources in progress_json['file_groups'].items():
         deleted_report = False
         for source in sources:

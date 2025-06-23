@@ -1,16 +1,12 @@
 from agregator.chroma import CHROMA_PATH, get_embeddings
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
+from langchain_openai import ChatOpenAI
 from langchain.retrievers import EnsembleRetriever
 from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores.chroma import Chroma
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain.chains import RetrievalQA
-from sentence_transformers import CrossEncoder
 import os
 import re
 import psycopg2
-from django.http import JsonResponse
 from duckduckgo_search import DDGS
 from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_community.document_transformers import BeautifulSoupTransformer

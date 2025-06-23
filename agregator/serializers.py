@@ -1,4 +1,5 @@
-from rest_framework import serializers, viewsets
+from rest_framework import serializers
+
 from .models import User, UserTasks, Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, \
     ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, CommercialOffers, GeoObject, GeojsonData, Chat, \
     Message

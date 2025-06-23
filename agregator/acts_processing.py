@@ -1,27 +1,23 @@
 import copy
 import json
-from typing import List
-
-import fitz  # PyMuPDF
+import math
+import os
+import re
+from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
-import re
-import pdfplumber
+
+import fitz  # PyMuPDF
 import pandas as pd
-from openpyxl import load_workbook
-from openpyxl.styles import Alignment, DEFAULT_FONT, Font
-import os
-from datetime import datetime
-import math
-import numpy as np
+import pdfplumber
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
-from .models import Act, User
+
+from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
+from .files_saving import load_raw_reports
 from .hash import calculate_file_hash
 from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
-from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
-import redis
-from .files_saving import delete_files_in_directory, load_raw_reports
+from .models import Act
 from .redis_config import redis_client
 
 SQUARE_RESERVE = []
@@ -794,7 +790,10 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
 @shared_task
 def error_handler_acts(task, exception, exception_desc):
     print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = json.loads(redis_client.get(task.id))
+    progress_json = redis_client.get(task.id)
+    if progress_json is None:
+        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
+    progress_json = json.loads(progress_json)
     for act_id, sources in progress_json['file_groups'].items():
         deleted_report = False
         for source in sources:
