@@ -22,7 +22,7 @@ from .hash import calculate_file_hash
 from .models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
 from .redis_config import redis_client
 
-pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
 min_area = 80000  # 100000
 symbol_config = r'--oem 3 --psm 3 -c tessedit_char_whitelist=+'

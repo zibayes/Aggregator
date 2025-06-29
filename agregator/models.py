@@ -15,6 +15,12 @@ def to_json(value):
     return value
 
 
+def from_json(value):
+    if value is not None and not isinstance(value, dict) and not isinstance(value, list):
+        return json.loads(value)
+    return value
+
+
 def delete_files(file_path):
     if os.path.isfile(file_path):
         if '\\' in file_path:
@@ -91,6 +97,10 @@ class UserTasks(models.Model):
         self.upload_source = to_json(self.upload_source)
         super().save(*args, **kwargs)
 
+    @property
+    def upload_source_dict(self):
+        return from_json(self.upload_source)
+
 
 # Модель для актов
 class Act(models.Model):
@@ -151,6 +161,22 @@ class Act(models.Model):
             delete_files(self.source[0]['path'])
         super().delete(*args, **kwargs)
 
+    @property
+    def upload_source_dict(self):
+        return from_json(self.upload_source)
+
+    @property
+    def source_dict(self):
+        return from_json(self.source)
+
+    @property
+    def supplement_dict(self):
+        return from_json(self.supplement)
+
+    @property
+    def coordinates_dict(self):
+        return from_json(self.coordinates)
+
 
 # Модель для научных отчетов
 class ScientificReport(models.Model):
@@ -198,6 +224,26 @@ class ScientificReport(models.Model):
         if self.source and len(self.source) > 0:
             delete_files(self.source[0]['path'])
         super().delete(*args, **kwargs)
+
+    @property
+    def upload_source_dict(self):
+        return from_json(self.upload_source)
+
+    @property
+    def source_dict(self):
+        return from_json(self.source)
+
+    @property
+    def supplement_dict(self):
+        return from_json(self.supplement)
+
+    @property
+    def content_dict(self):
+        return from_json(self.content)
+
+    @property
+    def coordinates_dict(self):
+        return from_json(self.coordinates)
 
 
 # Модель для научно-технических отчетов
@@ -247,6 +293,26 @@ class TechReport(models.Model):
             delete_files(self.source[0]['path'])
         super().delete(*args, **kwargs)
 
+    @property
+    def upload_source_dict(self):
+        return from_json(self.upload_source)
+
+    @property
+    def source_dict(self):
+        return from_json(self.source)
+
+    @property
+    def supplement_dict(self):
+        return from_json(self.supplement)
+
+    @property
+    def content_dict(self):
+        return from_json(self.content)
+
+    @property
+    def coordinates_dict(self):
+        return from_json(self.coordinates)
+
 
 # Модель для открытых листов
 class OpenLists(models.Model):
@@ -280,6 +346,10 @@ class OpenLists(models.Model):
         if self.source:
             delete_files(self.source.path)
         super().delete(*args, **kwargs)
+
+    @property
+    def upload_source_dict(self):
+        return from_json(self.upload_source)
 
 
 class ObjectAccountCard(models.Model):
@@ -321,9 +391,21 @@ class ObjectAccountCard(models.Model):
             delete_files(self.source)
         super().delete(*args, **kwargs)
 
+    @property
+    def upload_source_dict(self):
+        return from_json(self.upload_source)
+
+    @property
+    def supplement_dict(self):
+        return from_json(self.supplement)
+
+    @property
+    def coordinates_dict(self):
+        return from_json(self.coordinates)
+
 
 class ArchaeologicalHeritageSite(models.Model):
-    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.CASCADE)
+    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.CASCADE, null=True, blank=True)
     date_uploaded = models.DateTimeField(auto_now_add=True)
     doc_name = models.TextField(null=True, blank=True)
     district = models.TextField(null=True, blank=True)
@@ -341,7 +423,7 @@ class ArchaeologicalHeritageSite(models.Model):
 
 
 class IdentifiedArchaeologicalHeritageSite(models.Model):
-    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.CASCADE)
+    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.CASCADE, null=True, blank=True)
     date_uploaded = models.DateTimeField(auto_now_add=True)
     name = models.TextField(null=True, blank=True)
     address = models.TextField(null=True, blank=True)
@@ -386,6 +468,14 @@ class CommercialOffers(models.Model):
             delete_files(self.source)
         super().delete(*args, **kwargs)
 
+    @property
+    def upload_source_dict(self):
+        return from_json(self.upload_source)
+
+    @property
+    def coordinates_dict(self):
+        return from_json(self.coordinates)
+
 
 class GeoObject(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -403,7 +493,7 @@ class GeoObject(models.Model):
 
     class Meta:
         verbose_name = "Географический объект"
-        verbose_name_plural = "Географический объект"
+        verbose_name_plural = "Географические объекты"
         db_table = 'geo_object'
 
     def __str__(self):
@@ -418,6 +508,14 @@ class GeoObject(models.Model):
         if self.source and len(self.source) > 0:
             delete_files(self.source)
         super().delete(*args, **kwargs)
+
+    @property
+    def upload_source_dict(self):
+        return from_json(self.upload_source)
+
+    @property
+    def coordinates_dict(self):
+        return from_json(self.coordinates)
 
 
 class GeojsonData(models.Model):

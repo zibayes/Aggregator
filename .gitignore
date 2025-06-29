@@ -169,5 +169,6 @@ media/
 agregator/__pycache__/
 
 wheelhouse/
-
 .docker-cache/
+supervisord_logs/
+app_mount/

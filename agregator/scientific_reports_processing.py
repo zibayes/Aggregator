@@ -37,9 +37,7 @@ def process_scientific_reports(self, reports_ids, user_id, select_text, select_i
     total_processed = [0]
     file_groups = {}
     for report in reports:
-        if not isinstance(report.source, dict):
-            report.source = json.loads(report.source)
-        for source in report.source:
+        for source in report.source_dict:
             file = source.copy()
             file['processed'] = 'False'
             file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
@@ -54,7 +52,7 @@ def process_scientific_reports(self, reports_ids, user_id, select_text, select_i
     progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
     for current_report in reports:
         i = 0
-        for source in current_report.source:
+        for source in current_report.source_dict:
             if not source['path'].lower().endswith(('.pdf', '.doc', '.docx')):
                 continue
             progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'Processing'
@@ -75,18 +73,16 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                             report_id,
                             source_index, task_id, user_id, is_public, select_text, select_image, select_coord):
     if current_report.supplement:
-        supplement_content = current_report.supplement  # json.loads(current_report.supplement)
+        supplement_content = current_report.supplement_dict  # json.loads(current_report.supplement)
     else:
         supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
     if current_report.coordinates:
-        coordinates = current_report.coordinates  # json.loads(current_report.coordinates)
+        coordinates = current_report.coordinates_dict  # json.loads(current_report.coordinates)
     else:
         coordinates = copy.deepcopy(COORDINATES_SAMPLE)
     reports = ScientificReport.objects.all()
     for report in reports:
-        if not isinstance(report.source, dict):
-            report.source = json.loads(report.source)
-        for source in report.source:
+        for source in report.source_dict:
             source_path = source['path']
             if report_id != report.id and os.path.isfile(source_path):
                 file_hash = calculate_file_hash(file)

@@ -8,7 +8,7 @@
     <h2 align="center">Акт: {{ act.expert }} от {{ act.finish_date }}</h2>
 
     <div>
-        {% for source in act.source %}
+        {% for source in act.source_dict %}
             <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
                href="/{{ source.path }}">
                 <!--
@@ -26,7 +26,7 @@
             <br>
 
         {% endfor %}
-        {% if act.coordinates %}
+        {% if act.coordinates_dict %}
             <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
                href="/map/act/{{ act.id }}">
                 Просмотр координат
@@ -150,45 +150,45 @@
         {% if act.exp_conclusion %}
             <li><a href="#exp_conclusion">Заключение</a></li>
         {% endif %}
-        {% if act.supplement %}
-            {% for source in act.source %}
+        {% if act.supplement_dict %}
+            {% for source in act.source_dict %}
                 <li>
                     <a href="#supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</a>
                     <ul>
-                        {% if act.supplement.maps %}
+                        {% if act.supplement_dict.maps %}
                             <li><a href="#maps-{{ forloop.counter }}">Карты</a></li>
                         {% endif %}
-                        {% if act.supplement.schemas %}
+                        {% if act.supplement_dict.schemas %}
                             <li><a href="#schemas-{{ forloop.counter }}">Схемы</a></li>
                         {% endif %}
-                        {% if act.supplement.object_fotos %}
+                        {% if act.supplement_dict.object_fotos %}
                             <li><a href="#object_fotos-{{ forloop.counter }}">Общий вид</a></li>
                         {% endif %}
-                        {% if act.supplement.pits_fotos %}
+                        {% if act.supplement_dict.pits_fotos %}
                             <li><a href="#pits_fotos-{{ forloop.counter }}">Шурфы</a></li>
                         {% endif %}
-                        {% if act.supplement.excavation_fotos %}
+                        {% if act.supplement_dict.excavation_fotos %}
                             <li><a href="#excavation_fotos-{{ forloop.counter }}">Раскопы</a></li>
                         {% endif %}
-                        {% if act.supplement.material_fotos %}
+                        {% if act.supplement_dict.material_fotos %}
                             <li><a href="#material_fotos-{{ forloop.counter }}">Материал</a></li>
                         {% endif %}
-                        {% if act.supplement.heritage_info %}
+                        {% if act.supplement_dict.heritage_info %}
                             <li><a href="#heritage_info-{{ forloop.counter }}">Данные о ВОАН</a></li>
                         {% endif %}
-                        {% if act.supplement.other %}
+                        {% if act.supplement_dict.other %}
                             <li><a href="#other-{{ forloop.counter }}">Иное</a></li>
                         {% endif %}
-                        {% if act.supplement.title_page %}
+                        {% if act.supplement_dict.title_page %}
                             <li><a href="#title_page-{{ forloop.counter }}">Титульник</a></li>
                         {% endif %}
-                        {% if act.supplement.docs %}
+                        {% if act.supplement_dict.docs %}
                             <li><a href="#docs-{{ forloop.counter }}">Документы</a></li>
                         {% endif %}
-                        {% if act.supplement.open_list %}
+                        {% if act.supplement_dict.open_list %}
                             <li><a href="#open_list-{{ forloop.counter }}">Открытый лист</a></li>
                         {% endif %}
-                        {% if act.supplement.no_captions %}
+                        {% if act.supplement_dict.no_captions %}
                             <li><a href="#no_captions-{{ forloop.counter }}">Без подписей</a></li>
                         {% endif %}
                     </ul>
@@ -270,15 +270,15 @@
         <p>{{ act.exp_conclusion | safe }}</p>
     {% endif %}
 
-    {% if act.supplement %}
-        {% for source in act.source %}
+    {% if act.supplement_dict %}
+        {% for source in act.source_dict %}
             {% with truncated_path=source.path|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
 
                 <h2 id="supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</h2>
 
-                {% if act.supplement.maps %}
+                {% if act.supplement_dict.maps %}
                     <h3 id="maps-{{ forloop.counter }}">Карты</h3>
-                    {% for map in act.supplement.maps %}
+                    {% for map in act.supplement_dict.maps %}
                         <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
                             <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
                                  alt="{{ map.source }}"
@@ -289,9 +289,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.schemas %}
+                {% if act.supplement_dict.schemas %}
                     <h3 id="schemas-{{ forloop.counter }}">Схемы</h3>
-                    {% for scheme in act.supplement.schemas %}
+                    {% for scheme in act.supplement_dict.schemas %}
                         <a data-fancybox="gallery" href="/{{ scheme.source }}" data-caption="{{ scheme.label }}">
                             <img id="image-link-{{ scheme.image_num }}" src="/{{ scheme.source }}" loading="lazy"
                                  alt="{{ scheme.source }}" style="max-width: 400px;"/>
@@ -301,9 +301,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.object_fotos %}
+                {% if act.supplement_dict.object_fotos %}
                     <h3 id="object_fotos-{{ forloop.counter }}">Общий вид</h3>
-                    {% for object in act.supplement.object_fotos %}
+                    {% for object in act.supplement_dict.object_fotos %}
                         <a data-fancybox="gallery" href="/{{ object.source }}" data-caption="{{ object.label }}">
                             <img id="image-link-{{ object.image_num }}" src="/{{ object.source }}" loading="lazy"
                                  alt="{{ object.source }}" style="max-width: 400px;"/>
@@ -313,9 +313,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.pits_fotos %}
+                {% if act.supplement_dict.pits_fotos %}
                     <h3 id=" pits_fotos-{{ forloop.counter }}">Шурфы</h3>
-                    {% for pit in act.supplement.pits_fotos %}
+                    {% for pit in act.supplement_dict.pits_fotos %}
                         <a data-fancybox="gallery" href="/{{ pit.source }}" data-caption="{{ pit.label }}">
                             <img id="image-link-{{ pit.image_num }}" src="/{{ pit.source }}" loading="lazy"
                                  alt="{{ pit.source }}"
@@ -326,9 +326,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.excavation_fotos %}
+                {% if act.supplement_dict.excavation_fotos %}
                     <h3 id="excavation_fotos-{{ forloop.counter }}">Раскопы</h3>
-                    {% for excavation in act.supplement.excavation_fotos %}
+                    {% for excavation in act.supplement_dict.excavation_fotos %}
                         <a data-fancybox="gallery" href="/{{ excavation.source }}"
                            data-caption="{{ excavation.label }}">
                             <img id="image-link-{{ excavation.image_num }}" src="/{{ excavation.source }}"
@@ -341,9 +341,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.material_fotos %}
+                {% if act.supplement_dict.material_fotos %}
                     <h3 id="material_fotos-{{ forloop.counter }}">Археологический материал</h3>
-                    {% for material in act.supplement.material_fotos %}
+                    {% for material in act.supplement_dict.material_fotos %}
                         <a data-fancybox="gallery" href="/{{ material.source }}" data-caption="{{ material.label }}">
                             <img id="image-link-{{ material.image_num }}" src="/{{ material.source }}" loading="lazy"
                                  alt="{{ material.source }}" style="max-width: 400px;"/>
@@ -353,9 +353,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.heritage_info %}
+                {% if act.supplement_dict.heritage_info %}
                     <h3 id="heritage_info-{{ forloop.counter }}">Данные о ВОАН</h3>
-                    {% for heritage in act.supplement.heritage_info %}
+                    {% for heritage in act.supplement_dict.heritage_info %}
                         <a data-fancybox="gallery" href="/{{ heritage.source }}" data-caption="{{ heritage.label }}">
                             <img id="image-link-{{ heritage.image_num }}" src="/{{ heritage.source }}" loading="lazy"
                                  alt="{{ heritage.source }}" style="max-width: 400px;"/>
@@ -365,9 +365,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.other %}
+                {% if act.supplement_dict.other %}
                     <h3 id="other-{{ forloop.counter }}">Иное</h3>
-                    {% for other in act.supplement.other %}
+                    {% for other in act.supplement_dict.other %}
                         <a data-fancybox="gallery" href="/{{ other.source }}" data-caption="{{ other.label }}">
                             <img id="image-link-{{ other.image_num }}" src="/{{ other.source }}" loading="lazy"
                                  alt="{{ other.source }}" style="max-width: 400px;"/>
@@ -377,9 +377,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.title_page %}
+                {% if act.supplement_dict.title_page %}
                     <h3 id="title_page-{{ forloop.counter }}">Титульник</h3>
-                    {% for title_page in act.supplement.title_page %}
+                    {% for title_page in act.supplement_dict.title_page %}
                         <a data-fancybox="gallery" href="/{{ title_page.source }}"
                            data-caption="{{ title_page.label }}">
                             <img src="/{{ title_page.source }}" loading="lazy" alt="{{ title_page.source }}"
@@ -390,9 +390,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.docs %}
+                {% if act.supplement_dict.docs %}
                     <h3 id="docs-{{ forloop.counter }}">Документы</h3>
-                    {% for doc in act.supplement.docs %}
+                    {% for doc in act.supplement_dict.docs %}
                         {% if truncated_path in doc.source %}
                             <a data-fancybox="gallery" href="/{{ doc.source }}" data-caption="{{ doc.label }}">
                                 <img id="image-link-{{ doc.image_num }}" src="/{{ doc.source }}"
@@ -406,9 +406,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.open_list %}
+                {% if act.supplement_dict.open_list %}
                     <h3 id="open_list-{{ forloop.counter }}">Открытый лист</h3>
-                    {% for open_list in act.supplement.open_list %}
+                    {% for open_list in act.supplement_dict.open_list %}
                         <a data-fancybox="gallery" href="/{{ open_list.source }}" data-caption="{{ open_list.label }}">
                             <img id="image-link-{{ open_list.image_num }}" src="/{{ open_list.source }}" loading="lazy"
                                  alt="{{ open_list.source }}"/>
@@ -422,9 +422,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if act.supplement.no_captions %}
+                {% if act.supplement_dict.no_captions %}
                     <h3 id="no_captions-{{ forloop.counter }}">Без подписей</h3>
-                    {% for no_captions in act.supplement.no_captions %}
+                    {% for no_captions in act.supplement_dict.no_captions %}
                         <a data-fancybox="gallery" href="/{{ no_captions.source }}"
                            data-caption="{{ no_captions.label }}">
                             <img src="/{{ no_captions.source }}" loading="lazy" alt="{{ no_captions.source }}"

@@ -210,7 +210,8 @@ def _get_page_count_via_libreoffice(file_path):
     except subprocess.CalledProcessError as e:
         print(f"LibreOffice error: {e.stderr}")
 
-    raise RuntimeError(f"Не удалось определить количество страниц в файле {file_path}")
+    print(f"Не удалось определить количество страниц в файле {file_path}")
+    return 1
 
 
 def raw_open_lists_save(uploaded_files, user_id, is_public, origin_filename=None, upload_source=None):
@@ -339,9 +340,7 @@ def load_raw_reports(reports_ids, report_type):
     for report_id in reports_ids:
         report = report_type.objects.get(id=report_id)
         i = 0
-        if not isinstance(report.source, dict):
-            report.source = json.loads(report.source)
-        for source in report.source:
+        for source in report.source_dict:
             if source['path'].lower().endswith(('.doc', '.docx')):
                 new_filename = source['path'][:source['path'].rfind('.')] + '.pdf'
                 in_file = os.path.abspath(source['path'])

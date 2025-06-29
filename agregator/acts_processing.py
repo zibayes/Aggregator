@@ -79,8 +79,7 @@ def process_acts(self, acts_ids, user_id, select_text, select_image, select_coor
     already_uploaded = []
     file_groups = {}
     for act in acts:
-        act.source = json.loads(act.source)
-        for source in act.source:
+        for source in act.source_dict:
             file = source.copy()
             file['processed'] = 'False'
             file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
@@ -95,7 +94,7 @@ def process_acts(self, acts_ids, user_id, select_text, select_image, select_coor
     progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
     for act in acts:
         i = 0
-        for source in act.source:
+        for source in act.source_dict:
             if not source['path'].lower().endswith(('.pdf', '.doc', '.docx')):
                 continue
             progress_json['file_groups'][str(act.id)][i]['processed'] = 'Processing'
@@ -136,7 +135,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     current_act = Act.objects.get(id=act_id)
     acts = Act.objects.all()
     for act in acts:
-        for source in act.source:
+        for source in act.source_dict:
             source_path = source['path']
             if act.id != act_id and os.path.isfile(source_path):
                 file_hash = calculate_file_hash(pdf_file)

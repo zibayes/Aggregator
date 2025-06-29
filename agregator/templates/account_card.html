@@ -8,7 +8,7 @@
     <h2 align="center">Учётная карта объекта: {{ account_card.name }}</h2>
 
     <div>
-        {% if account_card.upload_source %}
+        {% if account_card.upload_source_dict %}
             <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
                href="/{{ account_card.source }}">
                 Исходник: {{ account_card.origin_filename }}
@@ -24,7 +24,7 @@
             <br>
             <br>
         {% endif %}
-        {% if account_card.coordinates %}
+        {% if account_card.coordinates_dict %}
             <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
                href="/map/account_card/{{ account_card.id }}">
                 Просмотр координат
@@ -117,10 +117,10 @@
         <h2 id="address">Адрес</h2>
         <p>{{ account_card.address | safe }}</p>
 
-        {% if account_card.supplement %}
-            {% if account_card.supplement.address %}
+        {% if account_card.supplement_dict %}
+            {% if account_card.supplement_dict.address %}
                 {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
-                    {% for map in account_card.supplement.address %}
+                    {% for map in account_card.supplement_dict.address %}
                         <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
                             <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
                                  alt="{{ map.source }}"
@@ -148,10 +148,10 @@
         <h2 id="description">Описание</h2>
         <p>{{ account_card.description | safe }}</p>
 
-        {% if account_card.supplement %}
-            {% if account_card.supplement.description %}
+        {% if account_card.supplement_dict %}
+            {% if account_card.supplement_dict.description %}
                 {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
-                    {% for map in account_card.supplement.description %}
+                    {% for map in account_card.supplement_dict.description %}
                         <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
                             <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
                                  alt="{{ map.source }}"

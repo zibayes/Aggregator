@@ -240,8 +240,8 @@
                         </a>
                     </td>
                     <td>
-                        <a{% if act.upload_source.link %}
-                            href="{{ act.upload_source.link }}" {% endif %}>{{ act.upload_source.source }}</a>
+                        <a{% if act.upload_source_dict.link %}
+                            href="{{ act.upload_source_dict.link }}" {% endif %}>{{ act.upload_source_dict.source }}</a>
                     </td>
                     <td>
                         {{ act.date_uploaded }}
@@ -255,7 +255,7 @@
                         </a>
                     </td>
                     <td>
-                        {% for source in act.source %}
+                        {% for source in act.source_dict %}
                             <a href="/{{ source.path }}">
                                 <!--
                                 {% if source.type == 'all' %}

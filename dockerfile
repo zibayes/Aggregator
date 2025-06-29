@@ -21,7 +21,13 @@ RUN --mount=type=cache,target=/var/cache/apt \
         libpython3-dev \
         libpq-dev \
         libgl1 \
+        tesseract-ocr \
+        libtesseract-dev \
+        libleptonica-dev \
+        tesseract-ocr-rus \
+        tesseract-ocr-eng \
         tk \
+        libreoffice \
         libglib2.0-0 && \
     rm -rf /var/lib/apt/lists/*
 
@@ -32,6 +38,9 @@ FROM python:3.12 as python-builder
 COPY --from=system-deps /usr/lib/x86_64-linux-gnu/ /usr/lib/x86_64-linux-gnu/
 COPY --from=system-deps /usr/bin/ /usr/bin/
 COPY --from=system-deps /usr/include/ /usr/include/
+COPY --from=system-deps /usr/bin/tesseract /usr/bin/
+COPY --from=system-deps /usr/share/tesseract-ocr /usr/share/tesseract-ocr
+COPY --from=system-deps /usr/lib/libtesseract.so* /usr/lib/
 
 WORKDIR /app
 
@@ -45,11 +54,10 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install -r requirements.txt
 
 RUN pip install celery redis
-RUN apt-get update
-RUN apt-get install -y supervisor
+RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing supervisor libreoffice
 
 WORKDIR /app
-COPY . .
+# COPY . .
 
 EXPOSE 8000
 

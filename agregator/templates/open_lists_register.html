@@ -167,8 +167,8 @@
                         </a>
                     </td>
                     <td>
-                        <a{% if open_list.upload_source.link %}
-                            href="{{ open_list.upload_source.link }}" {% endif %}>{{ open_list.upload_source.source }}</a>
+                        <a{% if open_list.upload_source_dict.link %}
+                            href="{{ open_list.upload_source_dict.link }}" {% endif %}>{{ open_list.upload_source_dict.source }}</a>
                     </td>
                     <td>
                         {{ open_list.date_uploaded }}

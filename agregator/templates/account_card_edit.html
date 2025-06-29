@@ -108,14 +108,14 @@
         <h2 id="supplement">Приложение</h2>
 
         <h3 id="address_maps">Адрес</h3>
-        {% for map in account_card.supplement.address %}
+        {% for map in account_card.supplement_dict.address %}
             <img src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}" style="max-width: 400px;"/>
             <textarea class="form-control" id="map" name="map" rows="3">{{ map.label }}</textarea>
             <br>
         {% endfor %}
 
         <h3 id="description_maps">Описание</h3>
-        {% for scheme in account_card.supplement.description %}
+        {% for scheme in account_card.supplement_dict.description %}
             <img src="/{{ scheme.source }}" loading="lazy" alt="{{ scheme.source }}" style="max-width: 400px;"/>
             <textarea class="form-control" id="scheme" name="scheme" rows="3">{{ scheme.label }}</textarea>
             <br>

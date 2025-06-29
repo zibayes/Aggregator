@@ -52,7 +52,7 @@ WORKS_TYPES = [
 ]
 WORDS_TO_CHECK = ['участке', 'территории', 'объект', 'Красноярского', 'края', 'археологического', 'строительство']
 WORKS_TYPES_SHORTLY = ['раскопки', 'разведки', 'наблюдения']
-pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
 
 # language_tool = language_tool_python.LanguageTool('ru-RU')

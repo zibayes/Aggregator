@@ -225,8 +225,8 @@
                         {{ account_card.date_uploaded }}
                     </td>
                     <td>
-                        <a{% if account_card.upload_source.link %}
-                            href="{{ account_card.upload_source.link }}" {% endif %}>{{ account_card.upload_source.source }}</a>
+                        <a{% if account_card.upload_source_dict.link %}
+                            href="{{ account_card.upload_source_dict.link }}" {% endif %}>{{ account_card.upload_source_dict.source }}</a>
                     </td>
                     <td>
                         <a href="/account_cards/{{ account_card.id }}">

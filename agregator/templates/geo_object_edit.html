@@ -38,7 +38,7 @@
             {% csrf_token %}
             <div id="coordinates_container">
                 <h4>Редактирование координат</h4>
-                {% for group, point in geo_object.coordinates.items %}
+                {% for group, point in geo_object.coordinates_dict.items %}
                     <div class="mb-3" id="polygon-{{ group }}">
                         <label for="group[{{ group }}]">Название полигона: </label>
                         <input type="text" id="group[{{ group }}]" name="group[{{ group }}]" value="{{ group }}"

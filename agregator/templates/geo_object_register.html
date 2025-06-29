@@ -103,7 +103,7 @@
                         </a>
                     </td>
                     <td>
-                        {{ geo_object.upload_source.source }}
+                        {{ geo_object.upload_source_dict.source }}
                     </td>
                     <td>
                         <a href="/users/{{ geo_object.user.id }}">
@@ -118,7 +118,7 @@
                         {{ geo_object.date_uploaded }}
                     </td>
                     <td>
-                        {% if not geo_object.coordinates %}
+                        {% if not geo_object.coordinates_dict %}
                             <button type="button" class="btn btn-success"
                                     style="border-radius: 12px; margin-right:10px;" disabled>
                                 Просмотр

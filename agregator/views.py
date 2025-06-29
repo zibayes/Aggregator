@@ -48,13 +48,15 @@ from .tech_reports_processing import process_tech_reports, error_handler_tech_re
 
 def get_user_tasks(user_id, file_types, upload_source=False):
     user_tasks = list(UserTasks.objects.filter(user_id=user_id, files_type__in=file_types))
+    '''
     for i in range(len(user_tasks)):
         user_tasks[i].upload_source = json.loads(user_tasks[i].upload_source) if not isinstance(
             user_tasks[i].upload_source, dict) else user_tasks[i].upload_source
+    '''
     if upload_source:
-        user_tasks = [x for x in user_tasks if x.upload_source['source'] != 'Пользовательский файл']
+        user_tasks = [x for x in user_tasks if x.upload_source_dict['source'] != 'Пользовательский файл']
     else:
-        user_tasks = [x for x in user_tasks if x.upload_source['source'] == 'Пользовательский файл']
+        user_tasks = [x for x in user_tasks if x.upload_source_dict['source'] == 'Пользовательский файл']
     user_tasks = [x.task_id for x in user_tasks]
     user_tasks = list(TaskResult.objects.filter(task_id__in=user_tasks).order_by('-date_created'))
     tasks_id = [x.task_id for x in user_tasks]
@@ -239,11 +241,11 @@ def interactive_map(request):
     all_coordinates = {'Акты': {}, 'Научные отчёты': {}, 'Научно-технические отчёты': {}}
     for act in acts:
         all_coordinates['Акты'][
-            act.source[0]['origin_filename']] = act.coordinates  # TODO: Подобрать более удачный нейминг?
+            act.source_dict[0]['origin_filename']] = act.coordinates_dict  # TODO: Подобрать более удачный нейминг?
     for report in scientific_reports:
-        all_coordinates['Научные отчёты'][report.source[0]['origin_filename']] = report.coordinates
+        all_coordinates['Научные отчёты'][report.source_dict[0]['origin_filename']] = report.coordinates_dict
     for report in tech_report:
-        all_coordinates['Научно-технические отчёты'][report.source[0]['origin_filename']] = report.coordinates
+        all_coordinates['Научно-технические отчёты'][report.source_dict[0]['origin_filename']] = report.coordinates_dict
     return render(request, 'interactive_map.html', {'all_coordinates': all_coordinates})
 
 
@@ -257,11 +259,11 @@ def download_all_coordinates(request):
 
         for act in acts:
             all_coordinates['Акты'][
-                act.source[0]['origin_filename']] = act.coordinates  # TODO: Подобрать более удачный нейминг?
+                act.source_dict[0]['origin_filename']] = act.coordinates_dict  # TODO: Подобрать более удачный нейминг?
         for report in scientific_reports:
-            all_coordinates['Научные отчёты'][report.source[0]['origin_filename']] = report.coordinates
+            all_coordinates['Научные отчёты'][report.source_dict[0]['origin_filename']] = report.coordinates_dict
         for report in tech_report:
-            all_coordinates['Научно-технические отчёты'][report.source[0]['origin_filename']] = report.coordinates
+            all_coordinates['Научно-технические отчёты'][report.source[0]['origin_filename']] = report.coordinates_dict
 
         for report_type, reports in all_coordinates.items():
             for report, groups in reports.items():
@@ -489,7 +491,8 @@ def profile(request):
 def settings(request):
     if request.method == 'POST':
         user = request.user
-        user.avatar = request.FILES['avatar']
+        if 'avatar' in request.FILES.keys():
+            user.avatar = request.FILES['avatar']
         user.first_name = request.POST['first_name']
         user.last_name = request.POST['last_name']
         user.username = request.POST['username']
@@ -830,8 +833,8 @@ def map(request, report_type, pk):
             report = ScientificReport.objects.get(id=pk)
         elif report_type == 'tech_report':
             report = TechReport.objects.get(id=pk)
-        report_name = report.source[0]['origin_filename']
-    coordinates = report.coordinates if report else {}
+        report_name = report.source_dict[0]['origin_filename']
+    coordinates = report.coordinates_dict if report else {}
     matching_polygons = {'matching_polygons': get_geojson_polygons_sync(coordinates)}
     return render(request, 'interactive_map.html',
                   {'coordinates': coordinates, 'matching_polygons': matching_polygons,
@@ -936,8 +939,10 @@ def download_coordinates(request, report_type, pk):
             report = ObjectAccountCard.objects.get(id=pk)
         elif report_type == 'commercial_offer':
             report = CommercialOffers.objects.get(id=pk)
-        coordinates = report.coordinates if report else {}
+        coordinates = report.coordinates_dict if report else {}
         coordinates_to_download = {}
+        print('request.POST.keys(): ' + str(request.POST.keys()))
+        print('coordinates.items(): ' + str(coordinates.items()))
 
         for group, point in coordinates.items():
             for point_name, coords in point.items():
@@ -1254,7 +1259,7 @@ def identified_archaeological_heritage_site_delete(request, pk):
 def archaeological_heritage_sites_download(request):
     current_lists = 'uploaded_files/voan_list/current_lists.txt'
     link = None
-    with open(current_lists, 'r') as file:
+    with open(current_lists, 'r', encoding='utf-8') as file:
         for line in file.readlines():
             if 'list_voan - ' in line:
                 link = line.replace('list_voan - ', '').strip()
@@ -1266,7 +1271,7 @@ def archaeological_heritage_sites_download(request):
 def identified_archaeological_heritage_sites_download(request):
     current_lists = 'uploaded_files/voan_list/current_lists.txt'
     link = None
-    with open(current_lists, 'r') as file:
+    with open(current_lists, 'r', encoding='utf-8') as file:
         for line in file.readlines():
             if 'list_oan - ' in line:
                 link = line.replace('list_oan - ', '').strip()
@@ -1458,6 +1463,7 @@ def commercial_offers(request, pk):
 @owner_or_admin_required(CommercialOffers)
 def commercial_offers_edit(request, pk):
     commercial_offer = CommercialOffers.objects.get(id=pk)
+    commercial_offer.coordinates = commercial_offer.coordinates_dict
     if request.method == 'POST':
         coordinates = {}
         current_group = None
@@ -1555,59 +1561,18 @@ def download_commercial_offer_report(request, pk):
         print('TYPE: ' + str(type(account_card)))
 
         min_distance = None
-        if type(account_card) != GeoObject:
-            for ac_polygon in account_card.coordinates.values():
-                if 'coordinate_system' not in ac_polygon.keys() or ac_polygon['coordinate_system'] == 'None':
-                    continue
-                for co_polygon in commercial_offer.coordinates.values():
-                    if 'coordinate_system' not in co_polygon.keys() or co_polygon['coordinate_system'] == 'None':
+        if account_card.coordinates_dict and commercial_offer.coordinates_dict:
+            if type(account_card) != GeoObject:
+                for ac_polygon in account_card.coordinates_dict.values():
+                    if 'coordinate_system' not in ac_polygon.keys() or ac_polygon['coordinate_system'] == 'None':
                         continue
-                    polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
-                                key != 'coordinate_system']
-                    polygon2 = [[float(value[0]), float(value[1])] for key, value in ac_polygon.items() if
-                                key != 'coordinate_system']
-
-                    if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
-                        polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in polygon1]
-                        polygon2 = [[convert_to_wgs84(x[0], x[1], ac_polygon['coordinate_system'])] for x in polygon2]
-
-                    if len(polygon1) > 2:
-                        polygon1 = Polygon(polygon1)
-                    elif len(polygon1) == 2:
-                        polygon1 = LineString(polygon1)
-                    elif len(polygon1) == 1:
-                        polygon1 = Point(polygon1)
-
-                    if len(polygon2) > 2:
-                        polygon2 = Polygon(polygon2)
-                    elif len(polygon2) == 2:
-                        polygon2 = LineString(polygon2)
-                    elif len(polygon2) == 1:
-                        polygon2 = Point(polygon2)
-
-                    point1, point2 = nearest_points(polygon1, polygon2)
-                    geod = Geod(ellps="WGS84")
-                    # print(str(polygon1) + ' HERE ' + str(polygon2))
-                    # print(str(point1) + ' HERE ' + str(point2))
-                    if not point1 or not point2:
-                        continue
-                    az12, az21, distance = geod.inv(point1.y, point1.x, point2.y, point2.x)
-                    if min_distance is None or min_distance > distance:
-                        min_distance = distance
-        else:
-            for ac_polygon in account_card.coordinates.values():
-                for point_name, coords in ac_polygon.items():
-                    print(str(counter) + '/' + str(len(ac_polygon.items())))
-                    counter += 1
-                    if 'coordinate_system' not in ac_polygon.keys() or ac_polygon[
-                        'coordinate_system'] == 'None' or point_name == 'coordinate_system':
-                        continue
-                    for co_polygon in commercial_offer.coordinates.values():
+                    for co_polygon in commercial_offer.coordinates_dict.values():
                         if 'coordinate_system' not in co_polygon.keys() or co_polygon['coordinate_system'] == 'None':
                             continue
                         polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
                                     key != 'coordinate_system']
-                        polygon2 = [[float(value) for value in coords]]
+                        polygon2 = [[float(value[0]), float(value[1])] for key, value in ac_polygon.items() if
+                                    key != 'coordinate_system']
 
                         if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
                             polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in
@@ -1638,13 +1603,58 @@ def download_commercial_offer_report(request, pk):
                         az12, az21, distance = geod.inv(point1.y, point1.x, point2.y, point2.x)
                         if min_distance is None or min_distance > distance:
                             min_distance = distance
-                    table_columns_info['Памятник'] = point_name
-                    table_columns_info['Дистанция до памятника (км)'] = distance / 1000
-                    df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
-                    if df_existing is None:
-                        df_existing = df_new
-                    else:
-                        df_existing = df_existing._append(df_new, ignore_index=True)
+            else:
+                for ac_polygon in account_card.coordinates_dict.values():
+                    for point_name, coords in ac_polygon.items():
+                        print(str(counter) + '/' + str(len(ac_polygon.items())))
+                        counter += 1
+                        if 'coordinate_system' not in ac_polygon.keys() or ac_polygon[
+                            'coordinate_system'] == 'None' or point_name == 'coordinate_system':
+                            continue
+                        for co_polygon in commercial_offer.coordinates_dict.values():
+                            if 'coordinate_system' not in co_polygon.keys() or co_polygon[
+                                'coordinate_system'] == 'None':
+                                continue
+                            polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
+                                        key != 'coordinate_system']
+                            polygon2 = [[float(value) for value in coords]]
+
+                            if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
+                                polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in
+                                            polygon1]
+                                polygon2 = [[convert_to_wgs84(x[0], x[1], ac_polygon['coordinate_system'])] for x in
+                                            polygon2]
+
+                            if len(polygon1) > 2:
+                                polygon1 = Polygon(polygon1)
+                            elif len(polygon1) == 2:
+                                polygon1 = LineString(polygon1)
+                            elif len(polygon1) == 1:
+                                polygon1 = Point(polygon1)
+
+                            if len(polygon2) > 2:
+                                polygon2 = Polygon(polygon2)
+                            elif len(polygon2) == 2:
+                                polygon2 = LineString(polygon2)
+                            elif len(polygon2) == 1:
+                                polygon2 = Point(polygon2)
+
+                            point1, point2 = nearest_points(polygon1, polygon2)
+                            geod = Geod(ellps="WGS84")
+                            # print(str(polygon1) + ' HERE ' + str(polygon2))
+                            # print(str(point1) + ' HERE ' + str(point2))
+                            if not point1 or not point2:
+                                continue
+                            az12, az21, distance = geod.inv(point1.y, point1.x, point2.y, point2.x)
+                            if min_distance is None or min_distance > distance:
+                                min_distance = distance
+                        table_columns_info['Памятник'] = point_name
+                        table_columns_info['Дистанция до памятника (км)'] = distance / 1000
+                        df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
+                        if df_existing is None:
+                            df_existing = df_new
+                        else:
+                            df_existing = df_existing._append(df_new, ignore_index=True)
 
         if min_distance is not None and type(account_card) != GeoObject:
             table_columns_info['Памятник'] = account_card.name
@@ -1692,6 +1702,7 @@ def download_commercial_offer_report(request, pk):
 @owner_or_admin_required(GeoObject)
 def geo_objects_edit(request, pk):
     geo_object = GeoObject.objects.get(id=pk)
+    geo_object.coordinates = geo_object.coordinates_dict
     if request.method == 'POST':
         coordinates = {}
         current_group = None

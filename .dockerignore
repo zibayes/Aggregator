@@ -14,6 +14,10 @@ __pycache__
 *.tar
 *.log
 *.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
 *.tmp
 /tmp
 /dev
@@ -21,9 +25,11 @@ __pycache__
 
 .docker-cache/
 wheelhouse/
-uploaded_files/
+# uploaded_files/
 venv/
 staticfiles/
+supervisord_logs/
+app_mount/
 
 # *.jpg
 # *.png

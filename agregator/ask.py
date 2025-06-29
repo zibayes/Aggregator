@@ -13,6 +13,15 @@ from langchain_community.document_transformers import BeautifulSoupTransformer
 from .query_templates import DB_QUERY_TEMPLATE, SOURCE_TEMPLATE, RESULT_TEMPLATE, \
     PROMPT_TEMPLATE, INFO_SOURCES, REFORMULATE_TEMPLATE, SIMPLE_QUESTION_TEMPLATE, INTERNET_QUERY_TEMPLATE
 
+model = ChatOpenAI(temperature=0.7, base_url="http://host.docker.internal:1234/v1",
+                   api_key="not-needed")  # http://localhost:1234/v1
+db = Chroma(persist_directory=os.path.join(os.getcwd(), CHROMA_PATH), embedding_function=get_embeddings())
+vectorstore = Chroma(embedding_function=get_embeddings(),
+                     persist_directory=os.path.join(os.getcwd(), CHROMA_PATH))
+# documents = vectorstore.get()
+# bm25_retriever = BM25Retriever(vectorstore=db, docs=documents)
+vectorstore_retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
+
 
 def ddg_search(query):
     results = DDGS().text(query, region='ru-ru', safesearch='off', timelimit='y', max_results=2)
@@ -51,14 +60,6 @@ def truncate(text):
 
 
 def ask_question_with_context(query_text: str) -> str:
-    db = Chroma(persist_directory=os.path.join(os.getcwd(), CHROMA_PATH), embedding_function=get_embeddings())
-    model = ChatOpenAI(temperature=0.7, base_url="http://localhost:1234/v1", api_key="not-needed")
-
-    vectorstore = Chroma(embedding_function=get_embeddings(), persist_directory=os.path.join(os.getcwd(), CHROMA_PATH))
-    # documents = vectorstore.get()
-    # bm25_retriever = BM25Retriever(vectorstore=db, docs=documents)
-    vectorstore_retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
-
     prompt_template = ChatPromptTemplate.from_template(SOURCE_TEMPLATE)
     prompt = prompt_template.format(question=query_text)
     response_text = model.invoke(prompt)
@@ -79,6 +80,7 @@ def ask_question_with_context(query_text: str) -> str:
                 'host': 'localhost',  # хост (например, localhost)
                 'port': '5432'  # порт (по умолчанию 5432)
             }
+            cursor = connection = None
             try:
                 connection = psycopg2.connect(**db_config)
                 cursor = connection.cursor()

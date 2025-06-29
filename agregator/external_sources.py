@@ -31,7 +31,7 @@ def external_sources_processing(self, start_date, end_date):
     admin = User.objects.get(is_superuser=True)
     acts = Act.objects.filter(user_id=admin.id)
     downloaded_files = [y['origin_filename'] for x in acts if
-                        x.upload_source['source'] != 'Пользовательский файл' for y in x.source]
+                        x.upload_source_dict['source'] != 'Пользовательский файл' for y in x.source_dict]
     while str(page) in pages:
         print(f"PAGE={page}")
         try:
@@ -141,11 +141,11 @@ def external_sources_processing(self, start_date, end_date):
                         files_to_save = [convert_file_to_uploaded_file(path_to_download)]
                     admin = User.objects.get(is_superuser=True)
                     upload_source = {'source': 'ООКН', 'link': url}
-                    acts_ids = raw_reports_save(file_groups, files_to_save, Act, admin.id, upload_source)
+                    acts_ids = raw_reports_save(file_groups, files_to_save, Act, admin.id, True, upload_source)
                     if folder is not None:
                         shutil.rmtree(folder)
                     os.remove(path_to_download)
-                    task = process_acts.apply_async((acts_ids, admin.id),
+                    task = process_acts.apply_async((acts_ids, admin.id, True, True, True),
                                                     link_error=error_handler_acts.s())
                     user_task = UserTasks(user_id=admin.id, task_id=task.task_id, files_type='act',
                                           upload_source=upload_source)
@@ -200,7 +200,7 @@ def external_voan_list_processing():
     current_lists = 'uploaded_files/voan_list/current_lists.txt'
     Path('uploaded_files/voan_list/').mkdir(exist_ok=True)
 
-    with open(current_lists, 'a+') as file:
+    with open(current_lists, 'a+', encoding='utf-8') as file:
         file.seek(0)
         text = file.read()
         lines = [line for line in text.split('\n') if line.strip()]
@@ -244,7 +244,7 @@ def external_voan_list_processing():
                 with open(path_to_download, 'wb') as out_file:
                     out_file.write(response.read())
 
-                with open(current_lists, 'a+') as file:
+                with open(current_lists, 'a+', encoding='utf-8') as file:
                     if title == 'Перечень выявленных объектов культурного наследия':
                         file.write('list_voan - ' + path_to_download + '\n')
                     elif title == 'Перечень объектов археологического наследия':

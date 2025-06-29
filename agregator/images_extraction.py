@@ -14,7 +14,7 @@ from .files_saving import raw_open_lists_save
 from .open_lists_ocr import process_open_lists, error_handler_open_lists, \
     borders_cut, get_image_angle, image_binarization_plain, rotate_image
 
-pytesseract.pytesseract.tesseract_cmd = 'C:/Program Files/Tesseract-OCR/tesseract.exe'
+pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 IMAGE_MIN_SIZE = 150
 CURRENT_OPEN_LIST_RGB = (205, 221, 229)
 RGB_ACCURACY = 20

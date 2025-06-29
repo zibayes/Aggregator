@@ -13,8 +13,7 @@ from celery_progress.backend import ProgressRecorder
 from .files_saving import load_raw_geo_objects
 from .hash import calculate_file_hash
 from .models import GeoObject
-
-redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+from .redis_config import redis_client
 
 COORDINATE_SYSTEMS = [
     r'wgs.*?\d+',

@@ -156,8 +156,8 @@
                         </a>
                     </td>
                     <td>
-                        <a{% if report.upload_source.link %}
-                            href="{{ report.upload_source.link }}" {% endif %}>{{ report.upload_source.source }}</a>
+                        <a{% if report.upload_source_dict.link %}
+                            href="{{ report.upload_source_dict.link }}" {% endif %}>{{ report.upload_source_dict.source }}</a>
                     </td>
                     <td>{{ report.date_uploaded }}</td>
                     <td>
@@ -165,7 +165,7 @@
                            href="/tech_reports/{{ report.id }}">Просмотр</a>
                     </td>
                     <td>
-                        {% for source in report.source %}
+                        {% for source in report.source_dict %}
                             <a href="/{{ source.path }}">
                                 <!--
                                 {% if source.type == 'all' %}

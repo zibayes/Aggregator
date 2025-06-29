@@ -8,7 +8,7 @@
     <h2 align="center">Научный отчёт: {{ report.author }} от {{ report.writing_date }}</h2>
 
     <div>
-        {% for source in report.source %}
+        {% for source in report.source_dict %}
             <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
                href="/{{ source.path }}">
                 <!--
@@ -25,7 +25,7 @@
             <br>
             <br>
         {% endfor %}
-        {% if report.coordinates %}
+        {% if report.coordinates_dict %}
             <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
                href="/map/scientific_report/{{ report.id }}">
                 Просмотр координат
@@ -145,50 +145,50 @@
         {% if report.conclusion %}
             <li><a href="#conclusion">Заключение</a></li>
         {% endif %}
-        {% for title, value in report.content.items %}
+        {% for title, value in report.content_dict.items %}
             {% if value %}
                 <li><a href="#{{ title }}">{{ title }}</a></li>
             {% endif %}
         {% endfor %}
-        {% if report.supplement %}
-            {% for source in report.source %}
+        {% if report.supplement_dict %}
+            {% for source in report.source_dict %}
                 <li>
                     <a href="#supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</a>
                     <ul>
-                        {% if report.supplement.maps %}
+                        {% if report.supplement_dict.maps %}
                             <li><a href="#maps-{{ forloop.counter }}">Карты</a></li>
                         {% endif %}
-                        {% if report.supplement.schemas %}
+                        {% if report.supplement_dict.schemas %}
                             <li><a href="#schemas-{{ forloop.counter }}">Схемы</a></li>
                         {% endif %}
-                        {% if report.supplement.object_fotos %}
+                        {% if report.supplement_dict.object_fotos %}
                             <li><a href="#object_fotos-{{ forloop.counter }}">Общий вид</a></li>
                         {% endif %}
-                        {% if report.supplement.pits_fotos %}
+                        {% if report.supplement_dict.pits_fotos %}
                             <li><a href="#pits_fotos-{{ forloop.counter }}">Шурфы</a></li>
                         {% endif %}
-                        {% if report.supplement.excavation_fotos %}
+                        {% if report.supplement_dict.excavation_fotos %}
                             <li><a href="#excavation_fotos-{{ forloop.counter }}">Раскопы</a></li>
                         {% endif %}
-                        {% if report.supplement.material_fotos %}
+                        {% if report.supplement_dict.material_fotos %}
                             <li><a href="#material_fotos-{{ forloop.counter }}">Материал</a></li>
                         {% endif %}
-                        {% if report.supplement.heritage_info %}
+                        {% if report.supplement_dict.heritage_info %}
                             <li><a href="#heritage_info-{{ forloop.counter }}">Данные о ВОАН</a></li>
                         {% endif %}
-                        {% if report.supplement.other %}
+                        {% if report.supplement_dict.other %}
                             <li><a href="#other-{{ forloop.counter }}">Иное</a></li>
                         {% endif %}
-                        {% if report.supplement.title_page %}
+                        {% if report.supplement_dict.title_page %}
                             <li><a href="#title_page-{{ forloop.counter }}">Титульник</a></li>
                         {% endif %}
-                        {% if report.supplement.docs %}
+                        {% if report.supplement_dict.docs %}
                             <li><a href="#docs-{{ forloop.counter }}">Документы</a></li>
                         {% endif %}
-                        {% if report.supplement.open_list %}
+                        {% if report.supplement_dict.open_list %}
                             <li><a href="#open_list-{{ forloop.counter }}">Открытый лист</a></li>
                         {% endif %}
-                        {% if report.supplement.no_captions %}
+                        {% if report.supplement_dict.no_captions %}
                             <li><a href="#no_captions-{{ forloop.counter }}">Без подписей</a></li>
                         {% endif %}
                     </ul>
@@ -258,22 +258,22 @@
         <p>{{ report.conclusion | safe }}</p>
     {% endif %}
 
-    {% for title, content in report.content.items %}
+    {% for title, content in report.content_dict.items %}
         {% if content %}
             <h2 id="{{ title }}">{{ title }}</h2>
             <p>{{ content | safe }}</p>
         {% endif %}
     {% endfor %}
 
-    {% if report.supplement %}
-        {% for source in report.source %}
+    {% if report.supplement_dict %}
+        {% for source in report.source_dict %}
             {% with truncated_path=source.path|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
 
                 <h2 id="supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</h2>
 
-                {% if report.supplement.maps %}
+                {% if report.supplement_dict.maps %}
                     <h3 id="maps-{{ forloop.counter }}">Карты</h3>
-                    {% for map in report.supplement.maps %}
+                    {% for map in report.supplement_dict.maps %}
                         {% if truncated_path in map.source %}
                             <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
                                 <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
@@ -286,9 +286,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.schemas %}
+                {% if report.supplement_dict.schemas %}
                     <h3 id="schemas-{{ forloop.counter }}">Схемы</h3>
-                    {% for scheme in report.supplement.schemas %}
+                    {% for scheme in report.supplement_dict.schemas %}
                         {% if truncated_path in scheme.source %}
                             <a data-fancybox="gallery" href="/{{ scheme.source }}" data-caption="{{ scheme.label }}">
                                 <img id="image-link-{{ scheme.image_num }}" src="/{{ scheme.source }}" loading="lazy"
@@ -300,9 +300,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.object_fotos %}
+                {% if report.supplement_dict.object_fotos %}
                     <h3 id="object_fotos-{{ forloop.counter }}">Общий вид</h3>
-                    {% for object in report.supplement.object_fotos %}
+                    {% for object in report.supplement_dict.object_fotos %}
                         {% if truncated_path in object.source %}
                             <a data-fancybox="gallery" href="/{{ object.source }}" data-caption="{{ object.label }}">
                                 <img id="image-link-{{ object.image_num }}" src="/{{ object.source }}" loading="lazy"
@@ -314,9 +314,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.pits_fotos %}
+                {% if report.supplement_dict.pits_fotos %}
                     <h3 id="pits_fotos-{{ forloop.counter }}">Шурфы</h3>
-                    {% for pit in report.supplement.pits_fotos %}
+                    {% for pit in report.supplement_dict.pits_fotos %}
                         {% if truncated_path in pit.source %}
                             <a data-fancybox="gallery" href="/{{ pit.source }}" data-caption="{{ pit.label }}">
                                 <img id="image-link-{{ pit.image_num }}" src="/{{ pit.source }}" loading="lazy"
@@ -329,9 +329,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.excavation_fotos %}
+                {% if report.supplement_dict.excavation_fotos %}
                     <h3 id="excavation_fotos-{{ forloop.counter }}">Раскопы</h3>
-                    {% for excavation in report.supplement.excavation_fotos %}
+                    {% for excavation in report.supplement_dict.excavation_fotos %}
                         {% if truncated_path in excavation.source %}
                             <a data-fancybox="gallery" href="/{{ excavation.source }}"
                                data-caption="{{ excavation.label }}">
@@ -346,9 +346,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.material_fotos %}
+                {% if report.supplement_dict.material_fotos %}
                     <h3 id="material_fotos-{{ forloop.counter }}">Археологический материал</h3>
-                    {% for material in report.supplement.material_fotos %}
+                    {% for material in report.supplement_dict.material_fotos %}
                         {% if truncated_path in material.source %}
                             <a data-fancybox="gallery" href="/{{ material.source }}"
                                data-caption="{{ material.label }}">
@@ -362,9 +362,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.heritage_info %}
+                {% if report.supplement_dict.heritage_info %}
                     <h3 id="heritage_info-{{ forloop.counter }}">Данные о ВОАН</h3>
-                    {% for heritage in report.supplement.heritage_info %}
+                    {% for heritage in report.supplement_dict.heritage_info %}
                         {% if truncated_path in heritage.source %}
                             <a data-fancybox="gallery" href="/{{ heritage.source }}"
                                data-caption="{{ heritage.label }}">
@@ -378,9 +378,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.other %}
+                {% if report.supplement_dict.other %}
                     <h3 id="other-{{ forloop.counter }}">Иное</h3>
-                    {% for other in report.supplement.other %}
+                    {% for other in report.supplement_dict.other %}
                         {% if truncated_path in other.source %}
                             <a data-fancybox="gallery" href="/{{ other.source }}" data-caption="{{ other.label }}">
                                 <img id="image-link-{{ other.image_num }}" src="/{{ other.source }}" loading="lazy"
@@ -392,9 +392,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.title_page %}
+                {% if report.supplement_dict.title_page %}
                     <h3 id="title_page-{{ forloop.counter }}">Титульник</h3>
-                    {% for title_page in report.supplement.title_page %}
+                    {% for title_page in report.supplement_dict.title_page %}
                         {% if truncated_path in title_page.source %}
                             <a data-fancybox="gallery" href="/{{ title_page.source }}"
                                data-caption="{{ title_page.label }}">
@@ -407,9 +407,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.docs %}
+                {% if report.supplement_dict.docs %}
                     <h3 id="docs-{{ forloop.counter }}">Документы</h3>
-                    {% for doc in report.supplement.docs %}
+                    {% for doc in report.supplement_dict.docs %}
                         {% if truncated_path in doc.source %}
                             <a data-fancybox="gallery" href="/{{ doc.source }}" data-caption="{{ doc.label }}">
                                 <img id="image-link-{{ doc.image_num }}" src="/{{ doc.source }}"
@@ -423,9 +423,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.open_list %}
+                {% if report.supplement_dict.open_list %}
                     <h3 id="open_list-{{ forloop.counter }}">Открытый лист</h3>
-                    {% for open_list in report.supplement.open_list %}
+                    {% for open_list in report.supplement_dict.open_list %}
                         {% if truncated_path in open_list.source %}
                             <a data-fancybox="gallery" href="/{{ open_list.source }}"
                                data-caption="{{ open_list.label }}">
@@ -443,9 +443,9 @@
                     {% endfor %}
                 {% endif %}
 
-                {% if report.supplement.no_captions %}
+                {% if report.supplement_dict.no_captions %}
                     <h3 id="no_captions-{{ forloop.counter }}">Без подписей</h3>
-                    {% for no_captions in report.supplement.no_captions %}
+                    {% for no_captions in report.supplement_dict.no_captions %}
                         {% if truncated_path in no_captions.source %}
                             <a data-fancybox="gallery" href="/{{ no_captions.source }}"
                                data-caption="{{ no_captions.label }}">

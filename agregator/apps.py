@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from django.apps import AppConfig
+from django.db.models.signals import post_migrate
 
 
 class AgregatorConfig(AppConfig):
@@ -11,6 +12,9 @@ class AgregatorConfig(AppConfig):
     '''
 
     def ready(self):
+        post_migrate.connect(self.load_geojson_data)
+
+    def load_geojson_data(self, **kwargs):
         from .coordinates_extraction import save_geojson_polygons_to_db
         save_geojson_polygons_to_db()
 
@@ -18,7 +22,7 @@ class AgregatorConfig(AppConfig):
     '''
     folders = [
         'uploaded_files',
-        
+
         'uploaded_files/avatars',
 
         'uploaded_files/regions_polygons/Красноярский край/ЗАТО (городские округа)',

@@ -14,7 +14,7 @@ CHUNK_OVERLAP = 100
 
 
 def get_embeddings():
-    model_kwargs = {'device': 'cuda'}
+    model_kwargs = {'device': 'cpu'}  # 'cuda'
     embeddings_hf = HuggingFaceEmbeddings(
         model_name='intfloat/multilingual-e5-large',
         model_kwargs=model_kwargs
