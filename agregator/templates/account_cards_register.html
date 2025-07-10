@@ -401,6 +401,9 @@
                 });
                 window.dataTable.draw();
             });
+            setTimeout(() => {
+                storageSwitch.dispatchEvent(new Event('change'));
+            }, 200);
         });
     </script>
 {% endblock %}

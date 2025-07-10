@@ -658,12 +658,14 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         binarization_threshold = 120
         img_colored = cv2.imread(image_filename)
         img_colored, image = image_binarization_plain(img_colored, binarization_threshold)
+        '''
         image, img_colored = borders_cut(image, img_colored)
         angle = get_image_angle(img_colored)
         if angle is not None:
             img_colored = rotate_image(img_colored, angle)
         img_colored, image = image_binarization_plain(img_colored, binarization_threshold)
         image, img_colored = borders_cut(image, img_colored)
+        '''
         try:
             sauvola_bin = sauvola_binarization(img_colored)
         except np.core._exceptions._ArrayMemoryError as error:

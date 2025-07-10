@@ -59,6 +59,8 @@ class User(AbstractUser):
         return self.username
 
     class Meta:
+        verbose_name = "Пользователь"
+        verbose_name_plural = "Пользователи"
         db_table = 'users'
 
     def save(self, *args, **kwargs):
@@ -91,6 +93,8 @@ class UserTasks(models.Model):
         return f"User task {self.id}"
 
     class Meta:
+        verbose_name = "Пользовательская загрузка"
+        verbose_name_plural = "Пользовательские загрузки"
         db_table = 'user_tasks'
 
     def save(self, *args, **kwargs):
@@ -145,6 +149,8 @@ class Act(models.Model):
         return f"Act {self.id} by {self.user.username}"
 
     class Meta:
+        verbose_name = "Акт ГИКЭ"
+        verbose_name_plural = "Акты ГИКЭ"
         db_table = 'acts'
 
     def save(self, *args, **kwargs):
@@ -208,6 +214,8 @@ class ScientificReport(models.Model):
         return f"Scientific Report {self.id} by {self.user.username}"
 
     class Meta:
+        verbose_name = "Научный отчёт"
+        verbose_name_plural = "Научные отчёты"
         db_table = 'scientific_reports'
 
     def save(self, *args, **kwargs):
@@ -276,6 +284,8 @@ class TechReport(models.Model):
         return f"Tech Report {self.id} by {self.user.username}"
 
     class Meta:
+        verbose_name = "Научно-технический отчёт"
+        verbose_name_plural = "Научно-технические отчёты"
         db_table = 'tech_reports'
 
     def save(self, *args, **kwargs):
@@ -336,6 +346,8 @@ class OpenLists(models.Model):
         return f"Open list {self.id}"
 
     class Meta:
+        verbose_name = "Открытый лист"
+        verbose_name_plural = "Открытые листы"
         db_table = 'open_lists'
 
     def save(self, *args, **kwargs):
@@ -378,6 +390,8 @@ class ObjectAccountCard(models.Model):
         return f"Object Account Card {self.id} by {self.user.username}"
 
     class Meta:
+        verbose_name = "Учётная карта"
+        verbose_name_plural = "Учётные карты"
         db_table = 'object_account_cards'
 
     def save(self, *args, **kwargs):
@@ -456,6 +470,8 @@ class CommercialOffers(models.Model):
         return f"Commercial Offer {self.id} by {self.user.username}"
 
     class Meta:
+        verbose_name = "Коммерческое предложение"
+        verbose_name_plural = "Коммерческие предложения"
         db_table = 'commercial_offers'
 
     def save(self, *args, **kwargs):
