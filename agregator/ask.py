@@ -15,12 +15,6 @@ from .query_templates import DB_QUERY_TEMPLATE, SOURCE_TEMPLATE, RESULT_TEMPLATE
 
 model = ChatOpenAI(temperature=0.7, base_url="http://host.docker.internal:1234/v1",
                    api_key="not-needed")  # http://localhost:1234/v1
-db = Chroma(persist_directory=os.path.join(os.getcwd(), CHROMA_PATH), embedding_function=get_embeddings())
-vectorstore = Chroma(embedding_function=get_embeddings(),
-                     persist_directory=os.path.join(os.getcwd(), CHROMA_PATH))
-# documents = vectorstore.get()
-# bm25_retriever = BM25Retriever(vectorstore=db, docs=documents)
-vectorstore_retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
 
 
 def ddg_search(query):
@@ -105,6 +99,14 @@ def ask_question_with_context(query_text: str) -> str:
             response_text = model.invoke(prompt)
             print(response_text.content)
         elif 'векторная база данных' in response_text:
+            # TODO: ПЕРЕНЕСТИ ИНИЦИАЛИЗАЦИЮ В ГЛОБАЛЬНОЕ ПОЛЕ
+            db = Chroma(persist_directory=os.path.join(os.getcwd(), CHROMA_PATH), embedding_function=get_embeddings())
+            vectorstore = Chroma(embedding_function=get_embeddings(),
+                                 persist_directory=os.path.join(os.getcwd(), CHROMA_PATH))
+            # documents = vectorstore.get()
+            # bm25_retriever = BM25Retriever(vectorstore=db, docs=documents)
+            vectorstore_retriever = vectorstore.as_retriever(search_kwargs={"k": 2})
+
             prompt_template = ChatPromptTemplate.from_template(REFORMULATE_TEMPLATE)
             prompt = prompt_template.format(question=query_text)
             response_text = model.invoke(prompt)

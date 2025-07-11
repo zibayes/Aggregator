@@ -19,6 +19,7 @@ from .hash import calculate_file_hash
 from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
 from .models import TechReport
 from .redis_config import redis_client
+from .celery_task_template import process_documents
 
 
 def choose_file() -> str:
@@ -30,6 +31,10 @@ def choose_file() -> str:
 
 @shared_task(bind=True)
 def process_tech_reports(self, reports_ids, user_id, select_text, select_image, select_coord):
+    return process_documents(self, reports_ids, user_id, 'tech_reports', model_class=TechReport,
+                             load_function=load_raw_reports,
+                             select_text=select_text, select_image=select_image, select_coord=select_coord,
+                             process_function=extract_text_and_images)
     progress_recorder = ProgressRecorder(self)
     progress_recorder.set_progress(0, 100, '')
     reports, pages_count = load_raw_reports(reports_ids, TechReport)

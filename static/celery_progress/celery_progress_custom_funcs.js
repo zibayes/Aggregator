@@ -235,6 +235,8 @@ function add_process_icon(file, li, value, result, key, isError) {
         } else {
             icon.textContent = text_content + ` ⏳`;
         }
+    } else if (value.processed === 'Error') {
+        icon.textContent = text_content + ` ❌`;
     }
     li.appendChild(icon)
 }

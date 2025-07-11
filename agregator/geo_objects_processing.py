@@ -14,6 +14,7 @@ from .files_saving import load_raw_geo_objects
 from .hash import calculate_file_hash
 from .models import GeoObject
 from .redis_config import redis_client
+from .celery_task_template import process_documents
 
 COORDINATE_SYSTEMS = [
     r'wgs.*?\d+',
@@ -97,38 +98,9 @@ def parse_kml(file_path: str) -> dict:
 
 @shared_task(bind=True)
 def process_geo_objects(self, geo_objects_ids, user_id):
-    progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(1, 100, '')
-    geo_objects, pages_count = load_raw_geo_objects(geo_objects_ids)
-    # delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
-    total_processed = [0]
-    folder = 'uploaded_files/'
-    file_groups = {}
-    print("---" + str(pages_count))
-    for geo_object in geo_objects:
-        file = {'path': geo_object.source, 'origin_filename': geo_object.origin_filename,
-                'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[geo_object.source]}}
-        file_groups[str(geo_object.id)] = file
-    progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'geo_objects',
-                     'time_started': datetime.now().strftime(
-                         "%Y-%m-%d %H:%M:%S")}
-    redis_client.set(self.request.id, json.dumps(progress_json))
-    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-    for geo_object in geo_objects:
-        progress_json['file_groups'][str(geo_object.id)]['processed'] = 'Processing'
-        if not geo_object.source.endswith(('.kml', '.kmz')):
-            continue
-        time_on_start = datetime.now()
-        extract_coordinates(geo_object.source, progress_recorder, pages_count,
-                            total_processed, geo_object.id, progress_json, self.request.id,
-                            time_on_start)
-        progress_json['file_groups'][str(geo_object.id)]['pages']['processed'] = \
-            progress_json['file_groups'][str(geo_object.id)]['pages']['all']
-        progress_json['file_groups'][str(geo_object.id)]['processed'] = 'True'
-        redis_client.set(self.request.id, json.dumps(progress_json))
-        progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return progress_json
+    return process_documents(self, geo_objects_ids, user_id, 'geo_objects', model_class=GeoObject,
+                             load_function=load_raw_geo_objects,
+                             process_function=extract_coordinates)
 
 
 def extract_coordinates(file, progress_recorder, pages_count, total_processed,

@@ -16,6 +16,7 @@ from .files_saving import load_raw_commercial_offers
 from .hash import calculate_file_hash
 from .models import CommercialOffers
 from .redis_config import redis_client
+from .celery_task_template import process_documents
 
 COORDINATE_SYSTEMS = [
     r'wgs.*?\d+',
@@ -46,38 +47,9 @@ def choose_file() -> str:
 
 @shared_task(bind=True)
 def process_commercial_offers(self, commercial_offers_ids, user_id):
-    progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(1, 100, '')
-    commercial_offers, pages_count = load_raw_commercial_offers(commercial_offers_ids)
-    # delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
-    total_processed = [0]
-    folder = 'uploaded_files/'
-    file_groups = {}
-    print("---" + str(pages_count))
-    for commercial_offer in commercial_offers:
-        file = {'path': commercial_offer.source, 'origin_filename': commercial_offer.origin_filename,
-                'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[commercial_offer.source]}}
-        file_groups[str(commercial_offer.id)] = file
-    progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'commercial_offers',
-                     'time_started': datetime.now().strftime(
-                         "%Y-%m-%d %H:%M:%S")}
-    redis_client.set(self.request.id, json.dumps(progress_json))
-    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-    for commercial_offer in commercial_offers:
-        progress_json['file_groups'][str(commercial_offer.id)]['processed'] = 'Processing'
-        if not commercial_offer.source.endswith(('.doc', '.docx', '.odt', '.xlsx', '.xls', '.pdf')):
-            continue
-        time_on_start = datetime.now()
-        extract_coordinates(commercial_offer.source, progress_recorder, pages_count,
-                            total_processed, commercial_offer.id, progress_json, self.request.id,
-                            time_on_start)
-        progress_json['file_groups'][str(commercial_offer.id)]['pages']['processed'] = \
-            progress_json['file_groups'][str(commercial_offer.id)]['pages']['all']
-        progress_json['file_groups'][str(commercial_offer.id)]['processed'] = 'True'
-        redis_client.set(self.request.id, json.dumps(progress_json))
-        progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return progress_json
+    return process_documents(self, commercial_offers_ids, user_id, 'commercial_offers', model_class=CommercialOffers,
+                             load_function=load_raw_commercial_offers,
+                             process_function=extract_coordinates)
 
 
 def extract_coordinates(file, progress_recorder, pages_count, total_processed,

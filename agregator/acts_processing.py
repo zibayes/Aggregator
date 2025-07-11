@@ -19,6 +19,7 @@ from .hash import calculate_file_hash
 from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
 from .models import Act
 from .redis_config import redis_client
+from .celery_task_template import process_documents
 
 SQUARE_RESERVE = []
 
@@ -70,59 +71,9 @@ def get_gike_object_size(text_to_write: str, table_info: dict) -> None:
 
 @shared_task(bind=True)
 def process_acts(self, acts_ids, user_id, select_text, select_image, select_coord):
-    progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(0, 100, '')
-    acts, pages_count = load_raw_reports(acts_ids, Act)
-    # delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
-    total_processed = [0]
-    table = None
-    already_uploaded = []
-    file_groups = {}
-    for act in acts:
-        for source in act.source_dict:
-            file = source.copy()
-            file['processed'] = 'False'
-            file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
-            if str(act.id) in file_groups.keys():
-                file_groups[str(act.id)].append(file)
-            else:
-                file_groups[str(act.id)] = [file]
-    progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'acts',
-                     'time_started': datetime.now().strftime(
-                         "%Y-%m-%d %H:%M:%S")}
-    redis_client.set(self.request.id, json.dumps(progress_json))
-    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-    for act in acts:
-        i = 0
-        for source in act.source_dict:
-            if not source['path'].lower().endswith(('.pdf', '.doc', '.docx')):
-                continue
-            progress_json['file_groups'][str(act.id)][i]['processed'] = 'Processing'
-            new_table = extract_text_and_images(source['path'], progress_recorder, pages_count,
-                                                total_processed, progress_json, act.id, i, self.request.id, user_id,
-                                                act.is_public, select_text, select_image, select_coord)
-            progress_json['file_groups'][str(act.id)][i]['pages']['processed'] = \
-                progress_json['file_groups'][str(act.id)][i]['pages']['all']
-            progress_json['file_groups'][str(act.id)][i]['processed'] = 'True'
-            redis_client.set(self.request.id, json.dumps(progress_json))
-            progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-            i += 1
-            if isinstance(new_table, pd.DataFrame):
-                if table is not None:
-                    table = table._append(new_table, ignore_index=True)
-                else:
-                    table = new_table
-            else:
-                already_uploaded.append(act.id)
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return progress_json
-    '''
-    if isinstance(table, pd.DataFrame):
-        table = table['Номер (если имеется) и наименование Акта ГИКЭ'].tolist()
-    return table
-    # return table
-    # return uploaded_files
-    '''
+    return process_documents(self, acts_ids, user_id, 'acts', model_class=Act, load_function=load_raw_reports,
+                             select_text=select_text, select_image=select_image, select_coord=select_coord,
+                             process_function=extract_text_and_images)
 
 
 def extract_text_and_images(file, progress_recorder, pages_count, total_processed,

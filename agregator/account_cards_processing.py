@@ -21,6 +21,7 @@ from .files_saving import load_raw_account_cards
 from .hash import calculate_file_hash
 from .models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
 from .redis_config import redis_client
+from .celery_task_template import process_documents
 
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
@@ -70,37 +71,9 @@ def sort_contours_custom(contours):
 
 @shared_task(bind=True)
 def process_account_cards(self, account_cards_ids, user_id):
-    progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(1, 100, '')
-    account_cards, pages_count = load_raw_account_cards(account_cards_ids)
-    # delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
-    total_processed = [0]
-    folder = 'uploaded_files/'
-    file_groups = {}
-    print("---" + str(pages_count))
-    for account_card in account_cards:
-        file = {'path': account_card.source, 'origin_filename': account_card.origin_filename,
-                'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[account_card.source]}}
-        file_groups[str(account_card.id)] = file
-    progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'account_cards',
-                     'time_started': datetime.now().strftime(
-                         "%Y-%m-%d %H:%M:%S")}
-    redis_client.set(self.request.id, json.dumps(progress_json))
-    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-    for account_card in account_cards:
-        progress_json['file_groups'][str(account_card.id)]['processed'] = 'Processing'
-        if not account_card.source.endswith(('.docx', '.pdf')):
-            continue
-        time_on_start = datetime.now()
-        extract_text_tables_and_images(account_card.source, progress_recorder, pages_count,
-                                       total_processed, account_card.id, progress_json, self.request.id, time_on_start)
-        progress_json['file_groups'][str(account_card.id)]['pages']['processed'] = \
-            progress_json['file_groups'][str(account_card.id)]['pages']['all']
-        progress_json['file_groups'][str(account_card.id)]['processed'] = 'True'
-        redis_client.set(self.request.id, json.dumps(progress_json))
-        progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return progress_json
+    return process_documents(self, account_cards_ids, user_id, 'account_cards', model_class=ObjectAccountCard,
+                             load_function=load_raw_account_cards,
+                             process_function=extract_text_tables_and_images)
 
 
 def extract_text_tables_and_images(file, progress_recorder, pages_count, total_processed,

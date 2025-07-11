@@ -44,6 +44,7 @@ from .serializers import UserSerializer, ActSerializer, ScientificReportSerializ
     IdentifiedArchaeologicalHeritageSiteSerializer, CommercialOffersSerializer, GeoObjectSerializer, \
     GeojsonDataSerializer, ChatSerializer, MessageSerializer
 from .tech_reports_processing import process_tech_reports, error_handler_tech_reports
+from .celery_task_template import process_documents
 
 
 def get_user_tasks(user_id, file_types, upload_source=False):

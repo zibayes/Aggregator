@@ -28,8 +28,14 @@ RUN --mount=type=cache,target=/var/cache/apt \
         tesseract-ocr-eng \
         tk \
         libreoffice \
-        libglib2.0-0 && \
+        libglib2.0-0 \
+		tzdata && \
     rm -rf /var/lib/apt/lists/*
+
+# Устанавливаем временную зону на Красноярск
+ENV TZ=Asia/Krasnoyarsk
+RUN ln -fs /usr/share/zoneinfo/$TZ /etc/localtime && \
+    dpkg-reconfigure -f noninteractive tzdata
 
 # ==================== ЭТАП 2: Python зависимости ====================
 FROM python:3.12 as python-builder

@@ -399,8 +399,12 @@
                                      loading="lazy"
                                      alt="{{ doc.source }}"
                                      style="max-width: 400px;"/>
+                                {% if doc.label %}
+                                    <p>{{ doc.label }}</p>
+                                {% else %}
+                                    <br>
+                                {% endif %}
                             </a>
-                            <br>
                             <br>
                         {% endif %}
                     {% endfor %}

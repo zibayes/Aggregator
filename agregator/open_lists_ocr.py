@@ -26,6 +26,7 @@ from .files_saving import load_raw_open_lists
 from .hash import calculate_file_hash
 from .models import OpenLists
 from .redis_config import redis_client
+from .celery_task_template import process_documents
 
 FRAME_BORDERS = [204, 800, 48, 545]  # each need to '* koef' [204, 778, 63, 555]
 FIO_BORDERS = [390, 512, 40, 550]  # [390, 490, 60, 560]
@@ -567,48 +568,8 @@ def compare_two_texts(extracted_text, extracted_text_twin):
 
 @shared_task(bind=True)
 def process_open_lists(self, open_lists_ids, user_id):
-    progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(1, 100, '')
-    open_lists, pages_count = load_raw_open_lists(open_lists_ids)
-    # delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
-    total_processed = [0]
-    folder = 'uploaded_files/'
-    table = None
-    already_uploaded = []
-    file_groups = {}
-    for open_list in open_lists:
-        file = {'path': folder + open_list.source.name, 'origin_filename': open_list.origin_filename,
-                'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[str(open_list.id)]}}
-        file_groups[str(open_list.id)] = file
-    progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'open_lists',
-                     'time_started': datetime.now().strftime(
-                         "%Y-%m-%d %H:%M:%S")}
-    redis_client.set(self.request.id, json.dumps(progress_json))
-    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-    for open_list in open_lists:
-        progress_json['file_groups'][str(open_list.id)]['processed'] = 'Processing'
-        if not open_list.source.path.endswith('.pdf'):
-            continue
-        time_on_start = datetime.now()
-        new_table = open_list_ocr(open_list.source.path, progress_recorder, pages_count,
-                                  total_processed, open_list.id, progress_json, self.request.id, time_on_start)
-        progress_json['file_groups'][str(open_list.id)]['pages']['processed'] = \
-            progress_json['file_groups'][str(open_list.id)]['pages']['all']
-        progress_json['file_groups'][str(open_list.id)]['processed'] = 'True'
-        redis_client.set(self.request.id, json.dumps(progress_json))
-        progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-        if isinstance(new_table, pd.DataFrame):
-            if table is not None:
-                table = table._append(new_table, ignore_index=True)
-            else:
-                table = new_table
-        else:
-            already_uploaded.append(file)
-    if isinstance(table, pd.DataFrame):
-        table = table['Номер листа'].tolist()
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return progress_json
-    # return table
+    return process_documents(self, open_lists_ids, user_id, 'open_lists', load_function=load_raw_open_lists,
+                             process_function=open_list_ocr)
 
 
 def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
