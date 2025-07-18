@@ -162,6 +162,58 @@
             </button>
         </form>
 
+        <br>
+        <h2 id="supplement">Приложение</h2>
+
+        <h3 id="maps">Карты</h3>
+        {% for map in act.supplement_dict.maps %}
+            <img src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="map" name="map" rows="3">{{ map.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="schemas">Схемы</h3>
+        {% for scheme in act.supplement_dict.schemas %}
+            <img src="/{{ scheme.source }}" loading="lazy" alt="{{ scheme.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="scheme" name="scheme" rows="3">{{ scheme.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="object_fotos">Общий вид</h3>
+        {% for object in act.supplement_dict.object_fotos %}
+            <img src="/{{ object.source }}" loading="lazy" alt="{{ object.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="object" name="object" rows="3">{{ object.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="pits_fotos">Шурфы</h3>
+        {% for pit in act.supplement_dict.pits_fotos %}
+            <img src="/{{ pit.source }}" loading="lazy" alt="{{ pit.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="pit" name="pit" rows="3">{{ pit.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="excavation_fotos">Раскопы</h3>
+        {% for excavation in act.supplement_dict.excavation_fotos %}
+            <img src="/{{ excavation.source }}" loading="lazy" alt="{{ excavation.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="excavation" name="excavation"
+                      rows="3">{{ excavation.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="material_fotos">Археологический материал</h3>
+        {% for material in act.supplement_dict.material_fotos %}
+            <img src="/{{ material.source }}" loading="lazy" alt="{{ material.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="material" name="material" rows="3">{{ material.label }}</textarea>
+            <br>
+        {% endfor %}
+
+        <h3 id="heritage_info">Данные о ВОАН</h3>
+        {% for heritage in act.supplement_dict.heritage_info %}
+            <img src="/{{ heritage.source }}" loading="lazy" alt="{{ heritage.source }}" style="max-width: 400px;"/>
+            <textarea class="form-control" id="heritage" name="heritage" rows="3">{{ heritage.label }}</textarea>
+            <br>
+        {% endfor %}
 
     </div>
 {% endblock %}

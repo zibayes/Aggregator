@@ -432,9 +432,11 @@ def insert_supplement_links(report_parts: dict) -> None:
                     numbers_len = len(numbers)
                     for number in numbers:
                         if j != numbers_len - 1:
-                            final_string += f'<a href="#image-link-{number}">' + number + '</a>, '
+                            final_string += f'<a href="javascript:;" onclick="openGalleryFromLink(\'image-link-{number}\')">' + number + '</a>, '
+                            # final_string += f'<a href="#image-link-{number}">' + number + '</a>, '
                         else:
-                            final_string += f'<a href="#image-link-{number}">' + number + '</a>'
+                            final_string += f'<a href="javascript:;" onclick="openGalleryFromLink(\'image-link-{number}\')">' + number + '</a>'
+                            # final_string += f'<a href="#image-link-{number}">' + number + '</a>'
                         j += 1
                     final_string = ' [' + final_string + ']'
                     text = text[:links[i].end() + offset] + final_string + text[links[i].end() + offset:]
