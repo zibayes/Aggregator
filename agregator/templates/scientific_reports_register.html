@@ -1,331 +1,191 @@
-{% extends 'base.html' %}
+{% extends 'register_base.html' %}
 
 {% block title %}Реестр научных отчётов{% endblock %}
 
-{% block content %}
-
-    <br>
-    <h2 align="center">Реестр научных отчётов</h2>
-    <br>
-
-    <div class="accordion" id="accordionColumns">
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapseColumns" aria-expanded="false" aria-controls="collapseColumns">
-                    Отображение колонок
-                </button>
-            </h2>
-            <div id="collapseColumns" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
-                <div class="accordion-body">
-                    <label><input type="checkbox" class="column-toggle" data-column="0" checked> Название</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="1" checked> Организация</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="2" checked> Автор</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="3" checked> Открытый
-                        лист</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="4" checked> Дата
-                        написания</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="5" checked> Владелец
-                        документа</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="6" checked> Источник</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="7" checked> Дата
-                        загрузки</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Формализованный
-                        документ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="9" checked> Исходный
-                        документ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="10" checked>
-                        Редактирование</label><br>
-                </div>
-            </div>
-        </div>
-
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
-                    Фильтры
-                </button>
-            </h2>
-            <div id="collapseFilters" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
-                <div class="accordion-body">
-                    <form id="filterForm">
-                        <div class="mb-3" id="filterNameContainer">
-                            <label for="filterName" class="form-label">Название</label>
-                            <input type="text" class="form-control" id="filterName" placeholder="Введите название">
-                        </div>
-                        <div class="mb-3" id="filterOrganizationContainer">
-                            <label for="filterOrganization" class="form-label">Организация</label>
-                            <input type="text" class="form-control" id="filterOrganization"
-                                   placeholder="Введите организацию">
-                        </div>
-                        <div class="mb-3" id="filterAuthorContainer">
-                            <label for="filterAuthor" class="form-label">Автор</label>
-                            <input type="text" class="form-control" id="filterAuthor" placeholder="Введите автора">
-                        </div>
-                        <div class="mb-3" id="filterOpenListContainer">
-                            <label for="filterOpenList" class="form-label">Открытый лист</label>
-                            <input type="text" class="form-control" id="filterOpenList"
-                                   placeholder="Введите открытый лист">
-                        </div>
-                        <div class="mb-3" id="filterWritingDateContainer">
-                            <label for="filterWritingDate" class="form-label">Дата написания</label>
-                            <input type="text" class="form-control" id="filterWritingDate"
-                                   placeholder="Введите дату написания">
-                        </div>
-                        <div class="mb-3" id="filterOwnerContainer">
-                            <label for="filterOwner" class="form-label">Владелец документа</label>
-                            <input type="text" class="form-control" id="filterOwner"
-                                   placeholder="Введите владельца документа">
-                        </div>
-                        <div class="mb-3" id="filterUploadSourceContainer">
-                            <label for="filterUploadSource" class="form-label">Источник</label>
-                            <input type="text" class="form-control" id="filterUploadSource"
-                                   placeholder="Введите источник">
-                        </div>
-                        <div class="mb-3" id="filterDateUploadedContainer">
-                            <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
-                            <input type="text" class="form-control" id="filterDateUploaded"
-                                   placeholder="Введите дату загрузки">
-                        </div>
-                        <div class="mb-3">
-                            <label>
-                                <input type="checkbox" id="showMyDocs"/> Показать только свои документы
-                            </label>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Применить фильтры</button>
-                    </form>
-                </div>
-            </div>
-        </div>
+{% block column_toggles %}
+    <div data-columns-count="11">
+        <label><input type="checkbox" class="column-toggle" data-column="0" checked> Название</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="1" checked> Организация</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="2" checked> Автор</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="3" checked> Открытый лист</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="4" checked> Дата написания</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="5" checked> Владелец документа</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="6" checked> Источник</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="7" checked> Дата загрузки</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="8" checked> Формализованный
+            документ</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="9" checked> Исходный документ</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="10" checked> Редактирование</label><br>
     </div>
+{% endblock %}
 
-    <div style="display: flex; align-items: center; justify-content: space-between;">
-        <a href="/scientific_reports_register_download/">
-            Скачать реестр в формате .xlsx
-        </a>
-        <div class="form-check form-switch d-inline-block ms-3">
-            <input class="form-check-input" type="checkbox" id="storageSwitch">
-            <label class="form-check-label" for="storageSwitch" id="storageLabel">Публичное хранилище</label>
-        </div>
+{% block filter_form %}
+    <div class="mb-3" id="filterNameContainer">
+        <label for="filterName" class="form-label">Название</label>
+        <input type="text" class="form-control" id="filterName" placeholder="Введите название">
     </div>
+    <div class="mb-3" id="filterOrganizationContainer">
+        <label for="filterOrganization" class="form-label">Организация</label>
+        <input type="text" class="form-control" id="filterOrganization" placeholder="Введите организацию">
+    </div>
+    <div class="mb-3" id="filterAuthorContainer">
+        <label for="filterAuthor" class="form-label">Автор</label>
+        <input type="text" class="form-control" id="filterAuthor" placeholder="Введите автора">
+    </div>
+    <div class="mb-3" id="filterOpenListContainer">
+        <label for="filterOpenList" class="form-label">Открытый лист</label>
+        <input type="text" class="form-control" id="filterOpenList" placeholder="Введите открытый лист">
+    </div>
+    <div class="mb-3" id="filterWritingDateContainer">
+        <label for="filterWritingDate" class="form-label">Дата написания</label>
+        <input type="text" class="form-control" id="filterWritingDate" placeholder="Введите дату написания">
+    </div>
+    <div class="mb-3" id="filterOwnerContainer">
+        <label for="filterOwner" class="form-label">Владелец документа</label>
+        <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
+    </div>
+    <div class="mb-3" id="filterUploadSourceContainer">
+        <label for="filterUploadSource" class="form-label">Источник</label>
+        <input type="text" class="form-control" id="filterUploadSource" placeholder="Введите источник">
+    </div>
+    <div class="mb-3" id="filterDateUploadedContainer">
+        <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+        <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
+    </div>
+{% endblock %}
 
+{% block download_link %}
+    <a href="/scientific_reports_register_download/">Скачать реестр в формате .xlsx</a>
+{% endblock %}
 
-    <div class="table-responsive overflow-auto">
-        <table class="table table-striped w-100">
-            <thead>
-            <tr>
-                <th>Название</th>
-                <th>Организация</th>
-                <th>Автор</th>
-                <th>Открытый лист</th>
-                <th>Дата написания</th>
-                <th>Владелец документа</th>
-                <th>Источник</th>
-                <th>Дата загрузки</th>
-                <th>Формализованный документ</th>
-                <th>Исходный документ</th>
-                <th>Редактирование</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for report in reports %}
-                <tr data-act-id="{{ report.id }}" data-user-id="{{ report.user.id }}" data-name="{{ report.name }}"
-                    data-organization="{{ report.organization }}" data-author="{{ report.author }}"
-                    data-is-public="{{ report.is_public }}">
-                    <td>
-                        {{ report.name }}
-                    </td>
-                    <td>
-                        {{ report.organization }}
-                    </td>
-                    <td>
-                        {{ report.author }}
-                    </td>
-                    <td>
-                        {{ report.open_list }}
-                    </td>
-                    <td>
-                        {{ report.writing_date }}
-                    </td>
-                    <td>
-                        <a href="/users/{{ report.user.id }}">
-                            <img src="{{ report.user.avatar.url }}" class="rounded-circle" height="25" width="25"
-                                 loading="lazy"
-                                 style="object-fit: cover;" alt=""/>
-                            {{ report.user.username }}
-                        </a>
-                    </td>
-                    <td>
-                        <a{% if report.upload_source_dict.link %}
-                            href="{{ report.upload_source_dict.link }}" {% endif %}>{{ report.upload_source_dict.source }}</a>
-                    </td>
-                    <td>{{ report.date_uploaded }}</td>
-                    <td>
-                        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-                           href="/scientific_reports/{{ report.id }}">Просмотр</a>
-                    </td>
-                    <td>
-                        {% for source in report.source_dict %}
-                            <a href="/{{ source.path }}">
-                                <!--
-                                {% if source.type == 'all' %}
-                                    Отчёт
-                                {% elif source.type == 'text' %}
-                                    Текст
-                                {% elif source.type == 'images' %}
-                                    Приложение
-                                {% endif %}
-                                -->
-                                {{ source.origin_filename }}
-                            </a>
-                            <br>
-                            <br>
-                        {% endfor %}
-                    </td>
-                    <td>
-                        {% if report.user.id == user.id or user.is_superuser %}
-                            <a href="/scientific_reports_edit/{{ report.id }}">
-                                <button type="button" class="btn btn-primary"
-                                        style="border-radius: 12px; margin-right:10px;">
-                                    Редактировать
-                                </button>
-                            </a>
-                            <button type="button" class="btn btn-danger" data-bs-target="#delete_report_{{ report.id }}"
-                                    data-bs-toggle="modal" style="margin-top: 8px;">
+{% block table_headers %}
+    <th>Название</th>
+    <th>Организация</th>
+    <th>Автор</th>
+    <th>Открытый лист</th>
+    <th>Дата написания</th>
+    <th>Владелец документа</th>
+    <th>Источник</th>
+    <th>Дата загрузки</th>
+    <th>Формализованный документ</th>
+    <th>Исходный документ</th>
+    <th>Редактирование</th>
+{% endblock %}
+
+{% block table_body %}
+    {% for report in reports %}
+        <tr data-act-id="{{ report.id }}"
+            data-user-id="{{ report.user.id }}"
+            data-name="{{ report.name }}"
+            data-organization="{{ report.organization }}"
+            data-author="{{ report.author }}"
+            data-open-list="{{ report.open_list }}"
+            data-writing-date="{{ report.writing_date }}"
+            data-owner="{{ report.user.username }}"
+            data-upload-source="{{ report.upload_source_dict.source }}"
+            data-date-uploaded="{{ report.date_uploaded }}"
+            data-is-public="{{ report.is_public }}">
+            <td>{{ report.name }}</td>
+            <td>{{ report.organization }}</td>
+            <td>{{ report.author }}</td>
+            <td>{{ report.open_list }}</td>
+            <td>{{ report.writing_date }}</td>
+            <td>
+                <a href="/users/{{ report.user.id }}">
+                    <img src="{{ report.user.avatar.url }}" class="rounded-circle" height="25" width="25"
+                         loading="lazy" style="object-fit: cover;" alt=""/>
+                    {{ report.user.username }}
+                </a>
+            </td>
+            <td>
+                <a{% if report.upload_source_dict.link %} href="{{ report.upload_source_dict.link }}" {% endif %}>
+                    {{ report.upload_source_dict.source }}
+                </a>
+            </td>
+            <td>{{ report.date_uploaded }}</td>
+            <td>
+                <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+                   href="/scientific_reports/{{ report.id }}">Просмотр</a>
+            </td>
+            <td>
+                {% for source in report.source_dict %}
+                    <a href="/{{ source.path }}">{{ source.origin_filename }}</a><br><br>
+                {% endfor %}
+            </td>
+            <td>
+                {% if report.user.id == user.id or user.is_superuser %}
+                    <a href="/scientific_reports_edit/{{ report.id }}">
+                        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">
+                            Редактировать
+                        </button>
+                    </a>
+                    <button type="button" class="btn btn-danger" data-bs-target="#delete_report_{{ report.id }}"
+                            data-bs-toggle="modal" style="margin-top: 8px;">
+                        Удалить
+                    </button>
+                {% else %}
+                    Нет доступа
+                {% endif %}
+            </td>
+        </tr>
+    {% endfor %}
+{% endblock %}
+
+{% block modal_dialogs %}
+    {% for report in reports %}
+        <div class="modal fade" id="delete_report_{{ report.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Вы уверены, что хотите удалить этот отчёт?</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-footer">
+                        <form method="POST" action="/scientific_reports_delete/{{ report.id }}/" class="mt-3">
+                            {% csrf_token %}
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                Отмена
+                            </button>
+                            <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
                                 Удалить
                             </button>
-                        {% else %}
-                            Нет доступа
-                        {% endif %}
-                    </td>
-                </tr>
-                {% block modal_dialog %}
-                    <div class="modal fade" id="delete_report_{{ report.id }}" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Вы уверены, что хотите удалить этот отчёт?</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                            aria-label="Close"></button>
-                                </div>
-                                <div class="modal-footer">
-                                    <form method="POST" action="/scientific_reports_delete/{{ report.id }}/"
-                                          class="mt-3">
-                                        {% csrf_token %}
-                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                            Отмена
-                                        </button>
-                                        <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
-                                            Удалить
-                                        </button>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
+                        </form>
                     </div>
-                {% endblock modal_dialog %}
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+{% endblock %}
 
-    <script>
-        document.getElementById('filterForm').addEventListener('submit', function (e) {
-            e.preventDefault();
+{% block filter_script %}
+    const nameFilter = document.getElementById('filterName').value.toLowerCase();
+    const organizationFilter = document.getElementById('filterOrganization').value.toLowerCase();
+    const authorFilter = document.getElementById('filterAuthor').value.toLowerCase();
+    const openListFilter = document.getElementById('filterOpenList').value.toLowerCase();
+    const writingDateFilter = document.getElementById('filterWritingDate').value.toLowerCase();
+    const ownerFilter = document.getElementById('filterOwner').value.toLowerCase();
+    const uploadSourceFilter = document.getElementById('filterUploadSource').value.toLowerCase();
+    const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
+{% endblock %}
 
-            const nameFilter = document.getElementById('filterName').value.toLowerCase();
-            const organizationFilter = document.getElementById('filterOrganization').value.toLowerCase();
-            const authorFilter = document.getElementById('filterAuthor').value.toLowerCase();
-            const openListFilter = document.getElementById('filterOpenList').value.toLowerCase();
-            const writingDateFilter = document.getElementById('filterWritingDate').value.toLowerCase();
-            const ownerFilter = document.getElementById('filterOwner').value.toLowerCase();
-            const uploadSourceFilter = document.getElementById('filterUploadSource').value.toLowerCase();
-            const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
-            const showMyDocs = document.getElementById('showMyDocs').checked;
+{% block filter_logic %}
+    const nameText = row.dataset.name ? row.dataset.name.toLowerCase() : '';
+    const organizationText = row.dataset.organization ? row.dataset.organization.toLowerCase() : '';
+    const authorText = row.dataset.author ? row.dataset.author.toLowerCase() : '';
+    const openListText = row.dataset.openList ? row.dataset.openList.toLowerCase() : '';
+    const writingDateText = row.dataset.writingDate ? row.dataset.writingDate.toLowerCase() : '';
+    const ownerText = row.dataset.owner ? row.dataset.owner.toLowerCase() : '';
+    const uploadSourceText = row.dataset.uploadSource ? row.dataset.uploadSource.toLowerCase() : '';
+    const dateUploadedText = row.dataset.dateUploaded ? row.dataset.dateUploaded.toLowerCase() : '';
+{% endblock %}
 
-            const rows = document.querySelectorAll('.table tbody tr');
-            rows.forEach(row => {
-                const nameText = row.dataset.name.toLowerCase();
-                const organizationText = row.dataset.organization.toLowerCase();
-                const authorText = row.dataset.author.toLowerCase();
-                const userId = row.dataset.userId;
-                const ownerText = row.dataset.owner.toLowerCase();
-                const uploadSourceText = row.dataset.uploadSource.toLowerCase();
-                const dateUploadedText = row.dataset.dateUploaded.toLowerCase();
-
-                const isNameMatch = nameText.includes(nameFilter);
-                const isOrganizationMatch = organizationText.includes(organizationFilter);
-                const isAuthorMatch = authorText.includes(authorFilter);
-                const isOpenListMatch = row.children[3].textContent.toLowerCase().includes(openListFilter);
-                const isWritingDateMatch = row.children[4].textContent.toLowerCase().includes(writingDateFilter);
-                const isAllOwnerMatch = ownerText.includes(ownerFilter);
-                const isUploadSourceMatch = uploadSourceText.includes(uploadSourceFilter);
-                const isDateUploadedMatch = dateUploadedText.includes(dateUploadedFilter);
-                const isOwnerMatch = userId === "{{ user.id }}";
-
-                const showRow = (isNameMatch && isOrganizationMatch && isAuthorMatch && isOpenListMatch &&
-                        isWritingDateMatch && isUploadSourceMatch && isAllOwnerMatch && isDateUploadedMatch) &&
-                    (!showMyDocs || isOwnerMatch);
-
-                if (showRow) {
-                    row.style.display = ''; // показываем строку
-                } else {
-                    row.style.display = 'none'; // скрываем строку
-                }
-            });
-        });
-
-        function updateFilterVisibility() {
-            let columnToggles = document.querySelectorAll('.column-toggle');
-            columnToggles.forEach(toggle => {
-                let columnIndex = toggle.getAttribute('data-column');
-                let columns_count = 11;
-                if (columnIndex > columns_count - 3) {
-                    return;
-                }
-                let filterContainer = document.getElementById('filterForm').children[columnIndex];
-
-                if (toggle.checked) {
-                    filterContainer.style.display = '';
-                } else {
-                    filterContainer.style.display = 'none';
-                }
-            });
-        }
-
-        document.querySelectorAll('.column-toggle').forEach(toggle => {
-            toggle.addEventListener('change', updateFilterVisibility);
-        });
-
-        document.addEventListener("DOMContentLoaded", function () {
-            setTimeout(updateFilterVisibility, 300);
-
-            const storageSwitch = document.getElementById('storageSwitch');
-            const storageLabel = document.getElementById('storageLabel');
-
-            storageSwitch.addEventListener('change', function () {
-                const isPrivate = storageSwitch.checked;
-                storageLabel.textContent = isPrivate ? "Частное хранилище" : "Публичное хранилище";
-
-                $.fn.dataTable.ext.search.pop();
-
-                // Добавление нового фильтра
-                $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-                    const row = window.dataTable.row(dataIndex).node();
-                    const isPublic = row.getAttribute('data-is-public') === "True";
-
-                    if (isPrivate) {
-                        return !isPublic;
-                    } else {
-                        return isPublic;
-                    }
-                });
-                window.dataTable.draw();
-            });
-            setTimeout(() => {
-                storageSwitch.dispatchEvent(new Event('change'));
-            }, 200);
-        });
-    </script>
+{% block filter_conditions %}
+    (nameFilter === '' || nameText.includes(nameFilter)) &&
+    (organizationFilter === '' || organizationText.includes(organizationFilter)) &&
+    (authorFilter === '' || authorText.includes(authorFilter)) &&
+    (openListFilter === '' || openListText.includes(openListFilter)) &&
+    (writingDateFilter === '' || writingDateText.includes(writingDateFilter)) &&
+    (ownerFilter === '' || ownerText.includes(ownerFilter)) &&
+    (uploadSourceFilter === '' || uploadSourceText.includes(uploadSourceFilter)) &&
+    (dateUploadedFilter === '' || dateUploadedText.includes(dateUploadedFilter))
 {% endblock %}

@@ -1,6 +1,8 @@
 import os
 from celery import Celery
 
+from archeology import settings
+
 # Устанавливаем переменную окружения для Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'archeology.settings')
 
