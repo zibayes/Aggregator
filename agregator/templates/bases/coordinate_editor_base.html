@@ -1,0 +1,100 @@
+{% extends 'bases/base.html' %}
+
+{% block title %}Редактирование {% block geo_object_type %}{% endblock %}{% endblock %}
+
+{% block styles %}
+    <style>
+        .tooltipcustom {
+            position: relative;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        .tooltipcustom .tooltiptext {
+            visibility: hidden;
+            background-color: black;
+            color: #fff;
+            text-align: left;
+            border-radius: 5px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltipcustom:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2>Редактирование {% block geo_object_name %}{% endblock %}</h2>
+        <form method="POST" enctype="multipart/form-data">
+            {% csrf_token %}
+
+            <!-- Блок координат -->
+            <div id="coordinates_container">
+                <h4>Редактирование координат</h4>
+                {% block coordinate_sections %}{% endblock %}
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="margin-right: 5px;">Сохранить</button>
+            <button type="button" class="btn btn-danger" data-bs-target="#delete_geo_object" data-bs-toggle="modal">
+                Удалить
+            </button>
+        </form>
+    </div>
+
+    <!-- Общие скрипты для работы с координатами -->
+    <script>
+        function removeInput(button) {
+            var inputGroup = button.parentElement;
+            inputGroup.parentElement.removeChild(inputGroup);
+        }
+
+        let counter = 0;
+
+        function addPoint(group) {
+            counter += 1;
+            var inputGroup = document.createElement('div');
+            inputGroup.className = 'input-group mb-3';
+            inputGroup.innerHTML = `
+                <input type="text" name="point[{{ group }}-new${counter}]" class="form-control" placeholder="Введите координаты такого формата: [Название точки]: [x]; [y]">
+                <button type="button" class="btn btn-danger" onclick="removeInput(this)">Удалить</button>
+            `;
+            document.getElementById('points-' + group).appendChild(inputGroup);
+        }
+
+        function removePolygon(group) {
+            var polygon = document.getElementById('polygon-' + group);
+            polygon.parentElement.removeChild(polygon);
+        }
+    </script>
+{% endblock %}
+
+{% block modal_dialog %}
+    <div class="modal fade" id="delete_geo_object" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Вы уверены, что хотите удалить этот объект?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-footer">
+                    <form method="POST" action="{% block delete_geo_url %}{% endblock %}" class="mt-3">
+                        {% csrf_token %}
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">Удалить</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

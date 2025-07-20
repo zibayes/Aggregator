@@ -1,0 +1,51 @@
+{% extends 'bases/base.html' %}
+
+{% block title %}{% block heritage_title %}{% endblock %}{% endblock %}
+
+{% block content %}
+    <br>
+    <h2 align="center">{% block heritage_header %}{% endblock %}</h2>
+
+    <div>
+        {% block heritage_links %}{% endblock %}
+
+        {% block heritage_actions %}{% endblock %}
+    </div>
+
+    {% block heritage_modals %}
+        <div class="modal fade" id="delete_heritage" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">{% block heritage_delete_title %}Удаление объекта
+                            наследия{% endblock %}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Это действие нельзя отменить. Все связанные данные будут удалены.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <form method="POST" action="{% block heritage_delete_url %}{% endblock %}">
+                            {% csrf_token %}
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                            <button type="submit" class="btn btn-danger">Подтвердить удаление</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endblock %}
+
+    <hr>
+    <h2>Содержание</h2>
+    {% block heritage_contents %}{% endblock %}
+    <hr>
+
+    {% block heritage_sections %}{% endblock %}
+
+    <style>
+        p {
+            white-space: pre-wrap;
+        }
+    </style>
+{% endblock %}

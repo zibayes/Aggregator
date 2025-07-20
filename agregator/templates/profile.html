@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends 'bases/base.html' %}
 
 {% block title %}Профиль{% endblock %}
 
@@ -8,12 +8,14 @@
         <div class="card mt-4">
             <div class="card-body">
                 <h5 class="card-title">{{ user_to_show.username }}</h5>
-                <img src="{{ user_to_show.avatar.url }}" class="rounded-circle" alt="User Avatar" style="width: 150px; height: 150px; object-fit: cover;">
+                <img src="{{ user_to_show.avatar.url }}" class="rounded-circle" alt="User Avatar"
+                     style="width: 150px; height: 150px; object-fit: cover;">
                 <!-- <img src="{{ user.userprofile.avatar.url }}" alt="User Avatar" style="width: 150px; height: auto;"> -->
                 <p class="card-text">
                     <strong>Имя:</strong> {{ user_to_show.first_name }} <br>
                     <strong>Фамилия:</strong> {{ user_to_show.last_name }} <br>
-                    <strong>Роль:</strong> {% if user_to_show.is_superuser %} Администратор {% else %} Пользователь {% endif %} <br>
+                    <strong>Роль:</strong> {% if user_to_show.is_superuser %} Администратор {% else %}
+                    Пользователь {% endif %} <br>
                     <strong>Email:</strong> {{ user_to_show.email }} <br>
                     <strong>Последний вход:</strong> {{ user_to_show.last_login|date:"d M Y H:i" }} <br>
                     <strong>Дата регистрации:</strong> {{ user_to_show.date_joined|date:"d M Y H:i" }} <br>

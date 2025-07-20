@@ -1,113 +1,68 @@
-{% extends 'base.html' %}
+{% extends 'bases/report_base.html' %}
 
-{% block title %}Научный отчёт{% endblock %}
+{% block report_title %}Научный отчёт{% endblock %}
+{% block report_header %}Научный отчёт: {{ report.author }} от {{ report.writing_date }}{% endblock %}
+{% block map_link %}/map/scientific_report/{{ report.id }}{% endblock %}
+{% block report_delete_url %}{% url 'scientific_reports_delete' report.id %}{% endblock %}
+{% block reprocess_url %}{% url 'doc_reprocess' report.id %}{% endblock %}
 
-{% block content %}
+{% block report_sources %}
+    {% for source in report.source_dict %}
+        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+           href="/{{ source.path }}">
+            Исходник: {{ source.origin_filename }}
+        </a>
+        <br><br>
+    {% endfor %}
+{% endblock %}
 
-    <br>
-    <h2 align="center">Научный отчёт: {{ report.author }} от {{ report.writing_date }}</h2>
-
-    <div>
-        {% for source in report.source_dict %}
-            <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-               href="/{{ source.path }}">
-                <!--
-                {% if source.type == 'all' %}
-                    Исходник: Отчёт
-                {% elif source.type == 'text' %}
-                    Исходник: Текст
-                {% elif source.type == 'images' %}
-                    Исходник: Приложение
-                {% endif %}
-                -->
-                Исходник: {{ source.origin_filename }}
-            </a>
-            <br>
-            <br>
-        {% endfor %}
-        {% if report.coordinates_dict %}
-            <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
-               href="/map/scientific_report/{{ report.id }}">
-                Просмотр координат
-            </a>
-            <br>
-            <br>
-        {% endif %}
-        {% if report.user.id == user.id or user.is_superuser %}
-            <a href="/scientific_reports_edit/{{ report.id }}">
-                <button type="button" class="btn btn-primary"
-                        style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
-                    Редактировать
-                </button>
-            </a>
-            <button type="button" class="btn btn-danger" data-bs-target="#delete_report" data-bs-toggle="modal">
-                Удалить
+{% block report_actions %}
+    {% if report.user.id == user.id or user.is_superuser %}
+        <a href="/scientific_reports_edit/{{ report.id }}">
+            <button type="button" class="btn btn-primary"
+                    style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+                Редактировать
             </button>
-            <br>
-            <br>
-            <button type="button" class="btn btn-primary" data-bs-target="#reprocess" data-bs-toggle="modal">
-                Повторная обработка документа
-            </button>
-        {% endif %}
-    </div>
+        </a>
+        <button type="button" class="btn btn-danger" data-bs-target="#delete_report" data-bs-toggle="modal">
+            Удалить
+        </button>
+        <br><br>
+        <button type="button" class="btn btn-primary" data-bs-target="#reprocess" data-bs-toggle="modal">
+            Повторная обработка документа
+        </button>
+    {% endif %}
+{% endblock %}
 
-    {% block modal_dialog %}
-        <div class="modal fade" id="delete_report" tabindex="-1">
-            <div class="modal-dialog">
+{% block report_modals %}
+    {{ block.super }}
+    <!-- Модальное окно повторной обработки -->
+    <div class="modal fade" id="reprocess" tabindex="-1">
+        <div class="modal-dialog">
+            <form method="POST" action="{% url 'doc_reprocess' report.id %}" class="mt-3">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Вы уверены, что хотите удалить этот отчёт?</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
+                        <h5 class="modal-title">Повторная обработка документа</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        Выберите разделы для обработки:<br>
+                        <label><input type="checkbox" name="select_text" checked> Текст</label><br>
+                        <label><input type="checkbox" name="select_image" checked> Изображения</label><br>
+                        <label><input type="checkbox" name="select_coord" checked> Координаты</label>
                     </div>
                     <div class="modal-footer">
-                        <form method="POST" action="{% url 'scientific_reports_delete' report.id %}" class="mt-3">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                Отмена
-                            </button>
-                            <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
-                                Удалить
-                            </button>
-                        </form>
+                        {% csrf_token %}
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Начать обработку</button>
                     </div>
                 </div>
-            </div>
+            </form>
         </div>
+    </div>
+{% endblock %}
 
-        <div class="modal fade" id="reprocess" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <form method="POST" action="{% url 'doc_reprocess' report.id %}" class="mt-3">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Повторная обработка документа</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                    aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">Выберите разделы документа для повторной обработки:<br>
-                            <label><input type="checkbox" name="select_text" checked> Текст</label><br>
-                            <label><input type="checkbox" name="select_image" checked>
-                                Изображения</label><br>
-                            <label><input type="checkbox" name="select_coord" checked>
-                                Координаты</label><br>
-                        </div>
-                        <div class="modal-footer">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                Отмена
-                            </button>
-                            <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">
-                                Начать обработку
-                            </button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-    {% endblock modal_dialog %}
-
-    <hr>
-    <h2>Содержание</h2>
+{% block report_contents %}
     <ul>
         {% if report.name %}
             <li><a href="#name">Название</a></li>
@@ -151,372 +106,76 @@
             {% endif %}
         {% endfor %}
         {% if report.supplement_dict %}
-            {% for source in report.source_dict %}
-                <li>
-                    <a href="#supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</a>
-                    <ul>
-                        {% if report.supplement_dict.maps %}
-                            <li><a href="#maps-{{ forloop.counter }}">Карты</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.schemas %}
-                            <li><a href="#schemas-{{ forloop.counter }}">Схемы</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.object_fotos %}
-                            <li><a href="#object_fotos-{{ forloop.counter }}">Общий вид</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.pits_fotos %}
-                            <li><a href="#pits_fotos-{{ forloop.counter }}">Шурфы</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.excavation_fotos %}
-                            <li><a href="#excavation_fotos-{{ forloop.counter }}">Раскопы</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.material_fotos %}
-                            <li><a href="#material_fotos-{{ forloop.counter }}">Материал</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.heritage_info %}
-                            <li><a href="#heritage_info-{{ forloop.counter }}">Данные о ВОАН</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.other %}
-                            <li><a href="#other-{{ forloop.counter }}">Иное</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.title_page %}
-                            <li><a href="#title_page-{{ forloop.counter }}">Титульник</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.docs %}
-                            <li><a href="#docs-{{ forloop.counter }}">Документы</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.open_list %}
-                            <li><a href="#open_list-{{ forloop.counter }}">Открытый лист</a></li>
-                        {% endif %}
-                        {% if report.supplement_dict.no_captions %}
-                            <li><a href="#no_captions-{{ forloop.counter }}">Без подписей</a></li>
-                        {% endif %}
-                    </ul>
-                </li>
-            {% endfor %}
+            {% include 'includes/supplement_contents.html' %}
         {% endif %}
     </ul>
-    <hr>
+{% endblock %}
 
+{% block report_sections %}
     {% if report.name %}
         <h2 id="name">Название</h2>
-        <p>{{ report.name | safe }}</p>
+        <p>{{ report.name|safe }}</p>
     {% endif %}
 
     {% if report.organization %}
         <h2 id="organization">Организация</h2>
-        <p>{{ report.organization | safe }}</p>
+        <p>{{ report.organization|safe }}</p>
     {% endif %}
 
     {% if report.author %}
         <h2 id="author">Автор</h2>
-        <p>{{ report.author | safe }}</p>
+        <p>{{ report.author|safe }}</p>
     {% endif %}
 
     {% if report.open_list %}
         <h2 id="open_list">Открытый лист</h2>
-        <p>{{ report.open_list | safe }}</p>
+        <p>{{ report.open_list|safe }}</p>
     {% endif %}
 
     {% if report.writing_date %}
         <h2 id="writing_date">Дата написания</h2>
-        <p>{{ report.writing_date | safe }}</p>
+        <p>{{ report.writing_date|safe }}</p>
     {% endif %}
 
     {% if report.introduction %}
         <h2 id="introduction">Введение</h2>
-        <p>{{ report.introduction | safe }}</p>
+        <p>{{ report.introduction|safe }}</p>
     {% endif %}
 
     {% if report.contractors %}
         <h2 id="contractors">Исполнители</h2>
-        <p>{{ report.contractors | safe }}</p>
+        <p>{{ report.contractors|safe }}</p>
     {% endif %}
 
     {% if report.place %}
         <h2 id="place">Место</h2>
-        <p>{{ report.place | safe }}</p>
+        <p>{{ report.place|safe }}</p>
     {% endif %}
 
     {% if report.area_info %}
         <h2 id="area_info">Информация о местности</h2>
-        <p>{{ report.area_info | safe }}</p>
+        <p>{{ report.area_info|safe }}</p>
     {% endif %}
 
     {% if report.research_history %}
         <h2 id="research_history">История исследования</h2>
-        <p>{{ report.research_history | safe }}</p>
+        <p>{{ report.research_history|safe }}</p>
     {% endif %}
 
     {% if report.results %}
         <h2 id="results">Результаты</h2>
-        <p>{{ report.results | safe }}</p>
+        <p>{{ report.results|safe }}</p>
     {% endif %}
 
     {% if report.conclusion %}
         <h2 id="conclusion">Заключение</h2>
-        <p>{{ report.conclusion | safe }}</p>
+        <p>{{ report.conclusion|safe }}</p>
     {% endif %}
 
     {% for title, content in report.content_dict.items %}
         {% if content %}
             <h2 id="{{ title }}">{{ title }}</h2>
-            <p>{{ content | safe }}</p>
+            <p>{{ content|safe }}</p>
         {% endif %}
     {% endfor %}
-
-    {% if report.supplement_dict %}
-        {% for source in report.source_dict %}
-            {% with truncated_path=source.path|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
-
-                <h2 id="supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</h2>
-
-                {% if report.supplement_dict.maps %}
-                    <h3 id="maps-{{ forloop.counter }}">Карты</h3>
-                    {% for map in report.supplement_dict.maps %}
-                        {% if truncated_path in map.source %}
-                            <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
-                                <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
-                                     alt="{{ map.source }}"
-                                     style="max-width: 400px;"/>
-                                <p>{{ map.label }}</p>
-                            </a>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.schemas %}
-                    <h3 id="schemas-{{ forloop.counter }}">Схемы</h3>
-                    {% for scheme in report.supplement_dict.schemas %}
-                        {% if truncated_path in scheme.source %}
-                            <a data-fancybox="gallery" href="/{{ scheme.source }}" data-caption="{{ scheme.label }}">
-                                <img id="image-link-{{ scheme.image_num }}" src="/{{ scheme.source }}" loading="lazy"
-                                     alt="{{ scheme.source }}" style="max-width: 400px;"/>
-                                <p>{{ scheme.label }}</p>
-                            </a>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.object_fotos %}
-                    <h3 id="object_fotos-{{ forloop.counter }}">Общий вид</h3>
-                    {% for object in report.supplement_dict.object_fotos %}
-                        {% if truncated_path in object.source %}
-                            <a data-fancybox="gallery" href="/{{ object.source }}" data-caption="{{ object.label }}">
-                                <img id="image-link-{{ object.image_num }}" src="/{{ object.source }}" loading="lazy"
-                                     alt="{{ object.source }}" style="max-width: 400px;"/>
-                                <p>{{ object.label }}</p>
-                            </a>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.pits_fotos %}
-                    <h3 id="pits_fotos-{{ forloop.counter }}">Шурфы</h3>
-                    {% for pit in report.supplement_dict.pits_fotos %}
-                        {% if truncated_path in pit.source %}
-                            <a data-fancybox="gallery" href="/{{ pit.source }}" data-caption="{{ pit.label }}">
-                                <img id="image-link-{{ pit.image_num }}" src="/{{ pit.source }}" loading="lazy"
-                                     alt="{{ pit.source }}"
-                                     style="max-width: 400px;"/>
-                                <p>{{ pit.label }}</p>
-                            </a>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.excavation_fotos %}
-                    <h3 id="excavation_fotos-{{ forloop.counter }}">Раскопы</h3>
-                    {% for excavation in report.supplement_dict.excavation_fotos %}
-                        {% if truncated_path in excavation.source %}
-                            <a data-fancybox="gallery" href="/{{ excavation.source }}"
-                               data-caption="{{ excavation.label }}">
-                                <img id="image-link-{{ excavation.image_num }}" src="/{{ excavation.source }}"
-                                     loading="lazy"
-                                     alt="{{ excavation.source }}"
-                                     style="max-width: 400px;"/>
-                                <p>{{ excavation.label }}</p>
-                            </a>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.material_fotos %}
-                    <h3 id="material_fotos-{{ forloop.counter }}">Археологический материал</h3>
-                    {% for material in report.supplement_dict.material_fotos %}
-                        {% if truncated_path in material.source %}
-                            <a data-fancybox="gallery" href="/{{ material.source }}"
-                               data-caption="{{ material.label }}">
-                                <img id="image-link-{{ material.image_num }}" src="/{{ material.source }}"
-                                     loading="lazy"
-                                     alt="{{ material.source }}" style="max-width: 400px;"/>
-                                <p>{{ material.label }}</p>
-                            </a>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.heritage_info %}
-                    <h3 id="heritage_info-{{ forloop.counter }}">Данные о ВОАН</h3>
-                    {% for heritage in report.supplement_dict.heritage_info %}
-                        {% if truncated_path in heritage.source %}
-                            <a data-fancybox="gallery" href="/{{ heritage.source }}"
-                               data-caption="{{ heritage.label }}">
-                                <img id="image-link-{{ heritage.image_num }}" src="/{{ heritage.source }}"
-                                     loading="lazy"
-                                     alt="{{ heritage.source }}" style="max-width: 400px;"/>
-                                <p>{{ heritage.label }}</p>
-                            </a>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.other %}
-                    <h3 id="other-{{ forloop.counter }}">Иное</h3>
-                    {% for other in report.supplement_dict.other %}
-                        {% if truncated_path in other.source %}
-                            <a data-fancybox="gallery" href="/{{ other.source }}" data-caption="{{ other.label }}">
-                                <img id="image-link-{{ other.image_num }}" src="/{{ other.source }}" loading="lazy"
-                                     alt="{{ other.source }}" style="max-width: 400px;"/>
-                                <p>{{ other.label }}</p>
-                            </a>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.title_page %}
-                    <h3 id="title_page-{{ forloop.counter }}">Титульник</h3>
-                    {% for title_page in report.supplement_dict.title_page %}
-                        {% if truncated_path in title_page.source %}
-                            <a data-fancybox="gallery" href="/{{ title_page.source }}"
-                               data-caption="{{ title_page.label }}">
-                                <img src="/{{ title_page.source }}" loading="lazy" alt="{{ title_page.source }}"
-                                     style="max-width: 400px;"/>
-                            </a>
-                            <br>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.docs %}
-                    <h3 id="docs-{{ forloop.counter }}">Документы</h3>
-                    {% for doc in report.supplement_dict.docs %}
-                        {% if truncated_path in doc.source %}
-                            <a data-fancybox="gallery" href="/{{ doc.source }}" data-caption="{{ doc.label }}">
-                                <img id="image-link-{{ doc.image_num }}" src="/{{ doc.source }}"
-                                     loading="lazy"
-                                     alt="{{ doc.source }}"
-                                     style="max-width: 400px;"/>
-                                {% if doc.label %}
-                                    <p>{{ doc.label }}</p>
-                                {% else %}
-                                    <br>
-                                {% endif %}
-                            </a>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.open_list %}
-                    <h3 id="open_list-{{ forloop.counter }}">Открытый лист</h3>
-                    {% for open_list in report.supplement_dict.open_list %}
-                        {% if truncated_path in open_list.source %}
-                            <a data-fancybox="gallery" href="/{{ open_list.source }}"
-                               data-caption="{{ open_list.label }}">
-                                <img id="image-link-{{ open_list.image_num }}" src="/{{ open_list.source }}"
-                                     loading="lazy"
-                                     alt="{{ open_list.source }}"/>
-                                {% if open_list.label %}
-                                    <p>{{ open_list.label }}</p>
-                                {% else %}
-                                    <br>
-                                {% endif %}
-                                <br>
-                            </a>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if report.supplement_dict.no_captions %}
-                    <h3 id="no_captions-{{ forloop.counter }}">Без подписей</h3>
-                    {% for no_captions in report.supplement_dict.no_captions %}
-                        {% if truncated_path in no_captions.source %}
-                            <a data-fancybox="gallery" href="/{{ no_captions.source }}"
-                               data-caption="{{ no_captions.label }}">
-                                <img src="/{{ no_captions.source }}" loading="lazy" alt="{{ no_captions.source }}"
-                                     style="max-width: 400px;"/>
-                            </a>
-                            <br>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-        {% endfor %}
-    {% endif %}
-
-    <style>
-        p {
-            white-space: pre-wrap;
-        }
-    </style>
-
-    <script>
-        // Полная замена обработки кликов
-        document.addEventListener('DOMContentLoaded', function () {
-            // Обрабатываем все ссылки на изображения
-            document.querySelectorAll('a[href^="#image-link-"]').forEach(link => {
-                link.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    const imageId = this.getAttribute('href').substring(1);
-                    const allImages = Array.from(document.querySelectorAll('[data-fancybox="gallery"]'));
-
-                    // Находим индекс нужного изображения
-                    const targetIndex = allImages.findIndex(img =>
-                        img.querySelector(`#${imageId}`) !== null
-                    );
-
-                    if (targetIndex !== -1) {
-                        // Собираем все данные галереи
-                        const galleryData = allImages.map(img => ({
-                            src: img.href,
-                            type: 'image',
-                            caption: img.getAttribute('data-caption') || ''
-                        }));
-
-                        // Открываем галерею
-                        Fancybox.show(galleryData, {
-                            startIndex: targetIndex,
-                            groupAll: true
-                        });
-                    }
-                });
-            });
-        });
-
-        // Стандартная инициализация fancybox
-        Fancybox.bind('[data-fancybox="gallery"]', {
-            Images: {
-                zoom: {
-                    max: 10,
-                    wheel: true
-                }
-            },
-            groupAll: true,
-            Thumbs: {autoStart: false}
-        });
-    </script>
-
 {% endblock %}

@@ -1,0 +1,212 @@
+{% with document=document original_filename=original_filename truncated_path=truncated_path %}
+
+    <h2 id="supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</h2>
+
+    <!-- Карты -->
+    {% if document.supplement_dict.maps %}
+        <h3 id="maps-{{ forloop.counter }}">Карты</h3>
+        <div class="image-gallery">
+            {% for map in document.supplement_dict.maps %}
+                {% if map.source and truncated_path in map.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
+                            <img src="/{{ map.source }}" loading="lazy" alt="{{ map.label|default:original_filename }}"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+                        </a>
+                        {% if map.label %}<p class="image-caption">{{ map.label }}</p>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Схемы -->
+    {% if document.supplement_dict.schemas %}
+        <h3 id="schemas-{{ forloop.counter }}">Схемы</h3>
+        <div class="image-gallery">
+            {% for scheme in document.supplement_dict.schemas %}
+                {% if scheme.source and truncated_path in scheme.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ scheme.source }}" data-caption="{{ scheme.label }}">
+                            <img src="/{{ scheme.source }}" loading="lazy"
+                                 alt="{{ scheme.label|default:original_filename }}"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+                        </a>
+                        {% if scheme.label %}<p class="image-caption">{{ scheme.label }}</p>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Общий вид объектов -->
+    {% if document.supplement_dict.object_fotos %}
+        <h3 id="object_fotos-{{ forloop.counter }}">Общий вид</h3>
+        <div class="image-gallery">
+            {% for foto in document.supplement_dict.object_fotos %}
+                {% if foto.source and truncated_path in foto.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ foto.source }}" data-caption="{{ foto.label }}">
+                            <img src="/{{ foto.source }}" loading="lazy"
+                                 alt="{{ foto.label|default:original_filename }}"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+                        </a>
+                        {% if foto.label %}<p class="image-caption">{{ foto.label }}</p>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Шурфы -->
+    {% if document.supplement_dict.pits_fotos %}
+        <h3 id="pits_fotos-{{ forloop.counter }}">Шурфы</h3>
+        <div class="image-gallery">
+            {% for pit in document.supplement_dict.pits_fotos %}
+                {% if pit.source and truncated_path in pit.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ pit.source }}" data-caption="{{ pit.label }}">
+                            <img src="/{{ pit.source }}" loading="lazy" alt="{{ pit.label|default:original_filename }}"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+                        </a>
+                        {% if pit.label %}<p class="image-caption">{{ pit.label }}</p>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Раскопы -->
+    {% if document.supplement_dict.excavation_fotos %}
+        <h3 id="excavation_fotos-{{ forloop.counter }}">Раскопы</h3>
+        <div class="image-gallery">
+            {% for excavation in document.supplement_dict.excavation_fotos %}
+                {% if excavation.source and truncated_path in excavation.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ excavation.source }}"
+                           data-caption="{{ excavation.label }}">
+                            <img src="/{{ excavation.source }}" loading="lazy"
+                                 alt="{{ excavation.label|default:original_filename }}"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+                        </a>
+                        {% if excavation.label %}<p class="image-caption">{{ excavation.label }}</p>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Археологический материал -->
+    {% if document.supplement_dict.material_fotos %}
+        <h3 id="material_fotos-{{ forloop.counter }}">Археологический материал</h3>
+        <div class="image-gallery">
+            {% for material in document.supplement_dict.material_fotos %}
+                {% if material.source and truncated_path in material.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ material.source }}" data-caption="{{ material.label }}">
+                            <img src="/{{ material.source }}" loading="lazy"
+                                 alt="{{ material.label|default:original_filename }}"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+                        </a>
+                        {% if material.label %}<p class="image-caption">{{ material.label }}</p>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Данные о ВОАН -->
+    {% if document.supplement_dict.heritage_info %}
+        <h3 id="heritage_info-{{ forloop.counter }}">Данные о ВОАН</h3>
+        <div class="image-gallery">
+            {% for heritage in document.supplement_dict.heritage_info %}
+                {% if heritage.source and truncated_path in heritage.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ heritage.source }}" data-caption="{{ heritage.label }}">
+                            <img src="/{{ heritage.source }}" loading="lazy"
+                                 alt="{{ heritage.label|default:original_filename }}"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+                        </a>
+                        {% if heritage.label %}<p class="image-caption">{{ heritage.label }}</p>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Титульные страницы -->
+    {% if document.supplement_dict.title_page %}
+        <h3 id="title_page-{{ forloop.counter }}">Титульные страницы</h3>
+        <div class="image-gallery">
+            {% for title in document.supplement_dict.title_page %}
+                {% if title.source and truncated_path in title.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ title.source }}"
+                           data-caption="{{ title.label|default:'Титульная страница' }}">
+                            <img src="/{{ title.source }}" loading="lazy" alt="Титульная страница"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+                        </a>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Документы -->
+    {% if document.supplement_dict.docs %}
+        <h3 id="docs-{{ forloop.counter }}">Документы</h3>
+        <div class="image-gallery">
+            {% for doc in document.supplement_dict.docs %}
+                {% if doc.source and truncated_path in doc.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ doc.source }}"
+                           data-caption="{{ doc.label|default:'Документ' }}">
+                            <img src="/{{ doc.source }}" loading="lazy" alt="{{ doc.label|default:'Документ' }}"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+                        </a>
+                        {% if doc.label %}<p class="image-caption">{{ doc.label }}</p>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Открытые листы -->
+    {% if document.supplement_dict.open_list %}
+        <h3 id="open_list-{{ forloop.counter }}">Открытые листы</h3>
+        <div class="image-gallery">
+            {% for open_list in document.supplement_dict.open_list %}
+                {% if open_list.source and truncated_path in open_list.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ open_list.source }}"
+                           data-caption="{{ open_list.label|default:'Открытый лист' }}">
+                            <img src="/{{ open_list.source }}" loading="lazy"
+                                 alt="{{ open_list.label|default:'Открытый лист' }}"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+
+                        </a>
+                        {% if open_list.label %}<p class="image-caption">{{ open_list.label }}</p>{% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Изображения без подписей -->
+    {% if document.supplement_dict.no_captions %}
+        <h3 id="no_captions-{{ forloop.counter }}">Дополнительные материалы</h3>
+        <div class="image-gallery">
+            {% for item in document.supplement_dict.no_captions %}
+                {% if item.source and truncated_path in item.source %}
+                    <div class="gallery-item">
+                        <a data-fancybox="gallery" href="/{{ item.source }}" data-caption="Дополнительный материал">
+                            <img src="/{{ item.source }}" loading="lazy" alt="Дополнительный материал"
+                                 class="img-thumbnail" style="max-width: 400px; max-height: 300px;">
+                        </a>
+                    </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    {% endif %}
+
+{% endwith %}

@@ -1,31 +1,32 @@
-{% extends 'base.html' %}
+{% extends 'bases/base.html' %}
 
 {% block title %}Конструктор отчётов{% endblock %}
 
 {% block content %}
 
-<br>
-<h2>Создание отчёта</h2>
+    <br>
+    <h2>Создание отчёта</h2>
 
-<div class="container form-section">
-    <form action="/your-form-handler-url/" method="post">
-        <div class="form-group">
-            <label for="reportTitle">Название отчёта</label>
-            <input type="text" class="form-control" id="reportTitle" name="report_title" required>
-        </div>
-        <div class="form-group">
-            <label for="tableOfContents">Оглавление</label>
-            <textarea class="form-control" id="tableOfContents" name="table_of_contents" rows="3" required></textarea>
-        </div>
-        <div class="form-group">
-            <label for="participants">Список участников</label>
-            <textarea class="form-control" id="participants" name="participants" rows="3" required></textarea>
-        </div>
-        <div class="form-group">
-            <label for="chapter1">Глава 1</label>
-            <textarea class="form-control" id="chapter1" name="chapter_1" rows="5" required></textarea>
-        </div>
-        <button type="submit" class="btn btn-primary btn-lg">Создать Отчёт</button>
-    </form>
-</div>
+    <div class="container form-section">
+        <form action="/your-form-handler-url/" method="post">
+            <div class="form-group">
+                <label for="reportTitle">Название отчёта</label>
+                <input type="text" class="form-control" id="reportTitle" name="report_title" required>
+            </div>
+            <div class="form-group">
+                <label for="tableOfContents">Оглавление</label>
+                <textarea class="form-control" id="tableOfContents" name="table_of_contents" rows="3"
+                          required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="participants">Список участников</label>
+                <textarea class="form-control" id="participants" name="participants" rows="3" required></textarea>
+            </div>
+            <div class="form-group">
+                <label for="chapter1">Глава 1</label>
+                <textarea class="form-control" id="chapter1" name="chapter_1" rows="5" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-lg">Создать Отчёт</button>
+        </form>
+    </div>
 {% endblock %}

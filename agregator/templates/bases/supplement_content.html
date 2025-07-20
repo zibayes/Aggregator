@@ -1,0 +1,23 @@
+{% if document.supplement_dict %}
+    {% for source in document.source_dict %}
+        {% with truncated_path=source.path|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
+            {% include 'bases/supplement_section.html' %}
+        {% endwith %}
+    {% endfor %}
+{% endif %}
+
+<script>
+    // JavaScript для галереи (общий для всех страниц с изображениями)
+    document.addEventListener('DOMContentLoaded', function () {
+        Fancybox.bind('[data-fancybox="gallery"]', {
+            Images: {
+                zoom: {
+                    max: 10,
+                    wheel: true
+                }
+            },
+            groupAll: true,
+            Thumbs: {autoStart: false}
+        });
+    });
+</script>

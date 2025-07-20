@@ -1,499 +1,176 @@
-{% extends 'base.html' %}
+{% extends 'bases/report_base.html' %}
 
-{% block title %}Акт{% endblock %}
+{% block report_title %}Акт{% endblock %}
+{% block report_header %}Акт: {{ report.expert }} от {{ report.finish_date }}{% endblock %}
+{% block map_link %}/map/act/{{ report.id }}{% endblock %}
+{% block report_delete_url %}{% url 'acts_delete' report.id %}{% endblock %}
+{% block reprocess_url %}{% url 'doc_reprocess' report.id %}{% endblock %}
 
-{% block content %}
+{% block report_sources %}
+    {% for source in report.source_dict %}
+        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+           href="/{{ source.path }}">
+            Исходник: {{ source.origin_filename }}
+        </a>
+        <br>
+        <br>
+    {% endfor %}
+{% endblock %}
 
-    <br>
-    <h2 align="center">Акт: {{ act.expert }} от {{ act.finish_date }}</h2>
-
-    <div>
-        {% for source in act.source_dict %}
-            <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-               href="/{{ source.path }}">
-                <!--
-                {% if source.type == 'all' %}
-                    Исходник: Отчёт
-                {% elif source.type == 'text' %}
-                    Исходник: Текст
-                {% elif source.type == 'images' %}
-                    Исходник: Приложение
-                {% endif %}
-                -->
-                Исходник: {{ source.origin_filename }}
-            </a>
-            <br>
-            <br>
-
-        {% endfor %}
-        {% if act.coordinates_dict %}
-            <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
-               href="/map/act/{{ act.id }}">
-                Просмотр координат
-            </a>
-            <br>
-            <br>
-        {% endif %}
-        {% if act.user.id == user.id or user.is_superuser %}
-            <a href="/acts_edit/{{ act.id }}">
-                <button type="button" class="btn btn-primary"
-                        style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
-                    Редактировать
-                </button>
-            </a>
-            <button type="button" class="btn btn-danger" data-bs-target="#delete_act" data-bs-toggle="modal">
-                Удалить
+{% block report_actions %}
+    {% if report.user.id == user.id or user.is_superuser %}
+        <a href="/acts_edit/{{ report.id }}">
+            <button type="button" class="btn btn-primary"
+                    style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+                Редактировать
             </button>
-            <br>
-            <br>
-            <button type="button" class="btn btn-primary" data-bs-target="#reprocess" data-bs-toggle="modal">
-                Повторная обработка документа
-            </button>
-        {% endif %}
-    </div>
+        </a>
+        <button type="button" class="btn btn-danger" data-bs-target="#delete_report" data-bs-toggle="modal">
+            Удалить
+        </button>
+        <br>
+        <br>
+        <button type="button" class="btn btn-primary" data-bs-target="#reprocess" data-bs-toggle="modal">
+            Повторная обработка документа
+        </button>
+    {% endif %}
+{% endblock %}
 
-    {% block modal_dialog %}
-        <div class="modal fade" id="delete_act" tabindex="-1">
-            <div class="modal-dialog">
+{% block report_modals %}
+    {{ block.super }}
+    <!-- Модальное окно повторной обработки (дополнение к наследуемым модалкам) -->
+    <div class="modal fade" id="reprocess" tabindex="-1">
+        <div class="modal-dialog">
+            <form method="POST" action="{% url 'doc_reprocess' report.id %}" class="mt-3">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h5 class="modal-title">Вы уверены, что хотите удалить этот акт?</h5>
+                        <h5 class="modal-title">Повторная обработка документа</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"
                                 aria-label="Close"></button>
                     </div>
+                    <div class="modal-body">Выберите раздеы документа для повторной обработки:<br>
+                        <label><input type="checkbox" name="select_text" checked> Текст</label><br>
+                        <label><input type="checkbox" name="select_image" checked>
+                            Изображения</label><br>
+                        <label><input type="checkbox" name="select_coord" checked>
+                            Координаты</label><br>
+                    </div>
                     <div class="modal-footer">
-                        <form method="POST" action="{% url 'acts_delete' act.id %}" class="mt-3">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                Отмена
-                            </button>
-                            <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
-                                Удалить
-                            </button>
-                        </form>
+                        {% csrf_token %}
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            Отмена
+                        </button>
+                        <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">
+                            Начать обработку
+                        </button>
                     </div>
                 </div>
-            </div>
+            </form>
         </div>
+    </div>
+{% endblock %}
 
-        <div class="modal fade" id="reprocess" tabindex="-1">
-            <div class="modal-dialog">
-                <form method="POST" action="{% url 'doc_reprocess' act.id %}" class="mt-3">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Повторная обработка документа</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                    aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">Выберите разделы документа для повторной обработки:<br>
-                            <label><input type="checkbox" name="select_text" checked> Текст</label><br>
-                            <label><input type="checkbox" name="select_image" checked>
-                                Изображения</label><br>
-                            <label><input type="checkbox" name="select_coord" checked>
-                                Координаты</label><br>
-                        </div>
-                        <div class="modal-footer">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                Отмена
-                            </button>
-                            <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">
-                                Начать обработку
-                            </button>
-                        </div>
-                    </div>
-                </form>
-            </div>
-        </div>
-    {% endblock modal_dialog %}
-
-    <hr>
-    <h2>Содержание</h2>
+{% block report_contents %}
     <ul>
         <li><a href="#act">Акт</a></li>
-        {% if act.start_date %}
-            <li><a href="#start_date">Дата начала</a></li>
-        {% endif %}
-        {% if act.end_date %}
-            <li><a href="#end_date">Дата окончания</a></li>
-        {% endif %}
-        {% if act.exp_place %}
-            <li><a href="#exp_place">Место провидения</a></li>
-        {% endif %}
-        {% if act.exp_customer %}
-            <li><a href="#exp_customer">Заказчик</a></li>
-        {% endif %}
-        {% if act.exp_expert %}
-            <li><a href="#exp_expert">Эксперт</a></li>
-        {% endif %}
-        {% if act.relationship %}
-            <li><a href="#relationship">Отношение</a></li>
-        {% endif %}
-        {% if act.goal %}
-            <li><a href="#goal">Цель</a></li>
-        {% endif %}
-        {% if act.object %}
-            <li><a href="#object">Объект</a></li>
-        {% endif %}
-        {% if act.docs %}
-            <li><a href="#docs">Документы</a></li>
-        {% endif %}
-        {% if act.exp_info %}
-            <li><a href="#exp_info">Информация</a></li>
-        {% endif %}
-        {% if act.exp_facts %}
-            <li><a href="#exp_facts">Факты</a></li>
-        {% endif %}
-        {% if act.literature %}
-            <li><a href="#literature">Литература</a></li>
-        {% endif %}
-        {% if act.exp_conclusion %}
-            <li><a href="#exp_conclusion">Заключение</a></li>
-        {% endif %}
-        {% if act.supplement_dict %}
-            {% for source in act.source_dict %}
-                <li>
-                    <a href="#supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</a>
-                    <ul>
-                        {% if act.supplement_dict.maps %}
-                            <li><a href="#maps-{{ forloop.counter }}">Карты</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.schemas %}
-                            <li><a href="#schemas-{{ forloop.counter }}">Схемы</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.object_fotos %}
-                            <li><a href="#object_fotos-{{ forloop.counter }}">Общий вид</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.pits_fotos %}
-                            <li><a href="#pits_fotos-{{ forloop.counter }}">Шурфы</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.excavation_fotos %}
-                            <li><a href="#excavation_fotos-{{ forloop.counter }}">Раскопы</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.material_fotos %}
-                            <li><a href="#material_fotos-{{ forloop.counter }}">Материал</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.heritage_info %}
-                            <li><a href="#heritage_info-{{ forloop.counter }}">Данные о ВОАН</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.other %}
-                            <li><a href="#other-{{ forloop.counter }}">Иное</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.title_page %}
-                            <li><a href="#title_page-{{ forloop.counter }}">Титульник</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.docs %}
-                            <li><a href="#docs-{{ forloop.counter }}">Документы</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.open_list %}
-                            <li><a href="#open_list-{{ forloop.counter }}">Открытый лист</a></li>
-                        {% endif %}
-                        {% if act.supplement_dict.no_captions %}
-                            <li><a href="#no_captions-{{ forloop.counter }}">Без подписей</a></li>
-                        {% endif %}
-                    </ul>
-                </li>
-            {% endfor %}
+        {% if report.start_date %}
+            <li><a href="#start_date">Дата начала</a></li>{% endif %}
+        {% if report.end_date %}
+            <li><a href="#end_date">Дата окончания</a></li>{% endif %}
+        {% if report.exp_place %}
+            <li><a href="#exp_place">Место провидения</a></li>{% endif %}
+        {% if report.exp_customer %}
+            <li><a href="#exp_customer">Заказчик</a></li>{% endif %}
+        {% if report.exp_expert %}
+            <li><a href="#exp_expert">Эксперт</a></li>{% endif %}
+        {% if report.relationship %}
+            <li><a href="#relationship">Отношение</a></li>{% endif %}
+        {% if report.goal %}
+            <li><a href="#goal">Цель</a></li>{% endif %}
+        {% if report.object %}
+            <li><a href="#object">Объект</a></li>{% endif %}
+        {% if report.docs %}
+            <li><a href="#docs">Документы</a></li>{% endif %}
+        {% if report.exp_info %}
+            <li><a href="#exp_info">Информация</a></li>{% endif %}
+        {% if report.exp_facts %}
+            <li><a href="#exp_facts">Факты</a></li>{% endif %}
+        {% if report.literature %}
+            <li><a href="#literature">Литература</a></li>{% endif %}
+        {% if report.exp_conclusion %}
+            <li><a href="#exp_conclusion">Заключение</a></li>{% endif %}
+        {% if report.supplement_dict %}
+            {% include 'includes/supplement_contents.html' %}
         {% endif %}
     </ul>
-    <hr>
+{% endblock %}
 
+{% block report_sections %}
     <h2 id="act">Акт</h2>
-    {% if act.act %}
-        <p>{{ act.act | safe }}</p>
-    {% else %}
-        <p>{{ act.name_number | safe }}</p>
-    {% endif %}
+    <p>{{ report.act|default:report.name_number|safe }}</p>
 
-    {% if act.start_date %}
+    {% if report.start_date %}
         <h2 id="start_date">Дата начала</h2>
-        <p>{{ act.start_date | safe }}</p>
+        <p>{{ report.start_date|safe }}</p>
     {% endif %}
 
-    {% if act.end_date %}
+    {% if report.end_date %}
         <h2 id="end_date">Дата окончания</h2>
-        <p>{{ act.end_date | safe }}</p>
+        <p>{{ report.end_date|safe }}</p>
     {% endif %}
 
-    {% if act.exp_place %}
+    {% if report.exp_place %}
         <h2 id="exp_place">Место провидения</h2>
-        <p>{{ act.exp_place | safe }}</p>
+        <p>{{ report.exp_place|safe }}</p>
     {% endif %}
 
-    {% if act.exp_customer %}
+    {% if report.exp_customer %}
         <h2 id="exp_customer">Заказчик</h2>
-        <p>{{ act.exp_customer | safe }}</p>
+        <p>{{ report.exp_customer|safe }}</p>
     {% endif %}
 
-    {% if act.exp_expert %}
+    {% if report.exp_expert %}
         <h2 id="exp_expert">Эксперт</h2>
-        <p>{{ act.exp_expert | safe }}</p>
+        <p>{{ report.exp_expert|safe }}</p>
     {% endif %}
 
-    {% if act.relationship %}
+    {% if report.relationship %}
         <h2 id="relationship">Отношение</h2>
-        <p>{{ act.relationship | safe }}</p>
+        <p>{{ report.relationship|safe }}</p>
     {% endif %}
 
-    {% if act.goal %}
+    {% if report.goal %}
         <h2 id="goal">Цель</h2>
-        <p>{{ act.goal | safe }}</p>
+        <p>{{ report.goal|safe }}</p>
     {% endif %}
 
-    {% if act.object %}
+    {% if report.object %}
         <h2 id="object">Объект</h2>
-        <p>{{ act.object | safe }}</p>
+        <p>{{ report.object|safe }}</p>
     {% endif %}
 
-    {% if act.docs %}
+    {% if report.docs %}
         <h2 id="docs">Документы</h2>
-        <p>{{ act.docs | safe }}</p>
+        <p>{{ report.docs|safe }}</p>
     {% endif %}
 
-    {% if act.exp_info %}
+    {% if report.exp_info %}
         <h2 id="exp_info">Информация</h2>
-        <p>{{ act.exp_info | safe }}</p>
+        <p>{{ report.exp_info|safe }}</p>
     {% endif %}
 
-    {% if act.exp_facts %}
+    {% if report.exp_facts %}
         <h2 id="exp_facts">Факты</h2>
-        <p>{{ act.exp_facts | safe }}</p>
+        <p>{{ report.exp_facts|safe }}</p>
     {% endif %}
 
-    {% if act.literature %}
+    {% if report.literature %}
         <h2 id="literature">Литература</h2>
-        <p>{{ act.literature | safe }}</p>
+        <p>{{ report.literature|safe }}</p>
     {% endif %}
 
-    {% if act.exp_conclusion %}
+    {% if report.exp_conclusion %}
         <h2 id="exp_conclusion">Заключение</h2>
-        <p>{{ act.exp_conclusion | safe }}</p>
+        <p>{{ report.exp_conclusion|safe }}</p>
     {% endif %}
-
-    {% if act.supplement_dict %}
-        {% for source in act.source_dict %}
-            {% with truncated_path=source.path|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
-
-                <h2 id="supplement-{{ forloop.counter }}">Приложение {{ forloop.counter }}</h2>
-
-                {% if act.supplement_dict.maps %}
-                    <h3 id="maps-{{ forloop.counter }}">Карты</h3>
-                    {% for map in act.supplement_dict.maps %}
-                        <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
-                            <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
-                                 alt="{{ map.source }}"
-                                 style="max-width: 400px;"/>
-                            <p>{{ map.label }}</p>
-                        </a>
-                        <br>
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.schemas %}
-                    <h3 id="schemas-{{ forloop.counter }}">Схемы</h3>
-                    {% for scheme in act.supplement_dict.schemas %}
-                        <a data-fancybox="gallery" href="/{{ scheme.source }}" data-caption="{{ scheme.label }}">
-                            <img id="image-link-{{ scheme.image_num }}" src="/{{ scheme.source }}" loading="lazy"
-                                 alt="{{ scheme.source }}" style="max-width: 400px;"/>
-                            <p>{{ scheme.label }}</p>
-                        </a>
-                        <br>
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.object_fotos %}
-                    <h3 id="object_fotos-{{ forloop.counter }}">Общий вид</h3>
-                    {% for object in act.supplement_dict.object_fotos %}
-                        <a data-fancybox="gallery" href="/{{ object.source }}" data-caption="{{ object.label }}">
-                            <img id="image-link-{{ object.image_num }}" src="/{{ object.source }}" loading="lazy"
-                                 alt="{{ object.source }}" style="max-width: 400px;"/>
-                            <p>{{ object.label }}</p>
-                        </a>
-                        <br>
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.pits_fotos %}
-                    <h3 id=" pits_fotos-{{ forloop.counter }}">Шурфы</h3>
-                    {% for pit in act.supplement_dict.pits_fotos %}
-                        <a data-fancybox="gallery" href="/{{ pit.source }}" data-caption="{{ pit.label }}">
-                            <img id="image-link-{{ pit.image_num }}" src="/{{ pit.source }}" loading="lazy"
-                                 alt="{{ pit.source }}"
-                                 style="max-width: 400px;"/>
-                            <p>{{ pit.label }}</p>
-                        </a>
-                        <br>
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.excavation_fotos %}
-                    <h3 id="excavation_fotos-{{ forloop.counter }}">Раскопы</h3>
-                    {% for excavation in act.supplement_dict.excavation_fotos %}
-                        <a data-fancybox="gallery" href="/{{ excavation.source }}"
-                           data-caption="{{ excavation.label }}">
-                            <img id="image-link-{{ excavation.image_num }}" src="/{{ excavation.source }}"
-                                 loading="lazy"
-                                 alt="{{ excavation.source }}"
-                                 style="max-width: 400px;"/>
-                            <p>{{ excavation.label }}</p>
-                        </a>
-                        <br>
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.material_fotos %}
-                    <h3 id="material_fotos-{{ forloop.counter }}">Археологический материал</h3>
-                    {% for material in act.supplement_dict.material_fotos %}
-                        <a data-fancybox="gallery" href="/{{ material.source }}" data-caption="{{ material.label }}">
-                            <img id="image-link-{{ material.image_num }}" src="/{{ material.source }}" loading="lazy"
-                                 alt="{{ material.source }}" style="max-width: 400px;"/>
-                            <p>{{ material.label }}</p>
-                        </a>
-                        <br>
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.heritage_info %}
-                    <h3 id="heritage_info-{{ forloop.counter }}">Данные о ВОАН</h3>
-                    {% for heritage in act.supplement_dict.heritage_info %}
-                        <a data-fancybox="gallery" href="/{{ heritage.source }}" data-caption="{{ heritage.label }}">
-                            <img id="image-link-{{ heritage.image_num }}" src="/{{ heritage.source }}" loading="lazy"
-                                 alt="{{ heritage.source }}" style="max-width: 400px;"/>
-                            <p>{{ heritage.label }}</p>
-                        </a>
-                        <br>
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.other %}
-                    <h3 id="other-{{ forloop.counter }}">Иное</h3>
-                    {% for other in act.supplement_dict.other %}
-                        <a data-fancybox="gallery" href="/{{ other.source }}" data-caption="{{ other.label }}">
-                            <img id="image-link-{{ other.image_num }}" src="/{{ other.source }}" loading="lazy"
-                                 alt="{{ other.source }}" style="max-width: 400px;"/>
-                            <p>{{ other.label }}</p>
-                        </a>
-                        <br>
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.title_page %}
-                    <h3 id="title_page-{{ forloop.counter }}">Титульник</h3>
-                    {% for title_page in act.supplement_dict.title_page %}
-                        <a data-fancybox="gallery" href="/{{ title_page.source }}"
-                           data-caption="{{ title_page.label }}">
-                            <img src="/{{ title_page.source }}" loading="lazy" alt="{{ title_page.source }}"
-                                 style="max-width: 400px;"/>
-                        </a>
-                        <br>
-                        <br>
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.docs %}
-                    <h3 id="docs-{{ forloop.counter }}">Документы</h3>
-                    {% for doc in act.supplement_dict.docs %}
-                        {% if truncated_path in doc.source %}
-                            <a data-fancybox="gallery" href="/{{ doc.source }}" data-caption="{{ doc.label }}">
-                                <img id="image-link-{{ doc.image_num }}" src="/{{ doc.source }}"
-                                     loading="lazy"
-                                     alt="{{ doc.source }}"
-                                     style="max-width: 400px;"/>
-                                {% if doc.label %}
-                                    <p>{{ doc.label }}</p>
-                                {% else %}
-                                    <br>
-                                {% endif %}
-                            </a>
-                            <br>
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.open_list %}
-                    <h3 id="open_list-{{ forloop.counter }}">Открытый лист</h3>
-                    {% for open_list in act.supplement_dict.open_list %}
-                        <a data-fancybox="gallery" href="/{{ open_list.source }}" data-caption="{{ open_list.label }}">
-                            <img id="image-link-{{ open_list.image_num }}" src="/{{ open_list.source }}" loading="lazy"
-                                 alt="{{ open_list.source }}"/>
-                            {% if open_list.label %}
-                                <p>{{ open_list.label }}</p>
-                            {% else %}
-                                <br>
-                            {% endif %}
-                            <br>
-                        </a>
-                    {% endfor %}
-                {% endif %}
-
-                {% if act.supplement_dict.no_captions %}
-                    <h3 id="no_captions-{{ forloop.counter }}">Без подписей</h3>
-                    {% for no_captions in act.supplement_dict.no_captions %}
-                        <a data-fancybox="gallery" href="/{{ no_captions.source }}"
-                           data-caption="{{ no_captions.label }}">
-                            <img src="/{{ no_captions.source }}" loading="lazy" alt="{{ no_captions.source }}"
-                                 style="max-width: 400px;"/>
-                        </a>
-                        <br>
-                        <br>
-                    {% endfor %}
-                {% endif %}
-            {% endwith %}
-        {% endfor %}
-    {% endif %}
-
-    <style>
-        p {
-            white-space: pre-wrap;
-        }
-    </style>
-
-    <script>
-        // Полная замена обработки кликов
-        document.addEventListener('DOMContentLoaded', function () {
-            // Обрабатываем все ссылки на изображения
-            document.querySelectorAll('a[href^="#image-link-"]').forEach(link => {
-                link.addEventListener('click', function (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-
-                    const imageId = this.getAttribute('href').substring(1);
-                    const allImages = Array.from(document.querySelectorAll('[data-fancybox="gallery"]'));
-
-                    // Находим индекс нужного изображения
-                    const targetIndex = allImages.findIndex(img =>
-                        img.querySelector(`#${imageId}`) !== null
-                    );
-
-                    if (targetIndex !== -1) {
-                        // Собираем все данные галереи
-                        const galleryData = allImages.map(img => ({
-                            src: img.href,
-                            type: 'image',
-                            caption: img.getAttribute('data-caption') || ''
-                        }));
-
-                        // Открываем галерею
-                        Fancybox.show(galleryData, {
-                            startIndex: targetIndex,
-                            groupAll: true
-                        });
-                    }
-                });
-            });
-        });
-
-        // Стандартная инициализация fancybox
-        Fancybox.bind('[data-fancybox="gallery"]', {
-            Images: {
-                zoom: {
-                    max: 10,
-                    wheel: true
-                }
-            },
-            groupAll: true,
-            Thumbs: {autoStart: false}
-        });
-    </script>
-
 {% endblock %}

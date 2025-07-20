@@ -992,7 +992,7 @@ def download_coordinates(request, report_type, pk):
 
 def acts(request, pk):
     act = Act.objects.get(id=pk)
-    return render(request, 'act.html', {'act': act})
+    return render(request, 'act.html', {'report': act})
 
 
 @login_required

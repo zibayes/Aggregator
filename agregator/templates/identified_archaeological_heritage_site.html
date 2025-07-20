@@ -1,64 +1,36 @@
-{% extends 'base.html' %}
+{% extends 'bases/heritage_base.html' %}
 
-{% block title %}Выявленный объект археологического наследия{% endblock %}
+{% block heritage_title %}Выявленный объект археологического наследия{% endblock %}
+{% block heritage_header %}Выявленный объект археологического наследия{% endblock %}
+{% block heritage_delete_title %}Удаление выявленного объекта археологического наследия{% endblock %}
+{% block heritage_delete_url %}
+    {% url 'identified_archaeological_heritage_site_delete' identified_archaeological_heritage_site.id %}{% endblock %}
 
-{% block content %}
+{% block heritage_links %}
+    {% if identified_archaeological_heritage_site.account_card_id %}
+        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+           href="/account_cards/{{ identified_archaeological_heritage_site.account_card_id }}">
+            Учётная карта
+        </a>
+        <br><br>
+    {% endif %}
+{% endblock %}
 
-    <br>
-    <h2 align="center">Выявленный объект археологического наследия</h2>
-
-    <div>
-        {% if identified_archaeological_heritage_site.account_card_id %}
-            <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-               href="/account_cards/{{ identified_archaeological_heritage_site.account_card_id }}">
-                Учётная карта
-            </a>
-            <br>
-            <br>
-        {% endif %}
-        {% if identified_archaeological_heritage_site.user.id == user.id or user.is_superuser %}
-            <a href="/identified_archaeological_heritage_site_edit/{{ identified_archaeological_heritage_site.id }}">
-                <button type="button" class="btn btn-primary"
-                        style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
-                    Редактировать
-                </button>
-            </a>
-            <button type="button" class="btn btn-danger"
-                    data-bs-target="#delete_identified_archaeological_heritage_site" data-bs-toggle="modal">
-                Удалить
+{% block heritage_actions %}
+    {% if identified_archaeological_heritage_site.user.id == user.id or user.is_superuser %}
+        <a href="/identified_archaeological_heritage_site_edit/{{ identified_archaeological_heritage_site.id }}">
+            <button type="button" class="btn btn-primary"
+                    style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+                Редактировать
             </button>
-        {% endif %}
-    </div>
+        </a>
+        <button type="button" class="btn btn-danger" data-bs-target="#delete_heritage" data-bs-toggle="modal">
+            Удалить
+        </button>
+    {% endif %}
+{% endblock %}
 
-    {% block modal_dialog %}
-        <div class="modal fade" id="delete_identified_archaeological_heritage_site" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Вы уверены, что хотите удалить этот выявленный объект?</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                    </div>
-                    <div class="modal-footer">
-                        <form method="POST"
-                              action="{% url 'identified_archaeological_heritage_site_delete' identified_archaeological_heritage_site.id %}"
-                              class="mt-3">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                Отмена
-                            </button>
-                            <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
-                                Удалить
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    {% endblock modal_dialog %}
-
-    <hr>
-    <h2>Содержание выявленного объекта</h2>
+{% block heritage_contents %}
     <ul>
         {% if identified_archaeological_heritage_site.name %}
             <li><a href="#name">Наименование объекта</a></li>
@@ -73,8 +45,9 @@
             <li><a href="#document">Документ о включении в перечень</a></li>
         {% endif %}
     </ul>
-    <hr>
+{% endblock %}
 
+{% block heritage_sections %}
     {% if identified_archaeological_heritage_site.name %}
         <h2 id="name">Наименование объекта</h2>
         <p>{{ identified_archaeological_heritage_site.name | safe }}</p>
@@ -94,11 +67,9 @@
         <h2 id="document">Документ о включении в перечень</h2>
         <p>{{ identified_archaeological_heritage_site.document | safe }}</p>
     {% endif %}
+{% endblock %}
 
-    <style>
-        p {
-            white-space: pre-wrap;
-        }
-    </style>
-
+{% block heritage_modals %}
+    {{ block.super }}
+    <!-- Дополнительные модальные окна могут быть добавлены здесь -->
 {% endblock %}

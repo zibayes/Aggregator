@@ -1,77 +1,53 @@
-{% extends 'base.html' %}
+{% extends 'bases/document_base.html' %}
 
-{% block title %}Учётная карта объекта{% endblock %}
+{% block document_title %}Учётная карта объекта{% endblock %}
+{% block document_header %}Учётная карта объекта: {{ account_card.name }}{% endblock %}
+{% block delete_url %}{% url 'account_cards_delete' account_card.id %}{% endblock %}
 
-{% block content %}
+{% block document_sources %}
+    {% if account_card.upload_source_dict %}
+        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+           href="/{{ account_card.source }}">
+            Исходник: {{ account_card.origin_filename }}
+        </a>
+        <br><br>
+    {% endif %}
+    {% if account_card.heritage_url %}
+        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+           href="{{ account_card.heritage_url }}">
+            Памятник
+        </a>
+        <br><br>
+    {% endif %}
+    {% if account_card.coordinates_dict %}
+        <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
+           href="/map/account_card/{{ account_card.id }}">
+            Просмотр координат
+        </a>
+        <br><br>
+    {% endif %}
+{% endblock %}
 
-    <br>
-    <h2 align="center">Учётная карта объекта: {{ account_card.name }}</h2>
-
-    <div>
-        {% if account_card.upload_source_dict %}
-            <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-               href="/{{ account_card.source }}">
-                Исходник: {{ account_card.origin_filename }}
-            </a>
-            <br>
-            <br>
-        {% endif %}
-        {% if account_card.heritage_url %}
-            <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-               href="{{ account_card.heritage_url }}">
-                Памятник
-            </a>
-            <br>
-            <br>
-        {% endif %}
-        {% if account_card.coordinates_dict %}
-            <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
-               href="/map/account_card/{{ account_card.id }}">
-                Просмотр координат
-            </a>
-            <br>
-            <br>
-        {% endif %}
-        {% if account_card.user.id == user.id or user.is_superuser %}
-            <a href="/account_cards_edit/{{ account_card.id }}">
-                <button type="button" class="btn btn-primary"
-                        style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
-                    Редактировать
-                </button>
-            </a>
-            <button type="button" class="btn btn-danger" data-bs-target="#delete_account_card" data-bs-toggle="modal">
-                Удалить
+{% block document_actions %}
+    {% if account_card.user.id == user.id or user.is_superuser %}
+        <a href="/account_cards_edit/{{ account_card.id }}">
+            <button type="button" class="btn btn-primary"
+                    style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+                Редактировать
             </button>
-        {% endif %}
-    </div>
+        </a>
+        <button type="button" class="btn btn-danger" data-bs-target="#delete_document" data-bs-toggle="modal">
+            Удалить
+        </button>
+    {% endif %}
+{% endblock %}
 
-    {% block modal_dialog %}
-        <div class="modal fade" id="delete_account_card" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Вы уверены, что хотите удалить эту учётную карту?</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                    </div>
-                    <div class="modal-footer">
-                        <form method="POST" action="{% url 'account_cards_delete' account_card.id %}" class="mt-3">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                Отмена
-                            </button>
-                            <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
-                                Удалить
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    {% endblock modal_dialog %}
+{% block document_modals %}
+    {{ block.super }}
+    <!-- Доп модальные окна если нужны -->
+{% endblock %}
 
-    <hr>
-    <h2>Содержание</h2>
+{% block document_contents %}
     <ul>
         {% if account_card.name %}
             <li><a href="#name">Наименование объекта</a></li>
@@ -101,89 +77,77 @@
             <li><a href="#compiler">Составитель учетной карты</a></li>
         {% endif %}
     </ul>
-    <hr>
+{% endblock %}
 
+{% block document_sections %}
     {% if account_card.name %}
         <h2 id="name">Наименование объекта</h2>
-        <p>{{ account_card.name | safe }}</p>
+        <p>{{ account_card.name|safe }}</p>
     {% endif %}
 
     {% if account_card.creation_time %}
         <h2 id="creation_time">Время создания</h2>
-        <p>{{ account_card.creation_time | safe }}</p>
+        <p>{{ account_card.creation_time|safe }}</p>
     {% endif %}
 
     {% if account_card.address %}
         <h2 id="address">Адрес</h2>
-        <p>{{ account_card.address | safe }}</p>
+        <p>{{ account_card.address|safe }}</p>
 
-        {% if account_card.supplement_dict %}
-            {% if account_card.supplement_dict.address %}
-                {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
-                    {% for map in account_card.supplement_dict.address %}
-                        <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
-                            <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
-                                 alt="{{ map.source }}"
-                                 style="max-width: 400px;"/>
-                            <p>{{ map.label }}</p>
-                        </a>
-                        <br>
-                    {% endfor %}
-                {% endwith %}
-            {% endif %}
+        {% if account_card.supplement_dict and account_card.supplement_dict.address %}
+            {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
+                {% for map in account_card.supplement_dict.address %}
+                    <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
+                        <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
+                             alt="{{ map.source }}" style="max-width: 400px;"/>
+                        <p>{{ map.label }}</p>
+                    </a>
+                    <br>
+                {% endfor %}
+            {% endwith %}
         {% endif %}
     {% endif %}
 
     {% if account_card.object_type %}
         <h2 id="object_type">Вид объекта</h2>
-        <p>{{ account_card.object_type | safe }}</p>
+        <p>{{ account_card.object_type|safe }}</p>
     {% endif %}
 
     {% if account_card.general_classification %}
         <h2 id="general_classification">Общая видовая принадлежность</h2>
-        <p>{{ account_card.general_classification | safe }}</p>
+        <p>{{ account_card.general_classification|safe }}</p>
     {% endif %}
 
     {% if account_card.description %}
         <h2 id="description">Описание</h2>
-        <p>{{ account_card.description | safe }}</p>
+        <p>{{ account_card.description|safe }}</p>
 
-        {% if account_card.supplement_dict %}
-            {% if account_card.supplement_dict.description %}
-                {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
-                    {% for map in account_card.supplement_dict.description %}
-                        <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
-                            <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
-                                 alt="{{ map.source }}"
-                                 style="max-width: 400px;"/>
-                            <p>{{ map.label }}</p>
-                        </a>
-                        <br>
-                    {% endfor %}
-                {% endwith %}
-            {% endif %}
+        {% if account_card.supplement_dict and account_card.supplement_dict.description %}
+            {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
+                {% for map in account_card.supplement_dict.description %}
+                    <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
+                        <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
+                             alt="{{ map.source }}" style="max-width: 400px;"/>
+                        <p>{{ map.label }}</p>
+                    </a>
+                    <br>
+                {% endfor %}
+            {% endwith %}
         {% endif %}
     {% endif %}
 
     {% if account_card.usage %}
         <h2 id="usage">Использование</h2>
-        <p>{{ account_card.usage | safe }}</p>
+        <p>{{ account_card.usage|safe }}</p>
     {% endif %}
 
     {% if account_card.discovery_info %}
         <h2 id="discovery_info">Сведения о выявлении</h2>
-        <p>{{ account_card.discovery_info | safe }}</p>
+        <p>{{ account_card.discovery_info|safe }}</p>
     {% endif %}
 
     {% if account_card.compiler %}
         <h2 id="compiler">Составитель учетной карты</h2>
-        <p>{{ account_card.compiler | safe }}</p>
+        <p>{{ account_card.compiler|safe }}</p>
     {% endif %}
-
-    <style>
-        p {
-            white-space: pre-wrap;
-        }
-    </style>
-
 {% endblock %}
