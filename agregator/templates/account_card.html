@@ -150,4 +150,7 @@
         <h2 id="compiler">Составитель учетной карты</h2>
         <p>{{ account_card.compiler|safe }}</p>
     {% endif %}
+
+    {% load static %}
+    <script src="{% static 'js/gallery_scripts.js' %}"></script>
 {% endblock %}

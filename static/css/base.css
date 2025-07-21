@@ -1,0 +1,67 @@
+.link-button {
+    background: none; /* Убираем фон */
+    border: none; /* Убираем границу */
+    color: blue; /* Цвет текста, как у гиперссылки */
+    text-decoration: underline; /* Подчеркивание текста */
+    cursor: pointer; /* Указатель при наведении */
+    padding: 0; /* Убираем отступы */
+    font: inherit; /* Унаследовать шрифт от родителя */
+}
+
+.link-button:hover {
+    color: darkblue; /* Цвет текста при наведении */
+}
+
+.navbar-toggler {
+    padding: 0.25rem 0.75rem;
+    border: 1px solid transparent;
+}
+
+.navbar-toggler-icon {
+    display: inline-block;
+    width: 1.5em;
+    height: 1.5em;
+    vertical-align: middle;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%280, 0, 0, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 100%;
+}
+
+/* MDB стили для навбара */
+.navbar {
+    box-shadow: 0 2px 5px 0 rgb(0 0 0 / 10%);
+}
+
+@media (max-width: 1400px) {
+    .navbar-collapse .navbar-nav .nav-item {
+        margin-bottom: 10px;
+    }
+}
+
+.tooltipcustom {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
+
+.tooltipcustom .tooltiptext {
+    visibility: hidden;
+    background-color: black;
+    color: #fff;
+    text-align: left;
+    border-radius: 5px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.tooltipcustom:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}

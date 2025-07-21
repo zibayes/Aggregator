@@ -11,6 +11,11 @@
             <!-- Основные поля документа -->
             {% block document_fields %}{% endblock %}
 
+            <!-- Приложения -->
+            {% if report.supplement_dict %}
+                {% include 'includes/report_supplements_edit.html' %}
+            {% endif %}
+
             <!-- Кнопки действий -->
             <button type="submit" class="btn btn-primary" style="margin-right: 5px;">
                 Сохранить
@@ -19,9 +24,6 @@
                 Удалить
             </button>
         </form>
-
-        <!-- Приложения -->
-        {% block supplement_sections %}{% endblock %}
     </div>
 {% endblock %}
 

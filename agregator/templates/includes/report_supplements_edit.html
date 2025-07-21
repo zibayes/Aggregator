@@ -1,0 +1,45 @@
+{% if report.supplement_dict %}
+    <br>
+    <h2 id="supplement">Приложение</h2>
+
+    {% for supplement_type, items in report.supplement_dict.items %}
+        {% if items %}
+            <h3 id="{{ supplement_type }}">
+                {% if supplement_type == "maps" %}Карты
+                {% elif supplement_type == "schemas" %}Схемы
+                {% elif supplement_type == "object_fotos" %}Общий вид
+                {% elif supplement_type == "pits_fotos" %}Шурфы
+                {% elif supplement_type == "excavation_fotos" %}Раскопы
+                {% elif supplement_type == "material_fotos" %}Археологический материал
+                {% elif supplement_type == "heritage_info" %}Данные о ВОАН
+                {% elif supplement_type == "other" %}Иное
+                {% elif supplement_type == "title_page" %}Титульник
+                {% elif supplement_type == "docs" %}Документы
+                {% elif supplement_type == "open_list" %}Открытый лист
+                {% elif supplement_type == "no_captions" %}Без подписей
+                    {% else %}{{ supplement_type|title }}
+                {% endif %}
+            </h3>
+
+            <div class="row">
+                {% for item in items %}
+                    <div class="col-md-4 mb-4">
+                        <a data-fancybox="gallery" href="/{{ item.source }}"
+                           data-caption="{{ item.label|default:'Изображение' }}">
+                            <img src="/{{ item.source }}" loading="lazy"
+                                 alt="{{ item.label|default:'Изображение' }}"
+                                 class="img-fluid img-thumbnail"
+                                 style="max-width: 400px;">
+                        </a>
+                        <textarea class="form-control mt-2" id="{{ supplement_type }}"
+                                  name="source-{{ item.source }}" rows="3"
+                                  placeholder="Ссылка на изображение">{{ item.source }}</textarea>
+                        <textarea class="form-control mt-2" id="{{ supplement_type }}"
+                                  name="label-{{ item.source }}" rows="3"
+                                  placeholder="Подпись для изображения">{{ item.label }}</textarea>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endfor %}
+{% endif %}

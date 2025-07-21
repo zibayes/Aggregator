@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import re
@@ -1012,11 +1013,23 @@ def acts_edit(request, pk):
         act.open_list = request.POST['open_list']
         act.conclusion = request.POST['conclusion']
         act.border_objects = request.POST['border_objects']
+
+        input_dict = request.POST.dict()
+        act_supplement = copy.deepcopy(act.supplement_dict)
+        for category, images in act.supplement_dict.items():
+            for i in range(len(images)):
+                act_supplement[category][i]['source'] = input_dict['source-' + images[i]['source']]
+                if input_dict['label-' + images[i]['source']]:
+                    act_supplement[category][i]['label'] = input_dict['label-' + images[i]['source']]
+                    print('label: ' + str(act_supplement[category][i]['label']))
+                print('source: ' + str(act_supplement[category][i]['source']))
+        act.supplement = act_supplement
+
         act.save()
         messages.success(request, 'Акт успешно обновлен.')
         return redirect(f'/acts/{act.id}')  # Перенаправление на страницу профиля
 
-    return render(request, 'act_edit.html', {'act': act})
+    return render(request, 'act_edit.html', {'report': act})
 
 
 @login_required
@@ -1103,6 +1116,18 @@ def scientific_reports_edit(request, pk):
         report.research_history = request.POST['research_history']
         report.results = request.POST['results']
         report.conclusion = request.POST['conclusion']
+
+        input_dict = request.POST.dict()
+        report_supplement = copy.deepcopy(report.supplement_dict)
+        for category, images in report.supplement_dict.items():
+            for i in range(len(images)):
+                report_supplement[category][i]['source'] = input_dict['source-' + images[i]['source']]
+                if input_dict['label-' + images[i]['source']]:
+                    report_supplement[category][i]['label'] = input_dict['label-' + images[i]['source']]
+                    print('label: ' + str(report_supplement[category][i]['label']))
+                print('source: ' + str(report_supplement[category][i]['source']))
+        report.supplement = report_supplement
+
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
         return redirect(f'/scientific_reports/{report.id}')
@@ -1140,6 +1165,18 @@ def tech_reports_edit(request, pk):
         report.research_history = request.POST['research_history']
         report.results = request.POST['results']
         report.conclusion = request.POST['conclusion']
+
+        input_dict = request.POST.dict()
+        report_supplement = copy.deepcopy(report.supplement_dict)
+        for category, images in report.supplement_dict.items():
+            for i in range(len(images)):
+                report_supplement[category][i]['source'] = input_dict['source-' + images[i]['source']]
+                if input_dict['label-' + images[i]['source']]:
+                    report_supplement[category][i]['label'] = input_dict['label-' + images[i]['source']]
+                    print('label: ' + str(report_supplement[category][i]['label']))
+                print('source: ' + str(report_supplement[category][i]['source']))
+        report.supplement = report_supplement
+
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
         return redirect(f'/tech_reports/{report.id}')
@@ -1313,6 +1350,18 @@ def account_cards_edit(request, pk):
         account_card.description = request.POST['description']
         account_card.usage = request.POST['usage']
         account_card.discovery_info = request.POST['discovery_info']
+
+        input_dict = request.POST.dict()
+        account_card_supplement = copy.deepcopy(account_card.supplement_dict)
+        for category, images in account_card.supplement_dict.items():
+            for i in range(len(images)):
+                account_card_supplement[category][i]['source'] = input_dict['source-' + images[i]['source']]
+                if input_dict['label-' + images[i]['source']]:
+                    account_card_supplement[category][i]['label'] = input_dict['label-' + images[i]['source']]
+                    print('label: ' + str(account_card_supplement[category][i]['label']))
+                print('source: ' + str(account_card_supplement[category][i]['source']))
+        account_card.supplement = account_card_supplement
+
         account_card.save()
         messages.success(request, 'Учётная карта успешно обновлена.')
         return redirect(f'/account_cards/{account_card.id}')

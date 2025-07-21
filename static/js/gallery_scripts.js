@@ -29,10 +29,27 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
-});
 
-Fancybox.bind('[data-fancybox="gallery"]', {
-    Images: {zoom: {max: 5, wheel: true}},
-    Thumbs: {autoStart: false},
-    Toolbar: {display: ['slideshow', 'fullscreen', 'close']}
+    Fancybox.bind('[data-fancybox="gallery"]', {
+        Images: {
+            zoom: {
+                max: 10,
+                wheel: true
+            }
+        },
+        groupAll: true,
+        Thumbs: {autoStart: false}
+    });
+
+    Fancybox.bind('[data-fancybox="preview-link"]', {
+        buttons: [
+            "zoom",
+            "share",
+            "slideShow",
+            "fullScreen",
+            "download",
+            "thumbs",
+            "close"
+        ]
+    });
 });

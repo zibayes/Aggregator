@@ -19,19 +19,19 @@
 
     <div class="mb-3">
         <label for="address" class="form-label">Адрес</label>
-        <input type="text" , class="form-control" id="address" name="address" value="{{ account_card.address }}"
+        <input type="text" class="form-control" id="address" name="address" value="{{ account_card.address }}"
                required>
     </div>
 
     <div class="mb-3">
         <label for="object_type" class="form-label">Вид объекта</label>
-        <input type="text" , class="form-control" id="object_type" name="object_type"
+        <input type="text" class="form-control" id="object_type" name="object_type"
                value="{{ account_card.object_type }}" required>
     </div>
 
     <div class="mb-3">
         <label for="general_classification" class="form-label">Общая видовая принадлежность</label>
-        <input type="text" , class="form-control" id="general_classification" name="general_classification"
+        <input type="text" class="form-control" id="general_classification" name="general_classification"
                value="{{ account_card.general_classification }}">
     </div>
 
@@ -66,26 +66,34 @@
 
     <div class="mb-3">
         <label for="upload_source" class="form-label">Источник загрузки</label>
-        <input type="text" , class="form-control" id="upload_source" name="upload_source"
+        <input type="text" class="form-control" id="upload_source" name="upload_source"
                value="{{ account_card.upload_source }}">
     </div>
-{% endblock %}
 
-{% block additional_sections %}
     <br>
     <h2 id="supplement">Приложение</h2>
 
     <h3 id="address_maps">Адрес</h3>
     {% for map in account_card.supplement_dict.address %}
         <img src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}" style="max-width: 400px;"/>
-        <textarea class="form-control" id="map" name="map" rows="3">{{ map.label }}</textarea>
+        <textarea class="form-control mt-2" id="{{ map.source }}"
+                  name="source-{{ map.source }}" rows="3"
+                  placeholder="Ссылка на изображение">{{ map.source }}</textarea>
+        <textarea class="form-control mt-2" id="{{ map.source }}"
+                  name="label-{{ map.source }}" rows="3"
+                  placeholder="Подпись для изображения">{{ map.label }}</textarea>
         <br>
     {% endfor %}
 
     <h3 id="description_maps">Описание</h3>
     {% for scheme in account_card.supplement_dict.description %}
         <img src="/{{ scheme.source }}" loading="lazy" alt="{{ scheme.source }}" style="max-width: 400px;"/>
-        <textarea class="form-control" id="scheme" name="scheme" rows="3">{{ scheme.label }}</textarea>
+        <textarea class="form-control mt-2" id="{{ scheme.source }}"
+                  name="source-{{ scheme.source }}" rows="3"
+                  placeholder="Ссылка на изображение">{{ scheme.source }}</textarea>
+        <textarea class="form-control mt-2" id="{{ scheme.source }}"
+                  name="label-{{ scheme.source }}" rows="3"
+                  placeholder="Подпись для изображения">{{ scheme.label }}</textarea>
         <br>
     {% endfor %}
 {% endblock %}
