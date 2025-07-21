@@ -1,10 +1,19 @@
 {% extends 'bases/heritage_base.html' %}
 
 {% block heritage_title %}Выявленный объект археологического наследия{% endblock %}
-{% block heritage_header %}Выявленный объект археологического наследия{% endblock %}
+{% block heritage_header %}Выявленный объект археологического наследия
+    {{ identified_archaeological_heritage_site.name }}{% endblock %}
 {% block heritage_delete_title %}Удаление выявленного объекта археологического наследия{% endblock %}
 {% block heritage_delete_url %}
     {% url 'identified_archaeological_heritage_site_delete' identified_archaeological_heritage_site.id %}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/identified_archaeological_heritage_sites/">Перечень выявленных объектов
+        археологического наследия</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Выявленный объект археологического
+        наследия {{ identified_archaeological_heritage_site.name }}
+    </li>
+{% endblock %}
 
 {% block heritage_links %}
     {% if identified_archaeological_heritage_site.account_card_id %}

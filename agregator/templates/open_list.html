@@ -1,8 +1,15 @@
 {% extends 'bases/document_base.html' %}
 
 {% block document_title %}Открытый лист{% endblock %}
-{% block document_header %}Открытый лист{% endblock %}
+{% block document_header %}Открытый лист {{ open_list.number }}{% endblock %}
 {% block delete_url %}{% url 'open_lists_delete' open_list.id %}{% endblock %}
+
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/open_lists_register/">Реестр открытых листов</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Открытый
+        лист {{ open_list.number }}
+    </li>
+{% endblock %}
 
 {% block document_sources %}
     <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px; margin-top: 15px;"

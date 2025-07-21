@@ -6,6 +6,14 @@
 {% block report_delete_url %}{% url 'tech_reports_delete' report.id %}{% endblock %}
 {% block reprocess_url %}{% url 'doc_reprocess' report.id %}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/tech_reports_register/">Реестр научно-технических отчётов</a>
+    </li>
+    <li class="breadcrumb-item active" aria-current="page">Научно-технический отчёт: {{ report.author }}
+        от {{ report.writing_date }}
+    </li>
+{% endblock %}
+
 {% block report_sources %}
     {% for source in report.source_dict %}
         <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"

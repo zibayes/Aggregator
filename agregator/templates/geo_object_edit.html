@@ -4,6 +4,12 @@
 {% block geo_object_name %}географического объекта{% endblock %}
 {% block delete_geo_url %}{% url 'geo_objects_delete' geo_object.id %}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/geo_objects_register/">Реестр географических объектов</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Редактирование {{ geo_object.origin_filename }}
+    </li>
+{% endblock %}
+
 {% block coordinate_sections %}
     {% for group, point in geo_object.coordinates_dict.items %}
         <div class="mb-3" id="polygon-{{ group }}">

@@ -7,6 +7,14 @@
 {% block delete_object_type %}научно-технический отчёт{% endblock %}
 {% block delete_url %}{% url 'tech_reports_delete' report.id %}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/tech_reports_register/">Реестр научно-технических отчётов</a></li>
+    <li class="breadcrumb-item"><a href="/tech_reports/{{ report.id }}">Научно-технический отчёт: {{ report.author }}
+        от {{ report.writing_date }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Редактирование
+    </li>
+{% endblock %}
+
 {% block document_fields %}
     <div class="mb-3">
         <label for="name" class="form-label">Название отчета</label>

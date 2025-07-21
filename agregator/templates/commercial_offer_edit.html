@@ -4,6 +4,12 @@
 {% block geo_object_name %}коммерческого предложения{% endblock %}
 {% block delete_geo_url %}{% url 'commercial_offers_delete' commercial_offer.id %}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/commercial_offers_register/">Реестр коммерческих предложений</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Редактирование {{ commercial_offer.origin_filename }}
+    </li>
+{% endblock %}
+
 {% block coordinate_sections %}
     {% for group, point in commercial_offer.coordinates_dict.items %}
         <div class="mb-3" id="polygon-{{ group }}">

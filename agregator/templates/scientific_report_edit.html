@@ -5,6 +5,14 @@
 {% block delete_object_type %}научный отчёт{% endblock %}
 {% block delete_url %}{% url 'scientific_reports_delete' report.id %}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/scientific_reports_register/">Реестр научных отчётов</a></li>
+    <li class="breadcrumb-item"><a href="/scientific_reports/{{ report.id }}">Научный
+        отчёт: {{ report.author }} от {{ report.writing_date }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Редактирование
+    </li>
+{% endblock %}
+
 {% block document_fields %}
     <div class="mb-3">
         <label for="name" class="form-label">Название отчета</label>

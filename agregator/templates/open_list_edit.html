@@ -6,6 +6,14 @@
 {% block delete_object_name %}открытый лист{% endblock %}
 {% block delete_object_url %}{% url 'open_lists_delete' open_list.id %}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/open_lists_register/">Реестр открытых листов</a></li>
+    <li class="breadcrumb-item"><a href="/open_lists/{{ open_list.id }}">Открытый
+        лист {{ open_list.number }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Редактирование
+    </li>
+{% endblock %}
+
 {% block form_fields %}
     <div class="mb-3">
         <label for="number" class="form-label">Номер</label>

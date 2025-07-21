@@ -2,6 +2,10 @@
 
 {% block title %}Реестр открытых листов{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item active" aria-current="page">Реестр открытых листов</li>
+{% endblock %}
+
 {% block column_toggles %}
     <div data-columns-count="12">
         <label><input type="checkbox" class="column-toggle" data-column="0" checked> Номер листа</label><br>

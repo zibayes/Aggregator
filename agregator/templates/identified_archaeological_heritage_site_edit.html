@@ -7,6 +7,17 @@
 {% block delete_object_url %}
     {% url 'identified_archaeological_heritage_site_delete' identified_archaeological_heritage_site.id %}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/identified_archaeological_heritage_sites/">Перечень выявленных объектов
+        археологического наследия</a></li>
+    <li class="breadcrumb-item"><a
+            href="/identified_archaeological_heritage_site/{{ identified_archaeological_heritage_site.id }}">Выявленный
+        объект археологического
+        наследия {{ identified_archaeological_heritage_site.name }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Редактирование
+    </li>
+{% endblock %}
+
 {% block form_fields %}
     <div class="mb-3">
         <label for="name" class="form-label">Наименование объекта</label>

@@ -63,7 +63,7 @@
 <body>
 
 <!-- Навигационная панель -->
-<nav class="navbar navbar-expand-xxl navbar-light bg-light">
+<nav class="navbar navbar-expand-xxl navbar-light bg-light sticky-top">
     <a class="navbar-brand" href="{% url 'index' %}" style="margin-left:10px;">Агрегатор</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
             aria-controls="navbarNav" aria-expanded="false" aria-label="Переключить навигацию">
@@ -211,6 +211,15 @@
         </ul>
     </div>
 </nav>
+
+<div class="breadcrumb" style="margin-left: 12px; margin-top: 8px; margin-bottom:0;">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb" style="--mdb-breadcrumb-divider: '>'; font-family: Arial; margin-bottom:3px;">
+            <li class="breadcrumb-item"><a href="{% url 'index' %}">Главная</a></li>
+            {% block breadcrumb %}{% endblock %}
+        </ol>
+    </nav>
+</div>
 
 <div class="map">
     {% block map %}{% endblock %}

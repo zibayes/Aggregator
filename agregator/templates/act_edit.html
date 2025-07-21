@@ -5,6 +5,14 @@
 {% block delete_object_type %}акт{% endblock %}
 {% block delete_url %}{% url 'acts_delete' report.id %}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/acts_register/">Реестр актов</a></li>
+    <li class="breadcrumb-item"><a href="/acts/{{ report.id }}">Акт: {{ report.expert }}
+        от {{ report.finish_date }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Редактирование
+    </li>
+{% endblock %}
+
 {% block document_fields %}
     <div class="mb-3">
         <label for="year" class="form-label">Год</label>

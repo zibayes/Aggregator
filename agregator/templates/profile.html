@@ -2,6 +2,10 @@
 
 {% block title %}Профиль{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item active" aria-current="page">Профиль пользователя {{ user_to_show.username }}</li>
+{% endblock %}
+
 {% block content %}
     <div class="container mt-5">
         <h2>Профиль пользователя</h2>

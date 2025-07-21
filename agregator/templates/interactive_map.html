@@ -3,6 +3,38 @@
 
 {% block title %}Интерактивная карта{% endblock %}
 
+{% block breadcrumb %}
+    {% if all_coordinates %}
+        <li class="breadcrumb-item active" aria-current="page">Интерактивная карта</li>
+    {% else %}
+        {% if report_type == 'account_card' %}
+            <li class="breadcrumb-item"><a href="/account_cards_register/">Реестр учётных карт</a></li>
+            <li class="breadcrumb-item"><a href="/account_cards/{{ pk }}">Учётная карта
+                объекта: {{ report_name }}</a></li>
+        {% elif report_type == 'commercial_offer' %}
+            <li class="breadcrumb-item"><a href="/commercial_offers_register/">Реестр коммерческих предложений</a></li>
+            <li class="breadcrumb-item"><a href="/commercial_offers_edit/{{ pk }}">Редактирование {{ report_name }}</a>
+            </li>
+        {% elif report_type == 'geo_object' %}
+            <li class="breadcrumb-item"><a href="/geo_objects_register/">Реестр географических объектов</a></li>
+            <li class="breadcrumb-item"><a href="/geo_objects_edit/{{ pk }}">Редактирование {{ report_name }}</a>
+            </li>
+        {% elif report_type == 'act' %}
+            <li class="breadcrumb-item"><a href="/acts_register/">Реестр актов</a></li>
+            <li class="breadcrumb-item"><a href="/acts/{{ pk }}">Акт: {{ report_name }}</a></li>
+        {% elif report_type == 'scientific_report' %}
+            <li class="breadcrumb-item"><a href="/scientific_reports_register/">Реестр научных отчётов</a></li>
+            <li class="breadcrumb-item"><a href="/scientific_reports/{{ pk }}">Научный
+                отчёт: {{ report_name }}</a></li>
+        {% elif report_type == 'tech_report' %}
+            <li class="breadcrumb-item"><a href="/tech_reports_register/">Реестр научно-технических отчётов</a></li>
+            <li class="breadcrumb-item"><a href="/tech_reports/{{ pk }}">Научно-технический отчёт: {{ report_name }}</a>
+            </li>
+        {% endif %}
+        <li class="breadcrumb-item active" aria-current="page">Интерактивная карта</li>
+    {% endif %}
+{% endblock %}
+
 {% block map %}
     <!-- Подключение Leaflet -->
     <link rel="stylesheet" href="{% static 'css/leaflet.css' %}"/>
@@ -96,7 +128,6 @@
         }
     </style>
 
-    <br>
     {% if coordinates %}
         <h2 align="center">{{ report_name }}</h2>
     {% else %}

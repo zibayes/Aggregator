@@ -6,6 +6,13 @@
 {% block report_delete_url %}{% url 'acts_delete' report.id %}{% endblock %}
 {% block reprocess_url %}{% url 'doc_reprocess' report.id %}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/acts_register/">Реестр актов</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Акт: {{ report.expert }}
+        от {{ report.finish_date }}
+    </li>
+{% endblock %}
+
 {% block report_sources %}
     {% for source in report.source_dict %}
         <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"

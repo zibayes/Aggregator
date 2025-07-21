@@ -5,6 +5,14 @@
 {% block delete_object_name %}учётную карту{% endblock %}
 {% block delete_object_url %}{% url 'account_cards_delete' account_card.id %}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="/account_cards_register/">Реестр учётных карт</a></li>
+    <li class="breadcrumb-item"><a href="/account_cards/{{ account_card.id }}">Учётная карта
+        объекта: {{ account_card.name }}</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Редактирование
+    </li>
+{% endblock %}
+
 {% block form_fields %}
     <div class="mb-3">
         <label for="name" class="form-label">Наименование объекта</label>
