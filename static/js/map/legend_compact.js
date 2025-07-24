@@ -1,7 +1,9 @@
 // Общая функция для обработки переключения группы маркеров
 function setupMarkerGroupToggle(options) {
+    console.log(options)
     const {checkboxId, groupPattern, polylineSelector = null} = options;
-
+    console.log(checkboxId)
+    console.log(document.getElementById(checkboxId))
     document.getElementById(checkboxId).addEventListener('change', function () {
         // Обработка маркеров
         markers.forEach(item => {

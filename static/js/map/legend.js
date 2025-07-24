@@ -56,3 +56,48 @@ function setupPointToggle(markersArray, reportName, group, pointName) {
         });
 }
 
+// Функция для создания переключаемого элемента с сохранением оригинальных ID
+function createToggleItem(idPrefix, label, iconColor, report_name, report_type, checked = true, indent = 0) {
+    const idMap = {
+        'shurfs': 'toggleShurfs',
+        'catalog': 'toggleCatalog',
+        'photos': 'togglePhotoPoints',
+        'center': 'toggleCenterPoints'
+    };
+    const toggleId = idMap[idPrefix] || `toggle${idPrefix.charAt(0).toUpperCase() + idPrefix.slice(1)}`;
+
+    return `
+<div style="margin-left: ${indent}px;">
+    <span style="cursor: pointer;" id="${idPrefix}-${report_name}_toggle" class="toggle-icon" onclick="toggleContent('${idPrefix}-${report_name}')">+</span>
+    <input type="checkbox" id="${toggleId}-${report_name}" class="${report_type}_point" style="margin-right: 3px;" ${checked ? 'checked' : ''}>
+    <i style="background: ${iconColor};"></i> ${label}
+</div>
+<div id="${idPrefix}-${report_name}_content" style="margin-left: ${indent + 20}px; display: none;">
+`;
+}
+
+// Функция для чекбоксов с кастомными ID (если нужно)
+function createCheckboxItem(id, label, checked = true, indent = 20, className = 'single_point') {
+    return `
+<div style="margin-left: ${indent}px;">
+    <input type="checkbox" id="${id}" class="${className}" style="margin-right: 3px;" ${checked ? 'checked' : ''}>
+    ${label}
+</div>
+`;
+}
+
+// Функция для разделов с сохранением ID
+function createReportSection(id, label, report_type, isChecked = true, hasCenterButton = false, reportName = '') {
+    return `
+<div style="cursor: pointer; margin-left: 20px;">
+    <span id="${id}_toggle" class="toggle-icon" onclick="toggleContent('${id}')">+</span>
+    <input type="checkbox" id="${id.startsWith('report-') ? 'toggleMarkerGroup-' + id.replace('report-', '') : id}"
+           class="${report_type}_point" style="margin-right: 3px;"
+           ${isChecked ? 'checked' : ''}
+           ${id.startsWith('report-') ? `onchange="syncCheckboxes('${id.replace('report-', '')}')"` : ''}>
+    ${label}
+    ${hasCenterButton ? `<button class="center-button" title="Центрировать карту на этом отчете" style="margin-left: 5px; cursor: pointer;" onclick="centerMap('${reportName}')">➔</button>` : ''}
+</div>
+<div id="${id}_content" style="margin-left: 40px; display: none;">
+`;
+}
