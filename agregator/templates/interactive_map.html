@@ -48,85 +48,7 @@
     <script src="{% static 'js/FileSaver.min.js' %}"></script>
     <script src="{% static 'js/turf.min.js' %}"></script>
 
-    <style>
-        #map {
-            height: 690px;
-            width: 100%;
-            max-width: 1800px;
-            margin: 0 auto;
-            margin-top: 10px;
-            margin-bottom: 5px;
-        }
-
-        .legend {
-            background: white;
-            padding: 10px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            z-index: 1000;
-        {% if all_coordinates %}
-            width: 420px;
-        {% else %}
-            width: 270px;
-        {% endif %}
-            max-height: 650px;
-            overflow-y: auto;
-        }
-
-        .legend i {
-            width: 15px;
-            height: 15px;
-            display: inline-block;
-            margin-right: 5px;
-        }
-
-        .leaflet-control-graphicscale {
-            background-color: rgba(255, 255, 255, 0.8);
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            padding-top: 0px;
-            padding-bottom: 0px;
-            padding-right: 12px;
-            padding-left: 12px;
-        }
-
-        .coordinates {
-            background-color: rgba(255, 255, 255, 0.8);
-            position: absolute;
-            bottom: 10px;
-            right: 10px;
-            padding: 5px;
-            border-radius: 5px;
-            width: 280px;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-        }
-
-        .polygon-label {
-            padding: 5px;
-            border-radius: 5px;
-            text-align: center;
-            font-weight: bold;
-        }
-
-        #manualScreenshotControls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        #manualScreenshotControls input[type="color"] {
-            width: 30px;
-            padding: 3px;
-        }
-
-        #manualScreenshotControls input[type="number"] {
-            width: 70px;
-            padding: 3px;
-        }
-    </style>
+    <link rel="stylesheet" href="{% static 'css/interactive_map.css' %}"/>
 
     {% if coordinates %}
         <h2 align="center">{{ report_name }}</h2>
@@ -279,542 +201,30 @@
             </div>
         </div>
 
-        <script>
-            document.getElementById('screenshotModeSelect').addEventListener('change', function () {
-                const manualControls = document.getElementById('manualScreenshotControls');
-                const stagesControls = document.getElementById('stagesControls');
-                if (this.value === 'manualScreenshot') {
-                    manualControls.style.display = 'flex';
-                    stagesControls.style.display = 'flex';
-                } else {
-                    manualControls.style.display = 'none';
-                    stagesControls.style.display = 'none';
-                }
-            });
-
-            document.getElementById('manualScreenshotControls').addEventListener('change', function (event) {
-                const stageSelect = document.getElementById('screenshotStageSelect');
-
-                if (event.target === stageSelect) {
-                    const selectedStage = stageSelect.value;
-                    countryControls.style.display = 'none';
-                    subjectControls.style.display = 'none';
-                    regionControls.style.display = 'none';
-
-                    if (selectedStage === 'russia') {
-                        countryControls.style.display = 'block';
-                        subjectControls.style.display = 'block';
-                    } else if (selectedStage === 'subject') {
-                        subjectControls.style.display = 'block';
-                        regionControls.style.display = 'block';
-                    } else if (selectedStage === 'region') {
-                        regionControls.style.display = 'block';
-                    }
-
-                    if (window.layers_russia) {
-                        window.layers_russia.forEach(layer => map.removeLayer(layer));
-                    }
-                    if (window.layers_subject) {
-                        window.layers_subject.forEach(layer => map.removeLayer(layer));
-                    }
-                    if (window.labels_regions) {
-                        window.labels_regions.forEach(layer => map.removeLayer(layer));
-                    }
-                    if (window.layers_regions) {
-                        window.layers_regions.forEach(layer => map.removeLayer(layer));
-                    }
-                    if (window.labels_subject) {
-                        window.labels_subject.forEach(layer => map.removeLayer(layer));
-                    }
-
-                    const mapWidth = document.getElementById('mapWidth').value;
-                    const mapHeight = document.getElementById('mapHeight').value;
-                    const mapElement = document.getElementById('map');
-
-                    // Элементы для страны
-                    const countryBorderColor = document.getElementById('countryBorderColor');
-                    const countryBorderOpacity = document.getElementById('countryBorderOpacity');
-
-                    // Элементы для субъекта
-                    const subjectBorderColor = document.getElementById('subjectBorderColor');
-                    const subjectBorderOpacity = document.getElementById('subjectBorderOpacity');
-                    const subjectLabelColor = document.getElementById('subjectLabelColor');
-                    // const subjectLabelSize = document.getElementById('subjectLabelSize');
-
-                    // Элементы для района
-                    const regionBorderColor = document.getElementById('regionBorderColor');
-                    const regionBorderOpacity = document.getElementById('regionBorderOpacity');
-
-                    if (selectedStage === 'region') {
-                        result = prtScrRegion(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value);
-                        window.layers_regions = result[0];
-                        borders_bounds = result[1];
-                        if (borders_bounds.length > 0) {
-                            allBounds = L.latLngBounds(borders_bounds);
-                            map.fitBounds(allBounds);
-                        }
-                    } else if (selectedStage === 'subject') {
-                        result = prtScrSubject(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, regionLabelColor.value, regionLabelSize.value);
-                        window.layers_subject = result[0][0];
-                        borders_bounds = result[0][1];
-                        window.layers_regions = result[1][0];
-                        borders_bounds.push(result[1][1]);
-                        labels_regions = result[1][2];
-                        if (borders_bounds.length > 0) {
-                            map.fitBounds(L.latLngBounds(borders_bounds));
-                        }
-                    } else if (selectedStage === 'russia') {
-                        result = prtScrCountry(mapElement, window.data, mapWidth, mapHeight, countryBorderColor.value, countryBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, subjectLabelColor.value, subjectLabelSize.value);
-                        window.layers_russia = result[0][0];
-                        borders_bounds = result[0][1];
-                        window.layers_subject = result[1][0];
-                        borders_bounds.push(result[1][1]);
-                        window.labels_subject = result[1][2];
-                        if (borders_bounds.length > 0) {
-                            map.fitBounds(L.latLngBounds(borders_bounds));
-                        }
-                    } else if (selectedStage === 'excavation') {
-                        prtScrExcavation(mapElement, window.data);
-                    }
-                }
-            });
-
-            function updatePolygon() {
-                const mapWidth = document.getElementById('mapWidth').value;
-                const mapHeight = document.getElementById('mapHeight').value;
-                const mapElement = document.getElementById('map');
-
-                // Элементы для страны
-                const countryBorderColor = document.getElementById('countryBorderColor');
-                const countryBorderOpacity = document.getElementById('countryBorderOpacity');
-
-                // Элементы для субъекта
-                const subjectBorderColor = document.getElementById('subjectBorderColor');
-                const subjectBorderOpacity = document.getElementById('subjectBorderOpacity');
-                const subjectLabelColor = document.getElementById('subjectLabelColor');
-                const subjectLabelSize = document.getElementById('subjectLabelSize');
-
-                // Элементы для района
-                const regionBorderColor = document.getElementById('regionBorderColor');
-                const regionBorderOpacity = document.getElementById('regionBorderOpacity');
-                const regionLabelColor = document.getElementById('regionLabelColor');
-                const regionLabelSize = document.getElementById('regionLabelSize');
-
-                const stageSelect = document.getElementById('screenshotStageSelect');
-                const selectedStage = stageSelect.value;
-
-                if (window.layers_russia) {
-                    window.layers_russia.forEach(layer => map.removeLayer(layer));
-                }
-                if (window.layers_subject) {
-                    window.layers_subject.forEach(layer => map.removeLayer(layer));
-                }
-                if (window.labels_regions) {
-                    window.labels_regions.forEach(layer => map.removeLayer(layer));
-                }
-                if (window.layers_regions) {
-                    window.layers_regions.forEach(layer => map.removeLayer(layer));
-                }
-                if (window.labels_subject) {
-                    window.labels_subject.forEach(layer => map.removeLayer(layer));
-                }
-
-                if (selectedStage === 'region') {
-                    result = prtScrRegion(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value);
-                    window.layers_regions = result[0];
-                } else if (selectedStage === 'subject') {
-                    result = prtScrSubject(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, regionLabelColor.value, regionLabelSize.value);
-                    window.layers_subject = result[0][0];
-                    window.layers_regions = result[1][0];
-                    window.labels_regions = result[1][2];
-                } else if (selectedStage === 'russia') {
-                    result = prtScrCountry(mapElement, window.data, mapWidth, mapHeight, countryBorderColor.value, countryBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, subjectLabelColor.value, subjectLabelSize.value);
-                    window.layers_russia = result[0][0];
-                    window.layers_subject = result[1][0];
-                    window.labels_subject = result[1][2];
-                } else if (selectedStage === 'excavation') {
-                    prtScrExcavation(mapElement, window.data);
-                }
-            }
-
-            // Функции для обновления параметров
-            function updateCountryBorderColor(color) {
-                updatePolygon();
-            }
-
-            function updateCountryBorderOpacity(opacity) {
-                updatePolygon();
-            }
-
-            function updateSubjectBorderColor(color) {
-                updatePolygon();
-            }
-
-            function updateSubjectBorderOpacity(opacity) {
-                updatePolygon();
-            }
-
-            function updateSubjectLabelColor(color) {
-                updatePolygon();
-            }
-
-            function updateSubjectLabelSize(size) {
-                updatePolygon();
-            }
-
-            function updateRegionBorderColor(color) {
-                updatePolygon();
-            }
-
-            function updateRegionBorderOpacity(opacity) {
-                updatePolygon();
-            }
-
-            function updateRegionLabelColor(color) {
-                updatePolygon();
-            }
-
-            function updateRegionLabelSize(size) {
-                updatePolygon();
-            }
-
-            function updateMapSize() {
-                const mapWidth = document.getElementById('mapWidth').value;
-                const mapHeight = document.getElementById('mapHeight').value;
-                const mapElement = document.getElementById('map');
-
-                if (mapWidth && mapHeight) {
-                    mapElement.style.width = `${mapWidth}px`;
-                    mapElement.style.height = `${mapHeight}px`;
-                    map.invalidateSize();
-                }
-            }
-        </script>
+        <script src="{% static 'js/map/screenshot_manager.js' %}"></script>
     {% endif %}
-
     <script>
-
-        function TileXYToQuadKey(tileX, tileY, levelOfDetail) {
-            var quadKey = '';
-            for (var i = levelOfDetail; i > 0; i--) {
-                var digit = '0';
-                var mask = 1 << (i - 1);
-                if ((tileX & mask) != 0) {
-                    digit++;
-                }
-                if ((tileY & mask) != 0) {
-                    digit++;
-                    digit++;
-                }
-                quadKey += digit;
-            }
-            return quadKey;
-        }
-
-        let groupCheckbox;
-        // Инициализация карты
-        var map = L.map('map').setView([55.7558, 37.6173], 8);  // , {crs: L.CRS.EPSG3395}
-        var maxZoom = 20;
-        var zoomControl = map.zoomControl;
-
-        L.TileLayer.Bing = L.TileLayer.extend({
-            getTileUrl: function (coords) {
-                var quadKey = TileXYToQuadKey(coords.x, coords.y, coords.z);
-                return 'http://ecn.t0.tiles.virtualearth.net/tiles/r' + quadKey + '.jpeg?g=1180&mkt=en-us&lbl=l1&stl=h&shading=hill&n=z';
-            },
-            getAttribution: function () {
-                return "<a href='https://www.bing.com/maps'>Bing Maps</a>";
-            }
+        document.addEventListener('DOMContentLoaded', function () {
+            // var coordinatesJson = JSON.stringify({{ coordinates|safe }});
+            {% if not all_coordinates %}
+                window.data = {{ matching_polygons|safe }};
+            {% endif %}
         });
-
-        L.tileLayer.bing = function () {
-            return new L.TileLayer.Bing();
-        };
-
-        L.TileLayer.BingSattelite = L.TileLayer.extend({
-            getTileUrl: function (coords) {
-                var quadKey = TileXYToQuadKey(coords.x, coords.y, coords.z);
-                return 'http://ecn.t0.tiles.virtualearth.net/tiles/a' + quadKey + '.jpeg?g=1180&mkt=en-us&lbl=l1&stl=h&shading=hill&n=z';
-            },
-            getAttribution: function () {
-                return "<a href='https://www.bing.com/maps'>Bing Maps</a>";
-            }
-        });
-
-        L.tileLayer.bingSattelite = function () {
-            return new L.TileLayer.BingSattelite();
-        };
-
-        L.TileLayer.BingRoadsEn = L.TileLayer.extend({
-            getTileUrl: function (coords) {
-                var quadKey = TileXYToQuadKey(coords.x, coords.y, coords.z);
-                return 'http://ecn.t0.tiles.virtualearth.net/tiles/r' + quadKey + '.jpeg?g=1180&mkt=en-us&it=G,VE,BX,L,LA&shading=hill';
-            },
-            getAttribution: function () {
-                return "<a href='https://www.bing.com/maps'>Bing Maps - Roads</a>";
-            }
-        });
-
-        L.tileLayer.bingRoadsEn = function () {
-            return new L.TileLayer.BingRoadsEn();
-        };
-
-        L.TileLayer.BingRoadsRu = L.TileLayer.extend({
-            getTileUrl: function (coords) {
-                var quadKey = TileXYToQuadKey(coords.x, coords.y, coords.z);
-                return 'http://ecn.t0.tiles.virtualearth.net/tiles/r' + quadKey + '.jpeg?g=1180&mkt=ru-RU&it=G,VE,BX,L,LA&shading=hill';
-            },
-            getAttribution: function () {
-                return "<a href='https://www.bing.com/maps'>Bing Maps - Roads (ru)</a>";
-            }
-        });
-
-        L.tileLayer.bingRoadsRu = function () {
-            return new L.TileLayer.BingRoadsRu();
-        };
-
-        function getRandomSubdomain() {
-            const subdomains = ['t0', 't1', 't2', 't3']; // Поддомены Bing Maps
-            return subdomains[Math.floor(Math.random() * subdomains.length)];
-        }
-
-        L.TileLayer.BingHybrid = L.TileLayer.extend({
-            getTileUrl: function (coords) {
-                var quadKey = TileXYToQuadKey(coords.x, coords.y, coords.z);
-                var subdomain = getRandomSubdomain();
-                return 'http://ak.dynamic.' + subdomain + '.tiles.virtualearth.net/comp/ch/' + quadKey + '.jpeg?g=1180&mkt=ru-RU&it=A,G,L&shading=hill&og=8&n=z';
-            },
-            getAttribution: function () {
-                return "<a href='https://www.bing.com/maps'>Bing Maps - Hybrid</a>";
-            }
-        });
-
-        L.tileLayer.bingHybrid = function () {
-            return new L.TileLayer.BingHybrid();
-        };
-
-        function latLngToTile(lat, lng, zoom) {
-            var x = Math.floor((lng + 180) / 360 * Math.pow(2, zoom));
-            var y = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * Math.pow(2, zoom));
-            return [x, y];
-        }
-
-        function tileToLatLng(x, y, zoom) {
-            const n = Math.pow(2, zoom);
-            const lon_deg = x / n * 360.0 - 180.0;
-            const lat_rad = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / n)));
-            const lat_deg = lat_rad * (180.0 / Math.PI);
-
-            return {lat: lat_deg, lng: lon_deg};
-        }
-
-        proj4.defs("EPSG:3395", "+proj=merc +lon_0=0 +k=1 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs +type=crs");
-        proj4.defs("EPSG:3785", "+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs +type=crs");
-
-        L.TileLayer.Yandex = L.TileLayer.extend({
-            getTileUrl: function (coords) {
-                // var latLng = crs.projection.unproject([coords.x, coords.y]);
-                var latLng = tileToLatLng(coords.x, coords.y, coords.z);
-
-                // Преобразование географических координат в нужную проекцию
-                var point = proj4('EPSG:3395', 'EPSG:3785', [latLng.lng, latLng.lat]);
-
-                var tilePoint = latLngToTile(point[1], point[0], coords.z);
-
-                return 'https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x=' + tilePoint[0] + '&y=' + tilePoint[1] + '&z=' + coords.z + '&scale=2';
-            },
-            getAttribution: function () {
-                return '<a href="https://yandex.ru" target="_blank">Яндекс</a>';
-            }
-        });
-
-        L.tileLayer.yandex = function () {
-            return new L.TileLayer.Yandex();
-        };
-
-        var baseLayers = {
-            'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
-            }),
-
-            'Google': L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                attribution: '<a href="https://google.com" target="_blank">Google</a>'
-            }),
-
-            'Google satellite': L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
-                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                attribution: '<a href="https://google.com" target="_blank">Google</a>'
-            }),
-
-            'Google hybrid': L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                attribution: '<a href="https://google.com" target="_blank">Google</a>'
-            }),
-
-            'Google Roads': new L.LayerGroup([
-                L.tileLayer('https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                    attribution: '<a href="https://google.com" target="_blank">Google</a>'
-                }),
-                L.tileLayer('http://{s}.google.com/vt/lyrs=h&x={x}&y={y}&z={z}', {
-                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                    attribution: '<a href="https://google.com" target="_blank">Google</a>'
-                }),
-            ]),
-            'Google Streets': L.tileLayer('http://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}', {
-                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                attribution: '<a href="https://google.com" target="_blank">Google</a>'
-            }),
-
-            'Google Streets Alternative': L.tileLayer('http://{s}.google.com/vt/lyrs=r&x={x}&y={y}&z={z}', {
-                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                attribution: '<a href="https://google.com" target="_blank">Google</a>'
-            }),
-
-            'Google Terrain': L.tileLayer('http://{s}.google.com/vt/lyrs=p&x={x}&y={y}&z={z}', {
-                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                attribution: '<a href="https://google.com" target="_blank">Google</a>'
-            }),
-
-            'Google Terrain Alternative': L.tileLayer('http://{s}.google.com/vt/lyrs=t&x={x}&y={y}&z={z}', {
-                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
-                attribution: '<a href="https://google.com" target="_blank">Google</a>'
-            }),
-
-            'Yandex1': L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=map&x={x}&y={y}&z={z}&scale=2', {
-                attribution: '<a href="https://yandex.ru" target="_blank">Yandex</a>',
-            }),
-
-            'Yandex satellite': L.tileLayer('https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1', {
-                attribution: '<a href="https://yandex.ru" target="_blank">Yandex</a>',
-            }),
-
-            'Yandex hybrid': new L.LayerGroup([
-                L.tileLayer('https://core-sat.maps.yandex.net/tiles?l=sat&x={x}&y={y}&z={z}&scale=1'),
-                L.tileLayer('https://core-renderer-tiles.maps.yandex.net/tiles?l=skl&x={x}&y={y}&z={z}&scale=1'),
-            ]),
-
-            '2GIS': L.tileLayer('https://{s}.maps.2gis.com/tiles?x={x}&y={y}&z={z}&v=1', {
-                subdomains: ['tile1', 'tile2', 'tile3'],
-                attribution: '<a href="https://2gis.com" target="_blank">2GIS </a>'
-            }),
-
-            'Bing Maps': L.tileLayer.bing(),
-            'Bing Satellite': L.tileLayer.bingSattelite(),
-            'Bing Roads (en)': L.tileLayer.bingRoadsEn(),
-            'Bing Roads (ru)': L.tileLayer.bingRoadsRu(),
-            'Bing Hybrid': L.tileLayer.bingHybrid(),
-            'Yandex': L.tileLayer.yandex(),
-
-            "ArcGIS Hybrid": new L.LayerGroup([
-                L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    maxZoom: maxZoom,
-                    attribution: 'ArcGIS.Imagery'
-                }),
-                L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
-                    maxZoom: maxZoom,
-                    attribution: 'ArcGIS online Hybrid'
-                })
-            ]),
-
-            "ArcGIS Imagery": L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: maxZoom,
-                attribution: 'ArcGIS.Imagery'
-            }),
-
-            "ArcGIS Streets": L.tileLayer('https://server.arcgisonline.com/arcgis/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
-                maxZoom: maxZoom,
-                attribution: 'ArcGIS.Streets'
-            }),
-        };
-
-        var additionalLayers = {
-            'Cadastre quarter': L.tileLayer.wms('https://nspd.gov.ru/api/aeggis/v4/36071/wms?', {
-                version: '1.3.0',
-                format: 'image/png',
-                layers: '36071',
-                transparent: true,
-                attribution: '<a href="https://nspd.gov.ru" target="_blank">НСПД</a> contributors'
-            }),
-
-            'Cadastre district': L.tileLayer.wms('https://nspd.gov.ru/api/aeggis/v4/36070/wms?', {
-                version: '1.3.0',
-                format: 'image/png',
-                layers: '36070',
-                transparent: true,
-                attribution: '<a href="https://nspd.gov.ru" target="_blank">НСПД</a> contributors'
-            }),
-
-            'Cadastre county': L.tileLayer.wms('https://nspd.gov.ru/api/aeggis/v4/36945/wms?', {
-                version: '1.3.0',
-                format: 'image/png',
-                layers: '36945',
-                transparent: true,
-                attribution: '<a href="https://nspd.gov.ru" target="_blank">НСПД</a> contributors'
-            }),
-        }
-
-        baseLayers["OpenStreetMap"].addTo(map);
-
-        function additionalLayerSwitch() {
-            var additionalSelectedLayer = document.getElementById('additionalLayerSelect').value;
-            for (layer in additionalLayers) {
-                map.removeLayer(additionalLayers[layer]);
-            }
-            if (additionalSelectedLayer !== 'No additional layer') {
-                additionalLayers[additionalSelectedLayer].addTo(map);
-            }
-        }
-
-        document.getElementById('baseLayerSelect').addEventListener('change', function () {
-            var selectedLayer = this.value;
-            for (var layer in baseLayers) {
-                map.removeLayer(baseLayers[layer]);
-            }
-            baseLayers[selectedLayer].addTo(map);
-
-            additionalLayerSwitch();
-        });
-
-        document.getElementById('additionalLayerSelect').addEventListener('change', function () {
-            additionalLayerSwitch();
-        });
-
-
-        var coordinatesControl = L.control({position: 'bottomright'});
-        coordinatesControl.onAdd = function (map) {
-            var div = L.DomUtil.create('div', 'coordinates');
-            div.innerHTML = 'Координаты: '; // Начальное значение
-            return div;
-        };
-        coordinatesControl.addTo(map);
-
-        map.on('mousemove', function (e) {
-            coordinatesControl.getContainer().innerHTML = 'Координаты: ' + e.latlng.toString();
-        });
-
-        // L.control.scale().addTo(map);
-        const graphicScale = L.control.graphicScale({
-            showSubunits: true,
-            fill: 'fill',
-            doubleLine: true,
-            position: 'bottomleft'
-        });
-        graphicScale.addTo(map);
-
-        var northArrowControl = L.control({position: 'topleft'});
-        northArrowControl.onAdd = function (map) {
-            var div = L.DomUtil.create('div', 'north-arrow');
-            div.innerHTML = '<img src="/static/img/north_arrow.png" alt="Север" style="width: 40px; height: auto;">';
-            return div;
-        };
-        northArrowControl.addTo(map);
-
+    </script>
+    <script src="{% static 'js/map/init.js' %}"></script>
+    <script src="{% static 'js/map/layers.js' %}"></script>
+    <script src="{% static 'js/map/panel_control.js' %}"></script>
+    <script src="{% static 'js/map/icons.js' %}"></script>
+    <script src="{% static 'js/map/legend.js' %}"></script>
+    {% if coordinates %}
+        <script src="{% static 'js/map/legend_compact.js' %}"></script>
+    {% endif %}
+    <script>
         var legend = L.control({position: 'topright'});
 
         legend.onAdd = function (map) {
-            var div = L.DomUtil.create('div', 'info legend');
+            var div = L.DomUtil.create('div',
+                'info legend {% if all_coordinates %}wide-legend{% else %}compact-legend{% endif %}');
             var content = '<h4>Легенда</h4>';
             {% if coordinates %}
                 {% for group, point in coordinates.items %}
@@ -894,95 +304,34 @@
 
         legend.addTo(map);
 
-        function centerMap(reportName) {
-            const coords = all_markers[reportName];
-            if (coords) {
-                let bounds = L.latLngBounds();
-                Object.keys(coords).forEach(function (point) {
-                    const marker = coords[point].marker;
-                    bounds.extend(marker.getLatLng());
-                });
-                map.fitBounds(bounds);
-            }
-        }
-
-        var catalog_icons = new L.Icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-            // shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
-        var pits_icons = new L.Icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-            // shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
-        var photos_icons = new L.Icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-            // shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
-        var center_icons = new L.Icon({
-            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-yellow.png',
-            // shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-            iconSize: [25, 41],
-            iconAnchor: [12, 41],
-            popupAnchor: [1, -34],
-            shadowSize: [41, 41]
-        });
-        var current_icon;
-        var markers = [];
-        var all_markers = {};
-        var bounds = L.latLngBounds();
-        var catalogCoords = [];
-        var all_catalogCoords = {};
-        var all_catalogPolyline = {};
+        let marker;
 
         {% if coordinates %}
+            // Основной цикл обработки координат
             {% for group, point in coordinates.items %}
-                {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                    current_icon = catalog_icons;
-                {% elif 'Шурфы' in group %}
-                    current_icon = pits_icons;
-                {% elif 'фото' in group %}
-                    current_icon = photos_icons;
-                {% elif 'Центр' in group or report_type == 'geo_object' %}
-                    current_icon = center_icons;
-                {% endif %}
                 {% for point_name, coords in point.items %}
                     {% if point_name != 'coordinate_system' %}
-                        var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
-                            color: 'red',
-                            icon: current_icon,
-                        }).addTo(map)
-                            .bindPopup("<b>" + `{{ point_name }}` + "</b><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
-                            .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
-                                permanent: true,
-                                direction: 'bottom'
-                            });
+                        marker = createMapMarker(
+                            [{{ coords.0 }}, {{ coords.1 }}],
+                            '{{ report_type }}',
+                            '{{ report_name }}',
+                            '{{ group }}',
+                            '{{ point_name }}',
+                        );
+
+                        markers.push({
+                            marker: marker,
+                            group: '{{ group }}',
+                            point_name: '{{ point_name }}'
+                        });
+
+                        bounds.extend(marker.getLatLng());
+
                         {% if 'Каталог' in group or report_type == 'commercial_offer' %}
                             catalogCoords.push([{{ coords.0 }}, {{ coords.1 }}]);
                         {% endif %}
-                        markers.push({marker: marker, group: `{{ group }}`, point_name: `{{ point_name }}`});
-                        bounds.extend(marker.getLatLng());
 
-                        document.getElementById('togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}').addEventListener('change', function () {
-                            markers.forEach(function (item) {
-                                if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && this.checked) {
-                                    item.marker.addTo(map);
-                                } else if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && !this.checked) {
-                                    map.removeLayer(item.marker);
-                                }
-                            }, this);
-                        });
+                        setupPointToggle(markers, '{{ report_name }}', '{{ group }}', '{{ point_name }}');
                     {% endif %}
                 {% endfor %}
             {% endfor %}
@@ -992,548 +341,92 @@
                 var catalogPolyline = L.polyline(catalogCoords, {color: 'blue'}).addTo(map);
             }
 
+            // Применение функций к конкретным группам
             {% if 'Шурфы' in coordinates.keys %}
-                document.getElementById('toggleShurfs-{{ report_name }}').addEventListener('change', function () {
-                    markers.forEach(function (item) {
-                        if (item.group.includes('Шурф') && this.checked) {
-                            item.marker.addTo(map);
-                        } else if (item.group.includes('Шурф') && !this.checked) {
-                            map.removeLayer(item.marker);
-                        }
-                    }, this);
-                    const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
-                    childCheckboxes.forEach(function (checkbox) {
-                        checkbox.checked = this.checked;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }, this);
+                setupMarkerGroupToggle({
+                    checkboxId: 'toggleShurfs-{{ report_name }}',
+                    groupPattern: 'Шурф'
                 });
             {% endif %}
 
             {% if 'Каталог' in coordinates.keys|join:", " or report_type == 'commercial_offer' %}
-                document.getElementById('toggleCatalog-{{ report_name }}').addEventListener('change', function () {
-                    markers.forEach(function (item) {
-                        if (item.group.toLowerCase().includes('каталог координат участка') && this.checked) {
-                            item.marker.addTo(map);
-                        } else if (item.group.toLowerCase().includes('каталог координат участка') && !this.checked) {
-                            map.removeLayer(item.marker);
-                        }
-                    }, this);
-                    const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
-                    childCheckboxes.forEach(function (checkbox) {
-                        checkbox.checked = this.checked;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }, this);
-                    const toggleCatalogPolyline = document.querySelectorAll('#toggleCatalogPolyline');
-                    toggleCatalogPolyline[0].checked = this.checked;
-                    toggleCatalogPolyline[0].dispatchEvent(new Event('change'));
+                setupMarkerGroupToggle({
+                    checkboxId: 'toggleCatalog-{{ report_name }}',
+                    groupPattern: 'каталог координат участка',
+                    polylineSelector: '#toggleCatalogPolyline'
                 });
-                document.getElementById('toggleCatalogPolyline').addEventListener('change', function () {
-                    if (this.checked) {
-                        catalogPolyline.addTo(map);
-                    } else {
-                        map.removeLayer(catalogPolyline);
-                    }
-                });
+                setupPolylineToggle('toggleCatalogPolyline', catalogPolyline);
             {% endif %}
 
             {% if 'фото' in coordinates.keys|join:", " %}
-                document.getElementById('togglePhotoPoints-{{ report_name }}').addEventListener('change', function () {
-                    markers.forEach(function (item) {
-                        if (item.group.includes('Пункты фотофиксации') && this.checked) {
-                            item.marker.addTo(map);
-                        } else if (item.group.includes('Пункты фотофиксации') && !this.checked) {
-                            map.removeLayer(item.marker);
-                        }
-                    }, this);
-                    const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
-                    childCheckboxes.forEach(function (checkbox) {
-                        checkbox.checked = this.checked;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }, this);
+                setupMarkerGroupToggle({
+                    checkboxId: 'togglePhotoPoints-{{ report_name }}',
+                    groupPattern: 'Пункты фотофиксации'
                 });
             {% endif %}
 
-            {% if 'Центр' in coordinates.keys|join:", "  or report_type == 'geo_object' %}
-                document.getElementById('toggleCenterPoints-{{ report_name }}').addEventListener('change', function () {
-                    markers.forEach(function (item) {
-                        if (item.group.includes('Центр объекта') && this.checked) {
-                            item.marker.addTo(map);
-                        } else if (item.group.includes('Центр объекта') && !this.checked) {
-                            map.removeLayer(item.marker);
-                        }
-                    }, this);
-                    const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
-                    childCheckboxes.forEach(function (checkbox) {
-                        checkbox.checked = this.checked;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }, this);
+            {% if 'Центр' in coordinates.keys|join:", " or report_type == 'geo_object' %}
+                setupMarkerGroupToggle({
+                    checkboxId: 'toggleCenterPoints-{{ report_name }}',
+                    groupPattern: 'Центр объекта'
                 });
             {% endif %}
 
             map.fitBounds(bounds);
         {% elif all_coordinates %}
+            // Главный цикл обработки координат
             {% for report_type, reports in all_coordinates.items %}
                 {% for report_name, coordinates in reports.items %}
-                    all_markers[`{{ report_name }}`] = []
-                    all_catalogCoords[`{{ report_name }}`] = []
+                    all_markers['{{ report_name }}'] = [];
+                    all_catalogCoords['{{ report_name }}'] = [];
+
                     {% for group, point in coordinates.items %}
-                        {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                            current_icon = catalog_icons;
-                        {% elif 'Шурфы' in group %}
-                            current_icon = pits_icons;
-                        {% elif 'фото' in group %}
-                            current_icon = photos_icons;
-                        {% endif %}
                         {% for point_name, coords in point.items %}
                             {% if point_name != 'coordinate_system' %}
-                                var marker = L.marker([{{ coords.0 }}, {{ coords.1 }}], {
-                                    color: 'red',
-                                    icon: current_icon,
-                                }).addTo(map)
-                                    .bindPopup("<b>" + `{{ point_name }}` + "</b><br><br>" + `<i>[{{ report_type }}]</i>` + "<br>" + `<i>{{ report_name }}</i>` + "<br><br>" + `[{{ group }}]` + "<br>" + `{{ coords.0 }}, {{ coords.1 }}`)
-                                    .bindTooltip("<b>" + `{{ point_name }}` + "</b>", {
-                                        permanent: true,
-                                        direction: 'bottom'
-                                    });
-                                all_markers[`{{ report_name }}`].push({
+                                marker = createMapMarker(
+                                    [{{ coords.0 }}, {{ coords.1 }}],
+                                    '{{ report_type }}',
+                                    '{{ report_name }}',
+                                    '{{ group }}',
+                                    '{{ point_name }}',
+                                );
+
+                                all_markers['{{ report_name }}'].push({
                                     marker: marker,
-                                    group: `{{ group }}`,
-                                    point_name: `{{ point_name }}`
+                                    group: '{{ group }}',
+                                    point_name: '{{ point_name }}'
                                 });
-                                bounds.extend(marker.getLatLng());
 
                                 {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                    all_catalogCoords[`{{ report_name }}`].push([{{ coords.0 }}, {{ coords.1 }}]);
+                                    all_catalogCoords['{{ report_name }}'].push([{{ coords.0 }}, {{ coords.1 }}]);
                                 {% endif %}
 
-                                document.getElementById('togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}').addEventListener('change', function () {
-                                    all_markers[`{{ report_name }}`].forEach(function (item) {
-                                        if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && this.checked) {
-                                            item.marker.addTo(map);
-                                        } else if (item.group.includes('{{ group }}') && item.point_name === '{{ point_name }}' && !this.checked) {
-                                            map.removeLayer(item.marker);
-                                        }
-                                    }, this);
-                                });
+                                setupPointToggle(all_markers, '{{ report_name }}', '{{ group }}', '{{ point_name }}');
                             {% endif %}
                         {% endfor %}
 
-                        if (all_catalogCoords[`{{ report_name }}`].length > 0) {
-                            all_catalogCoords[`{{ report_name }}`].push(all_catalogCoords[`{{ report_name }}`][0]);
-                            all_catalogPolyline[`{{ report_name }}`] = L.polyline(all_catalogCoords[`{{ report_name }}`], {color: 'blue'}).addTo(map);
-                        }
+                        {% if all_catalogCoords.report_name.length > 0 %}
+                            all_catalogCoords['{{ report_name }}'].push(all_catalogCoords['{{ report_name }}'][0]);
+                            all_catalogPolyline['{{ report_name }}'] = L.polyline(
+                                all_catalogCoords['{{ report_name }}'],
+                                {color: 'blue'}
+                            ).addTo(map);
+                        {% endif %}
                     {% endfor %}
 
-                    document.getElementById('toggleMarkerGroup-{{ report_name }}').addEventListener('change', function () {
-                        {% if 'Шурфы' in coordinates.keys %}
-                            groupCheckbox = document.getElementById(`toggleShurfs-{{ report_name }}`);
-                            groupCheckbox.checked = this.checked;
-                            groupCheckbox.dispatchEvent(new Event('change'));
-                        {% endif %}
-                        {% if 'Каталог' in coordinates.keys|join:", " or report_type == 'commercial_offer' %}
-                            groupCheckbox = document.getElementById(`toggleCatalog-{{ report_name }}`);
-                            groupCheckbox.checked = this.checked;
-                            groupCheckbox.dispatchEvent(new Event('change'));
-                        {% endif %}
-                        {% if 'фото' in coordinates.keys|join:", " %}
-                            groupCheckbox = document.getElementById(`togglePhotoPoints-{{ report_name }}`);
-                            groupCheckbox.checked = this.checked;
-                            groupCheckbox.dispatchEvent(new Event('change'));
-                        {% endif %}
-                    });
-
-                    {% if 'Шурфы' in coordinates.keys %}
-                        document.getElementById('toggleShurfs-{{ report_name }}').addEventListener('change', function () {
-                            all_markers[`{{ report_name }}`].forEach(function (item) {
-                                if (item.group.includes('Шурф') && this.checked) {
-                                    item.marker.addTo(map);
-                                } else if (item.group.includes('Шурф') && !this.checked) {
-                                    map.removeLayer(item.marker);
-                                }
-                            }, this);
-                            const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
-                            childCheckboxes.forEach(function (checkbox) {
-                                checkbox.checked = this.checked;
-                            }, this);
-                        });
-                    {% endif %}
-
-                    {% if 'Каталог' in coordinates.keys|join:", " or report_type == 'commercial_offer' %}
-                        document.getElementById('toggleCatalog-{{ report_name }}').addEventListener('change', function () {
-                            all_markers[`{{ report_name }}`].forEach(function (item) {
-                                if (item.group.toLowerCase().includes('каталог координат участка') && this.checked) {
-                                    item.marker.addTo(map);
-                                } else if (item.group.toLowerCase().includes('каталог координат участка') && !this.checked) {
-                                    map.removeLayer(item.marker);
-                                }
-                            }, this);
-                            const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
-                            childCheckboxes.forEach(function (checkbox) {
-                                checkbox.checked = this.checked;
-                            }, this);
-                            const toggleCatalogPolyline = document.getElementById('toggleCatalogPolyline-{{ report_name }}');
-                            toggleCatalogPolyline.checked = this.checked;
-                            toggleCatalogPolyline.dispatchEvent(new Event('change'));
-                        });
-                        document.getElementById('toggleCatalogPolyline-{{ report_name }}').addEventListener('change', function () {
-                            if (this.checked) {
-                                all_catalogPolyline[`{{ report_name }}`].addTo(map);
-                            } else {
-                                map.removeLayer(all_catalogPolyline[`{{ report_name }}`]);
-                            }
-                        });
-                    {% endif %}
-
-                    {% if 'фото' in coordinates.keys|join:", " %}
-                        document.getElementById('togglePhotoPoints-{{ report_name }}').addEventListener('change', function () {
-                            all_markers[`{{ report_name }}`].forEach(function (item) {
-                                if (item.group.includes('Пункты фотофиксации') && this.checked) {
-                                    item.marker.addTo(map);
-                                } else if (item.group.includes('Пункты фотофиксации') && !this.checked) {
-                                    map.removeLayer(item.marker);
-                                }
-                            }, this);
-                            const childCheckboxes = this.parentElement.nextElementSibling.querySelectorAll('.single_point');
-                            childCheckboxes.forEach(function (checkbox) {
-                                checkbox.checked = this.checked;
-                            }, this);
-                        });
-                    {% endif %}
-
+                    // Настройка групповых переключателей
+                    setupGroupToggles('{{ report_name }}', Object.keys(coordinates));
                 {% endfor %}
             {% endfor %}
             map.fitBounds(bounds);
         {% endif %}
-
-        var element = document.querySelector('.leaflet-control-attribution.leaflet-control');
-        if (element) {
-            element.remove();
-        }
-
-        document.getElementById('toggleTooltips').addEventListener('change', function () {
-            markers.forEach(function (item) {
-                if (this.checked) {
-                    const popupContent = item.marker.getPopup().getContent();
-                    const boldTextMatch = popupContent.match(/<b>(.*?)<\/b>/);
-                    const pointName = boldTextMatch ? boldTextMatch[1] : 'Имя не найдено';
-                    item.marker.bindTooltip("<b>" + pointName + "</b>", {
-                        permanent: true,
-                        direction: 'bottom'
-                    }).openTooltip();
-                } else {
-                    item.marker.unbindTooltip();
-                }
-            }, this);
-
-            Object.keys(all_markers).forEach(function (reportName) {
-                const detached_marker = all_markers[reportName];
-                detached_marker.forEach(function (marker) {
-                    if (marker) {
-                        if (this.checked) {
-                            const popupContent = marker.marker.getPopup().getContent();
-                            const boldTextMatch = popupContent.match(/<b>(.*?)<\/b>/);
-                            const pointName = boldTextMatch ? boldTextMatch[1] : 'Имя не найдено';
-                            marker.marker.bindTooltip("<b>" + pointName + "</b>", {
-                                permanent: true,
-                                direction: 'bottom'
-                            }).openTooltip();
-                        } else {
-                            marker.marker.unbindTooltip();
-                        }
-                    }
-                }, this);
-            }, this);
-        });
-
-        document.getElementById('toggleLegend').addEventListener('change', function () {
-            if (this.checked) {
-                legend.getContainer().style.display = 'block';
-            } else {
-                legend.getContainer().style.display = 'none';
-            }
-        });
-        document.getElementById('toggleNorthArrow').addEventListener('change', function () {
-            if (this.checked) {
-                northArrowControl.addTo(map);
-            } else {
-                map.removeControl(northArrowControl);
-            }
-        });
-        document.getElementById('toggleGraphicScale').addEventListener('change', function () {
-            if (this.checked) {
-                graphicScale.addTo(map);
-            } else {
-                map.removeControl(graphicScale);
-            }
-        });
-        document.getElementById('toggleCoordinates').addEventListener('change', function () {
-            if (this.checked) {
-                coordinatesControl.addTo(map);
-            } else {
-                map.removeControl(coordinatesControl);
-            }
-        });
-        document.getElementById('toggleScale').addEventListener('change', function () {
-            if (this.checked) {
-                zoomControl.getContainer().style.display = 'block';
-            } else {
-                zoomControl.getContainer().style.display = 'none';
-            }
-        });
-
-        {% if coordinates %}
-            const apiUrl = '/api/get_geojson_polygons/';
-
-            function fetchGeoJSON(coordinates) {
-                const headers = {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`};
-                return fetch(apiUrl, {
-                    method: 'POST',
-                    headers: headers,
-                    body: JSON.stringify({points: coordinates})
-                })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Сеть ответила с ошибкой: ' + response.status);
-                        }
-                        return response.json();
-                    });
-            }
-
-            function displayDataOnMap(polygons, color, fill, opacity, label, label_color = '#000000', label_size = 14) {
-                var border_opacity = 1;
-                var bounds = [];
-                var layers = [];
-                var labels = [];
-                var last_name = '';
-
-                polygons.forEach(function (feature) {
-                    if (last_name !== feature.properties.name) {
-                        if (feature.geometry.coordinates.some(polygon =>
-                            polygon.some(coord =>
-                                coord.some(point => point[0] < -160)
-                            )
-                        )) {
-                            feature.geometry.coordinates = feature.geometry.coordinates.map(polygon =>
-                                polygon.map(coord =>
-                                    coord.map(point => {
-                                        if (point[0] < -160) {
-                                            return [point[0] + 360, point[1]];
-                                        }
-                                        return point;
-                                    })
-                                )
-                            );
-                        }
-                    }
-                });
-
-                polygons.forEach(function (feature) {
-                    if (last_name !== feature.properties.name) {
-
-                        var geojsonLayer = L.geoJSON(feature, {
-                            style: {
-                                color: color,
-                                weight: 5,
-                                opacity: border_opacity,
-                                fill: fill,
-                                fillColor: color,
-                                fillOpacity: opacity
-                            }
-                        }).addTo(map);
-                        bounds.push(geojsonLayer.getBounds());
-                        layers.push(geojsonLayer);
-
-                        if (label) {
-                            console.log(feature.properties.name)
-                            var center = geojsonLayer.getBounds().getCenter();
-                            label_object = L.marker(center, {
-                                icon: L.divIcon({
-                                    className: 'polygon-label',
-                                    html: `<span style="color: ${label_color}; font-size: ${label_size}px;">${feature.properties.name}</span>`,
-                                    iconSize: [170, 40]
-                                })
-                            }).addTo(map);
-                            labels.push(label_object);
-                            last_name = feature.properties.name;
-                        }
-                    }
-
-                });
-
-                return [layers, bounds, labels];
-            }
-
-            function takeScreenshot() {
-                const mapElement = document.getElementById('map');
-                const width = mapElement.offsetWidth;
-                const height = mapElement.offsetHeight;
-                domtoimage.toBlob(mapElement, {width, height})
-                    .then(function (blob) {
-                        saveAs(blob, 'map.png');
-                    })
-                    .catch(function (error) {
-                        console.error('Ошибка при создании Blob:', error);
-                    });
-                saveAs(blob, 'map.png');
-            }
-
-            function delay(ms) {
-                return new Promise(resolve => setTimeout(resolve, ms));
-            }
-
-            function prtScrCountry(mapElement, data, maxWidth, height, color_country, opacity_country, color_subject, opacity_subject, label_color, label_size, fill_all = true) {
-                mapElement.style.maxWidth = maxWidth;
-                mapElement.style.height = height;
-                map.invalidateSize();
-                result1 = displayDataOnMap(data.matching_polygons.Russia, color_country, fill_all, opacity_country, false);
-                result2 = displayDataOnMap(data.matching_polygons.Subject, color_subject, true, opacity_subject, true, label_color, label_size);
-                return [result1, result2];
-            }
-
-            function prtScrSubject(mapElement, data, maxWidth, height, color_region, opacity_region, color_subject, opacity_subject, label_color, label_size, fill_all = true) {
-                mapElement.style.maxWidth = maxWidth;
-                mapElement.style.height = height;
-                map.invalidateSize();
-                result1 = displayDataOnMap(data.matching_polygons.Subject, color_subject, fill_all, opacity_subject, false);
-                result2 = displayDataOnMap(data.matching_polygons.Regions, color_region, true, opacity_region, true, label_color, label_size);
-                return [result1, result2];
-            }
-
-            function prtScrRegion(mapElement, data, maxWidth, height, color_region, opacity_region, fill_all = true) {
-                mapElement.style.maxWidth = maxWidth;
-                mapElement.style.height = height;
-                map.invalidateSize();
-                console.log(data);
-                console.log(typeof data);
-                result = displayDataOnMap(data.matching_polygons.Regions, color_region, fill_all, opacity_region, false);
-                return result;
-            }
-
-            async function prtScrExcavation(mapElement, data) {
-                checkbox = document.getElementById('toggleTooltips');
-                if (checkbox.checked === false) {
-                    checkbox.checked = true;
-                    checkbox.dispatchEvent(new Event('change'));
-                }
-                checkbox = document.getElementById('toggleLegend');
-                if (checkbox.checked === false) {
-                    checkbox.checked = true;
-                    checkbox.dispatchEvent(new Event('change'));
-                }
-                map.fitBounds(bounds);
-            }
-
-            async function showLayers(data) {
-                const mapElement = document.getElementById('map');
-                result = prtScrCountry(mapElement, data, '1100px', '770px', '#ff0000', 0.3, '#3fb7ed', 0.3, false)
-                layers_russia = result[0][0];
-                borders_bounds = result[0][1];
-                layers_subject = result[1][0];
-                borders_bounds.push(result[1][1]);
-                labels_subject = result[1][2];
-                if (borders_bounds.length > 0) {
-                    map.fitBounds(L.latLngBounds(borders_bounds));
-                }
-                setTimeout(function () {
-                    takeScreenshot();
-                }, 2000);
-                await delay(2500);
-                layers_russia.forEach(function (layer) {
-                    map.removeLayer(layer);
-                });
-                layers_subject.forEach(function (layer) {
-                    map.removeLayer(layer);
-                });
-
-                result = prtScrSubject(mapElement, data, '500px', '1150px', '#3fb7ed', 0.3, '#ff0000', 0.3, false)
-                layers_subject = result[0][0];
-                borders_bounds = result[0][1];
-                layers_regions = result[1][0];
-                borders_bounds.push(result[1][1]);
-                labels_regions = result[1][2]
-                if (borders_bounds.length > 0) {
-                    map.fitBounds(L.latLngBounds(borders_bounds));
-                }
-                setTimeout(function () {
-                    takeScreenshot();
-                }, 2000);
-
-                await delay(4000);
-                labels_subject.forEach(function (layer) {
-                    map.removeLayer(layer);
-                });
-                layers_subject.forEach(function (layer) {
-                    map.removeLayer(layer);
-                });
-                layers_regions.forEach(function (layer) {
-                    map.removeLayer(layer);
-                });
-
-                result = prtScrRegion(mapElement, data, '1800px', '720px', '#ff0000', 0.3, false)
-                layers_regions = result[0];
-                borders_bounds = result[1];
-                if (borders_bounds.length > 0) {
-                    allBounds = L.latLngBounds(borders_bounds);
-                    map.fitBounds(allBounds);
-                }
-                setTimeout(function () {
-                    takeScreenshot();
-                }, 2500);
-
-                await delay(2500);
-                labels_regions.forEach(function (layer) {
-                    map.removeLayer(layer);
-                });
-                layers_regions.forEach(function (layer) {
-                    map.removeLayer(layer);
-                });
-
-                prtScrExcavation(mapElement, data)
-                setTimeout(function () {
-                    takeScreenshot();
-                }, 2000);
-            }
-
-            document.getElementById('screenshotButton').addEventListener('click', function () {
-                const screenshotMode = document.getElementById('screenshotModeSelect').value;
-                if (screenshotMode === 'automaticScreenshot') {
-                    checkbox = document.getElementById('toggleLegend');
-                    if (checkbox.checked === true) {
-                        checkbox.checked = false;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }
-                    checkbox = document.getElementById('toggleNorthArrow');
-                    if (checkbox.checked === false) {
-                        checkbox.checked = true;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }
-                    checkbox = document.getElementById('toggleGraphicScale');
-                    if (checkbox.checked === false) {
-                        checkbox.checked = true;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }
-                    checkbox = document.getElementById('toggleCoordinates');
-                    if (checkbox.checked === true) {
-                        checkbox.checked = false;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }
-                    checkbox = document.getElementById('toggleScale');
-                    if (checkbox.checked === true) {
-                        checkbox.checked = false;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }
-                    checkbox = document.getElementById('toggleTooltips')
-                    if (checkbox.checked === true) {
-                        checkbox.checked = false;
-                        checkbox.dispatchEvent(new Event('change'));
-                    }
-                    showLayers(window.data);
-                } else {
-                    takeScreenshot();
-                }
-            });
-        {% endif %}
     </script>
+    {% if coordinates %}
+        <script src="{% static 'js/map/screenshot_maker.js' %}"></script>
+    {% endif %}
+    {% if all_coordinates %}
+        <script src="{% static 'js/map/legend_wide.js' %}"></script>
+    {% endif %}
 {% endblock %}
 
 {% block modal_dialog %}
@@ -1666,74 +559,4 @@
             </div>
         </div>
     </div>
-    <script>
-        function syncCheckboxes(reportType) {
-            const mainCheckbox = document.getElementById(`toggleMarkerGroup-${reportType}`);
-            const nestedCheckboxes = document.querySelectorAll(`.${reportType}_point`);
-
-            nestedCheckboxes.forEach(checkbox => {
-                checkbox.checked = mainCheckbox.checked;
-                checkbox.dispatchEvent(new Event('change'));
-            });
-        }
-
-        function toggleGroup(group) {
-            const checkboxes = document.querySelectorAll(`.${group}_point`);
-            const groupCheckboxCoords = document.getElementById(`${group}_checkbox`);
-            if (groupCheckboxCoords !== null) {
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = groupCheckboxCoords.checked;
-                });
-            }
-        }
-
-        function toggleContent(group) {
-            const content = document.getElementById(`${group}_content`);
-            var toggleIcon = document.getElementById(`${group}_toggle`);
-            if (content !== null) {
-                if (content.style.display === "none" || content.style.display === "") {
-                    content.style.display = "block";
-                    toggleIcon.textContent = "-";
-                } else {
-                    content.style.display = "none";
-                    toggleIcon.textContent = "+";
-                }
-            }
-        }
-
-        document.addEventListener('DOMContentLoaded', function () {
-            const allContents = document.querySelectorAll('[id$="_content"]');
-            allContents.forEach(content => content.style.display = 'none');
-            // var coordinatesJson = JSON.stringify({{ coordinates|safe }});
-            window.data = {{ matching_polygons|safe }};
-            window.labels_regions = undefined;
-            window.labels_subject = undefined;
-            window.layers_regions = undefined;
-            window.layers_russia = undefined;
-            window.layers_subject = undefined;
-            /*
-            fetchGeoJSON(coordinatesJson)
-                .then(received_data => {
-                    if (received_data && received_data.matching_polygons) {
-                        window.data = received_data;
-                        console.log(window.data)
-                    } else {
-                        console.log('Нет данных для отображения');
-                    }
-                })
-                .catch(error => {
-                    console.error('Произошла ошибка при получении данных:', error);
-                });
-             */
-        });
-    </script>
-    <style>
-        .toggle-icon {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            margin-right: 5px;
-            transition: transform 0.2s;
-        }
-    </style>
 {% endblock modal_dialog %}

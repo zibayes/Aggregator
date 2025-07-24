@@ -1,0 +1,88 @@
+#map {
+    height: 690px;
+    width: 100%;
+    max-width: 1800px;
+    margin: 0 auto;
+    margin-top: 10px;
+    margin-bottom: 5px;
+}
+
+.legend {
+    background: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+    max-height: 650px;
+    overflow-y: auto;
+}
+
+.wide-legend {
+    width: 420px;
+}
+
+.compact-legend {
+    width: 270px;
+}
+
+.legend i {
+    width: 15px;
+    height: 15px;
+    display: inline-block;
+    margin-right: 5px;
+}
+
+.leaflet-control-graphicscale {
+    background-color: rgba(255, 255, 255, 0.8);
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-right: 12px;
+    padding-left: 12px;
+}
+
+.coordinates {
+    background-color: rgba(255, 255, 255, 0.8);
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+    padding: 5px;
+    border-radius: 5px;
+    width: 280px;
+    box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.polygon-label {
+    padding: 5px;
+    border-radius: 5px;
+    text-align: center;
+    font-weight: bold;
+}
+
+#manualScreenshotControls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#manualScreenshotControls input[type="color"] {
+    width: 30px;
+    padding: 3px;
+}
+
+#manualScreenshotControls input[type="number"] {
+    width: 70px;
+    padding: 3px;
+}
+
+.toggle-icon {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 5px;
+    transition: transform 0.2s;
+}
