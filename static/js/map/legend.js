@@ -94,7 +94,7 @@ function createReportSection(id, label, report_type, isChecked = true, hasCenter
     <input type="checkbox" id="${id.startsWith('report-') ? 'toggleMarkerGroup-' + id.replace('report-', '') : id}"
            class="${report_type}_point" style="margin-right: 3px;"
            ${isChecked ? 'checked' : ''}
-           ${id.startsWith('report-') ? `onchange="syncCheckboxes('${id.replace('report-', '')}')"` : ''}>
+           ${`onchange="syncCheckboxes('${report_type}', '${id.startsWith('report-') ? 'toggleMarkerGroup-' + id.replace('report-', '') : id}')"`}>
     ${label}
     ${hasCenterButton ? `<button class="center-button" title="Центрировать карту на этом отчете" style="margin-left: 5px; cursor: pointer;" onclick="centerMap('${reportName}')">➔</button>` : ''}
 </div>

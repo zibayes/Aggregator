@@ -126,10 +126,10 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 });
 
-function syncCheckboxes(reportType) {
-    const mainCheckbox = document.getElementById(`toggleMarkerGroup-${reportType}`);
-    const nestedCheckboxes = document.querySelectorAll(`.${reportType}_point`);
-
+function syncCheckboxes(reportType, id) {
+    const mainCheckbox = document.getElementById(id);
+    if (!mainCheckbox) return;
+    const nestedCheckboxes = mainCheckbox.parentElement.nextElementSibling.querySelectorAll(`.${reportType}_point`);
     nestedCheckboxes.forEach(checkbox => {
         checkbox.checked = mainCheckbox.checked;
         checkbox.dispatchEvent(new Event('change'));

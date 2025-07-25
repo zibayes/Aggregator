@@ -219,6 +219,9 @@
     {% if coordinates %}
         <script src="{% static 'js/map/legend_compact.js' %}"></script>
     {% endif %}
+    {% if all_coordinates %}
+        <script src="{% static 'js/map/legend_wide.js' %}"></script>
+    {% endif %}
     <script>
         var legend = L.control({position: 'topright'});
         legend.onAdd = function (map) {
@@ -258,10 +261,10 @@
 
             {% elif all_coordinates %}
                 {% for report_type, reports in all_coordinates.items %}
-                    content += createReportSection('report-{{ report_type }}', '{{ report_type }}', '{{ report_type }}');
+                    content += createReportSection('report-{{ report_type }}', '{{ report_type }}', '{{ report_type|cut:" "|cut:"."|cut:":" }}');
 
                     {% for report_name, coordinates in reports.items %}
-                        content += createReportSection('report-{{ report_name }}', '{{ report_name }}', '{{ report_type }}', true, true, '{{ report_name }}');
+                        content += createReportSection('report-{{ report_name }}', '{{ report_name }}', '{{ report_type|cut:" "|cut:"."|cut:":" }}', true, true, '{{ report_name }}');
 
                         {% for group, point in coordinates.items %}
                             {% if 'Шурфы' in group %}
@@ -321,9 +324,9 @@
                         // Показываем/скрываем маркеры
                         groupMarkers.forEach(marker => {
                             if (this.checked) {
-                                marker.marker.addTo(layers);
+                                marker.marker.addTo(map);
                             } else {
-                                layers.removeLayer(marker.marker);
+                                map.removeLayer(marker.marker);
                             }
                         });
 
@@ -338,11 +341,19 @@
                         }
 
                         // Особый случай для полигона каталога
-                        if ((group.includes('Каталог') || reportType === 'commercial_offer') && catalogPolyline) {
-                            if (this.checked) {
-                                catalogPolyline.addTo(layers);
-                            } else {
-                                layers.removeLayer(catalogPolyline);
+                        if ((group.includes('Каталог') || reportType === 'commercial_offer') && (typeof catalogPolyline !== 'undefined' || typeof all_catalogPolyline !== 'undefined')) {
+                            if (typeof catalogPolyline !== 'undefined') {
+                                if (this.checked) {
+                                    catalogPolyline.addTo(map);
+                                } else {
+                                    map.removeLayer(catalogPolyline);
+                                }
+                            } else if (typeof all_catalogPolyline !== 'undefined') {
+                                if (this.checked) {
+                                    all_catalogPolyline[reportName].addTo(map);
+                                } else {
+                                    map.removeLayer(all_catalogPolyline[reportName]);
+                                }
                             }
 
                             const polylineCheckbox = document.getElementById(`toggleCatalogPolyline${reportName ? '-' + reportName : ''}`);
@@ -470,17 +481,31 @@
                             {% endif %}
                         {% endfor %}
 
-                        {% if all_catalogCoords.report_name.length > 0 %}
+                        if (all_catalogCoords[`{{ report_name }}`].length > 0) {
                             all_catalogCoords['{{ report_name }}'].push(all_catalogCoords['{{ report_name }}'][0]);
                             all_catalogPolyline['{{ report_name }}'] = L.polyline(
                                 all_catalogCoords['{{ report_name }}'],
                                 {color: 'blue'}
                             ).addTo(map);
-                        {% endif %}
+                            setupPolylineCheckbox('{{ report_name }}', all_catalogPolyline['{{ report_name }}']);
+                        }
                     {% endfor %}
 
                     // Настройка групповых переключателей
-                    setupGroupToggles('{{ report_name }}', Object.keys(`{{ coordinates }}`), `{{ report_type }}`);
+                    setupGroupToggles('{{ report_name }}', Object.keys(JSON.parse('{{ coordinates|escapejs }}'.replace(/'/g, '"'))), `{{ report_type }}`);
+
+                    document.getElementById('toggleMarkerGroup-{{ report_name }}').addEventListener('change', function () {
+                        const reportName = '{{ report_name }}';
+                        const isChecked = this.checked;
+
+                        ['Shurfs', 'Catalog', 'PhotoPoints'].forEach(type => {
+                            const checkbox = document.getElementById(`toggle${type}-${reportName}`);
+                            if (checkbox) {
+                                checkbox.checked = isChecked;
+                                checkbox.dispatchEvent(new Event('change'));
+                            }
+                        });
+                    });
                 {% endfor %}
             {% endfor %}
             map.fitBounds(bounds);
@@ -488,9 +513,6 @@
     </script>
     {% if coordinates %}
         <script src="{% static 'js/map/screenshot_maker.js' %}"></script>
-    {% endif %}
-    {% if all_coordinates %}
-        <script src="{% static 'js/map/legend_wide.js' %}"></script>
     {% endif %}
 {% endblock %}
 

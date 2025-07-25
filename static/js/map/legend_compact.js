@@ -7,8 +7,8 @@ function setupMarkerGroupToggle(options) {
     document.getElementById(checkboxId).addEventListener('change', function () {
         // Обработка маркеров
         markers.forEach(item => {
-            const shouldShow = item.group.includes(groupPattern) && this.checked;
-            shouldShow ? item.marker.addTo(map) : map.removeLayer(item.marker);
+            if (item.group.includes(groupPattern))
+                this.checked ? item.marker.addTo(map) : map.removeLayer(item.marker);
         });
 
         // Обновление дочерних чекбоксов

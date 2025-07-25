@@ -42,16 +42,23 @@ function updatePolylineVisibility(checkboxId, visible, polyline) {
     }
 }
 
-// Основные обработчики
-document.getElementById('toggleMarkerGroup-{{ report_name }}').addEventListener('change', function () {
-    const reportName = '{{ report_name }}';
-    const isChecked = this.checked;
+function setupPolylineCheckbox(reportName, polyline) {
+    const checkboxId = `toggleCatalogPolyline-${reportName}`;
+    const checkbox = document.getElementById(checkboxId);
 
-    ['Shurfs', 'Catalog', 'PhotoPoints'].forEach(type => {
-        const checkbox = document.getElementById(`toggle${type}-${reportName}`);
-        if (checkbox) {
-            checkbox.checked = isChecked;
-            checkbox.dispatchEvent(new Event('change'));
+    if (!checkbox || !polyline) return;
+
+    // Обработчик изменения состояния чекбокса
+    checkbox.addEventListener('change', function () {
+        if (this.checked) {
+            polyline.addTo(map);
+        } else {
+            map.removeLayer(polyline);
         }
     });
-});
+
+    // Инициализация начального состояния
+    if (checkbox.checked) {
+        polyline.addTo(map);
+    }
+}
