@@ -117,6 +117,8 @@ def extract_coordinates(file, document, page_number, folder, coordinates) -> Non
                                                                                                          '').replace(
                     ':', '')
     if points_type or found_table:
+        if points_type not in coordinates.keys():
+            coordinates[points_type] = {}
         with pdfplumber.open(file) as pdf:
             page_tables = pdf.pages[page_number].extract_tables()
         if not page_tables:
@@ -162,8 +164,6 @@ def extract_coordinates(file, document, page_number, folder, coordinates) -> Non
                     if 'W' in row['Восточная долгота']:
                         lon = -lon
 
-                    if points_type not in coordinates.keys():
-                        coordinates[points_type] = {}
                     coordinates[points_type][point_number] = [lat, lon]
 
     pits_coordinates = re.findall(
@@ -199,3 +199,36 @@ def save_geojson_polygons_to_db():
                         if not created:
                             geojson_data.geojson = feature
                             geojson_data.save()
+
+
+def process_coords_from_edit_page(request, entity) -> dict:
+    coordinates = {}
+    current_group = None
+    for key, value in request.POST.dict().items():
+        if 'group[' in key:
+            current_group = value
+        elif 'coordinate_system[' in key:
+            if current_group not in coordinates.keys():
+                coordinates[current_group] = {}
+            coordinates[current_group]['coordinate_system'] = value
+        elif 'point[' in key:
+            if current_group not in coordinates.keys():
+                coordinates[current_group] = {}
+            point_name, x, y = [x.strip().replace(':', '').replace(';', '') for x in value.split(' ')]
+            coordinates[current_group][point_name] = [x, y]
+    for group, polygon in coordinates.items():
+        if polygon['coordinate_system'] == 'None':
+            continue
+        elif group in entity.coordinates.keys():
+            if 'coordinate_system' not in entity.coordinates[group]:
+                entity.coordinates[group]['coordinate_system'] = polygon['coordinate_system']
+                coordinates[group]['coordinate_system'] = 'wgs84'
+            if polygon['coordinate_system'] != entity.coordinates[group]['coordinate_system']:
+                for point_name, coords in polygon.items():
+                    if point_name == 'coordinate_system':
+                        continue
+                    lat, lon = convert_proj4(coords[0], coords[1],
+                                             entity.coordinates[group]['coordinate_system'],
+                                             coordinates[group]['coordinate_system'])
+                    coordinates[group][point_name] = [lat, lon]
+    return coordinates

@@ -66,6 +66,7 @@ def process_documents(
         for doc in documents:
             source_path = doc.source.path if hasattr(doc, 'source') and hasattr(doc.source,
                                                                                 'path') else f'uploaded_files/{doc.source}' if 'uploaded_files/' not in doc.source else doc.source  # doc.source if hasattr(doc, 'source') else f'uploaded_files/{doc.source.name}'
+            source_path = source_path.replace('/app/uploaded_files/', 'uploaded_files/')
             file = {
                 'path': source_path,
                 'origin_filename': doc.origin_filename,

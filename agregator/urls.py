@@ -84,7 +84,6 @@ urlpatterns = [
     path('identified_archaeological_heritage_site_delete/<int:pk>/',
          views.identified_archaeological_heritage_site_delete,
          name='identified_archaeological_heritage_site_delete'),
-    path('commercial_offers/<int:pk>/', views.commercial_offers, name='commercial_offers'),
     path('commercial_offers_edit/<int:pk>/', views.commercial_offers_edit, name='commercial_offers_edit'),
     path('commercial_offers_delete/<int:pk>/', views.commercial_offers_delete, name='commercial_offers_delete'),
     path('download_commercial_offer_report/<int:pk>/', views.download_commercial_offer_report,

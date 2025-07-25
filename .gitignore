@@ -167,6 +167,7 @@ media/
 *.keras
 
 agregator/__pycache__/
+agregator/migrations/
 
 wheelhouse/
 .docker-cache/

@@ -302,6 +302,75 @@
 
         let marker;
 
+
+        function setupGroupToggles(reportName, groupNames, reportType) {
+            // Перебираем все группы координат
+            groupNames.forEach(group => {
+                // Для каждой группы создаём обработчик события change
+                const groupElementId = getGroupCheckboxId(reportName, group, reportType);
+                const groupCheckbox = document.getElementById(groupElementId);
+
+                if (groupCheckbox) {
+                    groupCheckbox.addEventListener('change', function () {
+                        // Получаем все маркеры, принадлежащие этой группе
+                        const groupMarkers = markers.filter(marker =>
+                            marker.group.includes(group) ||
+                            (group === 'Каталог' && marker.group.toLowerCase().includes('каталог'))
+                        );
+
+                        // Показываем/скрываем маркеры
+                        groupMarkers.forEach(marker => {
+                            if (this.checked) {
+                                marker.marker.addTo(layers);
+                            } else {
+                                layers.removeLayer(marker.marker);
+                            }
+                        });
+
+                        // Обновляем состояние дочерних checkbox'ов
+                        const contentDiv = this.parentElement.nextElementSibling;
+                        if (contentDiv) {
+                            const childCheckboxes = contentDiv.querySelectorAll('.single_point');
+                            childCheckboxes.forEach(checkbox => {
+                                checkbox.checked = this.checked;
+                                checkbox.dispatchEvent(new Event('change'));
+                            });
+                        }
+
+                        // Особый случай для полигона каталога
+                        if ((group.includes('Каталог') || reportType === 'commercial_offer') && catalogPolyline) {
+                            if (this.checked) {
+                                catalogPolyline.addTo(layers);
+                            } else {
+                                layers.removeLayer(catalogPolyline);
+                            }
+
+                            const polylineCheckbox = document.getElementById(`toggleCatalogPolyline${reportName ? '-' + reportName : ''}`);
+                            if (polylineCheckbox) {
+                                polylineCheckbox.checked = this.checked;
+                            }
+                        }
+                    });
+                }
+            });
+        }
+
+        function getGroupCheckboxId(reportName, groupName, reportType) {
+            if (groupName.includes('Каталог')) {
+                return `toggleCatalog-${reportName}`;
+            }
+            if (groupName.includes('Шурфы')) {
+                return `toggleShurfs-${reportName}`;
+            }
+            if (groupName.includes('фото')) {
+                return `togglePhotoPoints-${reportName}`;
+            }
+            if (groupName.includes('Центр') || reportType === 'geo_object') {
+                return `toggleCenterPoints-${reportName}`;
+            }
+            return `toggleGroup-${reportName}-${groupName.replace(/\s+/g, '-')}`;
+        }
+
         {% if coordinates %}
             // Основной цикл обработки координат
             {% for group, point in coordinates.items %}
@@ -411,7 +480,7 @@
                     {% endfor %}
 
                     // Настройка групповых переключателей
-                    setupGroupToggles('{{ report_name }}', Object.keys(coordinates));
+                    setupGroupToggles('{{ report_name }}', Object.keys(`{{ coordinates }}`), `{{ report_type }}`);
                 {% endfor %}
             {% endfor %}
             map.fitBounds(bounds);

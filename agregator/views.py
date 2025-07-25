@@ -26,7 +26,7 @@ from .account_cards_processing import process_account_cards, error_handler_accou
 from .acts_processing import process_acts, error_handler_acts
 from .ask import ask_question_with_context
 from .commercial_offers_processing import process_commercial_offers, error_handler_commercial_offers
-from .coordinates_extraction import convert_proj4, convert_to_wgs84
+from .coordinates_extraction import convert_proj4, convert_to_wgs84, process_coords_from_edit_page
 from .decorators import owner_or_admin_required
 from .external_sources import external_sources_processing, external_voan_list_processing
 from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, raw_commercial_offers_save, \
@@ -46,6 +46,8 @@ from .serializers import UserSerializer, ActSerializer, ScientificReportSerializ
     GeojsonDataSerializer, ChatSerializer, MessageSerializer
 from .tech_reports_processing import process_tech_reports, error_handler_tech_reports
 from .celery_task_template import process_documents
+from .views_utils import generate_excel_report, upload_entity_view, get_register_view, process_edit_form, \
+    process_supplement, create_model_dataframe
 
 
 def get_user_tasks(user_id, file_types, upload_source=False):
@@ -325,49 +327,24 @@ def download_all_coordinates(request):
 
 
 def acts_register(request):
-    acts_public = Act.objects.filter(is_processing=False, is_public=True).only('id', 'user_id', 'date_uploaded',
-                                                                               'is_processing', 'year', 'finish_date',
-                                                                               'type', 'name_number', 'place',
-                                                                               'customer', 'area',
-                                                                               'expert', 'executioner', 'open_list',
-                                                                               'conclusion',
-                                                                               'border_objects', 'source')
-    acts_private = Act.objects.filter(is_processing=False,
-                                      user_id=request.user.id, is_public=False).only('id', 'user_id', 'date_uploaded',
-                                                                                     'is_processing', 'year',
-                                                                                     'finish_date',
-                                                                                     'type', 'name_number', 'place',
-                                                                                     'customer', 'area',
-                                                                                     'expert', 'executioner',
-                                                                                     'open_list', 'conclusion',
-                                                                                     'border_objects', 'source')
-    acts = acts_public | acts_private
-    return render(request, 'acts_register.html', {'acts': acts})
+    only_fields = [
+        'id', 'user_id', 'date_uploaded', 'is_processing', 'year',
+        'finish_date', 'type', 'name_number', 'place', 'customer',
+        'area', 'expert', 'executioner', 'open_list', 'conclusion',
+        'border_objects', 'source'
+    ]
+    view = get_register_view(request, Act, 'acts', public_only_fields=only_fields, private_only_fields=only_fields,
+                             template_name='acts_register.html')
+    return view
 
 
 @login_required
 def open_list_ocr(request):
-    user_id = request.user.id
-    tasks_id = get_user_tasks(user_id, ('open_list',))
-    if request.method == 'POST':
-        form = UploadOpenListsForm(request.POST, request.FILES)
-        if form.is_valid():
-            uploaded_files = form.cleaned_data['files']
-            if request.user.is_superuser:
-                is_public = True if request.POST['storage_type'] == 'public' else False
-            else:
-                is_public = False
-            open_lists_ids = raw_open_lists_save(uploaded_files, user_id, is_public)
-            task = process_open_lists.apply_async((open_lists_ids, user_id),
-                                                  link_error=error_handler_open_lists.s())
-            tasks_id = [task.task_id] + tasks_id
-            user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
-                                  upload_source={'source': 'Пользовательский файл'})
-            user_task.save()
-            return render(request, 'open_list_ocr.html', {'form': form, 'tasks_id': tasks_id})
-    else:
-        form = UploadOpenListsForm()
-    return render(request, 'open_list_ocr.html', {'form': form, 'tasks_id': tasks_id})
+    tasks_id = get_user_tasks(request.user.id, ('open_list',))
+    view = upload_entity_view(request, tasks_id, 'open_list', UploadOpenListsForm, raw_open_lists_save,
+                              process_open_lists,
+                              error_handler_open_lists, 'open_list_ocr.html')
+    return view
 
 
 @login_required
@@ -512,304 +489,158 @@ def settings(request):
 
 
 def open_lists_register(request):
-    open_lists_public = OpenLists.objects.filter(is_processing=False, is_public=True)
-    open_lists_private = OpenLists.objects.filter(is_processing=False, user_id=request.user.id, is_public=False)
-    open_lists = open_lists_public | open_lists_private
-    return render(request, 'open_lists_register.html', {'open_lists': open_lists})
+    view = get_register_view(request, OpenLists, 'open_lists', template_name='open_lists_register.html')
+    return view
 
 
 def open_lists_register_download(request):
     table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
-    open_lists = OpenLists.objects.all()
-    if not open_lists:
+    fields_mapping = {
+        'Номер листа': 'number',
+        'Держатель': 'holder',
+        'Объект': 'object',
+        'Работы': 'works',
+        'Начало срока': 'start_date',
+        'Конец срока': 'end_date'
+    }
+    df_existing = create_model_dataframe(OpenLists, fields_mapping)
+    if not df_existing:
         return redirect(open_lists_register)
-    df_existing = None
-    for list in open_lists:
-        list_data = {'Номер листа': '', 'Держатель': '', 'Объект': '', 'Работы': '', 'Начало срока': '',
-                     'Конец срока': ''}
-        list_data['Номер листа'] = list.number,
-        list_data['Держатель'] = list.holder,
-        list_data['Объект'] = list.object,
-        list_data['Работы'] = list.works,
-        list_data['Начало срока'] = list.start_date,
-        list_data['Конец срока'] = list.end_date,
-        df_new = pd.DataFrame(list_data, columns=list_data.keys(), index=[0])
-        if df_existing is None:
-            df_existing = df_new
-        else:
-            df_existing = df_existing._append(df_new, ignore_index=True)
-    with pd.ExcelWriter(table_path) as writer:
-        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
-    wb = load_workbook(table_path)
-    ws = wb.active
-    ws.column_dimensions['A'].width = 14
-    ws.column_dimensions['B'].width = 20
-    ws.column_dimensions['C'].width = 100
-    ws.column_dimensions['D'].width = 100
-    ws.column_dimensions['E'].width = 14
-    ws.column_dimensions['F'].width = 14
-    font = Font(
-        name='Times New Roman',
-        size=11,
-        bold=False,
-        italic=False,
-        vertAlign=None,
-        underline='none',
-        strike=False,
-        color='FF000000'
-    )
-    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
-    for i in range(1, len(df_existing.values) + 2):
-        if i == 1:
-            ws.row_dimensions[0].height = 50
-        else:
-            ws.row_dimensions[i].height = 80
-        for cell in ws[i]:
-            if cell.value:
-                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    wb.save(table_path)
-    return redirect('/uploaded_files/open_lists/Открытые листы.xlsx')
+    column_widths = {
+        'A': 14,
+        'B': 20,
+        'C': 100,
+        'D': 100,
+        'E': 14,
+        'F': 14
+    }
+    generate_excel_report(df_existing, table_path, column_widths)
+    return redirect('/' + table_path)
 
 
 def acts_register_download(request):
     table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
-    act_parts = ['ГОД', 'Дата окончания проведения ГИКЭ', 'Вид ГИКЭ', 'Номер (если имеется) и наименование Акта ГИКЭ',
-                 'Место проведения экспертизы',
-                 'Заказчик работ (*если не указан, то заказчик экспертизы)',
-                 'Площадь, протяжённость и/или др. параменты объекта', 'Эксперт (физ. или юр.лицо)',
-                 'Исполнитель полевых работ (юр. лицо)', 'ОЛ', 'Заключение. Выявленые объекты.',
-                 'Объекты расположенные в непосредственной близости. Для границ']
-    acts = Act.objects.all()
-    if not acts:
-        return redirect(open_lists_register)
-    df_existing = None
-    for act in acts:
-        act_parts_info = {i: '' for i in act_parts}
-        act_parts_info['ГОД'] = act.year,
-        act_parts_info['Дата окончания проведения ГИКЭ'] = act.finish_date,
-        act_parts_info['Вид ГИКЭ'] = act.type,
-        act_parts_info['Номер (если имеется) и наименование Акта ГИКЭ'] = act.name_number,
-        act_parts_info['Место проведения экспертизы'] = act.place,
-        act_parts_info['Заказчик работ (*если не указан, то заказчик экспертизы)'] = act.customer,
-        act_parts_info['Площадь, протяжённость и/или др. параменты объекта'] = act.area,
-        act_parts_info['Эксперт (физ. или юр.лицо)'] = act.expert,
-        act_parts_info['Исполнитель полевых работ (юр. лицо)'] = act.executioner,
-        act_parts_info['ОЛ'] = act.open_list,
-        act_parts_info['Заключение. Выявленые объекты.'] = act.conclusion,
-        act_parts_info['Объекты расположенные в непосредственной близости. Для границ'] = act.border_objects,
-        df_new = pd.DataFrame(act_parts_info, columns=act_parts_info.keys(), index=[0])
-        if df_existing is None:
-            df_existing = df_new
-        else:
-            df_existing = df_existing._append(df_new, ignore_index=True)
-    with pd.ExcelWriter(table_path) as writer:
-        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
-    wb = load_workbook(table_path)
-    ws = wb.active
-    ws.column_dimensions['A'].width = 6.86
-    ws.column_dimensions['B'].width = 10.14
-    ws.column_dimensions['C'].width = 10.14
-    ws.column_dimensions['D'].width = 66.43
-    ws.column_dimensions['E'].width = 24
-    ws.column_dimensions['F'].width = 26
-    ws.column_dimensions['G'].width = 20.71
-    ws.column_dimensions['H'].width = 18.43
-    ws.column_dimensions['I'].width = 24.71
-    ws.column_dimensions['J'].width = 21.29
-    ws.column_dimensions['K'].width = 26
-    ws.column_dimensions['L'].width = 27.29
-    font = Font(
-        name='Times New Roman',
-        size=11,
-        bold=False,
-        italic=False,
-        vertAlign=None,
-        underline='none',
-        strike=False,
-        color='FF000000'
-    )
-    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
-    for i in range(1, len(df_existing.values) + 2):
-        if i == 1:
-            ws.row_dimensions[0].height = 50
-        else:
-            ws.row_dimensions[i].height = 80
-        for cell in ws[i]:
-            if cell.value:
-                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    wb.save(table_path)
-    return redirect('/uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx')
+    fields_mapping = {
+        'ГОД': 'year',
+        'Дата окончания проведения ГИКЭ': 'finish_date',
+        'Вид ГИКЭ': 'type',
+        'Номер (если имеется) и наименование Акта ГИКЭ': 'name_number',
+        'Место проведения экспертизы': 'place',
+        'Заказчик работ (*если не указан, то заказчик экспертизы)': 'customer',
+        'Площадь, протяжённость и/или др. параметры объекта': 'area',
+        'Эксперт (физ. или юр. лицо)': 'expert',
+        'Исполнитель полевых работ (юр. лицо)': 'executioner',
+        'ОЛ': 'open_list',
+        'Заключение. Выявленные объекты': 'conclusion',
+        'Объекты расположенные в непосредственной близости. Для границ': 'border_objects'
+    }
+    df_existing = create_model_dataframe(Act, fields_mapping)
+    if not df_existing:
+        return redirect(acts_register)
+    column_widths = {
+        'A': 6.86,
+        'B': 10.14,
+        'C': 10.14,
+        'D': 66.43,
+        'E': 24,
+        'F': 26,
+        'G': 20.71,
+        'H': 18.43,
+        'I': 24.71,
+        'J': 21.29,
+        'K': 26,
+        'L': 27.29
+    }
+    generate_excel_report(df_existing, table_path, column_widths)
+    return redirect('/' + table_path)
 
 
 def scientific_reports_register_download(request):
     table_path = "uploaded_files/scientific_reports/РЕЕСТР ПНО.xlsx"
-    table_columns = ['Год написания отчёта', 'Название отчёта', 'Организация', 'Автор',
-                     'Открытый лист', 'Населённый пункт',
-                     'Вид работ', 'Площадь', 'Исполнители',
-                     'Заключение']
-    reports = ScientificReport.objects.all()
-    if not reports:
+    fields_mapping = {
+        'Год написания отчёта': 'writing_date',
+        'Название отчёта': 'name',
+        'Организация': 'organization',
+        'Автор': 'author',
+        'Открытый лист': 'open_list',
+        'Населённый пункт': 'place',
+        'Исполнители': 'contractors',
+        'Площадь': 'area_info'
+    }
+    df_existing = create_model_dataframe(ScientificReport, fields_mapping)
+    if not df_existing:
         return redirect(scientific_reports_register)
-    df_existing = None
-    for report in reports:
-        table_columns_info = {i: '' for i in table_columns}
-        table_columns_info['Год написания отчёта'] = report.writing_date
-        table_columns_info['Название отчёта'] = report.name
-        table_columns_info['Организация'] = report.organization
-        table_columns_info['Автор'] = report.author
-        table_columns_info['Открытый лист'] = report.open_list
-        table_columns_info['Населённый пункт'] = report.place
-        table_columns_info['Исполнители'] = report.contractors
-        table_columns_info['Площадь'] = report.area_info
-        df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
-        if df_existing is None:
-            df_existing = df_new
-        else:
-            df_existing = df_existing._append(df_new, ignore_index=True)
-    with pd.ExcelWriter(table_path) as writer:
-        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
-    wb = load_workbook(table_path)
-    ws = wb.active
-    ws.column_dimensions['A'].width = 24
-    ws.column_dimensions['B'].width = 24
-    ws.column_dimensions['C'].width = 24
-    ws.column_dimensions['D'].width = 24
-    ws.column_dimensions['E'].width = 24
-    ws.column_dimensions['F'].width = 26
-    ws.column_dimensions['G'].width = 20.71
-    ws.column_dimensions['H'].width = 18.43
-    ws.column_dimensions['I'].width = 24.71
-    ws.column_dimensions['J'].width = 21.29
-    ws.column_dimensions['K'].width = 26
-    ws.column_dimensions['L'].width = 27.29
-    font = Font(
-        name='Times New Roman',
-        size=11,
-        bold=False,
-        italic=False,
-        vertAlign=None,
-        underline='none',
-        strike=False,
-        color='FF000000'
-    )
-    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
-    for i in range(1, len(df_existing.values) + 2):
-        if i == 1:
-            ws.row_dimensions[0].height = 50
-        else:
-            ws.row_dimensions[i].height = 80
-        for cell in ws[i]:
-            if cell.value:
-                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    wb.save(table_path)
-    return redirect('/uploaded_files/scientific_reports/РЕЕСТР ПНО.xlsx')
+    column_widths = {
+        'A': 24,
+        'B': 24,
+        'C': 24,
+        'D': 24,
+        'E': 24,
+        'F': 26,
+        'G': 20.71,
+        'H': 18.43,
+        'I': 24.71,
+        'J': 21.29,
+        'K': 26,
+        'L': 27.29
+    }
+    generate_excel_report(df_existing, table_path, column_widths)
+    return redirect('/' + table_path)
 
 
 def tech_reports_register_download(request):
     table_path = "uploaded_files/tech_reports/РЕЕСТР ПНТО.xlsx"
-    table_columns = ['Год написания отчёта', 'Название отчёта', 'Организация', 'Автор',
-                     'Открытый лист', 'Населённый пункт',
-                     'Вид работ', 'Площадь', 'Исполнители',
-                     'Заключение']
-    reports = TechReport.objects.all()
-    if not reports:
-        return redirect(scientific_reports_register)
-    df_existing = None
-    for report in reports:
-        table_columns_info = {i: '' for i in table_columns}
-        table_columns_info['Год написания отчёта'] = report.writing_date
-        table_columns_info['Название отчёта'] = report.name
-        table_columns_info['Организация'] = report.organization
-        table_columns_info['Автор'] = report.author
-        table_columns_info['Открытый лист'] = report.open_list
-        table_columns_info['Населённый пункт'] = report.place
-        table_columns_info['Исполнители'] = report.contractors
-        table_columns_info['Площадь'] = report.area_info
-        df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
-        if df_existing is None:
-            df_existing = df_new
-        else:
-            df_existing = df_existing._append(df_new, ignore_index=True)
-    with pd.ExcelWriter(table_path) as writer:
-        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
-    wb = load_workbook(table_path)
-    ws = wb.active
-    ws.column_dimensions['A'].width = 24
-    ws.column_dimensions['B'].width = 24
-    ws.column_dimensions['C'].width = 24
-    ws.column_dimensions['D'].width = 24
-    ws.column_dimensions['E'].width = 24
-    ws.column_dimensions['F'].width = 26
-    ws.column_dimensions['G'].width = 20.71
-    ws.column_dimensions['H'].width = 18.43
-    ws.column_dimensions['I'].width = 24.71
-    ws.column_dimensions['J'].width = 21.29
-    ws.column_dimensions['K'].width = 26
-    ws.column_dimensions['L'].width = 27.29
-    font = Font(
-        name='Times New Roman',
-        size=11,
-        bold=False,
-        italic=False,
-        vertAlign=None,
-        underline='none',
-        strike=False,
-        color='FF000000'
-    )
-    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
-    for i in range(1, len(df_existing.values) + 2):
-        if i == 1:
-            ws.row_dimensions[0].height = 50
-        else:
-            ws.row_dimensions[i].height = 80
-        for cell in ws[i]:
-            if cell.value:
-                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    wb.save(table_path)
-    return redirect("/uploaded_files/tech_reports/РЕЕСТР ПНТО.xlsx")
+    fields_mapping = {
+        'Год написания отчёта': 'writing_date',
+        'Название отчёта': 'name',
+        'Организация': 'organization',
+        'Автор': 'author',
+        'Открытый лист': 'open_list',
+        'Населённый пункт': 'place',
+        'Исполнители': 'contractors',
+        'Площадь': 'area_info'
+    }
+    df_existing = create_model_dataframe(TechReport, fields_mapping)
+    if not df_existing:
+        return redirect(tech_reports_register)
+    column_widths = {
+        'A': 24,
+        'B': 24,
+        'C': 24,
+        'D': 24,
+        'E': 24,
+        'F': 26,
+        'G': 20.71,
+        'H': 18.43,
+        'I': 24.71,
+        'J': 21.29,
+        'K': 26,
+        'L': 27.29
+    }
+    generate_excel_report(df_existing, table_path, column_widths)
+    return redirect("/" + table_path)
 
 
 def scientific_reports_register(request):
-    reports_public = ScientificReport.objects.filter(is_processing=False, is_public=True).only('id', 'user_id',
-                                                                                               'date_uploaded',
-                                                                                               'upload_source',
-                                                                                               'is_processing', 'name',
-                                                                                               'organization', 'author',
-                                                                                               'open_list',
-                                                                                               'writing_date',
-                                                                                               'contractors', 'source',
-                                                                                               'place', 'area_info',
-                                                                                               'results', 'conclusion')
-    reports_private = ScientificReport.objects.filter(is_processing=False, user_id=request.user.id,
-                                                      is_public=False).only('id', 'user_id', 'date_uploaded',
-                                                                            'upload_source', 'is_processing', 'name',
-                                                                            'organization', 'author', 'open_list',
-                                                                            'writing_date', 'contractors', 'source',
-                                                                            'place', 'area_info', 'results',
-                                                                            'conclusion')
-    reports = reports_public | reports_private
-    return render(request, 'scientific_reports_register.html', {'reports': reports})
+    only_fields = [
+        'id', 'user_id', 'date_uploaded', 'upload_source', 'is_processing',
+        'name', 'organization', 'author', 'open_list', 'writing_date',
+        'contractors', 'source', 'place', 'area_info', 'results', 'conclusion'
+    ]
+    view = get_register_view(request, ScientificReport, 'reports', public_only_fields=only_fields,
+                             private_only_fields=only_fields, template_name='scientific_reports_register.html')
+    return view
 
 
 def tech_reports_register(request):
-    reports_public = TechReport.objects.filter(is_processing=False, is_public=True).only('id', 'user_id',
-                                                                                         'date_uploaded',
-                                                                                         'upload_source',
-                                                                                         'is_processing', 'name',
-                                                                                         'organization', 'author',
-                                                                                         'open_list',
-                                                                                         'writing_date', 'contractors',
-                                                                                         'source',
-                                                                                         'place', 'area_info',
-                                                                                         'results', 'conclusion')
-    reports_private = TechReport.objects.filter(is_processing=False, user_id=request.user.id, is_public=False).only(
-        'id', 'user_id', 'date_uploaded',
-        'upload_source', 'is_processing', 'name',
-        'organization', 'author', 'open_list',
-        'writing_date', 'contractors', 'source',
-        'place', 'area_info', 'results', 'conclusion')
-    reports = reports_public | reports_private
-    return render(request, 'tech_reports_register.html', {'reports': reports})
+    only_fields = [
+        'id', 'user_id', 'date_uploaded', 'upload_source', 'is_processing',
+        'name', 'organization', 'author', 'open_list', 'writing_date',
+        'contractors', 'source', 'place', 'area_info', 'results', 'conclusion'
+    ]
+    view = get_register_view(request, TechReport, 'reports', public_only_fields=only_fields,
+                             private_only_fields=only_fields, template_name='tech_reports_register.html')
+    return view
 
 
 def users(request, pk):
@@ -1001,29 +832,22 @@ def acts(request, pk):
 def acts_edit(request, pk):
     act = Act.objects.get(id=pk)
     if request.method == 'POST':
-        act.year = request.POST['year']
-        act.finish_date = request.POST['finish_date']
-        act.type = request.POST['type']
-        act.name_number = request.POST['name_number']
-        act.place = request.POST['place']
-        act.customer = request.POST['customer']
-        act.area = request.POST['area']
-        act.expert = request.POST['expert']
-        act.executioner = request.POST['executioner']
-        act.open_list = request.POST['open_list']
-        act.conclusion = request.POST['conclusion']
-        act.border_objects = request.POST['border_objects']
-
-        input_dict = request.POST.dict()
-        act_supplement = copy.deepcopy(act.supplement_dict)
-        for category, images in act.supplement_dict.items():
-            for i in range(len(images)):
-                act_supplement[category][i]['source'] = input_dict['source-' + images[i]['source']]
-                if input_dict['label-' + images[i]['source']]:
-                    act_supplement[category][i]['label'] = input_dict['label-' + images[i]['source']]
-                    print('label: ' + str(act_supplement[category][i]['label']))
-                print('source: ' + str(act_supplement[category][i]['source']))
-        act.supplement = act_supplement
+        fields = [
+            'year',
+            'finish_date',
+            'type',
+            'name_number',
+            'place',
+            'customer',
+            'area',
+            'expert',
+            'executioner',
+            'open_list',
+            'conclusion',
+            'border_objects'
+        ]
+        process_edit_form(request, act, fields)
+        act.supplement = process_supplement(request, act)
 
         act.save()
         messages.success(request, 'Акт успешно обновлен.')
@@ -1104,29 +928,22 @@ def scientific_reports(request, pk):
 def scientific_reports_edit(request, pk):
     report = ScientificReport.objects.get(id=pk)
     if request.method == 'POST':
-        report.name = request.POST['name']
-        report.organization = request.POST['organization']
-        report.author = request.POST['author']
-        report.open_list = request.POST['open_list']
-        report.writing_date = request.POST['writing_date']
-        report.introduction = request.POST['introduction']
-        report.contractors = request.POST['contractors']
-        report.place = request.POST['place']
-        report.area_info = request.POST['area_info']
-        report.research_history = request.POST['research_history']
-        report.results = request.POST['results']
-        report.conclusion = request.POST['conclusion']
-
-        input_dict = request.POST.dict()
-        report_supplement = copy.deepcopy(report.supplement_dict)
-        for category, images in report.supplement_dict.items():
-            for i in range(len(images)):
-                report_supplement[category][i]['source'] = input_dict['source-' + images[i]['source']]
-                if input_dict['label-' + images[i]['source']]:
-                    report_supplement[category][i]['label'] = input_dict['label-' + images[i]['source']]
-                    print('label: ' + str(report_supplement[category][i]['label']))
-                print('source: ' + str(report_supplement[category][i]['source']))
-        report.supplement = report_supplement
+        fields = [
+            'name',
+            'organization',
+            'author',
+            'open_list',
+            'writing_date',
+            'introduction',
+            'contractors',
+            'place',
+            'area_info',
+            'research_history',
+            'results',
+            'conclusion'
+        ]
+        process_edit_form(request, report, fields)
+        report.supplement = process_supplement(request, report)
 
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
@@ -1153,29 +970,22 @@ def tech_reports(request, pk):
 def tech_reports_edit(request, pk):
     report = TechReport.objects.get(id=pk)
     if request.method == 'POST':
-        report.name = request.POST['name']
-        report.organization = request.POST['organization']
-        report.author = request.POST['author']
-        report.open_list = request.POST['open_list']
-        report.writing_date = request.POST['writing_date']
-        report.introduction = request.POST['introduction']
-        report.contractors = request.POST['contractors']
-        report.place = request.POST['place']
-        report.area_info = request.POST['area_info']
-        report.research_history = request.POST['research_history']
-        report.results = request.POST['results']
-        report.conclusion = request.POST['conclusion']
-
-        input_dict = request.POST.dict()
-        report_supplement = copy.deepcopy(report.supplement_dict)
-        for category, images in report.supplement_dict.items():
-            for i in range(len(images)):
-                report_supplement[category][i]['source'] = input_dict['source-' + images[i]['source']]
-                if input_dict['label-' + images[i]['source']]:
-                    report_supplement[category][i]['label'] = input_dict['label-' + images[i]['source']]
-                    print('label: ' + str(report_supplement[category][i]['label']))
-                print('source: ' + str(report_supplement[category][i]['source']))
-        report.supplement = report_supplement
+        fields = [
+            'name',
+            'organization',
+            'author',
+            'open_list',
+            'writing_date',
+            'introduction',
+            'contractors',
+            'place',
+            'area_info',
+            'research_history',
+            'results',
+            'conclusion'
+        ]
+        process_edit_form(request, report, fields)
+        report.supplement = process_supplement(request, report)
 
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
@@ -1202,12 +1012,15 @@ def open_lists(request, pk):
 def open_lists_edit(request, pk):
     open_list = OpenLists.objects.get(id=pk)
     if request.method == 'POST':
-        open_list.number = request.POST['number']
-        open_list.holder = request.POST['holder']
-        open_list.object = request.POST['object']
-        open_list.works = request.POST['works']
-        open_list.start_date = request.POST['start_date']
-        open_list.end_date = request.POST['end_date']
+        fields = [
+            'number',
+            'holder',
+            'object',
+            'works',
+            'start_date',
+            'end_date'
+        ]
+        process_edit_form(request, open_list, fields)
         open_list.save()
         messages.success(request, 'Открытый лист успешно обновлен.')
         return redirect(f'/open_lists/{open_list.id}')
@@ -1249,11 +1062,14 @@ def identified_archaeological_heritage_site(request, pk):
 def archaeological_heritage_site_edit(request, pk):
     oan = ArchaeologicalHeritageSite.objects.get(id=pk)
     if request.method == 'POST':
-        oan.doc_name = request.POST['doc_name']
-        oan.district = request.POST['district']
-        oan.document = request.POST['document']
-        oan.register_num = request.POST['register_num']
-        oan.is_excluded = request.POST['is_excluded']
+        fields = [
+            'doc_name',
+            'district',
+            'document',
+            'register_num',
+            'is_excluded'
+        ]
+        process_edit_form(request, oan, fields)
         messages.success(request, 'Памятник успешно обновлен.')
         return redirect(f'/archaeological_heritage_site/{oan.id}')
 
@@ -1265,12 +1081,14 @@ def archaeological_heritage_site_edit(request, pk):
 def identified_archaeological_heritage_site_edit(request, pk):
     voan = IdentifiedArchaeologicalHeritageSite.objects.get(id=pk)
     if request.method == 'POST':
-        voan.name = request.POST['name']
-        voan.address = request.POST['address']
-        voan.obj_info = request.POST['obj_info']
-        voan.document = request.POST['document']
-        voan.is_excluded = request.POST['is_excluded']
-        voan.save()
+        fields = [
+            'name',
+            'address',
+            'obj_info',
+            'document',
+            'is_excluded'
+        ]
+        process_edit_form(request, voan, fields)
         messages.success(request, 'Отчёт успешно обновлен.')
         return redirect(f'/identified_archaeological_heritage_site/{voan.id}')
 
@@ -1342,25 +1160,18 @@ def account_cards(request, pk):
 def account_cards_edit(request, pk):
     account_card = ObjectAccountCard.objects.get(id=pk)
     if request.method == 'POST':
-        account_card.name = request.POST['name']
-        account_card.creation_time = request.POST['creation_time']
-        account_card.address = request.POST['address']
-        account_card.object_type = request.POST['object_type']
-        account_card.general_classification = request.POST['general_classification']
-        account_card.description = request.POST['description']
-        account_card.usage = request.POST['usage']
-        account_card.discovery_info = request.POST['discovery_info']
-
-        input_dict = request.POST.dict()
-        account_card_supplement = copy.deepcopy(account_card.supplement_dict)
-        for category, images in account_card.supplement_dict.items():
-            for i in range(len(images)):
-                account_card_supplement[category][i]['source'] = input_dict['source-' + images[i]['source']]
-                if input_dict['label-' + images[i]['source']]:
-                    account_card_supplement[category][i]['label'] = input_dict['label-' + images[i]['source']]
-                    print('label: ' + str(account_card_supplement[category][i]['label']))
-                print('source: ' + str(account_card_supplement[category][i]['source']))
-        account_card.supplement = account_card_supplement
+        fields = [
+            'name',
+            'creation_time',
+            'address',
+            'object_type',
+            'general_classification',
+            'description',
+            'usage',
+            'discovery_info'
+        ]
+        process_edit_form(request, account_card, fields)
+        account_card.supplement = process_supplement(request, account_card)
 
         account_card.save()
         messages.success(request, 'Учётная карта успешно обновлена.')
@@ -1379,134 +1190,54 @@ def account_cards_delete(request, pk):
 
 @login_required
 def account_cards_upload(request):
-    user_id = request.user.id
-    tasks_id = get_user_tasks(user_id, ('account_card',))
-    if request.method == 'POST':
-        form = UploadReportsForm(request.POST, request.FILES)
-        if form.is_valid():
-            uploaded_files = form.cleaned_data['files']
-            if request.user.is_superuser:
-                is_public = True if request.POST['storage_type'] == 'public' else False
-            else:
-                is_public = False
-            account_cards_ids = raw_account_cards_save(uploaded_files, user_id, is_public)
-            task = process_account_cards.apply_async((account_cards_ids, user_id),
-                                                     link_error=error_handler_account_cards.s())
-            tasks_id = [task.task_id] + tasks_id
-            user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='account_card',
-                                  upload_source={'source': 'Пользовательский файл'})
-            user_task.save()
-            return render(request, 'account_cards_upload.html', {'form': form, 'tasks_id': tasks_id})
-    else:
-        form = UploadReportsForm()
-    return render(request, 'account_cards_upload.html', {'form': form, 'tasks_id': tasks_id})
+    tasks_id = get_user_tasks(request.user.id, ('account_card',))
+    view = upload_entity_view(request, tasks_id, 'account_card', UploadReportsForm, raw_account_cards_save,
+                              process_account_cards,
+                              error_handler_account_cards, 'account_cards_upload.html')
+    return view
 
 
 def account_cards_register_download(request):
     table_path = "uploaded_files/account_cards/РЕЕСТР Учётных карт.xlsx"
-    table_columns = ['Наименование объекта', 'Время создания (возникновения) объекта',
-                     'Адрес (местонахождение) объекта', 'Вид объекта',
-                     'Общая видовая принадлежность объекта',
-                     'Общее описание объекта и вывод о его историко-культурной ценности',
-                     'Использование объекта культурного наследия или пользователь',
-                     'Сведения о дате и обстоятельствах выявления (обнаружения) объекта', 'Составитель учетной карты']
-    account_cards = ObjectAccountCard.objects.all()
-    if not account_cards:
+    fields_mapping = {
+        'Наименование объекта': 'name',
+        'Время создания (возникновения) объекта': 'creation_time',
+        'Адрес (местонахождение) объекта': 'address',
+        'Вид объекта': 'object_type',
+        'Общая видовая принадлежность объекта': 'general_classification',
+        'Общее описание объекта и вывод о его историко-культурной ценности': 'description',
+        'Использование объекта культурного наследия или пользователь': 'usage',
+        'Сведения о дате и обстоятельствах выявления (обнаружения) объекта': 'discovery_info',
+        'Составитель учетной карты': 'compiler'
+    }
+    df_existing = create_model_dataframe(ObjectAccountCard, fields_mapping)
+    if not df_existing:
         return redirect(account_cards_register)
-    df_existing = None
-    for account_card in account_cards:
-        table_columns_info = {i: '' for i in table_columns}
-        table_columns_info['Наименование объекта'] = account_card.name
-        table_columns_info['Время создания (возникновения) объекта'] = account_card.creation_time
-        table_columns_info['Адрес (местонахождение) объекта'] = account_card.address
-        table_columns_info['Вид объекта'] = account_card.object_type
-        table_columns_info['Общая видовая принадлежность объекта'] = account_card.general_classification
-        table_columns_info[
-            'Общее описание объекта и вывод о его историко-культурной ценности'] = account_card.description
-        table_columns_info['Использование объекта культурного наследия или пользователь'] = account_card.usage
-        table_columns_info[
-            'Сведения о дате и обстоятельствах выявления (обнаружения) объекта'] = account_card.discovery_info
-        table_columns_info['Составитель учетной карты'] = account_card.compiler
-        df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
-        if df_existing is None:
-            df_existing = df_new
-        else:
-            df_existing = df_existing._append(df_new, ignore_index=True)
-    with pd.ExcelWriter(table_path) as writer:
-        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
-    wb = load_workbook(table_path)
-    ws = wb.active
-    ws.column_dimensions['A'].width = 24
-    ws.column_dimensions['B'].width = 24
-    ws.column_dimensions['C'].width = 50
-    ws.column_dimensions['D'].width = 16
-    ws.column_dimensions['E'].width = 18
-    ws.column_dimensions['F'].width = 62
-    ws.column_dimensions['G'].width = 20
-    ws.column_dimensions['H'].width = 28
-    ws.column_dimensions['I'].width = 25
-    font = Font(
-        name='Times New Roman',
-        size=11,
-        bold=False,
-        italic=False,
-        vertAlign=None,
-        underline='none',
-        strike=False,
-        color='FF000000'
-    )
-    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
-    for i in range(1, len(df_existing.values) + 2):
-        if i == 1:
-            ws.row_dimensions[0].height = 80
-        else:
-            ws.row_dimensions[i].height = 100
-        for cell in ws[i]:
-            if cell.value:
-                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    wb.save(table_path)
-    return redirect("/uploaded_files/account_cards/РЕЕСТР Учётных карт.xlsx")
+    column_widths = {
+        'A': 24,
+        'B': 24,
+        'C': 50,
+        'D': 16,
+        'E': 18,
+        'F': 62,
+        'G': 20,
+        'H': 28,
+        'I': 25
+    }
+    generate_excel_report(df_existing, table_path, column_widths, height_title=80, height_cell=100)
+    return redirect("/" + table_path)
 
 
 def account_cards_register(request):
-    account_cards_public = ObjectAccountCard.objects.filter(is_processing=False, is_public=True).only('id', 'user_id',
-                                                                                                      'date_uploaded',
-                                                                                                      'upload_source',
-                                                                                                      'is_processing',
-                                                                                                      'is_public',
-                                                                                                      'origin_filename',
-                                                                                                      'name',
-                                                                                                      'creation_time',
-                                                                                                      'address',
-                                                                                                      'object_type',
-                                                                                                      'general_classification',
-                                                                                                      'description',
-                                                                                                      'usage',
-                                                                                                      'discovery_info',
-                                                                                                      'source')
-    account_cards_private = ObjectAccountCard.objects.filter(is_processing=False, user_id=request.user.id,
-                                                             is_public=False).only('id', 'user_id',
-                                                                                   'date_uploaded',
-                                                                                   'upload_source',
-                                                                                   'is_processing',
-                                                                                   'is_public',
-                                                                                   'origin_filename',
-                                                                                   'name',
-                                                                                   'creation_time',
-                                                                                   'address',
-                                                                                   'object_type',
-                                                                                   'general_classification',
-                                                                                   'description',
-                                                                                   'usage',
-                                                                                   'discovery_info',
-                                                                                   'source')
-    account_cards = account_cards_public | account_cards_private
-    return render(request, 'account_cards_register.html', {'account_cards': account_cards})
-
-
-def commercial_offers(request, pk):
-    commercial_offer = CommercialOffers.objects.get(id=pk)
-    return render(request, 'commercial_offer.html', {'commercial_offer': commercial_offer})
+    only_fields = [
+        'id', 'user_id', 'date_uploaded', 'upload_source', 'is_processing',
+        'is_public', 'origin_filename', 'name', 'creation_time',
+        'address', 'object_type', 'general_classification', 'description',
+        'usage', 'discovery_info', 'source'
+    ]
+    view = get_register_view(request, ObjectAccountCard, 'account_cards', public_only_fields=only_fields,
+                             private_only_fields=only_fields, template_name='account_cards_register.html')
+    return view
 
 
 @login_required
@@ -1515,36 +1246,7 @@ def commercial_offers_edit(request, pk):
     commercial_offer = CommercialOffers.objects.get(id=pk)
     commercial_offer.coordinates = commercial_offer.coordinates_dict
     if request.method == 'POST':
-        coordinates = {}
-        current_group = None
-        for key, value in request.POST.dict().items():
-            if 'group[' in key:
-                current_group = value
-            elif 'coordinate_system[' in key:
-                if current_group not in coordinates.keys():
-                    coordinates[current_group] = {}
-                coordinates[current_group]['coordinate_system'] = value
-            elif 'point[' in key:
-                if current_group not in coordinates.keys():
-                    coordinates[current_group] = {}
-                point_name, x, y = [x.strip().replace(':', '').replace(';', '') for x in value.split(' ')]
-                coordinates[current_group][point_name] = [x, y]
-        for group, polygon in coordinates.items():
-            if polygon['coordinate_system'] == 'None':
-                continue
-            elif group in commercial_offer.coordinates.keys():
-                if 'coordinate_system' not in commercial_offer.coordinates[group]:
-                    commercial_offer.coordinates[group]['coordinate_system'] = polygon['coordinate_system']
-                    coordinates[group]['coordinate_system'] = 'wgs84'
-                if polygon['coordinate_system'] != commercial_offer.coordinates[group]['coordinate_system']:
-                    for point_name, coords in polygon.items():
-                        if point_name == 'coordinate_system':
-                            continue
-                        lat, lon = convert_proj4(coords[0], coords[1],
-                                                 commercial_offer.coordinates[group]['coordinate_system'],
-                                                 coordinates[group]['coordinate_system'])
-                        coordinates[group][point_name] = [lat, lon]
-        commercial_offer.coordinates = coordinates
+        commercial_offer.coordinates = process_coords_from_edit_page(request, commercial_offer)
         commercial_offer.save()
         messages.success(request, 'Коммерческое предложение успешно обновлено.')
         return redirect(f'/commercial_offers_edit/{commercial_offer.id}')
@@ -1563,35 +1265,18 @@ def commercial_offers_delete(request, pk):
 
 @login_required
 def commercial_offers_upload(request):
-    user_id = request.user.id
-    tasks_id = get_user_tasks(user_id, ('commercial_offer',))
-    if request.method == 'POST':
-        form = UploadCommercialOffersForm(request.POST, request.FILES)
-        if form.is_valid():
-            uploaded_files = form.cleaned_data['files']
-            if request.user.is_superuser:
-                is_public = True if request.POST['storage_type'] == 'public' else False
-            else:
-                is_public = False
-            commercial_offers_ids = raw_commercial_offers_save(uploaded_files, user_id, is_public)
-            task = process_commercial_offers.apply_async((commercial_offers_ids, user_id),
-                                                         link_error=error_handler_commercial_offers.s())
-            tasks_id = [task.task_id] + tasks_id
-            user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='commercial_offer',
-                                  upload_source={'source': 'Пользовательский файл'})
-            user_task.save()
-            return render(request, 'commercial_offers_upload.html', {'form': form, 'tasks_id': tasks_id})
-    else:
-        form = UploadCommercialOffersForm()
-    return render(request, 'commercial_offers_upload.html', {'form': form, 'tasks_id': tasks_id})
+    tasks_id = get_user_tasks(request.user.id, ('commercial_offer',))
+    view = upload_entity_view(request, tasks_id, 'commercial_offer', UploadCommercialOffersForm,
+                              raw_commercial_offers_save,
+                              process_commercial_offers,
+                              error_handler_commercial_offers, 'commercial_offers_upload.html')
+    return view
 
 
 def commercial_offers_register(request):
-    commercial_offers_public = CommercialOffers.objects.filter(is_processing=False, is_public=True)
-    commercial_offers_private = CommercialOffers.objects.filter(is_processing=False, user_id=request.user.id,
-                                                                is_public=False)
-    commercial_offers = commercial_offers_public | commercial_offers_private
-    return render(request, 'commercial_offers_register.html', {'commercial_offers': commercial_offers})
+    view = get_register_view(request, CommercialOffers, 'commercial_offers',
+                             template_name='commercial_offers_register.html')
+    return view
 
 
 def download_commercial_offer_report(request, pk):
@@ -1714,37 +1399,14 @@ def download_commercial_offer_report(request, pk):
                 df_existing = df_new
             else:
                 df_existing = df_existing._append(df_new, ignore_index=True)
-    print('ALMOST')
     if df_existing is None:
         return redirect(commercial_offers_register)
     df_existing = df_existing.sort_values(by='Дистанция до памятника (км)', ascending=True).reset_index(drop=True)
-    with pd.ExcelWriter(table_path) as writer:
-        df_existing.to_excel(writer, sheet_name="Sheet1", index=False)
-    wb = load_workbook(table_path)
-    ws = wb.active
-    print('FINISHED')
-    ws.column_dimensions['A'].width = 100
-    ws.column_dimensions['B'].width = 40
-    font = Font(
-        name='Times New Roman',
-        size=11,
-        bold=False,
-        italic=False,
-        vertAlign=None,
-        underline='none',
-        strike=False,
-        color='FF000000'
-    )
-    '''
-    {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
-    for i in range(1, len(df_existing.values) + 2):
-        ws.row_dimensions[i].height = 40
-        for cell in ws[i]:
-            if cell.value:
-                cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    '''
-    print('HOLY SHIT')
-    wb.save(table_path)
+    column_widths = {
+        'A': 100,
+        'B': 40
+    }
+    generate_excel_report(df_existing, table_path, column_widths, height_title=15, height_cell=15)
     return redirect('/' + table_path)
 
 
@@ -1754,36 +1416,7 @@ def geo_objects_edit(request, pk):
     geo_object = GeoObject.objects.get(id=pk)
     geo_object.coordinates = geo_object.coordinates_dict
     if request.method == 'POST':
-        coordinates = {}
-        current_group = None
-        for key, value in request.POST.dict().items():
-            if 'group[' in key:
-                current_group = value
-            elif 'coordinate_system[' in key:
-                if current_group not in coordinates.keys():
-                    coordinates[current_group] = {}
-                coordinates[current_group]['coordinate_system'] = value
-            elif 'point[' in key:
-                if current_group not in coordinates.keys():
-                    coordinates[current_group] = {}
-                point_name, x, y = [x.strip().replace(':', '').replace(';', '') for x in value.split(' ')]
-                coordinates[current_group][point_name] = [x, y]
-        for group, polygon in coordinates.items():
-            if polygon['coordinate_system'] == 'None':
-                continue
-            elif group in geo_object.coordinates.keys():
-                if 'coordinate_system' not in geo_object.coordinates[group]:
-                    geo_object.coordinates[group]['coordinate_system'] = polygon['coordinate_system']
-                    coordinates[group]['coordinate_system'] = 'wgs84'
-                if polygon['coordinate_system'] != geo_object.coordinates[group]['coordinate_system']:
-                    for point_name, coords in polygon.items():
-                        if point_name == 'coordinate_system':
-                            continue
-                        lat, lon = convert_proj4(coords[0], coords[1],
-                                                 geo_object.coordinates[group]['coordinate_system'],
-                                                 coordinates[group]['coordinate_system'])
-                        coordinates[group][point_name] = [lat, lon]
-        geo_object.coordinates = coordinates
+        geo_object.coordinates = process_coords_from_edit_page(request, geo_object)
         geo_object.save()
         messages.success(request, 'Коммерческое предложение успешно обновлено.')
         return redirect(f'/geo_objects_edit/{geo_object.id}')
@@ -1802,35 +1435,17 @@ def geo_objects_delete(request, pk):
 
 @login_required
 def geo_objects_upload(request):
-    user_id = request.user.id
-    tasks_id = get_user_tasks(user_id, ('geo_object',))
-    if request.method == 'POST':
-        form = UploadGeoObjectsForm(request.POST, request.FILES)
-        if form.is_valid():
-            uploaded_files = form.cleaned_data['files']
-            if request.user.is_superuser:
-                is_public = True if request.POST['storage_type'] == 'public' else False
-            else:
-                is_public = False
-            geo_objects_ids = raw_geo_objects_save(uploaded_files, user_id, is_public)
-            task = process_geo_objects.apply_async((geo_objects_ids, user_id),
-                                                   link_error=error_handler_geo_objects.s())
-            tasks_id = [task.task_id] + tasks_id
-            user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='geo_object',
-                                  upload_source={'source': 'Пользовательский файл'})
-            user_task.save()
-            return render(request, 'geo_object_upload.html', {'form': form, 'tasks_id': tasks_id})
-    else:
-        form = UploadGeoObjectsForm()
-    return render(request, 'geo_object_upload.html', {'form': form, 'tasks_id': tasks_id})
+    tasks_id = get_user_tasks(request.user.id, ('geo_object',))
+    view = upload_entity_view(request, tasks_id, 'geo_object', UploadGeoObjectsForm,
+                              raw_geo_objects_save,
+                              process_geo_objects,
+                              error_handler_geo_objects, 'geo_object_upload.html')
+    return view
 
 
 def geo_objects_register(request):
-    geo_objects_public = GeoObject.objects.filter(is_processing=False, is_public=True)
-    geo_objects_private = GeoObject.objects.filter(is_processing=False, user_id=request.user.id,
-                                                   is_public=False)
-    geo_objects = geo_objects_public | geo_objects_private
-    return render(request, 'geo_object_register.html', {'geo_objects': geo_objects})
+    view = get_register_view(request, GeoObject, 'geo_objects', template_name='geo_object_register.html')
+    return view
 
 
 class UserList(generics.ListAPIView):
