@@ -548,8 +548,10 @@
                                         {% if point_name != 'coordinate_system' %}
                                             <input type="checkbox" class="{{ group|cut:" "|cut:"."|cut:":" }}_point"
                                                    checked
-                                                   id="{{ point_name }}_checkbox" name="{{ group }}-{{ point_name }}">
-                                            <label for="{{ point_name }}_checkbox">{{ point_name }} ({{ coordinates.0 }},
+                                                   id="{{ group|cut:" "|cut:"." }}_{{ point_name }}_checkbox"
+                                                   name="{{ group }}-{{ point_name }}">
+                                            <label for="{{ group|cut:" "|cut:"." }}_{{ point_name }}_checkbox">{{ point_name }}
+                                                ({{ coordinates.0 }},
                                                 {{ coordinates.1 }})</label><br>
                                         {% endif %}
                                     {% endfor %}
@@ -621,9 +623,9 @@
                                                             <input type="checkbox"
                                                                    class="report-{{ counter }}_{{ group|cut:" "|cut:"."|cut:":" }}_point report-{{ report_type|cut:" "|cut:"."|cut:":" }}_point report-{{ counter }}_point"
                                                                    checked
-                                                                   id="{{ point_name }}_checkbox"
+                                                                   id="{{ group|cut:" "|cut:"."|cut:":" }}_{{ point_name }}_checkbox"
                                                                    name="{{ report_type }}-{{ report_name }}-{{ group }}-{{ point_name }}">
-                                                            <label for="{{ point_name }}_checkbox">{{ point_name }}
+                                                            <label for="{{ group|cut:" "|cut:"."|cut:":" }}_{{ point_name }}_checkbox">{{ point_name }}
                                                                 ({{ coordinates.0 }},
                                                                 {{ coordinates.1 }})</label><br>
                                                         {% endif %}
