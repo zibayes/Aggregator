@@ -23,6 +23,7 @@ services:
 
   db:
     image: postgres:17
+    user: postgres
     environment:
       POSTGRES_DB: postgres
       POSTGRES_USER: postgres
@@ -30,6 +31,38 @@ services:
       TZ: Asia/Krasnoyarsk
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+      - ./wal_archive:/var/lib/postgresql/wal_archive
+    command: >
+      bash -c "
+      if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
+        initdb -D /var/lib/postgresql/data && 
+        echo \"wal_level=replica
+        archive_mode=on
+        archive_command='test ! -f /var/lib/postgresql/wal_archive/%f && cp %p /var/lib/postgresql/wal_archive/%f'\" >> /var/lib/postgresql/data/postgresql.conf
+      fi;
+      exec postgres -D /var/lib/postgresql/data
+      "
+
+  backup:
+    image: alpine:3.18
+    depends_on:
+      - db
+    volumes:
+      - ./backups:/backups
+      - ./backup_scripts:/scripts
+    restart: unless-stopped
+    entrypoint: /bin/sh
+    command: -c "
+      chmod +x /scripts/backup.sh &&
+      echo '0 3 * * * /scripts/backup.sh >> /var/log/backup.log 2>&1' > /etc/crontabs/root &&
+      crond -l 2 -f
+      "
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: postgres
 
 volumes:
   postgres_data:

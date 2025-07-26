@@ -31,5 +31,8 @@ staticfiles/
 supervisord_logs/
 app_mount/
 
+wal_archive/
+backups/
+
 # *.jpg
 # *.png

@@ -173,3 +173,6 @@ wheelhouse/
 .docker-cache/
 supervisord_logs/
 app_mount/
+
+wal_archive/
+backups/
