@@ -33,6 +33,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
       - ./wal_archive:/var/lib/postgresql/wal_archive
+      - ./postgresql.conf:/var/lib/postgresql/data/postgresql.conf
     command: >
       bash -c "
       if [ ! -f /var/lib/postgresql/data/PG_VERSION ]; then
@@ -45,7 +46,7 @@ services:
       "
 
   backup:
-    image: alpine:3.18
+    image: postgres:17-alpine
     depends_on:
       - db
     volumes:
@@ -54,6 +55,7 @@ services:
     restart: unless-stopped
     entrypoint: /bin/sh
     command: -c "
+      apk add --no-cache postgresql-client &&
       chmod +x /scripts/backup.sh &&
       echo '0 3 * * * /scripts/backup.sh >> /var/log/backup.log 2>&1' > /etc/crontabs/root &&
       crond -l 2 -f
