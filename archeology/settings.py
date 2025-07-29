@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
+    'filebrowser',
     'django.contrib.staticfiles',
     'agregator',
     'rest_framework',
@@ -53,6 +54,15 @@ SITE_ID = 1
 LOGIN_URL = 'login'
 MEDIA_URL = '/uploaded_files/'
 MEDIA_ROOT = BASE_DIR / 'uploaded_files'
+FILEBROWSER_DIRECTORY = ''
+FILEBROWSER_SHOW_IN_DASHBOARD = True
+FILEBROWSER_ALLOW_MOVE = True
+FILEBROWSER_PERMISSION = False
+FILEBROWSER_SHOW_THUMBNAIL = True
+FILEBROWSER_LIST_PER_PAGE = 50
+FILEBROWSER_ACTIONS = [
+    'move', 'rename', 'delete', 'mkdir'
+]
 AUTH_USER_MODEL = 'agregator.User'
 
 CORS_ALLOWED_ORIGINS = [
@@ -149,7 +159,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru'  # 'en-us'
 
 TIME_ZONE = 'Asia/Krasnoyarsk'
 
