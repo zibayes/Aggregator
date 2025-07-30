@@ -1059,7 +1059,7 @@ def identified_archaeological_heritage_site(request, pk):
 
 @login_required
 @owner_or_admin_required(ArchaeologicalHeritageSite)
-def archaeological_heritage_site_edit(request, pk):
+def archaeological_heritage_sites_edit(request, pk):
     oan = ArchaeologicalHeritageSite.objects.get(id=pk)
     if request.method == 'POST':
         fields = [
@@ -1071,14 +1071,14 @@ def archaeological_heritage_site_edit(request, pk):
         ]
         process_edit_form(request, oan, fields)
         messages.success(request, 'Памятник успешно обновлен.')
-        return redirect(f'/archaeological_heritage_site/{oan.id}')
+        return redirect(f'/archaeological_heritage_sites/{oan.id}')
 
     return render(request, 'archaeological_heritage_site_edit.html', {'archaeological_heritage_site': oan})
 
 
 @login_required
 @owner_or_admin_required(IdentifiedArchaeologicalHeritageSite)
-def identified_archaeological_heritage_site_edit(request, pk):
+def identified_archaeological_heritage_sites_edit(request, pk):
     voan = IdentifiedArchaeologicalHeritageSite.objects.get(id=pk)
     if request.method == 'POST':
         fields = [
@@ -1090,7 +1090,7 @@ def identified_archaeological_heritage_site_edit(request, pk):
         ]
         process_edit_form(request, voan, fields)
         messages.success(request, 'Отчёт успешно обновлен.')
-        return redirect(f'/identified_archaeological_heritage_site/{voan.id}')
+        return redirect(f'/identified_archaeological_heritage_sites/{voan.id}')
 
     return render(request, 'identified_archaeological_heritage_site_edit.html',
                   {'identified_archaeological_heritage_site': voan})
@@ -1098,7 +1098,7 @@ def identified_archaeological_heritage_site_edit(request, pk):
 
 @login_required
 @owner_or_admin_required(ArchaeologicalHeritageSite)
-def archaeological_heritage_site_delete(request, pk):
+def archaeological_heritage_sites_delete(request, pk):
     oan = ArchaeologicalHeritageSite.objects.get(id=pk)
     oan.delete()
     return redirect(f'archaeological_heritage_sites')
@@ -1106,7 +1106,7 @@ def archaeological_heritage_site_delete(request, pk):
 
 @login_required
 @owner_or_admin_required(IdentifiedArchaeologicalHeritageSite)
-def identified_archaeological_heritage_site_delete(request, pk):
+def identified_archaeological_heritage_sites_delete(request, pk):
     voan = IdentifiedArchaeologicalHeritageSite.objects.get(id=pk)
     voan.delete()
     return redirect(f'identified_archaeological_heritage_sites')
@@ -1147,9 +1147,9 @@ def account_cards(request, pk):
     if not heritage:
         heritage = ArchaeologicalHeritageSite.objects.filter(id=pk, doc_name=account_card.name)
         if heritage:
-            account_card.heritage_url = '/archaeological_heritage_site/'
+            account_card.heritage_url = '/archaeological_heritage_sites/'
     else:
-        account_card.heritage_url = '/identified_archaeological_heritage_site/'
+        account_card.heritage_url = '/identified_archaeological_heritage_sites/'
     if heritage:
         account_card.heritage_url += str(heritage[0].id) + '/'
     return render(request, 'account_card.html', {'account_card': account_card})

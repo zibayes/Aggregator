@@ -214,7 +214,7 @@ def process_coords_from_edit_page(request, entity) -> dict:
         elif 'point[' in key:
             if current_group not in coordinates.keys():
                 coordinates[current_group] = {}
-            point_name, x, y = [x.strip().replace(':', '').replace(';', '') for x in value.split(' ')]
+            point_name, x, y = [x.strip() for x in value.split(';')]
             coordinates[current_group][point_name] = [x, y]
     for group, polygon in coordinates.items():
         if polygon['coordinate_system'] == 'None':

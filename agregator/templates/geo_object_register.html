@@ -62,57 +62,16 @@
             </td>
             <td>{{ geo_object.date_uploaded }}</td>
             <td>
-                {% if not geo_object.coordinates_dict %}
-                    <button type="button" class="btn btn-success" style="border-radius: 12px;" disabled>
-                        Просмотр
-                    </button>
-                {% else %}
-                    <a href="/map/geo_object/{{ geo_object.id }}">
-                        <button type="button" class="btn btn-success" style="border-radius: 12px;">
-                            Просмотр
-                        </button>
-                    </a>
-                {% endif %}
+                {% include 'includes/buttons/view_button.html' with object_type='geo_object' object=geo_object %}
             </td>
-            <td>
-                {% if geo_object.user.id == user.id or user.is_superuser %}
-                    <a href="/geo_objects_edit/{{ geo_object.id }}">
-                        <button type="button" class="btn btn-primary" style="border-radius: 12px;">
-                            Редактировать
-                        </button>
-                    </a>
-                    <button type="button" class="btn btn-danger" style="margin-top: 8px;"
-                            data-bs-target="#delete_geo_object_{{ geo_object.id }}"
-                            data-bs-toggle="modal">
-                        Удалить
-                    </button>
-                {% else %}
-                    Нет доступа
-                {% endif %}
-            </td>
+            {% include 'includes/buttons/action_buttons.html' with object_type='geo_object' object=geo_object %}
         </tr>
     {% endfor %}
 {% endblock %}
 
 {% block modal_dialogs %}
     {% for geo_object in geo_objects %}
-        <div class="modal fade" id="delete_geo_object_{{ geo_object.id }}" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Вы уверены, что хотите удалить этот географический объект?</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-footer">
-                        <form method="POST" action="/geo_objects_delete/{{ geo_object.id }}/" class="mt-3">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                            <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">Удалить</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+        {% include 'includes/modal_delete.html' with object_type='geo_object' object_name='географический объект' object=geo_object %}
     {% endfor %}
 {% endblock %}
 

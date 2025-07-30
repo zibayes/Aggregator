@@ -4,7 +4,7 @@
 {% block heritage_header %}Объект археологического наследия {{ archaeological_heritage_site.doc_name }}{% endblock %}
 {% block heritage_delete_title %}Удаление объекта археологического наследия{% endblock %}
 {% block heritage_delete_url %}
-    {% url 'archaeological_heritage_site_delete' archaeological_heritage_site.id %}{% endblock %}
+    {% url 'archaeological_heritage_sites_delete' archaeological_heritage_site.id %}{% endblock %}
 
 {% block breadcrumb %}
     <li class="breadcrumb-item"><a href="/archaeological_heritage_sites/">Перечень объектов археологического
@@ -25,7 +25,7 @@
 
 {% block heritage_actions %}
     {% if archaeological_heritage_site.user.id == user.id or user.is_superuser %}
-        <a href="/archaeological_heritage_site_edit/{{ archaeological_heritage_site.id }}">
+        <a href="/archaeological_heritage_sites_edit/{{ archaeological_heritage_site.id }}">
             <button type="button" class="btn btn-primary"
                     style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
                 Редактировать

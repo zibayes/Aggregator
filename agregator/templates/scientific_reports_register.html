@@ -108,56 +108,21 @@
             </td>
             <td>{{ report.date_uploaded }}</td>
             <td>
-                <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-                   href="/scientific_reports/{{ report.id }}">Просмотр</a>
+                {% include 'includes/buttons/view_button.html' with object_type='scientific_report' object=report %}
             </td>
             <td>
                 {% for source in report.source_dict %}
                     <a href="/{{ source.path }}">{{ source.origin_filename }}</a><br><br>
                 {% endfor %}
             </td>
-            <td>
-                {% if report.user.id == user.id or user.is_superuser %}
-                    <a href="/scientific_reports_edit/{{ report.id }}">
-                        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">
-                            Редактировать
-                        </button>
-                    </a>
-                    <button type="button" class="btn btn-danger" data-bs-target="#delete_report_{{ report.id }}"
-                            data-bs-toggle="modal" style="margin-top: 8px;">
-                        Удалить
-                    </button>
-                {% else %}
-                    Нет доступа
-                {% endif %}
-            </td>
+            {% include 'includes/buttons/action_buttons.html' with object_type='scientific_report' object=report %}
         </tr>
     {% endfor %}
 {% endblock %}
 
 {% block modal_dialogs %}
     {% for report in reports %}
-        <div class="modal fade" id="delete_report_{{ report.id }}" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Вы уверены, что хотите удалить этот отчёт?</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-footer">
-                        <form method="POST" action="/scientific_reports_delete/{{ report.id }}/" class="mt-3">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                                Отмена
-                            </button>
-                            <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">
-                                Удалить
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+        {% include 'includes/modal_delete.html' with object_type='scientific_report' object_name='научный отчёт' object=report %}
     {% endfor %}
 {% endblock %}
 

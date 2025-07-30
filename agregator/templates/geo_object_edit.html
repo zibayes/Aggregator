@@ -96,9 +96,9 @@
                     {% if point_name != 'coordinate_system' %}
                         <div class="input-group mb-3">
                             <input type="text" name="point[{{ group }}-{{ point_name }}]"
-                                   value="{{ point_name }}: {{ coordinates|join:'; ' }}"
+                                   value="{{ point_name }}; {{ coordinates|join:'; ' }}"
                                    class="form-control"
-                                   placeholder="Введите координаты такого формата: [Название точки]: [x]; [y]">
+                                   placeholder="Введите координаты такого формата: [Название точки]; [x]; [y]">
                             <button type="button" class="btn btn-danger" onclick="removeInput(this)">Удалить
                             </button>
                         </div>

@@ -116,56 +116,21 @@
             </td>
             <td>{{ open_list.date_uploaded }}</td>
             <td>
-                <a href="/open_lists/{{ open_list.id }}">
-                    <button type="button" class="btn btn-primary" style="border-radius: 12px;">
-                        Просмотр
-                    </button>
-                </a>
+                {% include 'includes/buttons/view_button.html' with object_type='open_list' object=open_list %}
             </td>
             <td>
                 <a href="/uploaded_files/{{ open_list.source }}">
                     {{ open_list.origin_filename }}
                 </a>
             </td>
-            <td>
-                {% if open_list.user.id == user.id or user.is_superuser %}
-                    <a href="/open_lists_edit/{{ open_list.id }}">
-                        <button type="button" class="btn btn-primary" style="border-radius: 12px;">
-                            Редактировать
-                        </button>
-                    </a>
-                    <button type="button" class="btn btn-danger" style="margin-top: 8px;"
-                            data-bs-target="#delete_open_list_{{ open_list.id }}"
-                            data-bs-toggle="modal">
-                        Удалить
-                    </button>
-                {% else %}
-                    Нет доступа
-                {% endif %}
-            </td>
+            {% include 'includes/buttons/action_buttons.html' with object_type='open_list' object=open_list %}
         </tr>
     {% endfor %}
 {% endblock %}
 
 {% block modal_dialogs %}
     {% for open_list in open_lists %}
-        <div class="modal fade" id="delete_open_list_{{ open_list.id }}" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Вы уверены, что хотите удалить этот открытый лист?</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-footer">
-                        <form method="POST" action="/open_lists_delete/{{ open_list.id }}/" class="mt-3">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                            <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">Удалить</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+        {% include 'includes/modal_delete.html' with object_type='open_list' object_name='открытый лист' object=open_list %}
     {% endfor %}
 {% endblock %}
 

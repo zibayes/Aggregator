@@ -63,62 +63,16 @@
             </td>
             <td>{{ commercial_offer.date_uploaded }}</td>
             <td>
-                {% if not commercial_offer.coordinates_dict %}
-                    <button type="button" class="btn btn-success" style="border-radius: 12px;" disabled>
-                        Просмотр
-                    </button>
-                {% else %}
-                    <a href="/map/commercial_offer/{{ commercial_offer.id }}">
-                        <button type="button" class="btn btn-success" style="border-radius: 12px;">
-                            Просмотр
-                        </button>
-                    </a>
-                    <a href="/download_commercial_offer_report/{{ commercial_offer.id }}">
-                        <button type="button" class="btn btn-success" style="border-radius: 12px; margin-top: 8px;">
-                            Скачать отчёт
-                        </button>
-                    </a>
-                {% endif %}
+                {% include 'includes/buttons/view_button.html' with object_type='commercial_offer' object=commercial_offer %}
             </td>
-            <td>
-                {% if commercial_offer.user.id == user.id or user.is_superuser %}
-                    <a href="/commercial_offers_edit/{{ commercial_offer.id }}">
-                        <button type="button" class="btn btn-primary" style="border-radius: 12px;">
-                            Редактировать
-                        </button>
-                    </a>
-                    <button type="button" class="btn btn-danger" style="margin-top: 8px;"
-                            data-bs-target="#delete_commercial_offer_{{ commercial_offer.id }}"
-                            data-bs-toggle="modal">
-                        Удалить
-                    </button>
-                {% else %}
-                    Нет доступа
-                {% endif %}
-            </td>
+            {% include 'includes/buttons/action_buttons.html' with object_type='commercial_offer' object=commercial_offer %}
         </tr>
     {% endfor %}
 {% endblock %}
 
 {% block modal_dialogs %}
     {% for commercial_offer in commercial_offers %}
-        <div class="modal fade" id="delete_commercial_offer_{{ commercial_offer.id }}" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Вы уверены, что хотите удалить это коммерческое предложение?</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-footer">
-                        <form method="POST" action="/commercial_offers_delete/{{ commercial_offer.id }}/" class="mt-3">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                            <button type="submit" class="btn btn-danger" data-bs-dismiss="modal">Удалить</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
+        {% include 'includes/modal_delete.html' with object_type='commercial_offer' object_name='коммерческое предложение' object=commercial_offer %}
     {% endfor %}
 {% endblock %}
 

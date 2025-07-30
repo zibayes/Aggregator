@@ -1,0 +1,8 @@
+<td>
+    {% if object.user.id == user.id or user.is_superuser %}
+        {% include 'includes/buttons/edit_button.html' %}
+        {% include 'includes/buttons/delete_button.html' %}
+    {% else %}
+        Нет доступа
+    {% endif %}
+</td>

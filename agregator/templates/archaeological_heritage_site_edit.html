@@ -5,12 +5,12 @@
 {% block simple_form_header %}объекта археологического наследия{% endblock %}
 {% block delete_object_name %}объект археологического наследия{% endblock %}
 {% block delete_object_url %}
-    {% url 'archaeological_heritage_site_delete' archaeological_heritage_site.id %}{% endblock %}
+    {% url 'archaeological_heritage_sites_delete' archaeological_heritage_site.id %}{% endblock %}
 
 {% block breadcrumb %}
     <li class="breadcrumb-item"><a href="/archaeological_heritage_sites/">Перечень объектов археологического
         наследия</a></li>
-    <li class="breadcrumb-item"><a href="/archaeological_heritage_site/{{ archaeological_heritage_site.id }}">Объект
+    <li class="breadcrumb-item"><a href="/archaeological_heritage_sites/{{ archaeological_heritage_site.id }}">Объект
         археологического
         наследия {{ archaeological_heritage_site.doc_name }}</a></li>
     <li class="breadcrumb-item active" aria-current="page">Редактирование

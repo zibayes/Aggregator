@@ -388,7 +388,7 @@
                 {% for point_name, coords in point.items %}
                     {% if point_name != 'coordinate_system' %}
                         marker = createMapMarker(
-                            [{{ coords.0 }}, {{ coords.1 }}],
+                            {{ coords|safe }},
                             '{{ report_type }}',
                             '{{ report_name }}',
                             '{{ group }}',
@@ -404,7 +404,7 @@
                         bounds.extend(marker.getLatLng());
 
                         {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                            catalogCoords.push([{{ coords.0 }}, {{ coords.1 }}]);
+                            catalogCoords.push({{ coords|safe }});
                         {% endif %}
 
                         setupPointToggle(markers, '{{ report_name }}', '{{ group }}', '{{ point_name }}');
@@ -460,7 +460,7 @@
                         {% for point_name, coords in point.items %}
                             {% if point_name != 'coordinate_system' %}
                                 marker = createMapMarker(
-                                    [{{ coords.0 }}, {{ coords.1 }}],
+                                    {{ coords|safe }},
                                     '{{ report_type }}',
                                     '{{ report_name }}',
                                     '{{ group }}',
@@ -474,7 +474,7 @@
                                 });
 
                                 {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                    all_catalogCoords['{{ report_name }}'].push([{{ coords.0 }}, {{ coords.1 }}]);
+                                    all_catalogCoords['{{ report_name }}'].push({{ coords|safe }});
                                 {% endif %}
 
                                 setupPointToggle(all_markers, '{{ report_name }}', '{{ group }}', '{{ point_name }}');
