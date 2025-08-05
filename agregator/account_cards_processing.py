@@ -16,7 +16,7 @@ from celery_progress.backend import ProgressRecorder
 from docx import Document
 from pytesseract import Output
 
-from .coordinates_extraction import dms_to_decimal, normalize_coordinates
+from .coordinates_tables import dms_to_decimal, normalize_coordinates
 from .files_saving import load_raw_account_cards
 from .hash import calculate_file_hash
 from .models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite

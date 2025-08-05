@@ -2,11 +2,6 @@
 
 {% block title %}Редактирование {% block geo_object_type %}{% endblock %}{% endblock %}
 
-{% block scripts %}
-    {% load static %}
-    <script src="{% static 'js/coordinate_editor_base.js' %}"></script>
-{% endblock scripts %}
-
 {% block content %}
     <div class="container mt-5">
         <h2>Редактирование {% block geo_object_name %}{% endblock %}</h2>
@@ -15,7 +10,6 @@
 
             <!-- Блок координат -->
             <div id="coordinates_container">
-                <h4>Редактирование координат</h4>
                 {% block coordinate_sections %}{% endblock %}
             </div>
 

@@ -14,8 +14,6 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django_celery_results.models import TaskResult
-from openpyxl import load_workbook
-from openpyxl.styles import Alignment, DEFAULT_FONT, Font
 from pyproj import Geod
 from rest_framework import generics
 from shapely.geometry import Polygon, LineString
@@ -26,7 +24,8 @@ from .account_cards_processing import process_account_cards, error_handler_accou
 from .acts_processing import process_acts, error_handler_acts
 from .ask import ask_question_with_context
 from .commercial_offers_processing import process_commercial_offers, error_handler_commercial_offers
-from .coordinates_extraction import convert_proj4, convert_to_wgs84, process_coords_from_edit_page
+from .coordinates_extraction import process_coords_from_edit_page
+from .coordinates_tables import convert_to_wgs84
 from .decorators import owner_or_admin_required
 from .external_sources import external_sources_processing, external_voan_list_processing
 from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, raw_commercial_offers_save, \
@@ -847,6 +846,7 @@ def acts_edit(request, pk):
             'border_objects'
         ]
         process_edit_form(request, act, fields)
+        act.coordinates = process_coords_from_edit_page(request, act)
         act.supplement = process_supplement(request, act)
 
         act.save()
@@ -943,6 +943,7 @@ def scientific_reports_edit(request, pk):
             'conclusion'
         ]
         process_edit_form(request, report, fields)
+        report.coordinates = process_coords_from_edit_page(request, report)
         report.supplement = process_supplement(request, report)
 
         report.save()
@@ -985,6 +986,7 @@ def tech_reports_edit(request, pk):
             'conclusion'
         ]
         process_edit_form(request, report, fields)
+        report.coordinates = process_coords_from_edit_page(request, report)
         report.supplement = process_supplement(request, report)
 
         report.save()
@@ -1172,6 +1174,7 @@ def account_cards_edit(request, pk):
         ]
         process_edit_form(request, account_card, fields)
         account_card.supplement = process_supplement(request, account_card)
+        account_card.coordinates = process_coords_from_edit_page(request, account_card)
 
         account_card.save()
         messages.success(request, 'Учётная карта успешно обновлена.')

@@ -11,6 +11,9 @@
             <!-- Основные поля документа -->
             {% block document_fields %}{% endblock %}
 
+            <!-- Координаты -->
+            {% include 'includes/coordinates_content.html' with object=report %}
+
             <!-- Приложения -->
             {% if report.supplement_dict %}
                 {% include 'includes/report_supplements_edit.html' %}

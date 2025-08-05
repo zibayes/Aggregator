@@ -65,18 +65,15 @@
         <textarea class="form-control" id="compiler" name="compiler"
                   rows="3">{{ account_card.compiler }}</textarea>
     </div>
-
-    <div class="mb-3">
-        <label for="coordinates" class="form-label">Координаты</label>
-        <textarea class="form-control" id="coordinates" name="coordinates"
-                  rows="3">{{ account_card.coordinates }}</textarea>
-    </div>
-
+    
     <div class="mb-3">
         <label for="upload_source" class="form-label">Источник загрузки</label>
         <input type="text" class="form-control" id="upload_source" name="upload_source"
                value="{{ account_card.upload_source }}">
     </div>
+
+    <!-- Координаты -->
+    {% include 'includes/coordinates_content.html' with object=account_card %}
 
     <br>
     <h2 id="supplement">Приложение</h2>

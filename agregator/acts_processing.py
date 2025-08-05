@@ -14,12 +14,15 @@ from celery import shared_task
 from celery_progress.backend import ProgressRecorder
 
 from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
+from .coordinates_tables import analyze_coordinates_in_tables_from_pdf, extract_tables_from_pdf, \
+    format_coordinates
 from .files_saving import load_raw_reports
 from .hash import calculate_file_hash
 from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
 from .models import Act
 from .redis_config import redis_client
 from .celery_task_template import process_documents
+from .coordinates_tables import dms_to_decimal, search_coords_in_text
 
 SQUARE_RESERVE = []
 
@@ -80,7 +83,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                             progress_json, act_id, source_index, task_id, user_id, is_public, select_text, select_image,
                             select_coord):
     supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
-    coordinates = copy.deepcopy(COORDINATES_SAMPLE)
+    # coordinates = copy.deepcopy(COORDINATES_SAMPLE)
+    coordinates = {}
     pdf_file = file  # pdf_file = 'uploaded_files/' + file
 
     current_act = Act.objects.get(id=act_id)
@@ -97,6 +101,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
 
     # Открываем PDF-файл
     document = fitz.open(pdf_file)
+    pdf = pdfplumber.open(pdf_file)
     folder = pdf_file[:pdf_file.rfind(".")]
     Path(folder).mkdir(exist_ok=True)
 
@@ -136,6 +141,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     voan_reserve = None
     several_experts = False
     full_name = False
+    full_text = None
+    tables = []
 
     # Создаем или очищаем текстовый файл
     with open(folder + "/" + "text.txt", "w", encoding="utf-8") as text_file:
@@ -369,11 +376,10 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                                         name = name.group(0)
                                         table_info['Эксперт (физ. или юр.лицо)'] = name
                                     else:
-                                        with pdfplumber.open(pdf_file) as pdf:
-                                            page_tables = pdf.pages[page_number].extract_tables()
-                                            if page_tables and len(page_tables[0]) >= 5 and page_tables[0][4][
-                                                0] == 'ФИО эксперта':
-                                                table_info['Эксперт (физ. или юр.лицо)'] = page_tables[0][4][1]
+                                        page_tables = pdf.pages[page_number].extract_tables()
+                                        if page_tables and len(page_tables[0]) >= 5 and page_tables[0][4][
+                                            0] == 'ФИО эксперта':
+                                            table_info['Эксперт (физ. или юр.лицо)'] = page_tables[0][4][1]
                     elif act_parts[current_part] == 'Объект .*?[экспертизы]*:*':
                         object_info += text_to_write
                         if re.search(r'земли', text_to_write, re.IGNORECASE):
@@ -685,13 +691,23 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                                              progress_json['file_groups'][str(act_id)][source_index]['origin_filename'],
                                              is_public, current_act.upload_source)
             if select_coord:
-                extract_coordinates(file, document, page_number, folder, coordinates)
+                if re.search(r'Выписка\s+из\s+Единого\s+государственного\s+реестра', text, re.IGNORECASE):
+                    continue
+                search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
         total_processed[0] += len(document)
+
+    if select_coord:
+        results, coordinate_systems, full_text = analyze_coordinates_in_tables_from_pdf(tables, file)
+        if results is not None:
+            print(results)
+            coordinates = coordinates | format_coordinates(results, coordinate_systems)
+            print('COORDS!!!!: ' + str(coordinates))
 
     if ('Площадь, протяжённость и/или др. параменты объекта' not in table_info.keys() or \
         'Общ. S' not in table_info['Площадь, протяжённость и/или др. параменты объекта']) and len(SQUARE_RESERVE) > 0:
         table_info['Площадь, протяжённость и/или др. параменты объекта'] = 'Общ. S = ' + SQUARE_RESERVE[0]
     document.close()
+    pdf.close()
 
     # pd.DataFrame(table_info,columns=table_columns,index=[0]).to_excel(folder + "/" + "table.xlsx", index=False, engine='openpyxl')
     df_new = pd.DataFrame(table_info, columns=table_columns, index=[0])
@@ -729,7 +745,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('images', 'all'):
         current_act.supplement = supplement_content
     print(coordinates)
-    print(len(coordinates.keys()) == 1, 'Шурфы' in coordinates.keys(), len(coordinates['Шурфы'].keys()) == 0)
+    if 'Шурфы' in coordinates.keys():
+        print(len(coordinates.keys()) == 1, 'Шурфы' in coordinates.keys(), len(coordinates['Шурфы'].keys()) == 0)
     if len(coordinates.keys()) == 1 and 'Шурфы' in coordinates.keys() and len(coordinates['Шурфы'].keys()) == 0:
         coordinates = {}
     current_act.coordinates = coordinates

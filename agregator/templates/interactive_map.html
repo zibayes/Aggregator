@@ -231,30 +231,33 @@
 
             {% if coordinates %}
                 {% for group, point in coordinates.items %}
-                    {% if 'Шурфы' in group %}
-                        content += createToggleItem('shurfs', 'Шурфы', 'red', `{{ report_name }}`, `{{ report_type }}`);
-                    {% endif %}
-                    {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                        content += createToggleItem('catalog', 'Каталог координат участка', 'blue', `{{ report_name }}`, `{{ report_type }}`);
-                    {% endif %}
-                    {% if 'фото' in group %}
-                        content += createToggleItem('photos', 'Пункты фотофиксации', 'green', `{{ report_name }}`, `{{ report_type }}`);
-                    {% endif %}
-                    {% if 'Центр' in group or report_type == 'geo_object' %}
-                        content += createToggleItem('center', 'Центр объекта', 'yellow', `{{ report_name }}`, `{{ report_type }}`);
-                    {% endif %}
-
-                    {% for point_name, coords in point.items %}
-                        {% if point_name != 'coordinate_system' %}
-                            content += createCheckboxItem(`togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}`, '{{ point_name }}');
+                    {% if point.coordinate_system or report_type == 'account_card' %}
+                        {% if 'Шурфы' in group %}
+                            content += createToggleItem('shurfs', 'Шурфы', 'red', `{{ report_name }}`, `{{ report_type }}`);
                         {% endif %}
-                    {% endfor %}
+                        {% if 'Каталог' in group or report_type == 'commercial_offer' %}
+                            content += createToggleItem('catalog', 'Каталог координат участка', 'blue', `{{ report_name }}`, `{{ report_type }}`);
+                        {% endif %}
+                        {% if 'фото' in group %}
+                            content += createToggleItem('photos', 'Пункты фотофиксации', 'green', `{{ report_name }}`, `{{ report_type }}`);
+                        {% endif %}
+                        {% if 'Центр' in group or report_type == 'geo_object' %}
+                            content += createToggleItem('center', 'Центр объекта', 'yellow', `{{ report_name }}`, `{{ report_type }}`);
+                        {% endif %}
 
-                    {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                        content += createCheckboxItem('toggleCatalogPolyline', 'Полигон');
+                        {% for point_name, coords in point.items %}
+                            {% if point_name != 'coordinate_system' %}
+                                content += createCheckboxItem(`togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}`, '{{ point_name }}');
+                            {% endif %}
+                        {% endfor %}
+
+
+                        {% if 'Каталог' in group or report_type == 'commercial_offer' %}
+                            content += createCheckboxItem('toggleCatalogPolyline', 'Полигон');
+                        {% endif %}
+
+                        content += '</div>'; // Закрытие контента группы
                     {% endif %}
-
-                    content += '</div>'; // Закрытие контента группы
                 {% endfor %}
 
                 content += '<label style="display: flex; align-items: center;"><input type="checkbox" id="toggleTooltips" style="margin-right: 3px;" checked> Названия точек</label>';
@@ -267,27 +270,29 @@
                         content += createReportSection('report-{{ report_name }}', '{{ report_name }}', '{{ report_type|cut:" "|cut:"."|cut:":" }}', true, true, '{{ report_name }}');
 
                         {% for group, point in coordinates.items %}
-                            {% if 'Шурфы' in group %}
-                                content += createToggleItem('shurfs', 'Шурфы', 'red', `{{ report_name }}`, `{{ report_type }}`, true, 40);
-                            {% endif %}
-                            {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                content += createToggleItem('catalog', 'Каталог координат участка', 'blue', `{{ report_name }}`, `{{ report_type }}`, true, 40);
-                            {% endif %}
-                            {% if 'фото' in group %}
-                                content += createToggleItem('photos', 'Пункты фотофиксации', 'green', `{{ report_name }}`, `{{ report_type }}`, true, 40);
-                            {% endif %}
-
-                            {% for point_name, coords in point.items %}
-                                {% if point_name != 'coordinate_system' %}
-                                    content += createCheckboxItem(`togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}`, '{{ point_name }}', true, 40);
+                            {% if point.coordinate_system or report_type == 'account_card' %}
+                                {% if 'Шурфы' in group %}
+                                    content += createToggleItem('shurfs', 'Шурфы', 'red', `{{ report_name }}`, `{{ report_type }}`, true, 40);
                                 {% endif %}
-                            {% endfor %}
+                                {% if 'Каталог' in group or report_type == 'commercial_offer' %}
+                                    content += createToggleItem('catalog', 'Каталог координат участка', 'blue', `{{ report_name }}`, `{{ report_type }}`, true, 40);
+                                {% endif %}
+                                {% if 'фото' in group %}
+                                    content += createToggleItem('photos', 'Пункты фотофиксации', 'green', `{{ report_name }}`, `{{ report_type }}`, true, 40);
+                                {% endif %}
 
-                            {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                content += createCheckboxItem('toggleCatalogPolyline-{{ report_name }}', 'Полигон', true, 40, '');
+                                {% for point_name, coords in point.items %}
+                                    {% if point_name != 'coordinate_system' %}
+                                        content += createCheckboxItem(`togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}`, '{{ point_name }}', true, 40);
+                                    {% endif %}
+                                {% endfor %}
+
+                                {% if 'Каталог' in group or report_type == 'commercial_offer' %}
+                                    content += createCheckboxItem('toggleCatalogPolyline-{{ report_name }}', 'Полигон', true, 40, '');
+                                {% endif %}
+
+                                content += '</div>'; // Закрытие контента группы
                             {% endif %}
-
-                            content += '</div>'; // Закрытие контента группы
                         {% endfor %}
                         content += '</div>'; // Закрытие контента report_name
                     {% endfor %}
@@ -385,31 +390,33 @@
         {% if coordinates %}
             // Основной цикл обработки координат
             {% for group, point in coordinates.items %}
-                {% for point_name, coords in point.items %}
-                    {% if point_name != 'coordinate_system' %}
-                        marker = createMapMarker(
-                            {{ coords|safe }},
-                            '{{ report_type }}',
-                            '{{ report_name }}',
-                            '{{ group }}',
-                            '{{ point_name }}',
-                        );
+                {% if point.coordinate_system or report_type == 'account_card' %}
+                    {% for point_name, coords in point.items %}
+                        {% if point_name != 'coordinate_system' %}
+                            marker = createMapMarker(
+                                {{ coords|safe }},
+                                '{{ report_type }}',
+                                '{{ report_name }}',
+                                '{{ group }}',
+                                '{{ point_name }}',
+                            );
 
-                        markers.push({
-                            marker: marker,
-                            group: '{{ group }}',
-                            point_name: '{{ point_name }}'
-                        });
+                            markers.push({
+                                marker: marker,
+                                group: '{{ group }}',
+                                point_name: '{{ point_name }}'
+                            });
 
-                        bounds.extend(marker.getLatLng());
+                            bounds.extend(marker.getLatLng());
 
-                        {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                            catalogCoords.push({{ coords|safe }});
+                            {% if 'Каталог' in group or report_type == 'commercial_offer' %}
+                                catalogCoords.push({{ coords|safe }});
+                            {% endif %}
+
+                            setupPointToggle(markers, '{{ report_name }}', '{{ group }}', '{{ point_name }}');
                         {% endif %}
-
-                        setupPointToggle(markers, '{{ report_name }}', '{{ group }}', '{{ point_name }}');
-                    {% endif %}
-                {% endfor %}
+                    {% endfor %}
+                {% endif %}
             {% endfor %}
 
             if (catalogCoords.length > 0) {
@@ -457,29 +464,31 @@
                     all_catalogCoords['{{ report_name }}'] = [];
 
                     {% for group, point in coordinates.items %}
-                        {% for point_name, coords in point.items %}
-                            {% if point_name != 'coordinate_system' %}
-                                marker = createMapMarker(
-                                    {{ coords|safe }},
-                                    '{{ report_type }}',
-                                    '{{ report_name }}',
-                                    '{{ group }}',
-                                    '{{ point_name }}',
-                                );
+                        {% if point.coordinate_system or report_type == 'account_card' %}
+                            {% for point_name, coords in point.items %}
+                                {% if point_name != 'coordinate_system' %}
+                                    marker = createMapMarker(
+                                        {{ coords|safe }},
+                                        '{{ report_type }}',
+                                        '{{ report_name }}',
+                                        '{{ group }}',
+                                        '{{ point_name }}',
+                                    );
 
-                                all_markers['{{ report_name }}'].push({
-                                    marker: marker,
-                                    group: '{{ group }}',
-                                    point_name: '{{ point_name }}'
-                                });
+                                    all_markers['{{ report_name }}'].push({
+                                        marker: marker,
+                                        group: '{{ group }}',
+                                        point_name: '{{ point_name }}'
+                                    });
 
-                                {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                    all_catalogCoords['{{ report_name }}'].push({{ coords|safe }});
+                                    {% if 'Каталог' in group or report_type == 'commercial_offer' %}
+                                        all_catalogCoords['{{ report_name }}'].push({{ coords|safe }});
+                                    {% endif %}
+
+                                    setupPointToggle(all_markers, '{{ report_name }}', '{{ group }}', '{{ point_name }}');
                                 {% endif %}
-
-                                setupPointToggle(all_markers, '{{ report_name }}', '{{ group }}', '{{ point_name }}');
-                            {% endif %}
-                        {% endfor %}
+                            {% endfor %}
+                        {% endif %}
 
                         if (all_catalogCoords[`{{ report_name }}`].length > 0) {
                             all_catalogCoords['{{ report_name }}'].push(all_catalogCoords['{{ report_name }}'][0]);
