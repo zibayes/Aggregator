@@ -10,6 +10,7 @@ var bounds = L.latLngBounds();
 var catalogCoords = [];
 var all_catalogCoords = {};
 var all_catalogPolyline = {};
+window.catalogPolyline = {};
 
 document.addEventListener('DOMContentLoaded', function () {
     const allContents = document.querySelectorAll('[id$="_content"]');

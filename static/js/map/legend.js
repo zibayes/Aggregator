@@ -57,7 +57,7 @@ function setupPointToggle(markersArray, reportName, group, pointName) {
 }
 
 // Функция для создания переключаемого элемента с сохранением оригинальных ID
-function createToggleItem(idPrefix, label, iconColor, report_name, report_type, checked = true, indent = 0) {
+function createToggleItem(idPrefix, label, iconColor, report_name, report_type, group, checked = true, indent = 0) {
     const idMap = {
         'shurfs': 'toggleShurfs',
         'catalog': 'toggleCatalog',
@@ -68,11 +68,11 @@ function createToggleItem(idPrefix, label, iconColor, report_name, report_type, 
 
     return `
 <div style="margin-left: ${indent}px;">
-    <span style="cursor: pointer;" id="${idPrefix}-${report_name}_toggle" class="toggle-icon" onclick="toggleContent('${idPrefix}-${report_name}')">+</span>
-    <input type="checkbox" id="${toggleId}-${report_name}" class="${report_type}_point" style="margin-right: 3px;" ${checked ? 'checked' : ''}>
+    <span style="cursor: pointer;" id="${idPrefix}-${group}_toggle" class="toggle-icon" onclick="toggleContent('${idPrefix}-${group}')">+</span>
+    <input type="checkbox" id="${toggleId}-${group}" class="${report_type}_point" style="margin-right: 3px;" ${checked ? 'checked' : ''}>
     <i style="background: ${iconColor};"></i> ${label}
 </div>
-<div id="${idPrefix}-${report_name}_content" style="margin-left: ${indent + 20}px; display: none;">
+<div id="${idPrefix}-${group}_content" style="margin-left: ${indent + 20}px; display: none;">
 `;
 }
 

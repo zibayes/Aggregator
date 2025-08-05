@@ -1,24 +1,24 @@
 // Общая функция для обработки переключения группы маркеров
 function setupMarkerGroupToggle(options) {
-    console.log(options)
     const {checkboxId, groupPattern, polylineSelector = null} = options;
-    console.log(checkboxId)
-    console.log(document.getElementById(checkboxId))
-    document.getElementById(checkboxId).addEventListener('change', function () {
-        // Обработка маркеров
-        markers.forEach(item => {
-            if (item.group.includes(groupPattern))
-                this.checked ? item.marker.addTo(map) : map.removeLayer(item.marker);
+    let object = document.getElementById(checkboxId)
+    if (object) {
+        object.addEventListener('change', function () {
+            // Обработка маркеров
+            markers.forEach(item => {
+                if (item.group.includes(groupPattern))
+                    this.checked ? item.marker.addTo(map) : map.removeLayer(item.marker);
+            });
+
+            // Обновление дочерних чекбоксов
+            updateChildCheckboxes(this, '.single_point');
+
+            // Обновление полигона, если указан
+            if (polylineSelector) {
+                updatePolylineVisibility(polylineSelector, this.checked);
+            }
         });
-
-        // Обновление дочерних чекбоксов
-        updateChildCheckboxes(this, '.single_point');
-
-        // Обновление полигона, если указан
-        if (polylineSelector) {
-            updatePolylineVisibility(polylineSelector, this.checked);
-        }
-    });
+    }
 }
 
 // Обновление дочерних чекбоксов
@@ -40,8 +40,16 @@ function updatePolylineVisibility(selector, visible) {
 }
 
 // Настройка переключателя полигона
-function setupPolylineToggle(checkboxId, polyline) {
-    document.getElementById(checkboxId).addEventListener('change', function () {
-        this.checked ? polyline.addTo(map) : map.removeLayer(polyline);
-    });
+function setupPolylineToggle(checkboxId, group) {
+    let object = document.getElementById(checkboxId)
+    console.log(object)
+    console.log(group)
+    console.log(window.catalogPolyline)
+    console.log(window.catalogPolyline[group])
+
+    if (object) {
+        object.addEventListener('change', function () {
+            this.checked ? window.catalogPolyline[group].addTo(map) : map.removeLayer(window.catalogPolyline[group]);
+        });
+    }
 }
