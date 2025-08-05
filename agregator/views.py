@@ -244,11 +244,17 @@ def interactive_map(request):
     all_coordinates = {'Акты': {}, 'Научные отчёты': {}, 'Научно-технические отчёты': {}}
     for act in acts:
         all_coordinates['Акты'][
-            act.source_dict[0]['origin_filename']] = act.coordinates_dict  # TODO: Подобрать более удачный нейминг?
+            act.id] = {'coordinates': act.coordinates_dict,
+                       'report_name': act.source_dict[0][
+                           'origin_filename']}
     for report in scientific_reports:
-        all_coordinates['Научные отчёты'][report.source_dict[0]['origin_filename']] = report.coordinates_dict
+        all_coordinates['Научные отчёты'][report.id] = {'coordinates': report.coordinates_dict,
+                                                        'report_name': report.source_dict[0][
+                                                            'origin_filename']}
     for report in tech_report:
-        all_coordinates['Научно-технические отчёты'][report.source_dict[0]['origin_filename']] = report.coordinates_dict
+        all_coordinates['Научно-технические отчёты'][report.id] = {'coordinates': report.coordinates_dict,
+                                                                   'report_name': report.source_dict[0][
+                                                                       'origin_filename']}
     return render(request, 'interactive_map.html', {'all_coordinates': all_coordinates})
 
 

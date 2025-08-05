@@ -182,8 +182,9 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
 
         length, width = df.shape
         if width is not None and last_number_column is not None and width >= last_number_column and length > 1:
-            print('Stykovochnye nomera: ' + str(last_num) + ' ' + str(df.iloc[0, last_number_column]) + ' ' + str(
-                df.iloc[1, last_number_column]))
+            pass
+            # print('Stykovochnye nomera: ' + str(last_num) + ' ' + str(df.iloc[0, last_number_column]) + ' ' + str(
+            #    df.iloc[1, last_number_column]))
         if found_latitude and found_longitude and target_cell:
             # Определяем границы подтаблицы
             current_area = [None]

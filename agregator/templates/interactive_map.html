@@ -236,7 +236,7 @@
                             content += createToggleItem('shurfs', 'Шурфы', 'red', `{{ report_name }}`, `{{ report_type }}`);
                         {% endif %}
                         {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                            content += createToggleItem('catalog', 'Каталог координат участка', 'blue', `{{ report_name }}`, `{{ report_type }}`);
+                            content += createToggleItem('catalog', `{{ group }}` /* 'Каталог координат участка' */, 'blue', `{{ report_name }}`, `{{ report_type }}`);
                         {% endif %}
                         {% if 'фото' in group %}
                             content += createToggleItem('photos', 'Пункты фотофиксации', 'green', `{{ report_name }}`, `{{ report_type }}`);
@@ -266,35 +266,35 @@
                 {% for report_type, reports in all_coordinates.items %}
                     content += createReportSection('report-{{ report_type }}', '{{ report_type }}', '{{ report_type|cut:" "|cut:"."|cut:":" }}');
 
-                    {% for report_name, coordinates in reports.items %}
-                        content += createReportSection('report-{{ report_name }}', '{{ report_name }}', '{{ report_type|cut:" "|cut:"."|cut:":" }}', true, true, '{{ report_name }}');
+                    {% for report_id, report in reports.items %}
+                        content += createReportSection('report-{{ report_id }}', '{{ report.report_name }}', '{{ report_type|cut:" "|cut:"."|cut:":" }}', true, true, '{{ report_id }}');
 
-                        {% for group, point in coordinates.items %}
+                        {% for group, point in report.coordinates.items %}
                             {% if point.coordinate_system or report_type == 'account_card' %}
                                 {% if 'Шурфы' in group %}
-                                    content += createToggleItem('shurfs', 'Шурфы', 'red', `{{ report_name }}`, `{{ report_type }}`, true, 40);
+                                    content += createToggleItem('shurfs', 'Шурфы', 'red', `{{ report_id }}`, `{{ report_type }}`, true, 40);
                                 {% endif %}
                                 {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                    content += createToggleItem('catalog', 'Каталог координат участка', 'blue', `{{ report_name }}`, `{{ report_type }}`, true, 40);
+                                    content += createToggleItem('catalog', 'Каталог координат участка', 'blue', `{{ report_id }}`, `{{ report_type }}`, true, 40);
                                 {% endif %}
                                 {% if 'фото' in group %}
-                                    content += createToggleItem('photos', 'Пункты фотофиксации', 'green', `{{ report_name }}`, `{{ report_type }}`, true, 40);
+                                    content += createToggleItem('photos', 'Пункты фотофиксации', 'green', `{{ report_id }}`, `{{ report_type }}`, true, 40);
                                 {% endif %}
 
                                 {% for point_name, coords in point.items %}
                                     {% if point_name != 'coordinate_system' %}
-                                        content += createCheckboxItem(`togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}`, '{{ point_name }}', true, 40);
+                                        content += createCheckboxItem(`togglePoints-{{ report_id }}-{{ group }}-{{ point_name }}`, '{{ point_name }}', true, 40);
                                     {% endif %}
                                 {% endfor %}
 
                                 {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                    content += createCheckboxItem('toggleCatalogPolyline-{{ report_name }}', 'Полигон', true, 40, '');
+                                    content += createCheckboxItem('toggleCatalogPolyline-{{ report_id }}', 'Полигон', true, 40, '');
                                 {% endif %}
 
                                 content += '</div>'; // Закрытие контента группы
                             {% endif %}
                         {% endfor %}
-                        content += '</div>'; // Закрытие контента report_name
+                        content += '</div>'; // Закрытие контента report_id
                     {% endfor %}
                     content += '</div>'; // Закрытие контента report_type
                 {% endfor %}
@@ -459,52 +459,52 @@
         {% elif all_coordinates %}
             // Главный цикл обработки координат
             {% for report_type, reports in all_coordinates.items %}
-                {% for report_name, coordinates in reports.items %}
-                    all_markers['{{ report_name }}'] = [];
-                    all_catalogCoords['{{ report_name }}'] = [];
+                {% for report_id, report in reports.items %}
+                    all_markers['{{ report_id }}'] = [];
+                    all_catalogCoords['{{ report_id }}'] = [];
 
-                    {% for group, point in coordinates.items %}
+                    {% for group, point in report.coordinates.items %}
                         {% if point.coordinate_system or report_type == 'account_card' %}
                             {% for point_name, coords in point.items %}
                                 {% if point_name != 'coordinate_system' %}
                                     marker = createMapMarker(
                                         {{ coords|safe }},
                                         '{{ report_type }}',
-                                        '{{ report_name }}',
+                                        '{{ report.report_name }}',
                                         '{{ group }}',
                                         '{{ point_name }}',
                                     );
 
-                                    all_markers['{{ report_name }}'].push({
+                                    all_markers['{{ report_id }}'].push({
                                         marker: marker,
                                         group: '{{ group }}',
                                         point_name: '{{ point_name }}'
                                     });
 
                                     {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                        all_catalogCoords['{{ report_name }}'].push({{ coords|safe }});
+                                        all_catalogCoords['{{ report_id }}'].push({{ coords|safe }});
                                     {% endif %}
 
-                                    setupPointToggle(all_markers, '{{ report_name }}', '{{ group }}', '{{ point_name }}');
+                                    setupPointToggle(all_markers, '{{ report_id }}', '{{ group }}', '{{ point_name }}');
                                 {% endif %}
                             {% endfor %}
                         {% endif %}
 
-                        if (all_catalogCoords[`{{ report_name }}`].length > 0) {
-                            all_catalogCoords['{{ report_name }}'].push(all_catalogCoords['{{ report_name }}'][0]);
-                            all_catalogPolyline['{{ report_name }}'] = L.polyline(
-                                all_catalogCoords['{{ report_name }}'],
+                        if (all_catalogCoords[`{{ report_id }}`].length > 0) {
+                            all_catalogCoords['{{ report_id }}'].push(all_catalogCoords['{{ report_id }}'][0]);
+                            all_catalogPolyline['{{ report_id }}'] = L.polyline(
+                                all_catalogCoords['{{ report_id }}'],
                                 {color: 'blue'}
                             ).addTo(map);
-                            setupPolylineCheckbox('{{ report_name }}', all_catalogPolyline['{{ report_name }}']);
+                            setupPolylineCheckbox('{{ report_id }}', all_catalogPolyline['{{ report_id }}']);
                         }
                     {% endfor %}
 
                     // Настройка групповых переключателей
-                    setupGroupToggles('{{ report_name }}', Object.keys(JSON.parse('{{ coordinates|escapejs }}'.replace(/'/g, '"'))), `{{ report_type }}`);
+                    setupGroupToggles('{{ report_id }}', Object.keys(JSON.parse('{{ report.coordinates|escapejs }}'.replace(/'/g, '"'))), `{{ report_type }}`);
 
-                    document.getElementById('toggleMarkerGroup-{{ report_name }}').addEventListener('change', function () {
-                        const reportName = '{{ report_name }}';
+                    document.getElementById('toggleMarkerGroup-{{ report_id }}').addEventListener('change', function () {
+                        const reportName = '{{ report_id }}';
                         const isChecked = this.checked;
 
                         ['Shurfs', 'Catalog', 'PhotoPoints'].forEach(type => {
@@ -587,7 +587,7 @@
                                 </label>
                             </div>
                             <div style="margin-left: 20px;" id="{{ report_type }}_content">
-                                {% for report_name, coordinates in reports.items %}
+                                {% for report_id, report in reports.items %}
                                     {% with counter=forloop.counter %}
                                         <div style="margin-left: 20px;">
                                             <span style="cursor: pointer;"
@@ -603,11 +603,11 @@
                                                         checked
                                                         class="report-{{ report_type|cut:" "|cut:"."|cut:":" }}_point"
                                                         onclick="toggleGroup('report-{{ counter }}')"
-                                                        name="{{ report_name }}">{{ report_name }}
+                                                        name="{{ report_id }}">{{ report.report_name }}
                                             </label>
                                         </div>
                                         <div style="margin-left: 40px;" id="report-{{ counter }}_content">
-                                            {% for group, coords in coordinates.items %}
+                                            {% for group, coords in report.coordinates.items %}
                                                 <div>
                                                     <span style="cursor: pointer;"
                                                           onclick="toggleContent('report-{{ counter }}_{{ group|cut:" "|cut:"."|cut:":" }}')">
@@ -622,7 +622,7 @@
                                                                 checked
                                                                 style="margin-right: 5px;"
                                                                 onclick="toggleGroup('report-{{ counter }}_{{ group|cut:" "|cut:"."|cut:":" }}')"
-                                                                name="{{ report_name }}-{{ group }}">{{ group }}
+                                                                name="{{ report_id }}-{{ group }}">{{ group }}
                                                     </label>
                                                 </div>
                                                 <div id="report-{{ counter }}_{{ group|cut:" "|cut:"."|cut:":" }}_content"
@@ -633,7 +633,7 @@
                                                                    class="report-{{ counter }}_{{ group|cut:" "|cut:"."|cut:":" }}_point report-{{ report_type|cut:" "|cut:"."|cut:":" }}_point report-{{ counter }}_point"
                                                                    checked
                                                                    id="{{ group|cut:" "|cut:"."|cut:":" }}_{{ point_name }}_checkbox"
-                                                                   name="{{ report_type }}-{{ report_name }}-{{ group }}-{{ point_name }}">
+                                                                   name="{{ report_type }}-{{ report_id }}-{{ group }}-{{ point_name }}">
                                                             <label for="{{ group|cut:" "|cut:"."|cut:":" }}_{{ point_name }}_checkbox">{{ point_name }}
                                                                 ({{ coordinates.0 }},
                                                                 {{ coordinates.1 }})</label><br>
