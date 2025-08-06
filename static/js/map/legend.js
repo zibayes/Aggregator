@@ -40,20 +40,20 @@ function createMapMarker(point, reportType, reportName, group, point_name) {
 
 // Обработчик изменения состояния точки
 function setupPointToggle(markersArray, reportName, group, pointName) {
-    document.getElementById(`togglePoints-${reportName}-${group}-${pointName}`)
-        .addEventListener('change', function () {
-            let array;
-            if (`${reportName}` in markersArray) {
-                array = markersArray[`${reportName}`];
-            } else {
-                array = markersArray;
+    let object = document.getElementById(`togglePoints-${reportName}-${group}-${pointName}`);
+    object.addEventListener('change', function () {
+        let array;
+        if (`${reportName}` in markersArray) {
+            array = markersArray[`${reportName}`];
+        } else {
+            array = markersArray;
+        }
+        array.forEach(item => {
+            if (item.group.includes(group) && item.point_name === pointName) {
+                this.checked ? item.marker.addTo(map) : map.removeLayer(item.marker);
             }
-            array.forEach(item => {
-                if (item.group.includes(group) && item.point_name === pointName) {
-                    this.checked ? item.marker.addTo(map) : map.removeLayer(item.marker);
-                }
-            });
         });
+    });
 }
 
 // Функция для создания переключаемого элемента с сохранением оригинальных ID
@@ -68,11 +68,11 @@ function createToggleItem(idPrefix, label, iconColor, report_name, report_type, 
 
     return `
 <div style="margin-left: ${indent}px;">
-    <span style="cursor: pointer;" id="${idPrefix}-${group}_toggle" class="toggle-icon" onclick="toggleContent('${idPrefix}-${group}')">+</span>
-    <input type="checkbox" id="${toggleId}-${group}" class="${report_type}_point" style="margin-right: 3px;" ${checked ? 'checked' : ''}>
+    <span style="cursor: pointer;" id="${idPrefix}-${report_name}-${group}_toggle" class="toggle-icon" onclick="toggleContent('${idPrefix}-${report_name}-${group}')">+</span>
+    <input type="checkbox" id="${toggleId}-${report_name}-${group}" class="${report_type}_point" style="margin-right: 3px;" ${checked ? 'checked' : ''}>
     <i style="background: ${iconColor};"></i> ${label}
 </div>
-<div id="${idPrefix}-${group}_content" style="margin-left: ${indent + 20}px; display: none;">
+<div id="${idPrefix}-${report_name}-${group}_content" style="margin-left: ${indent + 20}px; display: none;">
 `;
 }
 

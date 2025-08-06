@@ -9,7 +9,7 @@ var all_markers = {};
 var bounds = L.latLngBounds();
 var catalogCoords = [];
 var all_catalogCoords = {};
-var all_catalogPolyline = {};
+window.all_catalogPolyline = {};
 window.catalogPolyline = {};
 
 document.addEventListener('DOMContentLoaded', function () {

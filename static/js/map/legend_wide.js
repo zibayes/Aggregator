@@ -42,8 +42,8 @@ function updatePolylineVisibility(checkboxId, visible, polyline) {
     }
 }
 
-function setupPolylineCheckbox(reportName, polyline) {
-    const checkboxId = `toggleCatalogPolyline-${reportName}`;
+function setupPolylineCheckbox(reportName, group, polyline) {
+    const checkboxId = `toggleCatalogPolyline-${reportName}-${group}`;
     const checkbox = document.getElementById(checkboxId);
 
     if (!checkbox || !polyline) return;

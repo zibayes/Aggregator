@@ -275,7 +275,7 @@
                                     content += createToggleItem('shurfs', 'Шурфы', 'red', `{{ report_id }}`, `{{ report_type }}`, `{{ group }}`, true, 40);
                                 {% endif %}
                                 {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                    content += createToggleItem('catalog', 'Каталог координат участка', 'blue', `{{ report_id }}`, `{{ report_type }}`, `{{ group }}`, true, 40);
+                                    content += createToggleItem('catalog', `{{ group }}` /* 'Каталог координат участка' */, 'blue', `{{ report_id }}`, `{{ report_type }}`, `{{ group }}`, true, 40);
                                 {% endif %}
                                 {% if 'фото' in group %}
                                     content += createToggleItem('photos', 'Пункты фотофиксации', 'green', `{{ report_id }}`, `{{ report_type }}`, `{{ group }}`, true, 40);
@@ -288,7 +288,7 @@
                                 {% endfor %}
 
                                 {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                    content += createCheckboxItem('toggleCatalogPolyline-{{ report_id }}', 'Полигон', true, 40, '');
+                                    content += createCheckboxItem('toggleCatalogPolyline-{{ report_id }}-{{ group }}', 'Полигон', true, 40, '');
                                 {% endif %}
 
                                 content += '</div>'; // Закрытие контента группы
@@ -346,22 +346,25 @@
                         }
 
                         // Особый случай для полигона каталога
-                        if ((group.includes('Каталог') || reportType === 'commercial_offer') && (typeof window.catalogPolyline[group] !== 'undefined' || typeof all_catalogPolyline !== 'undefined')) {
+                        if ((group.includes('Каталог') || reportType === 'commercial_offer') && (typeof window.catalogPolyline[group] !== 'undefined' || typeof window.all_catalogPolyline[reportName] !== 'undefined')) {
                             if (typeof window.catalogPolyline[group] !== 'undefined') {
                                 if (this.checked) {
                                     window.catalogPolyline[group].addTo(map);
                                 } else {
                                     map.removeLayer(window.catalogPolyline[group]);
                                 }
-                            } else if (typeof all_catalogPolyline !== 'undefined') {
+                            } else if (typeof window.all_catalogPolyline[reportName] !== 'undefined') {
                                 if (this.checked) {
-                                    all_catalogPolyline[reportName].addTo(map);
+                                    console.log(group)
+                                    console.log(window.all_catalogPolyline[reportName])
+                                    console.log(window.all_catalogPolyline[reportName][group])
+                                    window.all_catalogPolyline[reportName][group].addTo(map);
                                 } else {
-                                    map.removeLayer(all_catalogPolyline[reportName]);
+                                    map.removeLayer(window.all_catalogPolyline[reportName][group]);
                                 }
                             }
 
-                            const polylineCheckbox = document.getElementById(`toggleCatalogPolyline${reportName ? '-' + reportName : ''}`);
+                            const polylineCheckbox = document.getElementById(`toggleCatalogPolyline${reportName ? '-' + reportName + '-' + group : ''}`);
                             if (polylineCheckbox) {
                                 polylineCheckbox.checked = this.checked;
                             }
@@ -373,16 +376,16 @@
 
         function getGroupCheckboxId(reportName, groupName, reportType) {
             if (groupName.includes('Каталог')) {
-                return `toggleCatalog-${reportName}`;
+                return `toggleCatalog-${reportName}-${groupName}`;
             }
             if (groupName.includes('Шурфы')) {
-                return `toggleShurfs-${reportName}`;
+                return `toggleShurfs-${reportName}-${groupName}`;
             }
             if (groupName.includes('фото')) {
-                return `togglePhotoPoints-${reportName}`;
+                return `togglePhotoPoints-${reportName}-${groupName}`;
             }
             if (groupName.includes('Центр') || reportType === 'geo_object') {
-                return `toggleCenterPoints-${reportName}`;
+                return `toggleCenterPoints-${reportName}-${groupName}`;
             }
             return `toggleGroup-${reportName}-${groupName.replace(/\s+/g, '-')}`;
         }
@@ -427,14 +430,14 @@
                 // Применение функций к конкретным группам
                 {% if 'Шурфы' in group %}
                     setupMarkerGroupToggle({
-                        checkboxId: 'toggleShurfs-{{ group }}',
+                        checkboxId: 'toggleShurfs-{{ report_name }}-{{ group }}',
                         groupPattern: 'Шурф'
                     });
                 {% endif %}
 
                 {% if 'Каталог' in group or report_type == 'commercial_offer' %}
                     setupMarkerGroupToggle({
-                        checkboxId: 'toggleCatalog-{{ group }}',
+                        checkboxId: 'toggleCatalog-{{ report_name }}-{{ group }}',
                         groupPattern: 'каталог координат участка',
                         polylineSelector: '#toggleCatalogPolyline-{{ group|cut:" "|cut:"."|cut:":"|cut:"["|cut:"]"|cut:"("|cut:")" }}'
                     });
@@ -443,14 +446,14 @@
 
                 {% if 'фото' in group %}
                     setupMarkerGroupToggle({
-                        checkboxId: 'togglePhotoPoints-{{ group }}',
+                        checkboxId: 'togglePhotoPoints-{{ report_name }}-{{ group }}',
                         groupPattern: 'Пункты фотофиксации'
                     });
                 {% endif %}
 
                 {% if 'Центр' in group or report_type == 'geo_object' %}
                     setupMarkerGroupToggle({
-                        checkboxId: 'toggleCenterPoints-{{ group }}',
+                        checkboxId: 'toggleCenterPoints-{{ report_name }}-{{ group }}',
                         groupPattern: 'Центр объекта'
                     });
                 {% endif %}
@@ -464,6 +467,7 @@
                 {% for report_id, report in reports.items %}
                     all_markers['{{ report_id }}'] = [];
                     all_catalogCoords['{{ report_id }}'] = [];
+                    window.all_catalogPolyline['{{ report_id }}'] = {}
 
                     {% for group, point in report.coordinates.items %}
                         {% if point.coordinate_system or report_type == 'account_card' %}
@@ -494,27 +498,33 @@
 
                         if (all_catalogCoords[`{{ report_id }}`].length > 0) {
                             all_catalogCoords['{{ report_id }}'].push(all_catalogCoords['{{ report_id }}'][0]);
-                            all_catalogPolyline['{{ report_id }}'] = L.polyline(
+                            window.all_catalogPolyline['{{ report_id }}']['{{ group }}'] = L.polyline(
                                 all_catalogCoords['{{ report_id }}'],
                                 {color: 'blue'}
                             ).addTo(map);
-                            setupPolylineCheckbox('{{ report_id }}', all_catalogPolyline['{{ report_id }}']);
+                            setupPolylineCheckbox('{{ report_id }}', '{{ group }}', window.all_catalogPolyline['{{ report_id }}']['{{ group }}']);
                         }
+                        all_catalogCoords['{{ report_id }}'] = []
                     {% endfor %}
 
+                    all_groups = Object.keys(JSON.parse('{{ report.coordinates|escapejs }}'.replace(/'/g, '"')));
                     // Настройка групповых переключателей
-                    setupGroupToggles('{{ report_id }}', Object.keys(JSON.parse('{{ report.coordinates|escapejs }}'.replace(/'/g, '"'))), `{{ report_type }}`);
+                    setupGroupToggles('{{ report_id }}', all_groups, `{{ report_type }}`);
 
                     document.getElementById('toggleMarkerGroup-{{ report_id }}').addEventListener('change', function () {
                         const reportName = '{{ report_id }}';
                         const isChecked = this.checked;
 
                         ['Shurfs', 'Catalog', 'PhotoPoints'].forEach(type => {
-                            const checkbox = document.getElementById(`toggle${type}-${reportName}`);
-                            if (checkbox) {
-                                checkbox.checked = isChecked;
-                                checkbox.dispatchEvent(new Event('change'));
-                            }
+                            all_groups.forEach(group => {
+                                const checkbox = document.getElementById(`toggle${type}-${group}`);
+                                console.log(`toggle${type}-${group}`)
+                                console.log(checkbox)
+                                if (checkbox) {
+                                    checkbox.checked = isChecked;
+                                    checkbox.dispatchEvent(new Event('change'));
+                                }
+                            });
                         });
                     });
                 {% endfor %}

@@ -42,11 +42,6 @@ function updatePolylineVisibility(selector, visible) {
 // Настройка переключателя полигона
 function setupPolylineToggle(checkboxId, group) {
     let object = document.getElementById(checkboxId)
-    console.log(object)
-    console.log(group)
-    console.log(window.catalogPolyline)
-    console.log(window.catalogPolyline[group])
-
     if (object) {
         object.addEventListener('change', function () {
             this.checked ? window.catalogPolyline[group].addTo(map) : map.removeLayer(window.catalogPolyline[group]);
