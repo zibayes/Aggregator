@@ -474,54 +474,60 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
     if points_type or found_table:
         if points_type not in coordinates.keys():
             coordinates[points_type] = {}
-        if page_tables and len(page_tables[0]) > 1 and len(page_tables[0][0]) > 1:
-            # print(page_tables[0][0], page_tables[0][1])
-            if 'Северная широта' in page_tables[0][1][1] or 'Восточная долгота' in page_tables[0][0][
-                1] or re.search(r'\bX\b', page_tables[0][0][1], re.IGNORECASE) or re.search(r'\bY\b',
-                                                                                            page_tables[0][0][
-                                                                                                1]) or \
-                    ('°' in page_tables[0][1][1] and '\'' in page_tables[0][1][1] and '"' in page_tables[0][1][
-                        1] and
-                     ('N' in page_tables[0][1][1] or 'E' in page_tables[0][1][1] or 'W' in page_tables[0][1][
-                         1] or 'S' in page_tables[0][1])):
-                df_new = pd.DataFrame(page_tables[0], columns=['№', 'Северная широта', 'Восточная долгота'])
+        print('TEST TABLES !!! ' + str(coordinates))
+        if page_tables:
+            for page_table in page_tables:
+                print(page_table)
+                print(len(page_table))
+                print(len(page_table[0]))
+                if len(page_table) > 1 and len(page_table[0]) > 1:
+                    print(page_table[0], page_table[1])
+                    print(page_table[0][1], page_table[0][1])
+                    if 'Северная широта' in page_table[0][1] or 'Восточная долгота' in page_table[0][
+                        1] or re.search(r'\bX\b', page_table[0][1], re.IGNORECASE) or re.search(r'\bY\b',
+                                                                                                page_table[0][
+                                                                                                    1]) or \
+                            ('°' in page_table[1][1] and '\'' in page_table[1][1] and '"' in page_table[1][
+                                1] and
+                             ('N' in page_table[1][1] or 'E' in page_table[1][1] or 'W' in page_table[1][
+                                 1] or 'S' in page_table[1])):
+                        df_new = pd.DataFrame(page_table, columns=['№', 'Северная широта', 'Восточная долгота'])
 
-                for index, row in df_new.iterrows():
-                    if row is None or not row['Северная широта'] or not row['Восточная долгота']:
-                        continue
-                    if row['Северная широта'] and row['Восточная долгота'] and (
-                            'Северная широта' in row['Северная широта'] or 'Восточная долгота' in row[
-                        'Северная широта'] or \
-                            'Северная широта' in row['Восточная долгота'] or 'Восточная долгота' in row[
-                                'Восточная долгота'] or re.search(r'\bX\b', row['Северная широта'],
-                                                                  re.IGNORECASE) or re.search(r'\bY\b', row[
-                        'Восточная долгота'])):
-                        continue
-                    point_number = row['№']
-                    lat = row['Северная широта']
-                    lon = row['Восточная долгота']
-                    if 'wgs84' in coords_system:
-                        lat = dms_to_decimal(lat)
-                        lon = dms_to_decimal(lon)
-                        coordinates[points_type]['coordinate_system'] = 'wgs84'
+                        for index, row in df_new.iterrows():
+                            if row is None or not row['Северная широта'] or not row['Восточная долгота']:
+                                continue
+                            if row['Северная широта'] and row['Восточная долгота'] and (
+                                    'Северная широта' in row['Северная широта'] or 'Восточная долгота' in row[
+                                'Северная широта'] or \
+                                    'Северная широта' in row['Восточная долгота'] or 'Восточная долгота' in row[
+                                        'Восточная долгота'] or re.search(r'\bX\b', row['Северная широта'],
+                                                                          re.IGNORECASE) or re.search(r'\bY\b', row[
+                                'Восточная долгота'])):
+                                continue
+                            point_number = row['№']
+                            lat = row['Северная широта']
+                            lon = row['Восточная долгота']
+                            if 'wgs84' in coords_system:
+                                lat = dms_to_decimal(lat)
+                                lon = dms_to_decimal(lon)
+                                coordinates[points_type]['coordinate_system'] = 'wgs84'
+                            else:
+                                lat, lon = convert_to_wgs84(lat, lon, coords_system)
+                                coordinates[points_type]['coordinate_system'] = coords_system
+
+                            if 'S' in row['Северная широта']:
+                                lat = -lat
+                            if 'W' in row['Восточная долгота']:
+                                lon = -lon
+
+                            coordinates[points_type][point_number] = [lat, lon]
                     else:
-                        lat, lon = convert_to_wgs84(lat, lon, coords_system)
-                        coordinates[points_type]['coordinate_system'] = coords_system
-
-                    if 'S' in row['Северная широта']:
-                        lat = -lat
-                    if 'W' in row['Восточная долгота']:
-                        lon = -lon
-
-                    coordinates[points_type][point_number] = [lat, lon]
-            else:
-                is_coord_table = False
-        else:
-            is_coord_table = False
+                        tables.append(page_table)
+                        continue
+                else:
+                    tables.append(page_table)
+                    continue
     else:
-        is_coord_table = False
-
-    if is_coord_table is False:
         for table in page_tables:
             if table:
                 tables.append(table)
@@ -552,6 +558,7 @@ def format_coordinates(results, coordinate_systems):
                 ':', '')
             new_coordinate_systems.append(coords_system)
     coordinate_systems = new_coordinate_systems
+    print('coordinate_systems: ' + str(coordinate_systems))
 
     counter = 0
     for table in results:
@@ -615,13 +622,17 @@ def format_coordinates(results, coordinate_systems):
                     if 'wgs84' in coordinate_systems and re.search(r'\d+°\s*\d+\'\s*\d+[\.,]\d+"', lat,
                                                                    re.IGNORECASE) and re.search(
                         r'\d+°\s*\d+\'\s*\d+[\.,]\d+"', lon, re.IGNORECASE):
+                        print('HERE1')
                         lat = dms_to_decimal(lat)
                         lon = dms_to_decimal(lon)
                         if ' (wgs84)' not in points_type:
                             points_type += ' (wgs84)'
-                            if points_type not in coordinates.keys():
-                                coordinates[points_type] = {}
-                            coordinates[points_type]['coordinate_system'] = 'wgs84'
+                        if points_type not in coordinates.keys():
+                            coordinates[points_type] = {}
+                        coordinates[points_type]['coordinate_system'] = 'wgs84'
+                        print('HERE2')
+                        print(coordinates)
+                        print(coordinates[points_type])
                     else:
                         coord_sys = None
                         for coord_sys_iter in coordinate_systems:

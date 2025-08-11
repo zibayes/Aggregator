@@ -170,7 +170,7 @@ def extract_captions(text: str) -> tuple:
                 last_encounter = len(text)
             caption = text[first_encounter:last_encounter]
             captions.append(caption)
-            number = re.search(caption_type + r' .*\d+', captions[i], re.IGNORECASE)
+            number = re.search(caption_type + r' .*?\d+', captions[i], re.IGNORECASE)
             if number:
                 number = re.search(r'\d+', number.group(0), re.IGNORECASE).group(0)
                 captions_nums.append(number)
@@ -182,12 +182,12 @@ def extract_captions(text: str) -> tuple:
             for j in range(captions_len):
                 if i == j:
                     continue
-                cap1 = re.search(caption_type + r' .*\d+', captions[i], re.IGNORECASE)
+                cap1 = re.search(caption_type + r' .*?\d+', captions[i], re.IGNORECASE)
                 if cap1:
                     cap1 = re.search(r'\d+', cap1.group(0), re.IGNORECASE).group(0)
                 else:
                     continue
-                cap2 = re.search(caption_type + r' .*\d+', captions[j], re.IGNORECASE)
+                cap2 = re.search(caption_type + r' .*?\d+', captions[j], re.IGNORECASE)
                 if cap2:
                     cap2 = re.search(r'\d+', cap2.group(0), re.IGNORECASE).group(0)
                 else:
@@ -277,7 +277,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
             elif 'шурф' in lowered_image_text:
                 current_folder += '/Шурфы'
                 Path(current_folder).mkdir(exist_ok=True)
-                pit = re.search(r'Шурф.* № *\d+', image_text, re.IGNORECASE)
+                pit = re.search(r'Шурф.*? № *\d+', image_text, re.IGNORECASE)
                 if pit:
                     current_folder += '/Ш' + pit.group(0)[1:]
                 supplement_content["pits_fotos"].append({"label": image_text, "image_num": image_num,
@@ -289,7 +289,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
             elif 'зачистка' in lowered_image_text or 'заичистка' in lowered_image_text:
                 current_folder += '/Шурфы'
                 Path(current_folder).mkdir(exist_ok=True)
-                pit = re.search(r'Зачистка.* № *\d+', image_text, re.IGNORECASE)
+                pit = re.search(r'Зачистка.*? № *\d+', image_text, re.IGNORECASE)
                 if pit:
                     current_folder += '/З' + pit.group(0)[1:]
                 supplement_content["pits_fotos"].append({"label": image_text, "image_num": image_num,
@@ -297,7 +297,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
             elif 'врезка' in lowered_image_text:
                 current_folder += '/Шурфы'
                 Path(current_folder).mkdir(exist_ok=True)
-                pit = re.search(r'Врезка.* № *\d+', image_text, re.IGNORECASE)
+                pit = re.search(r'Врезка.*? № *\d+', image_text, re.IGNORECASE)
                 if pit:
                     current_folder += '/В' + pit.group(0)[1:]
                 supplement_content["pits_fotos"].append(

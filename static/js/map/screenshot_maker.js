@@ -123,6 +123,14 @@ async function prtScrExcavation(mapElement, data) {
 }
 
 async function showLayers(data) {
+    showPopup("Дождитесь окончания создания изображений, не предпринимайте никаких действий");
+    map.dragging.disable();
+    map.touchZoom.disable();
+    map.doubleClickZoom.disable();
+    map.scrollWheelZoom.disable();
+    map.boxZoom.disable();
+    map.keyboard.disable();
+
     const mapElement = document.getElementById('map');
     result = prtScrCountry(mapElement, data, '1100px', '770px', '#ff0000', 0.3, '#3fb7ed', 0.3, false)
     layers_russia = result[0][0];
@@ -191,6 +199,45 @@ async function showLayers(data) {
     setTimeout(function () {
         takeScreenshot();
     }, 2000);
+
+    setTimeout(function () {
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+        showPopup("Создание изображений завершено");
+    }, 2000);
+}
+
+function showPopup(message, duration = 5000) {
+    // Создаем элемент popup, если его еще нет
+    let popup = document.getElementById('custom-popup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'custom-popup';
+        popup.style.position = 'fixed';
+        popup.style.bottom = '20px';
+        popup.style.right = '20px';
+        popup.style.padding = '10px 20px';
+        popup.style.backgroundColor = '#333';
+        popup.style.color = 'white';
+        popup.style.borderRadius = '5px';
+        popup.style.zIndex = '1000';
+        popup.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+        popup.style.display = 'none';
+        document.body.appendChild(popup);
+    }
+
+    // Устанавливаем сообщение и показываем popup
+    popup.textContent = message;
+    popup.style.display = 'block';
+
+    // Автоматическое скрытие через указанное время
+    setTimeout(() => {
+        popup.style.display = 'none';
+    }, duration);
 }
 
 document.getElementById('screenshotButton').addEventListener('click', function () {
