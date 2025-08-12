@@ -696,12 +696,14 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                 search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
         total_processed[0] += len(document)
 
+    '''
     if select_coord:
         results, coordinate_systems, full_text = analyze_coordinates_in_tables_from_pdf(tables, file)
         if results is not None:
             print(results)
             coordinates = coordinates | format_coordinates(results, coordinate_systems)
             print('COORDS!!!!: ' + str(coordinates))
+    '''
 
     if ('Площадь, протяжённость и/или др. параменты объекта' not in table_info.keys() or \
         'Общ. S' not in table_info['Площадь, протяжённость и/или др. параменты объекта']) and len(SQUARE_RESERVE) > 0:

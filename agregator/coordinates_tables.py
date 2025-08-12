@@ -446,12 +446,14 @@ def extract_coordinates_xlsx(file_path):
 
 
 def search_coords_in_text(pdf, page_number, document, tables, text, coordinates):
-    is_coord_table = True
     found_table = False
     points_type = None
     coords_system = None
 
     page_tables = pdf.pages[page_number].extract_tables()
+    next_page_tables = None
+    if page_number + 1 < len(pdf.pages):
+        next_page_tables = pdf.pages[page_number + 1].extract_tables()
     if page_number < len(document) - 1:
         next_page = document[page_number + 1]
         text += next_page.get_text()
@@ -463,9 +465,20 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
             points_type = re.search(
                 r'Каталог\s+координат\s+Участка\.\s+Система\s+координат\S*\s+\S+\d+(?:,\s*зона\s*\d+)?\b', text,
                 re.IGNORECASE | re.MULTILINE)
+            if not points_type:
+                points_type = re.search(
+                    r'Каталог\s+координат\s+\S+\d+(?:,\s*зона\s*\d+)?\b', text,
+                    re.IGNORECASE | re.MULTILINE)
+        if not points_type:
+            points_type = re.search(
+                r'Точки\s+археологических\s+раскрытий\s+[\S\s]+?\d+(?:,\s*зона\s*\d+)?\b', text,
+                re.IGNORECASE | re.MULTILINE)
+            if points_type:
+                points_type = points_type.group(0).replace('Точки археологических раскрытий', 'Шурфы')
         if points_type:
-            points_type = points_type.group(0)
-            coords_system = re.search(r'\b(?:wgs|мск)-?\d+(?:,\s*зона\s*\d+)?\b', points_type,
+            if not isinstance(points_type, str):
+                points_type = points_type.group(0)
+            coords_system = re.search(r'\b(?:wgs|мск|гск)-?\d+(?:,\s*зона\s*\d+)?\b', points_type,
                                       re.IGNORECASE | re.MULTILINE)
             if coords_system:
                 coords_system = coords_system.group(0).lower().replace(' ', '').replace('-', '').replace(',',
@@ -476,22 +489,60 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
             coordinates[points_type] = {}
         print('TEST TABLES !!! ' + str(coordinates))
         if page_tables:
-            for page_table in page_tables:
-                print(page_table)
-                print(len(page_table))
-                print(len(page_table[0]))
-                if len(page_table) > 1 and len(page_table[0]) > 1:
-                    print(page_table[0], page_table[1])
-                    print(page_table[0][1], page_table[0][1])
-                    if 'Северная широта' in page_table[0][1] or 'Восточная долгота' in page_table[0][
-                        1] or re.search(r'\bX\b', page_table[0][1], re.IGNORECASE) or re.search(r'\bY\b',
-                                                                                                page_table[0][
-                                                                                                    1]) or \
-                            ('°' in page_table[1][1] and '\'' in page_table[1][1] and '"' in page_table[1][
-                                1] and
-                             ('N' in page_table[1][1] or 'E' in page_table[1][1] or 'W' in page_table[1][
-                                 1] or 'S' in page_table[1])):
-                        df_new = pd.DataFrame(page_table, columns=['№', 'Северная широта', 'Восточная долгота'])
+            tables_len = len(page_tables)
+            for i in range(tables_len):
+                print(page_tables[i])
+                print(len(page_tables[i]))
+                print(len(page_tables[i][0]))
+                if next_page_tables:
+                    print('next_page_tables[0]: ' + str(next_page_tables[0]))
+                if len(page_tables[i]) > 0 and len(page_tables[i][0]) > 1:
+                    print('+' * 50)
+                    print(page_tables[i])
+                    print(i + 1 == tables_len)
+                    print(next_page_tables[0])
+                    print(page_tables[i][0])
+                    print(next_page_tables[0][0])
+                    print(str(page_tables[i] + next_page_tables[0]))
+                    print('+' * 50)
+                    if check_is_coordinate_table(page_tables[i]):
+                        last_tables_joined = False
+                        if i + 1 < tables_len:
+                            for j in range(i + 1, tables_len):
+                                print('TRY1: ' + str(page_tables[i]))
+                                print('TRY2: ' + str(page_tables[j]))
+                                if check_tables_joining(page_tables[i], page_tables[j]):
+                                    print('CHAINED!!!!')
+                                    page_tables[i] += page_tables[j]
+                                    if j + 1 == tables_len:
+                                        last_tables_joined = True
+                                else:
+                                    break
+                        next_page_joined = True
+                        k = 2
+                        while next_page_joined and next_page_tables:
+                            if (i + 1 == tables_len or last_tables_joined) and next_page_tables:
+                                for j in range(len(next_page_tables)):
+                                    if check_tables_joining(page_tables[i], next_page_tables[j]):
+                                        page_tables[i] += next_page_tables[j]
+                                    else:
+                                        next_page_joined = False
+                                        break
+                                # page_tables[i] += next_page_tables[0]
+                            if page_number + k < len(pdf.pages):
+                                next_page_tables = pdf.pages[page_number + k].extract_tables()
+                                k += 1
+                if len(page_tables[i]) > 1 and len(page_tables[i][0]) > 1:
+                    print(page_tables[i][0], page_tables[i][1])
+                    print(page_tables[i][0][1], page_tables[i][0][1])
+
+                    if check_is_coordinate_table(page_tables[i]):
+                        if 'полигон' in ''.join(page_tables[i][0]).lower():
+                            columns = ['№ полигона', '№', 'Северная широта', 'Восточная долгота']
+                        else:
+                            columns = ['№', 'Северная широта', 'Восточная долгота']
+                        df_new = pd.DataFrame([row[:len(columns)] for row in page_tables[i]],
+                                              columns=columns)
 
                         for index, row in df_new.iterrows():
                             if row is None or not row['Северная широта'] or not row['Восточная долгота']:
@@ -502,18 +553,18 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
                                     'Северная широта' in row['Восточная долгота'] or 'Восточная долгота' in row[
                                         'Восточная долгота'] or re.search(r'\bX\b', row['Северная широта'],
                                                                           re.IGNORECASE) or re.search(r'\bY\b', row[
-                                'Восточная долгота'])):
+                                'Восточная долгота']) or 'номер' in ''.join(row)):
                                 continue
                             point_number = row['№']
-                            lat = row['Северная широта']
-                            lon = row['Восточная долгота']
+                            lat = row['Северная широта'].replace(',', '.')
+                            lon = row['Восточная долгота'].replace(',', '.')
                             if 'wgs84' in coords_system:
                                 lat = dms_to_decimal(lat)
                                 lon = dms_to_decimal(lon)
                                 coordinates[points_type]['coordinate_system'] = 'wgs84'
-                            else:
+                            elif str.isdigit(lat) and str.isdigit(lon):
                                 lat, lon = convert_to_wgs84(lat, lon, coords_system)
-                                coordinates[points_type]['coordinate_system'] = coords_system
+                                coordinates[points_type]['coordinate_system'] = 'wgs84'  # coords_system
 
                             if 'S' in row['Северная широта']:
                                 lat = -lat
@@ -522,10 +573,10 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
 
                             coordinates[points_type][point_number] = [lat, lon]
                     else:
-                        tables.append(page_table)
+                        tables.append(page_tables[i])
                         continue
                 else:
-                    tables.append(page_table)
+                    tables.append(page_tables[i])
                     continue
     else:
         for table in page_tables:
@@ -533,17 +584,41 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
                 tables.append(table)
 
     pits_coordinates = re.findall(
-        r'Шурф\s№\s\d+[\s\S]+?Координаты\s+шурфа\s+в\s+системе\s+WGS-\d+:*\s+[NS]\d+°\d+\'\d+[\.,]\d+";*\s+[EW]\d+°\d+\'\d+[\.,]\d+"',
+        r'Шурф\s+№\s+\d+\**[\s\S]+?Координаты\s+шурфа\s+в\s+системе\s+WGS-\d+:*\s+[NSEW]\s*?\d+°\d+\'\d+[\.,]\d+";*\s+[NSEW]\s*?\d+°\d+\'\d+[\.,]\d+"',
         text, re.IGNORECASE)
     # r'([NS])(\d{1,2})°(\d{1,2})\'(\d{1,2}\.\d{1,2})"\s+([EW])(\d{1,3})°(\d{1,2})\'(\d{1,2}\.\d{1,2})"'
     for coord in pits_coordinates:
-        pit_number = re.search(r'Шурф\s+№\s+\d+', coord, re.IGNORECASE).group(0)
-        lat = dms_to_decimal(re.search(r'[NS]\d+°\d+\'\d+[\.,]\d+"', coord, re.IGNORECASE).group(0))
-        lon = dms_to_decimal(re.search(r'[EW]\d+°\d+\'\d+[\.,]\d+"', coord, re.IGNORECASE).group(0))
+        pit_number = re.search(r'Шурф\s+№\s+\d+\**', coord, re.IGNORECASE).group(0)
+        lat = dms_to_decimal(re.search(r'[NS]\s*?\d+°\d+\'\d+[\.,]\d+"', coord, re.IGNORECASE).group(0))
+        lon = dms_to_decimal(re.search(r'[EW]\s*?\d+°\d+\'\d+[\.,]\d+"', coord, re.IGNORECASE).group(0))
         if 'Шурфы' not in coordinates:
             coordinates['Шурфы'] = {'coordinate_system': 'wgs84'}
         coordinates['Шурфы'][pit_number] = [lat, lon]
     # extract_coordinates(file, document, page_number, folder, coordinates)
+
+
+def check_tables_joining(page_table: list, adjoining_table: list) -> bool:
+    if adjoining_table and check_is_coordinate_table(
+            adjoining_table) and len(page_table[0]) == len(adjoining_table[0]) and (
+            str.isdigit(adjoining_table[0][0]) and (int(adjoining_table[0][0]) == 1 or (
+            str.isdigit(page_table[0][-1]) and (int(page_table[0][-1]) <= int(
+        adjoining_table[0][0]) <= int(page_table[0][-1]) + 2)))):
+        return True
+    return False
+
+
+def check_is_coordinate_table(page_table: list) -> bool:
+    if (len(page_table) > 0 and len(page_table[0]) > 1) and (
+            'Северная широта' in page_table[0][1] or 'Восточная долгота' in page_table[0][
+        1] or re.search(r'\bX\b', page_table[0][1], re.IGNORECASE) or re.search(r'\bY\b',
+                                                                                page_table[0][
+                                                                                    1]) or \
+            ('°' in page_table[1][1] and '\'' in page_table[1][1] and '"' in page_table[1][
+                1] and
+             ('N' in page_table[1][1] or 'E' in page_table[1][1] or 'W' in page_table[1][
+                 1] or 'S' in page_table[1])) or re.search(r'\b\d+[\.,]*\d*\b', page_table[1][1], re.IGNORECASE)):
+        return True
+    return False
 
 
 def format_coordinates(results, coordinate_systems):
