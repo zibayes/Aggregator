@@ -74,6 +74,14 @@ def convert_proj4(x, y, init_system, final_system):
     return x, y
 
 
+def str_is_float(string):
+    try:
+        result = float(string)
+    except ValueError:
+        return False
+    return True
+
+
 def normalize_coordinates(coord: str) -> str:
     coord = coord.strip()
     coord = coord.replace(' 0', ' ').replace(' ', '"')
@@ -467,50 +475,41 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
                 re.IGNORECASE | re.MULTILINE)
             if not points_type:
                 points_type = re.search(
-                    r'Каталог\s+координат\s+\S+\d+(?:,\s*зона\s*\d+)?\b', text,
+                    r'Каталог\s+координат\s+\b(?:wgs|мск|гск)-?\d+(?:,\s*зона\s*\d+)?\b', text,
                     re.IGNORECASE | re.MULTILINE)
         if not points_type:
             points_type = re.search(
                 r'Точки\s+археологических\s+раскрытий\s+[\S\s]+?\d+(?:,\s*зона\s*\d+)?\b', text,
                 re.IGNORECASE | re.MULTILINE)
             if points_type:
-                points_type = points_type.group(0).replace('Точки археологических раскрытий', 'Шурфы')
+                points_type = points_type.group(0).replace('Точки археологических раскрытий', 'Шурфы').replace('\n',
+                                                                                                               ' ')
         if points_type:
             if not isinstance(points_type, str):
-                points_type = points_type.group(0)
+                points_type = points_type.group(0).replace('\n', ' ')
             coords_system = re.search(r'\b(?:wgs|мск|гск)-?\d+(?:,\s*зона\s*\d+)?\b', points_type,
                                       re.IGNORECASE | re.MULTILINE)
+            print('points_type: ' + str(points_type))
+            print('coords_system: ' + str(coords_system))
             if coords_system:
                 coords_system = coords_system.group(0).lower().replace(' ', '').replace('-', '').replace(',',
                                                                                                          '').replace(
                     ':', '')
+            print('coords_system: ' + str(coords_system))
+    polygon_number = None
     if points_type or found_table:
-        if points_type not in coordinates.keys():
-            coordinates[points_type] = {}
         print('TEST TABLES !!! ' + str(coordinates))
         if page_tables:
             tables_len = len(page_tables)
             for i in range(tables_len):
-                print(page_tables[i])
-                print(len(page_tables[i]))
-                print(len(page_tables[i][0]))
-                if next_page_tables:
-                    print('next_page_tables[0]: ' + str(next_page_tables[0]))
                 if len(page_tables[i]) > 0 and len(page_tables[i][0]) > 1:
-                    print('+' * 50)
-                    print(page_tables[i])
-                    print(i + 1 == tables_len)
-                    print(next_page_tables[0])
-                    print(page_tables[i][0])
-                    print(next_page_tables[0][0])
-                    print(str(page_tables[i] + next_page_tables[0]))
-                    print('+' * 50)
                     if check_is_coordinate_table(page_tables[i]):
                         last_tables_joined = False
                         if i + 1 < tables_len:
                             for j in range(i + 1, tables_len):
                                 print('TRY1: ' + str(page_tables[i]))
                                 print('TRY2: ' + str(page_tables[j]))
+                                print(check_tables_joining(page_tables[i], page_tables[j]))
                                 if check_tables_joining(page_tables[i], page_tables[j]):
                                     print('CHAINED!!!!')
                                     page_tables[i] += page_tables[j]
@@ -520,9 +519,19 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
                                     break
                         next_page_joined = True
                         k = 2
+                        print(next_page_joined)
+                        print(next_page_tables)
+                        print(last_tables_joined)
+                        print('ъъъыу')
                         while next_page_joined and next_page_tables:
+                            print('ъъъыу1')
                             if (i + 1 == tables_len or last_tables_joined) and next_page_tables:
+                                print('ъъъыу3')
                                 for j in range(len(next_page_tables)):
+                                    print(page_tables[i])
+                                    print(next_page_tables[j])
+                                    print(check_tables_joining(page_tables[i], next_page_tables[j]))
+                                    print('===')
                                     if check_tables_joining(page_tables[i], next_page_tables[j]):
                                         page_tables[i] += next_page_tables[j]
                                     else:
@@ -539,6 +548,7 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
                     if check_is_coordinate_table(page_tables[i]):
                         if 'полигон' in ''.join(page_tables[i][0]).lower():
                             columns = ['№ полигона', '№', 'Северная широта', 'Восточная долгота']
+                            polygon_number = True
                         else:
                             columns = ['№', 'Северная широта', 'Восточная долгота']
                         df_new = pd.DataFrame([row[:len(columns)] for row in page_tables[i]],
@@ -555,23 +565,30 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
                                                                           re.IGNORECASE) or re.search(r'\bY\b', row[
                                 'Восточная долгота']) or 'номер' in ''.join(row)):
                                 continue
+                            current_points_type = points_type
+                            if polygon_number:
+                                polygon_number = row['№ полигона']
+                                current_points_type += ' [' + str(polygon_number) + ']'
+                            if current_points_type not in coordinates.keys():
+                                coordinates[current_points_type] = {}
                             point_number = row['№']
                             lat = row['Северная широта'].replace(',', '.')
                             lon = row['Восточная долгота'].replace(',', '.')
                             if 'wgs84' in coords_system:
                                 lat = dms_to_decimal(lat)
                                 lon = dms_to_decimal(lon)
-                                coordinates[points_type]['coordinate_system'] = 'wgs84'
-                            elif str.isdigit(lat) and str.isdigit(lon):
-                                lat, lon = convert_to_wgs84(lat, lon, coords_system)
-                                coordinates[points_type]['coordinate_system'] = 'wgs84'  # coords_system
+                                coordinates[current_points_type]['coordinate_system'] = 'wgs84'
+                            elif str_is_float(lat) and str_is_float(lon) and coords_system:
+                                if coords_system:
+                                    lat, lon = convert_to_wgs84(lat, lon, coords_system)
+                                    coordinates[current_points_type]['coordinate_system'] = 'wgs84'  # coords_system
 
                             if 'S' in row['Северная широта']:
                                 lat = -lat
                             if 'W' in row['Восточная долгота']:
                                 lon = -lon
 
-                            coordinates[points_type][point_number] = [lat, lon]
+                            coordinates[current_points_type][point_number] = [lat, lon]
                     else:
                         tables.append(page_tables[i])
                         continue
@@ -601,8 +618,8 @@ def check_tables_joining(page_table: list, adjoining_table: list) -> bool:
     if adjoining_table and check_is_coordinate_table(
             adjoining_table) and len(page_table[0]) == len(adjoining_table[0]) and (
             str.isdigit(adjoining_table[0][0]) and (int(adjoining_table[0][0]) == 1 or (
-            str.isdigit(page_table[0][-1]) and (int(page_table[0][-1]) <= int(
-        adjoining_table[0][0]) <= int(page_table[0][-1]) + 2)))):
+            str.isdigit(page_table[-1][0]) and (int(page_table[-1][0]) <= int(
+        adjoining_table[0][0]) <= int(page_table[-1][0]) + 2)))):
         return True
     return False
 
