@@ -187,13 +187,72 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
         # Если нашли координаты, извлекаем подтаблицу
         print(str(found_latitude) + ' ' + str(found_longitude) + ' ' + str(target_cell))
         print(str(last_width) + ' ' + str(len(df.columns)))
+        print('isinstance(last_num, str) and last_num.isdigit(): ' + str(
+            isinstance(last_num, str) and last_num.isdigit()))
+        print(type(last_num))
+        print(df)
+        print(appending)
 
         length, width = df.shape
+
+        if last_number_column and last_number_column < len(df.columns) and isinstance(df.iloc[0, last_number_column],
+                                                                                      str):
+            print('str.isdigit(df.iloc[0, last_number_column]: ' + str(str.isdigit(df.iloc[0, last_number_column])))
+            print(df)
+            print(df.iloc[0, last_number_column])
+        print('last_number_column: ' + str(last_number_column))
+
         if width is not None and last_number_column is not None and width >= last_number_column and length > 1:
             pass
             # print('Stykovochnye nomera: ' + str(last_num) + ' ' + str(df.iloc[0, last_number_column]) + ' ' + str(
             #    df.iloc[1, last_number_column]))
-        if found_latitude and found_longitude and target_cell:
+        print('last_width:' + str(last_width))
+        print('len(df.columns):' + str(len(df.columns)))
+        print('isinstance(last_num, str):' + str(isinstance(last_num, str)))
+        if isinstance(last_num, str):
+            print('last_num.isdigit():' + str(last_num.isdigit()))
+        print('last_number_column:' + str(last_number_column))
+        print('length:' + str(length))
+        print('width:' + str(width))
+        print('last_number_column:' + str(last_number_column))
+        if last_number_column is not None and last_number_column < len(df.columns):
+            print('df.iloc[0, last_number_column]:' + str(df.iloc[0, last_number_column]))
+        if last_number_column is not None and length >= 2 and last_number_column < len(df.columns):
+            print('df.iloc[1, last_number_column]:' + str(df.iloc[1, last_number_column]))
+        if last_number_column is not None and length >= 3 and last_number_column < len(df.columns):
+            print('df.iloc[2, last_number_column]:' + str(df.iloc[2, last_number_column]))
+        print('last_num:' + str(last_num))
+        current_num_row = None
+        if last_number_column is not None and last_number_column < len(df.columns):
+            for i in range(length):
+                print('df.iloc[i, last_number_column]: ' + str(df.iloc[i, last_number_column]))
+                if df.iloc[i, last_number_column] is not None and 'номер точки' in df.iloc[
+                    i, last_number_column].lower().replace('\n', ' ').strip():
+                    current_num_row = i
+        print('current_num_row:' + str(current_num_row))
+        if current_num_row is not None and length >= current_num_row + 1 and last_number_column is not None:
+            print('df.iloc[current_num_row, last_number_column]:' + str(
+                df.iloc[current_num_row, last_number_column]))
+            print('df.iloc[current_num_row + 1, last_number_column]:' + str(
+                df.iloc[current_num_row + 1, last_number_column]))
+        if last_width and last_width <= len(df.columns) and \
+                isinstance(last_num, str) and last_num.isdigit() and last_number_column is not None and \
+                length >= 2 and width >= last_number_column and \
+                (current_num_row is not None and check_table_numbers_join(current_num_row + 1, last_number_column,
+                                                                          last_num, df,
+                                                                          length) or check_table_numbers_join(0,
+                                                                                                              last_number_column,
+                                                                                                              last_num,
+                                                                                                              df,
+                                                                                                              length)):
+            fill_dataframe_from_pdf(last_target_cell, df, dfs, multiple_coord_sys, coordinate_systems, current_area,
+                                    legend_length, True)
+            appending = True
+        elif (length > 0 and width > 0 and df.iloc[0, 0] is not None and ('земельный участок' in df.iloc[
+            0, 0].lower() or 'государственный регистратор' in df.iloc[0, 0].lower())) or width <= 2:
+            print('SKIPPED!!')
+            continue
+        elif found_latitude and found_longitude and target_cell:
             # Определяем границы подтаблицы
             current_area = [None]
             fill_dataframe_from_pdf(target_cell, df, dfs, multiple_coord_sys, coordinate_systems, current_area,
@@ -207,14 +266,6 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
                 for i in range(len(dfs)):
                     dfs[i] = pd.concat([row_to_insert, dfs[i]], ignore_index=True)
             '''
-        elif last_width == len(df.columns) and \
-                isinstance(last_num, str) and last_num.isdigit() and last_number_column is not None and \
-                length >= 2 and width >= last_number_column and \
-                (str(int(last_num) + 1) == df.iloc[0, last_number_column] or str(int(last_num) + 1) == df.iloc[
-                    1, last_number_column]):
-            fill_dataframe_from_pdf(last_target_cell, df, dfs, multiple_coord_sys, coordinate_systems, current_area,
-                                    legend_length, True)
-            appending = True
         else:
             appending = False
             current_area = [None]
@@ -234,6 +285,13 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
             last_width = None
             last_number_column = None
     return dfs, coordinate_systems, full_text
+
+
+def check_table_numbers_join(index: int, column: int, number: int, df, length, iter_len=3) -> bool:
+    return any([i for i in [length >= index + j and df.iloc[
+        index + j, column] is not None and str.isdigit(
+        df.iloc[index + j, column]) and int(number) <= int(
+        df.iloc[index + j, column]) <= int(number) + 2 for j in range(iter_len)]])
 
 
 def extract_tables_from_docx(docx_path):
@@ -779,9 +837,9 @@ def extract_tables_from_pdf(pdf_path):
     try:
         with pdfplumber.open(pdf_path) as pdf:
             for page in pdf.pages:
-                text = page.get_text()
-                if re.search(r'Выписка\s+из\s+Единого\s+государственного\s+реестра', text, re.IGNORECASE):
-                    continue
+                # text = page.get_text()
+                # if re.search(r'Выписка\s+из\s+Единого\s+государственного\s+реестра', text, re.IGNORECASE):
+                #    continue
                 for table in page.extract_tables():
                     if table:
                         tables.append(table)
