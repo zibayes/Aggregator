@@ -26,7 +26,8 @@ SECRET_KEY = 'django-insecure-jzu6gf*$t^#7z9wyc+6z#5#or-#gnrxfc8^^@1*jja+^!d%jtr
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['176.49.253.129', '176.49.19.4', 'localhost', '127.0.0.1', 'api.ipify.org', 'www.shadowserver.org']
+ALLOWED_HOSTS = ['176.49.253.129', '176.49.19.4', 'localhost', '127.0.0.1', 'api.ipify.org', 'www.shadowserver.org',
+                 'aggregator.cloudpub.ru']
 
 CSRF_TRUSTED_ORIGINS = [
     'https://*.cloudpub.ru',

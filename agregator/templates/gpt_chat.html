@@ -292,7 +292,7 @@
             let dotCount = 0;
             const loadingElement = document.querySelector('.message.ai:last-child');
 
-            const url = "/ask_gpt/";  // http://localhost:1234/v1/chat/completions
+            const url = "http://localhost:1234/v1/chat/completions";  // /ask_gpt/
             const headers = {"Content-Type": "application/json", "X-CSRFToken": `{{ csrf_token }}`};
             const data = {
                 "model": "llama-3.1-8b-lexi-uncensored-v2",

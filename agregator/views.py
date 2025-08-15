@@ -509,7 +509,7 @@ def open_lists_register_download(request):
         'Конец срока': 'end_date'
     }
     df_existing = create_model_dataframe(OpenLists, fields_mapping)
-    if not df_existing:
+    if df_existing is None:
         return redirect(open_lists_register)
     column_widths = {
         'A': 14,
@@ -540,7 +540,7 @@ def acts_register_download(request):
         'Объекты расположенные в непосредственной близости. Для границ': 'border_objects'
     }
     df_existing = create_model_dataframe(Act, fields_mapping)
-    if not df_existing:
+    if df_existing is None:
         return redirect(acts_register)
     column_widths = {
         'A': 6.86,
@@ -573,7 +573,7 @@ def scientific_reports_register_download(request):
         'Площадь': 'area_info'
     }
     df_existing = create_model_dataframe(ScientificReport, fields_mapping)
-    if not df_existing:
+    if df_existing is None:
         return redirect(scientific_reports_register)
     column_widths = {
         'A': 24,
@@ -606,7 +606,7 @@ def tech_reports_register_download(request):
         'Площадь': 'area_info'
     }
     df_existing = create_model_dataframe(TechReport, fields_mapping)
-    if not df_existing:
+    if df_existing is None:
         return redirect(tech_reports_register)
     column_widths = {
         'A': 24,
@@ -777,6 +777,8 @@ def download_coordinates(request, report_type, pk):
             report = ObjectAccountCard.objects.get(id=pk)
         elif report_type == 'commercial_offer':
             report = CommercialOffers.objects.get(id=pk)
+        elif report_type == 'geo_object':
+            report = GeoObject.objects.get(id=pk)
         coordinates = report.coordinates_dict if report else {}
         coordinates_to_download = {}
         print('request.POST.keys(): ' + str(request.POST.keys()))
@@ -797,6 +799,8 @@ def download_coordinates(request, report_type, pk):
             photos_style.iconstyle.color = simplekml.Color.green
             pits_style = simplekml.Style()
             pits_style.iconstyle.color = simplekml.Color.red
+            obj_center = simplekml.Style()
+            obj_center.iconstyle.color = simplekml.Color.yellow
             current_style = current_group = None
             for group, point in coordinates_to_download.items():
                 system_check = True  # 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
@@ -812,6 +816,10 @@ def download_coordinates(request, report_type, pk):
                     current_style = pits_style
                     pits_group = kml.newfolder(name=group)
                     current_group = pits_group
+                elif 'Центр' in group:
+                    current_style = obj_center
+                    center_group = kml.newfolder(name=group)
+                    current_group = center_group
                 for point_name, coords in point.items():
                     if current_group and system_check:
                         photo_point = current_group.newpoint(name=str(point_name),
@@ -1125,8 +1133,8 @@ def archaeological_heritage_sites_download(request):
     link = None
     with open(current_lists, 'r', encoding='utf-8') as file:
         for line in file.readlines():
-            if 'list_voan - ' in line:
-                link = line.replace('list_voan - ', '').strip()
+            if 'list_oan - ' in line:
+                link = line.replace('list_oan - ', '').strip()
     if link is None:
         return redirect(request.META.get('HTTP_REFERER', '/'))
     return redirect('/' + quote(link))
@@ -1137,8 +1145,8 @@ def identified_archaeological_heritage_sites_download(request):
     link = None
     with open(current_lists, 'r', encoding='utf-8') as file:
         for line in file.readlines():
-            if 'list_oan - ' in line:
-                link = line.replace('list_oan - ', '').strip()
+            if 'list_voan - ' in line:
+                link = line.replace('list_voan - ', '').strip()
     if link is None:
         return redirect(request.META.get('HTTP_REFERER', '/'))
     return redirect('/' + quote(link))
@@ -1220,7 +1228,7 @@ def account_cards_register_download(request):
         'Составитель учетной карты': 'compiler'
     }
     df_existing = create_model_dataframe(ObjectAccountCard, fields_mapping)
-    if not df_existing:
+    if df_existing is None:
         return redirect(account_cards_register)
     column_widths = {
         'A': 24,

@@ -240,11 +240,12 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
                 length >= 2 and width >= last_number_column and \
                 (current_num_row is not None and check_table_numbers_join(current_num_row + 1, last_number_column,
                                                                           last_num, df,
-                                                                          length) or check_table_numbers_join(0,
-                                                                                                              last_number_column,
-                                                                                                              last_num,
-                                                                                                              df,
-                                                                                                              length)):
+                                                                          length, width) or check_table_numbers_join(0,
+                                                                                                                     last_number_column,
+                                                                                                                     last_num,
+                                                                                                                     df,
+                                                                                                                     length,
+                                                                                                                     width)):
             fill_dataframe_from_pdf(last_target_cell, df, dfs, multiple_coord_sys, coordinate_systems, current_area,
                                     legend_length, True)
             appending = True
@@ -287,8 +288,9 @@ def analyze_coordinates_in_tables_from_pdf(tables, file_path):
     return dfs, coordinate_systems, full_text
 
 
-def check_table_numbers_join(index: int, column: int, number: int, df, length, iter_len=3) -> bool:
-    return any([i for i in [length >= index + j and df.iloc[
+def check_table_numbers_join(index: int, column: int, number: str, df, length: int, width: int,
+                             iter_len: int = 3) -> bool:
+    return any([i for i in [df.shape[0] > index + j and df.shape[1] > column and df.iloc[
         index + j, column] is not None and str.isdigit(
         df.iloc[index + j, column]) and int(number) <= int(
         df.iloc[index + j, column]) <= int(number) + 2 for j in range(iter_len)]])

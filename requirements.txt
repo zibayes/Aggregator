@@ -11,6 +11,7 @@ chroma-hnswlib==0.7.6
 chromadb #==0.5.23
 langchain-chroma==0.1.4
 
+xlrd
 django-filebrowser-no-grappelli==4.0.2
 supervisor
 eventlet
