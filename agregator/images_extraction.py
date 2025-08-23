@@ -13,12 +13,16 @@ from agregator.models import UserTasks
 from .files_saving import raw_open_lists_save
 from .open_lists_ocr import process_open_lists, error_handler_open_lists, \
     borders_cut, get_image_angle, image_binarization_plain, rotate_image
+from .torch_image_classifier import PyTorchImageClassifier
 
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 IMAGE_MIN_SIZE = 150
 CURRENT_OPEN_LIST_RGB = (205, 221, 229)
 RGB_ACCURACY = 20
 # image_classification_model = load_model('image_classificator.keras')
+PYTORCH_CLASS_NAMES = ["Карты", "Материал", "Общий вид", "Открытые листы",
+                       "Спутниковые снимки", "Схемы", "Шурфы"]
+pytorch_classifier = PyTorchImageClassifier('image_classifier.pth', PYTORCH_CLASS_NAMES)
 
 SUPPLEMENT_CONTENT = {
     "maps": [],
@@ -142,6 +146,25 @@ def calculate_average_rgb(img):
 
 
 def predict_image_class(img):
+    # Используем PyTorch вместо TensorFlow
+    predicted_class, confidence = pytorch_classifier.predict(img)
+
+    # Маппинг классов на старые названия (если нужно)
+    class_mapping = {
+        'Карты': 'Карты',
+        'Материал': 'Материал',
+        'Общий вид': 'Общий вид',
+        'Открытые листы': 'Открытый лист',
+        'Спутниковые снимки': 'Спутниковые снимки',
+        'Схемы': 'Схемы',
+        'Шурфы': 'Шурфы'
+    }
+
+    return class_mapping.get(predicted_class, 'Документы'), confidence
+
+
+'''
+def predict_image_class(img):
     image_size = 500
     img = img.resize((image_size, image_size))
     img_array = np.array(img)
@@ -152,6 +175,7 @@ def predict_image_class(img):
     predicted_class = [0]  # TODO!!! return TENSORFLOW
     labels = ['Документы', 'Карты', 'Материал', 'Общий вид', 'Открытый лист', 'Спутниковые снимки', 'Шурфы']
     return labels[predicted_class[0]]
+'''
 
 
 def extract_captions(text: str) -> tuple:
@@ -302,10 +326,13 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                     current_folder += '/В' + pit.group(0)[1:]
                 supplement_content["pits_fotos"].append(
                     {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
-            elif 'открытый лист' in lowered_image_text or is_image_open_list(avg_color, pil_img) or predict_image_class(
-                    pil_img) == 'Открытый лист':
+            elif 'открытый лист' in lowered_image_text or is_image_open_list(avg_color, pil_img) or (
+            ((result := predict_image_class(pil_img))[0] == 'Открытый лист' and result[1] >= 0.75)):
                 pix = page.get_pixmap(dpi=300)
-                pil_img = preprocess_open_list(pix)
+                try:
+                    pil_img = preprocess_open_list(pix)
+                except Exception as e:
+                    print('OpenList preprocess failed: ' + str(e))
                 image_bytes = pil_img.tobytes()
                 print(image_filename)
                 # pil_img, image_bytes = image_rotate(pil_img)
@@ -323,19 +350,19 @@ def extract_images_with_captions(text, page, page_number, document, folder,
             else:
                 print(image_filename)
                 pil_img, image_bytes = image_rotate(pil_img)
-                image_class = predict_image_class(pil_img)
+                image_class, confidence = predict_image_class(pil_img)
                 print(image_class)
-                if image_class == 'Документы':
+                if image_class == 'Документы' and confidence >= 0.75:
                     current_folder += '/Документы'
                     Path(current_folder).mkdir(exist_ok=True)
                     supplement_content["docs"].append(
                         {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
-                elif image_class == 'Карты':
+                elif image_class == 'Карты' and confidence >= 0.75:
                     current_folder += '/Карты'
                     Path(current_folder).mkdir(exist_ok=True)
                     supplement_content["maps"].append(
                         {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
-                elif image_class == 'Материал':
+                elif image_class == 'Материал' and confidence >= 0.75:
                     current_folder += '/Материал'
                     Path(current_folder).mkdir(exist_ok=True)
                     supplement_content["material_fotos"].append(
@@ -348,16 +375,19 @@ def extract_images_with_captions(text, page, page_number, document, folder,
         else:
             print(image_filename)
             pil_img, image_bytes = image_rotate(pil_img)
-            image_class = predict_image_class(pil_img)
+            image_class, confidence = predict_image_class(pil_img)
             print(image_class)
             if page_number == 0:
                 current_folder += '/Титульник'
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["title_page"].append(
                     {"source": current_folder + "/" + image_filename})
-            elif is_image_open_list(avg_color, pil_img) or image_class == 'Открытый лист':
+            elif is_image_open_list(avg_color, pil_img) or (image_class == 'Открытый лист' and confidence >= 0.75):
                 pix = page.get_pixmap(dpi=300)
-                pil_img = preprocess_open_list(pix)
+                try:
+                    pil_img = preprocess_open_list(pix)
+                except Exception as e:
+                    print('OpenList preprocess failed: ' + str(e))
                 image_bytes = pil_img.tobytes()
                 current_folder += '/Открытый лист'
                 Path(current_folder).mkdir(exist_ok=True)
