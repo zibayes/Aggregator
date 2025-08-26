@@ -90,14 +90,15 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     current_act = Act.objects.get(id=act_id)
     acts = Act.objects.all()
     for act in acts:
-        for source in act.source_dict:
-            source_path = source['path']
-            if act.id != act_id and os.path.isfile(source_path):
-                file_hash = calculate_file_hash(pdf_file)
-                act_hash = calculate_file_hash(source_path)
-                if file_hash == act_hash:
-                    raise FileExistsError(
-                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
+        if act.source_dict is not None:
+            for source in act.source_dict:
+                source_path = source['path']
+                if act.id != act_id and os.path.isfile(source_path):
+                    file_hash = calculate_file_hash(pdf_file)
+                    act_hash = calculate_file_hash(source_path)
+                    if file_hash == act_hash:
+                        raise FileExistsError(
+                            f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
 
     # Открываем PDF-файл
     document = fitz.open(pdf_file)

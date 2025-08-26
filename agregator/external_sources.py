@@ -24,22 +24,63 @@ from .models import User, Act, UserTasks, ArchaeologicalHeritageSite, Identified
 
 @shared_task(bind=True)
 def external_sources_processing(self, start_date, end_date):
+    self.update_state(
+        state='PROGRESS',
+        meta={
+            'current': 0,
+            'total': 1,
+            'type': 'page_progress',
+            'message': 'Начинаем сканирование',
+        }
+    )
+
+    ignore_ssl = False
+    try:
+        r = requests.get("https://ookn.ru/experts/")
+    except requests.exceptions.SSLError:
+        print(f"SSL Error, ignore certificate verification")
+        r = requests.get(f"https://ookn.ru/experts/", verify=False, timeout=30)
+        ignore_ssl = True
+    data = r.text
+    soup = BeautifulSoup(data, features="html.parser")
+
+    pagination = soup.find('div', class_='news-list')
+    if pagination:
+        end_link = pagination.find('a', string='Конец')
+        print('pagination: ' + str(pagination))
+        print('end_link: ' + str(end_link))
+        total_pages = str(end_link.get('href'))
+        print('total_pages: ' + str(total_pages))
+        total_pages = int(total_pages[total_pages.rfind('=') + 1:])
+        print('total_pages: ' + str(total_pages))
+    else:
+        total_pages = 1
+
     page = 1
     pages = [str(page)]
-    ignore_ssl = False
 
     admin = User.objects.get(is_superuser=True)
     acts = Act.objects.filter(user_id=admin.id)
-    downloaded_files = [y['origin_filename'] for x in acts if
+    downloaded_files = [y['origin_filename'] for x in acts if x.upload_source_dict is not None and
                         x.upload_source_dict['source'] != 'Пользовательский файл' for y in x.source_dict]
-    while str(page) in pages:
+    # while str(page) in pages:
+    while page <= total_pages:
+        self.update_state(
+            state='PROGRESS',
+            meta={
+                'current': page,
+                'total': total_pages,
+                'type': 'page_progress',
+                'message': f'Обработка страницы {page} из {total_pages}'
+            }
+        )
+
         print(f"PAGE={page}")
-        try:
+        if ignore_ssl is False:
             r = requests.get(f"https://ookn.ru/experts/?PAGEN_1={page}")
-        except requests.exceptions.SSLError:
+        elif ignore_ssl is True:
             print(f"SSL Error, ignore certificate verification")
-            r = requests.get(f"https://ookn.ru/experts/?PAGEN_1={page}", verify=False)
-            ignore_ssl = True
+            r = requests.get(f"https://ookn.ru/experts/?PAGEN_1={page}", verify=False, timeout=30)
         data = r.text
         soup = BeautifulSoup(data, features="html.parser")
         new_files = []
@@ -95,10 +136,19 @@ def external_sources_processing(self, start_date, end_date):
                         print("Файл не найден")
                         file_not_found = True
                 else:
+                    '''
                     context = ssl._create_unverified_context()
                     with urllib.request.urlopen(url, context=context) as response:
                         with open(path_to_download, 'wb') as out_file:
                             out_file.write(response.read())
+                    '''
+                    try:
+                        response = requests.get(url, verify=False, timeout=30)
+                        with open(path_to_download, 'wb') as out_file:
+                            out_file.write(response.content)
+                    except Exception:
+                        print("Файл не найден")
+                        file_not_found = True
 
                 while file_not_found is False:
                     sleep(1.5)
@@ -155,6 +205,12 @@ def external_sources_processing(self, start_date, end_date):
                     #     continue
         # external_storage_files_processing(new_files)
         page += 1
+    return {
+        'current': page,
+        'total': total_pages,
+        'type': 'page_progress',
+        'message': 'Сканирование всех страниц завершено.'
+    }
 
 
 def convert_file_to_uploaded_file(file_path):
@@ -194,7 +250,7 @@ def tables_to_dataframes(tables):
 
 
 def external_voan_list_processing():
-    r = requests.get(f"https://ookn.ru/gosohrana/", verify=False)
+    r = requests.get(f"https://ookn.ru/gosohrana/", verify=False, timeout=30)
     data = r.text
     soup = BeautifulSoup(data, 'html.parser')
     current_lists = 'uploaded_files/voan_list/current_lists.txt'

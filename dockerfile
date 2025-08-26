@@ -8,6 +8,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
     apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
+	    p7zip-full \
+	    unar \
         build-essential \
         wget \
         supervisor \

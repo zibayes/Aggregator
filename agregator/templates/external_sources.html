@@ -9,7 +9,7 @@
 
 {% block content %}
 
-    <div class="container upload-section" style="margin-top: 15px;">
+    <div class="container upload-section-container" style="margin-top: 15px;">
         <h2 style="margin-top: 5px; margin-bottom: 15px;">Сайт службы по государственной охране объектов культурного
             наследия Красноярского
             края</h2>
@@ -38,7 +38,6 @@
             </button>
         </form>
 
-
         {% if is_processing %}
             <h4>Загрузка файлов с сайта ООКН началась. Прогресс вы можете посмотреть ниже - в журнале загрузок.</h4>
         {% endif %}
@@ -46,6 +45,23 @@
         <br>
         <h3 align="center">Журнал загрузок</h3>
         <br>
+
+        {% if scan_task_id %}
+            <div id="scanProgressSection" style="margin-top: 20px;">
+                <h4>Прогресс сканирования сайта:</h4>
+                <div class="progress" style="height: 25px; border-radius: 15px;">
+                    <div id="scanProgressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                         role="progressbar" style="width: 0%; background-color: #17a2b8;">&nbsp;
+                    </div>
+                </div>
+                <div id="scanProgressMessage">Установка соединения...</div>
+                <button id="cancelScanBtn" class="btn btn-danger btn-sm mt-2"
+                        onclick="cancelScan('{{ scan_task_id }}')">
+                    Прервать сканирование
+                </button>
+            </div>
+            <br>
+        {% endif %}
 
         <div class="container upload-section">
             <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
@@ -186,7 +202,7 @@
                                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена
                                         </button>
                                         <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
-                                                onclick="confirmDelete(`{{ task_id }}`)">Удалить
+                                                onclick="confirmDelete(${task})">Удалить
                                         </button>
                                     </div>
                                 </div>
@@ -267,6 +283,102 @@
                     startDatePicker.set("maxDate", selectedDates[0]);
                 }
             });
+
+            // Функция для опроса прогресса сканирования
+            function pollScanProgress(taskId) {
+                const interval = setInterval(function () {
+                    fetch(`/api/check_scan_progress/${taskId}/`)
+                        .then(response => response.json())
+                        .then(data => {
+                            console.log("Scan progress:", data);
+                            console.log("data.meta.current:", data.meta.current);
+                            console.log("data.meta.total:", data.meta.total);
+                            console.log("data.meta.type:", data.meta.type);
+                            console.log("data.meta.message:", data.meta.message);
+
+                            const progressBar = document.getElementById('scanProgressBar');
+                            const progressMessage = document.getElementById('scanProgressMessage');
+
+                            if (data.state === 'PROGRESS' && data.meta) {
+                                // Рассчитываем процент выполнения
+                                const percent = (data.meta.current / data.meta.total) * 100;
+                                progressBar.style.width = `${percent}%`;
+                                progressBar.textContent = `${Math.round(percent)}%`;
+
+                                // Обновляем сообщение
+                                progressMessage.textContent = data.meta.message || `Обработано страниц: ${data.meta.current} из ${data.meta.total}`;
+
+                            } else if (data.state === 'SUCCESS') {
+                                progressBar.style.width = '100%';
+                                progressBar.textContent = '100%';
+                                progressMessage.textContent = data.result?.message || 'Сканирование успешно завершено!';
+                                progressBar.classList.remove('progress-bar-animated');
+                                clearInterval(interval); // Останавливаем опрос
+                                document.getElementById('cancelScanBtn').style.display = 'none';
+
+                            } else if (data.state === 'FAILURE' || data.state === 'REVOKED') {
+                                progressBar.style.width = '100%';
+                                progressBar.style.backgroundColor = '#dc3545'; // Красный цвет для ошибки
+                                progressMessage.textContent = `Ошибка или прерывание: ${data.message}`;
+                                clearInterval(interval);
+                                document.getElementById('cancelScanBtn').style.display = 'none';
+
+                            } else if (data.state === 'PENDING') {
+                                progressMessage.textContent = 'Задача ожидает выполнения...';
+                            }
+                        })
+                        .catch(error => {
+                            console.error("Ошибка при запросе прогресса:", error);
+                        });
+                }, 3000); // Опрашиваем каждые 3 секунды
+            }
+
+            // Запускаем опрос, если есть задача сканирования
+            {% if scan_task_id %}
+                document.addEventListener("DOMContentLoaded", function () {
+                    pollScanProgress('{{ scan_task_id }}');
+                });
+            {% endif %}
+
+            // Функция для прерывания сканирования
+            function cancelScan(taskId) {
+                if (confirm('Вы уверены, что хотите прервать сканирование сайта? Текущая страница будет завершена, но следующие обрабатываться не будут.')) {
+                    fetch(`/api/cancel_scan_task/${taskId}/`, {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCookie('csrftoken'), // Не забудьте реализовать getCookie
+                            'Content-Type': 'application/json'
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            alert(data.message);
+                            if (data.status === 'success') {
+                                document.getElementById('cancelScanBtn').style.display = 'none';
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Ошибка:', error);
+                            alert('Произошла ошибка при попытке прервать задачу.');
+                        });
+                }
+            }
+
+            // Вспомогательная функция для получения CSRF токена
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
         </script>
     </div>
 {% endblock %}

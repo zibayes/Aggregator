@@ -87,14 +87,15 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
         coordinates = copy.deepcopy(COORDINATES_SAMPLE)
     reports = TechReport.objects.all()
     for report in reports:
-        for source in report.source_dict:
-            source_path = source['path']
-            if report_id != report.id and os.path.isfile(source_path):
-                file_hash = calculate_file_hash(file)
-                report_hash = calculate_file_hash(source_path)
-                if file_hash == report_hash:
-                    raise FileExistsError(
-                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(report_id)][source_index]['origin_filename']}")
+        if report.source_dict is not None:
+            for source in report.source_dict:
+                source_path = source['path']
+                if report_id != report.id and os.path.isfile(source_path):
+                    file_hash = calculate_file_hash(file)
+                    report_hash = calculate_file_hash(source_path)
+                    if file_hash == report_hash:
+                        raise FileExistsError(
+                            f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(report_id)][source_index]['origin_filename']}")
 
     document = fitz.open(file)
 

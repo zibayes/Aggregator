@@ -6,6 +6,7 @@ from urllib.parse import quote
 
 import pandas as pd
 import simplekml
+from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import login, authenticate
 from django.contrib.auth import logout
@@ -14,6 +15,8 @@ from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django_celery_results.models import TaskResult
+from celery.result import AsyncResult
+from celery import states
 from pyproj import Geod
 from rest_framework import generics
 from shapely.geometry import Polygon, LineString
@@ -209,7 +212,18 @@ def deconstructor(request):
 @login_required
 def external_sources(request):
     is_processing = False
-    if request.method == 'POST':
+    scan_task_id = None
+
+    active_scan_task = TaskResult.objects.filter(
+        task_name='agregator.external_sources.external_sources_processing'
+    ).exclude(
+        status__in=['SUCCESS', 'FAILURE', 'REVOKED']  # Исключаем точно завершенные
+    ).order_by('-date_created').first()
+    if active_scan_task:
+        scan_task_id = active_scan_task.task_id
+        is_processing = True
+
+    if request.method == 'POST' and scan_task_id is None:
         start_date = end_date = None
         if 'enableDateRange' in request.POST.keys() and 'start_date' in request.POST.keys() and 'start_date' in request.POST.keys():
             start_date = request.POST['start_date']
@@ -226,11 +240,92 @@ def external_sources(request):
                 end_date = [int(x) for x in date_str.split('.')]
             else:
                 end_date = None
-        external_sources_processing.delay(start_date, end_date)
+        scan_task = external_sources_processing.delay(start_date, end_date)
+        scan_task_id = scan_task.id
         is_processing = True
     admin = User.objects.get(is_superuser=True)
     tasks_id = get_user_tasks(admin.id, ('act', 'scientific_report', 'tech_report', 'open_list'), True)
-    return render(request, 'external_sources.html', {'is_processing': is_processing, 'tasks_id': tasks_id})
+    return render(request, 'external_sources.html',
+                  {'is_processing': is_processing, 'tasks_id': tasks_id, 'scan_task_id': scan_task_id,
+                   'active_scan_task': active_scan_task})
+
+
+@login_required
+def check_scan_progress(request, task_id):
+    """Защищенная версия проверки прогресса"""
+    try:
+        # Пытаемся получить задачу через AsyncResult
+        task = AsyncResult(task_id)
+
+        # Безопасное получение состояния
+        try:
+            state = task.state
+        except Exception as e:
+            # Если возникает ошибка при получении состояния, пробуем через БД напрямую
+            try:
+                db_task = TaskResult.objects.get(task_id=task_id)
+                state = db_task.status
+                result = db_task.result
+            except TaskResult.DoesNotExist:
+                state = 'PENDING'
+                result = None
+            except Exception as db_error:
+                state = 'UNKNOWN'
+                result = f"Database error: {db_error}"
+
+        # Формируем ответ в зависимости от состояния
+        if state == 'PENDING':
+            response = {
+                'state': state,
+                'message': 'Задача ожидает выполнения...'
+            }
+        elif state == 'PROGRESS':
+            response = {
+                'state': state,
+                'meta': task.result
+            }
+        elif state == 'SUCCESS':
+            # Безопасно получаем результат
+            try:
+                result = task.result
+            except:
+                result = "Задача завершена"
+
+            response = {
+                'state': state,
+                'result': result
+            }
+        else:
+            # Для других состояний (FAILURE, REVOKED, RETRY)
+            response = {
+                'state': state,
+                'message': str(task.info) if hasattr(task, 'info') else f"Состояние: {state}"
+            }
+
+    except Exception as e:
+        # Если все совсем сломалось
+        response = {
+            'state': 'ERROR',
+            'message': f'Ошибка при проверке задачи: {str(e)}'
+        }
+
+    return JsonResponse(response)
+
+
+@login_required
+def cancel_scan_task(request, task_id):
+    """View для прерывания задачи сканирования"""
+    try:
+        task = AsyncResult(task_id)
+        # Revoke the task, terminate if it's running
+        task.revoke(terminate=True)
+        TaskResult.objects.filter(task_id=task_id).update(
+            status='REVOKED',
+            result='{"message": "Задача отменена пользователем"}'
+        )
+        return JsonResponse({'status': 'success', 'message': 'Задача сканирования была прервана.'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)})
 
 
 def constructor(request):
