@@ -22,6 +22,18 @@
 
             <div class="row">
                 {% for item in items %}
+                    {% if supplement_type == "pits_fotos" and item.folder is not None and item.folder != folder %}
+                        {% if forloop.counter0 > 0 %}
+                            {% with prev_item=items|slice:forloop.counter0|last %}
+                                {% if prev_item.folder != item.folder %}
+                                    <h4>{{ item.folder }}</h4>
+                                {% endif %}
+                            {% endwith %}
+                        {% else %}
+                            <h4>{{ item.folder }}</h4>
+                        {% endif %}
+                    {% endif %}
+
                     {% if item.source %}
                         <div class="col-md-4 mb-4">
                             <a data-fancybox="gallery" href="/{{ item.source }}"

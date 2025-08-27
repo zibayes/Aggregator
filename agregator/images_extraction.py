@@ -302,10 +302,13 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 current_folder += '/Шурфы'
                 Path(current_folder).mkdir(exist_ok=True)
                 pit = re.search(r'Шурф.*? № *\d+', image_text, re.IGNORECASE)
+                image_folder = None
                 if pit:
-                    current_folder += '/Ш' + pit.group(0)[1:]
+                    image_folder = 'Ш' + pit.group(0)[1:]
+                    current_folder += '/' + image_folder
                 supplement_content["pits_fotos"].append({"label": image_text, "image_num": image_num,
-                                                         "source": current_folder + "/" + image_filename})
+                                                         "source": current_folder + "/" + image_filename,
+                                                         'folder': image_folder})
             elif 'раскоп' in lowered_image_text:
                 current_folder += '/Раскопы'
                 supplement_content["excavation_fotos"].append({"label": image_text, "image_num": image_num,
@@ -314,20 +317,26 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 current_folder += '/Шурфы'
                 Path(current_folder).mkdir(exist_ok=True)
                 pit = re.search(r'Зачистка.*? № *\d+', image_text, re.IGNORECASE)
+                image_folder = None
                 if pit:
-                    current_folder += '/З' + pit.group(0)[1:]
+                    image_folder = 'З' + pit.group(0)[1:]
+                    current_folder += '/' + image_folder
                 supplement_content["pits_fotos"].append({"label": image_text, "image_num": image_num,
-                                                         "source": current_folder + "/" + image_filename})
+                                                         "source": current_folder + "/" + image_filename,
+                                                         'folder': image_folder})
             elif 'врезка' in lowered_image_text:
                 current_folder += '/Шурфы'
                 Path(current_folder).mkdir(exist_ok=True)
                 pit = re.search(r'Врезка.*? № *\d+', image_text, re.IGNORECASE)
+                image_folder = None
                 if pit:
-                    current_folder += '/В' + pit.group(0)[1:]
+                    image_folder = 'В' + pit.group(0)[1:]
+                    current_folder += '/' + image_folder
                 supplement_content["pits_fotos"].append(
-                    {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
+                    {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename,
+                     'folder': image_folder})
             elif 'открытый лист' in lowered_image_text or is_image_open_list(avg_color, pil_img) or (
-            ((result := predict_image_class(pil_img))[0] == 'Открытый лист' and result[1] >= 0.75)):
+                    ((result := predict_image_class(pil_img))[0] == 'Открытый лист' and result[1] >= 0.75)):
                 pix = page.get_pixmap(dpi=300)
                 try:
                     pil_img = preprocess_open_list(pix)

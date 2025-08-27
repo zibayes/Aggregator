@@ -228,6 +228,14 @@ var baseLayers = {
 };
 
 var additionalLayers = {
+    'Cadastre site': L.tileLayer.wms('https://nspd.gov.ru/api/aeggis/v4/36048/wms?', {
+        version: '1.3.0',
+        format: 'image/png',
+        layers: '36048',
+        transparent: true,
+        attribution: '<a href="https://nspd.gov.ru" target="_blank">НСПД</a> contributors'
+    }),
+
     'Cadastre quarter': L.tileLayer.wms('https://nspd.gov.ru/api/aeggis/v4/36071/wms?', {
         version: '1.3.0',
         format: 'image/png',
