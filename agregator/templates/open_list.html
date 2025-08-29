@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block document_sources %}
-    <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px; margin-top: 15px;"
+    <a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px; margin-top: 15px;"
        href="/uploaded_files/{{ open_list.source }}">
         Исходник: {{ open_list.origin_filename }}
     </a>
@@ -21,12 +21,13 @@
 {% block document_actions %}
     {% if open_list.user.id == user.id or user.is_superuser %}
         <a href="/open_lists_edit/{{ open_list.id }}">
-            <button type="button" class="btn btn-primary"
+            <button type="button" class="btn btn-primary edit-button"
                     style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
                 Редактировать
             </button>
         </a>
-        <button type="button" class="btn btn-danger" data-bs-target="#delete_document" data-bs-toggle="modal">
+        <button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_document"
+                data-bs-toggle="modal">
             Удалить
         </button>
     {% endif %}

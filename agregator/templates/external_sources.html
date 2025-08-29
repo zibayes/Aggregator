@@ -15,7 +15,7 @@
             края</h2>
         <form method="post" action="/external_sources/">
             {% csrf_token %}
-            <div class="form-check mb-3">
+            <div class="form-check mb-3" id="date-toggle-container">
                 <input class="form-check-input" type="checkbox" id="dateToggle" name="enableDateRange">
                 <label class="form-check-label" for="dateToggle">Задать временной диапазон загружаемых отчётов</label>
             </div>
@@ -382,3 +382,25 @@
         </script>
     </div>
 {% endblock %}
+
+<script>
+    {% block guide_steps %}
+        const tourSteps = [
+            {
+                title: 'Отчёты с внешних источников',
+                text: 'На странице отчётов с внешних источников можно произвести автоматизированную загрузку актов ГИКЭ с сайта ООКН.',
+                element: null
+            },
+            {
+                title: 'Временной диапазон отчётов',
+                text: 'При загрузке отчётов с сайта ООКН можно задать временной промежуток, тогда будут скачаны только те акты, которые попадают в него своей датой окончания проведения экспертизы. Если не указывать временной диапазон, тогда будут скачаны все акты ГИКЭ.',
+                element: '#date-toggle-container'
+            },
+            {
+                title: 'Журнал загрузок',
+                text: 'Прогресс сканирования сайта ООКН и обработки отдельных отчётов будет отображён в журнале загрузок.',
+                element: '.upload-section'
+            }
+        ];
+    {% endblock %}
+</script>

@@ -39,7 +39,7 @@ def external_sources_processing(self, start_date, end_date):
         r = requests.get("https://ookn.ru/experts/")
     except requests.exceptions.SSLError:
         print(f"SSL Error, ignore certificate verification")
-        r = requests.get(f"https://ookn.ru/experts/", verify=False, timeout=30)
+        r = requests.get(f"https://ookn.ru/experts/", verify=False)
         ignore_ssl = True
     data = r.text
     soup = BeautifulSoup(data, features="html.parser")
@@ -80,7 +80,7 @@ def external_sources_processing(self, start_date, end_date):
             r = requests.get(f"https://ookn.ru/experts/?PAGEN_1={page}")
         elif ignore_ssl is True:
             print(f"SSL Error, ignore certificate verification")
-            r = requests.get(f"https://ookn.ru/experts/?PAGEN_1={page}", verify=False, timeout=30)
+            r = requests.get(f"https://ookn.ru/experts/?PAGEN_1={page}", verify=False)
         data = r.text
         soup = BeautifulSoup(data, features="html.parser")
         new_files = []
@@ -143,7 +143,7 @@ def external_sources_processing(self, start_date, end_date):
                             out_file.write(response.read())
                     '''
                     try:
-                        response = requests.get(url, verify=False, timeout=30)
+                        response = requests.get(url, verify=False)
                         with open(path_to_download, 'wb') as out_file:
                             out_file.write(response.content)
                     except Exception:
@@ -250,7 +250,7 @@ def tables_to_dataframes(tables):
 
 
 def external_voan_list_processing():
-    r = requests.get(f"https://ookn.ru/gosohrana/", verify=False, timeout=30)
+    r = requests.get(f"https://ookn.ru/gosohrana/", verify=False)
     data = r.text
     soup = BeautifulSoup(data, 'html.parser')
     current_lists = 'uploaded_files/voan_list/current_lists.txt'

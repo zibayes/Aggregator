@@ -16,7 +16,7 @@
 
 {% block heritage_links %}
     {% if archaeological_heritage_site.account_card_id %}
-        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+        <a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px;"
            href="/account_cards/{{ archaeological_heritage_site.account_card_id }}">
             Учётная карта
         </a>
@@ -26,12 +26,13 @@
 {% block heritage_actions %}
     {% if archaeological_heritage_site.user.id == user.id or user.is_superuser %}
         <a href="/archaeological_heritage_sites_edit/{{ archaeological_heritage_site.id }}">
-            <button type="button" class="btn btn-primary"
+            <button type="button" class="btn btn-primary edit-button"
                     style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
                 Редактировать
             </button>
         </a>
-        <button type="button" class="btn btn-danger" data-bs-target="#delete_heritage" data-bs-toggle="modal">
+        <button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_heritage"
+                data-bs-toggle="modal">
             Удалить
         </button>
     {% endif %}

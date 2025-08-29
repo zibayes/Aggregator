@@ -10,7 +10,7 @@
         {% block report_sources %}{% endblock %}
 
         {% if report.coordinates_dict %}
-            <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
+            <a class="btn btn-success lang coordinates-button" style="border-radius: 12px; margin-right:10px;"
                href="{% block map_link %}{% endblock %}">
                 Просмотр координат
             </a>
@@ -66,7 +66,9 @@
 
     <hr>
     <h2>Содержание</h2>
-    {% block report_contents %}{% endblock %}
+    <div id="report-contents">
+        {% block report_contents %}{% endblock %}
+    </div>
     <hr>
 
     {% block report_sections %}{% endblock %}
@@ -85,3 +87,49 @@
     <script src="{% static 'js/gallery_scripts.js' %}"></script>
 
 {% endblock %}
+
+<script>
+    {% block guide_steps %}
+        const tourSteps = [
+            {
+                title: 'Просмотр отчёта',
+                text: 'На странице просмотра формализованного отчёта представлена информация, которая была считана системой при обработке документа.',
+                element: null
+            },
+            {
+                title: 'Исходники',
+                text: 'По данной ссылке вы можете просмотреть и скачать исходный файл, который был загружен в систему.',
+                element: '.source-button'
+            },
+            {% if report.coordinates_dict %}
+                {
+                    title: 'Просмотр координат',
+                    text: 'Если в отчёте были распознаны и считаны координаты, то их можно посмотреть на интерактивной карте.',
+                    element: '.coordinates-button'
+                },
+            {% endif %}
+            {% if archaeological_heritage_site.user.id == user.id or user.is_superuser %}
+                {
+                    title: 'Редактирование',
+                    text: 'Также формализованную информацию об отчёте можно изменить с помощью встроенного редактора.',
+                    element: '.edit-button'
+                },
+                {
+                    title: 'Удаление',
+                    text: 'При необходимости отчёт возможно удалить из системы вместе с исходником.',
+                    element: '.delete-button'
+                },
+                {
+                    title: 'Повторная обработка',
+                    text: 'Отчёт можно отправить на повторную обработку, предварительно выбрав необходимые разделы документа.',
+                    element: '.reprocess-button'
+                },
+            {% endif %}
+            {
+                title: 'Оглавление',
+                text: 'После обработки отчёта автоматически выстраивается навигация по основным разделам. Используйте данные гиперссылки для быстрого перемещения к нужному разделу документа.',
+                element: '#report-contents'
+            }
+        ];
+    {% endblock %}
+</script>

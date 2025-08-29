@@ -60,56 +60,60 @@
         <div class="controls"
              style="display: flex; justify-content: space-between; align-items: center;">
             <button class="link-button" type="button" data-bs-target="#download"
-                    data-bs-toggle="modal">
+                    data-bs-toggle="modal" id="coordinates-download-button">
                 Скачать координаты в формате .kml
             </button>
-            <label for="baseLayerSelect" style="margin-left: 10px;">Подложка:</label>
-            <select id="baseLayerSelect" class="form-select" style="margin-left: 3px; width: 270px;">
-                <optgroup label="OpenStreetMap">
-                    <option value="OpenStreetMap">OpenStreetMap Карта</option>
-                </optgroup>
-                <optgroup label="Google">
-                    <option value="Google">Google Карта</option>
-                    <option value="Google satellite">Google Спутник</option>
-                    <option value="Google hybrid">Google Гибрид</option>
-                    <option value="Google Roads">Google Дороги</option>
-                    <option value="Google Streets">Google Улицы</option>
-                    <option value="Google Streets Alternative">Google Улицы (альтернативный)</option>
-                    <option value="Google Terrain">Google Рельеф</option>
-                    <option value="Google Terrain Alternative">Google Рельеф (альтернативный)</option>
-                </optgroup>
-                <optgroup label="Yandex">
-                    <option value="Yandex">Yandex Карта</option>
-                    <option value="Yandex satellite">Yandex Спутник</option>
-                    <option value="Yandex hybrid">Yandex Гибрид</option>
-                </optgroup>
-                <optgroup label="2GIS">
-                    <option value="2GIS">2GIS Карта</option>
-                </optgroup>
-                <optgroup label="Bing">
-                    <option value="Bing Maps">Bing Карта</option>
-                    <option value="Bing Satellite">Bing Спутник</option>
-                    <option value="Bing Roads (en)">Bing Дороги (en)</option>
-                    <option value="Bing Roads (ru)">Bing Дороги (ru)</option>
-                    <option value="Bing Hybrid">Bing Гибрид</option>
-                </optgroup>
-                <optgroup label="ArcGIS">
-                    <option value="ArcGIS Imagery">ArcGIS Спутник</option>
-                    <option value="ArcGIS Hybrid">ArcGIS Гибрид</option>
-                    <option value="ArcGIS Streets">ArcGIS Улицы</option>
-                </optgroup>
-            </select>
-            <label for="additionalLayerSelect" style="margin-left: 10px;">Слой:</label>
-            <select id="additionalLayerSelect" class="form-select" style="margin-left: 3px; width: 270px;">
-                <option value="No additional layer">Нет слоя</option>
-                <optgroup label="Кадастровые карты">
-                    <option value="Cadastre site">Кадастровые участки</option>
-                    <option value="Cadastre quarter">Кадастровые кварталы</option>
-                    <option value="Cadastre district">Кадастровые районы</option>
-                    <option value="Cadastre county">Кадастровые округа</option>
-                </optgroup>
-            </select>
-            <div style="display: flex; align-items: center; margin-left: auto;">
+            <div id="base-layer-select">
+                <label for="baseLayerSelect" style="margin-left: 10px;">Подложка:</label>
+                <select id="baseLayerSelect" class="form-select" style="margin-left: 3px; width: 270px;">
+                    <optgroup label="OpenStreetMap">
+                        <option value="OpenStreetMap">OpenStreetMap Карта</option>
+                    </optgroup>
+                    <optgroup label="Google">
+                        <option value="Google">Google Карта</option>
+                        <option value="Google satellite">Google Спутник</option>
+                        <option value="Google hybrid">Google Гибрид</option>
+                        <option value="Google Roads">Google Дороги</option>
+                        <option value="Google Streets">Google Улицы</option>
+                        <option value="Google Streets Alternative">Google Улицы (альтернативный)</option>
+                        <option value="Google Terrain">Google Рельеф</option>
+                        <option value="Google Terrain Alternative">Google Рельеф (альтернативный)</option>
+                    </optgroup>
+                    <optgroup label="Yandex">
+                        <option value="Yandex">Yandex Карта</option>
+                        <option value="Yandex satellite">Yandex Спутник</option>
+                        <option value="Yandex hybrid">Yandex Гибрид</option>
+                    </optgroup>
+                    <optgroup label="2GIS">
+                        <option value="2GIS">2GIS Карта</option>
+                    </optgroup>
+                    <optgroup label="Bing">
+                        <option value="Bing Maps">Bing Карта</option>
+                        <option value="Bing Satellite">Bing Спутник</option>
+                        <option value="Bing Roads (en)">Bing Дороги (en)</option>
+                        <option value="Bing Roads (ru)">Bing Дороги (ru)</option>
+                        <option value="Bing Hybrid">Bing Гибрид</option>
+                    </optgroup>
+                    <optgroup label="ArcGIS">
+                        <option value="ArcGIS Imagery">ArcGIS Спутник</option>
+                        <option value="ArcGIS Hybrid">ArcGIS Гибрид</option>
+                        <option value="ArcGIS Streets">ArcGIS Улицы</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div id="additional-layer-select">
+                <label for="additionalLayerSelect" style="margin-left: 10px;">Слой:</label>
+                <select id="additionalLayerSelect" class="form-select" style="margin-left: 3px; width: 270px;">
+                    <option value="No additional layer">Нет слоя</option>
+                    <optgroup label="Кадастровые карты">
+                        <option value="Cadastre site">Кадастровые участки</option>
+                        <option value="Cadastre quarter">Кадастровые кварталы</option>
+                        <option value="Cadastre district">Кадастровые районы</option>
+                        <option value="Cadastre county">Кадастровые округа</option>
+                    </optgroup>
+                </select>
+            </div>
+            <div style="display: flex; align-items: center; margin-left: auto;" id="control-panel-switchers">
                 <label style="display: flex; align-items: center; margin-left: 10px;">
                     <input type="checkbox" id="toggleScale" style="margin-right: 3px;" checked> Переключение
                     мастшаба
@@ -137,7 +141,7 @@
 
     {% if coordinates %}
         <div style="align-items: center; max-width: 1800px; margin: 0 auto;">
-            <div class="controls" style="display: flex;">
+            <div class="controls" id="screenshotControls" style="display: flex;">
                 <button id="screenshotButton" class="link-button" type="button" style="margin-left:10px;">Сделать
                     скриншот карты
                 </button>
@@ -675,3 +679,146 @@
         </div>
     </div>
 {% endblock modal_dialog %}
+
+<script>
+    {% block guide_steps %}
+        const tourSteps = [
+            {
+                title: 'Интерактивная карта',
+                text: 'На странице интерактивной карты представлена картографическая информация, извлечённая из выбранного типа документов. Страницы интерактивной карты для каждого вида документов имеют общий функционал.',
+                element: null
+            },
+            {
+                title: 'Экспорт данных',
+                text: 'Представленные картографические данные можно просмотреть и экспортировать в формате KML в данном разделе.',
+                element: '#coordinates-download-button'
+            },
+            {
+                title: 'Карта',
+                text: 'Координаты, для которых была распознана система координат выводятся на интерактивную карту в виде меток, нажав на которые можно посмотреть информацию о расположении точки, её типе и привязке к конкретному документу.',
+                element: '#map'
+            },
+            {
+                title: 'Основные слои',
+                text: 'Если вам необходимо поменять подложку карты, то для этого можно воспользоваться данным выпадающим списком.',
+                element: '#base-layer-select'
+            },
+            {
+                title: 'Дополнительные слои',
+                text: 'Также можно использовать наложение дополнительных слоёв кадастровой карты с помощью данного выпадающего списка.',
+                element: '#additional-layer-select'
+            },
+            {
+                title: 'Переключатели виджетов',
+                text: 'Для изменения статуса отображения виджетов на интерактивной карте используйте данные переключатели.',
+                element: '#control-panel-switchers'
+            }
+        ];
+
+        // Добавляем остальные шаги
+        tourSteps.push(
+            {
+                title: 'Легенда',
+                text: 'В легенде представлен перечень отображаемых групп точек с привязкой по цвету маркеров, разбитых тематически. Здесь же можно переключать отображение как групп, так и отдельных точек, а также отображение полигонов.',
+                element: '.legend'
+            },
+            {
+                title: 'Масштаб',
+                text: 'С помощью данного переключателя можно менять масштаб карты. Аналогично масштаб изменяется с помощью прокрутки колёсика мыши.',
+                element: '.leaflet-control-zoom'
+            },
+            {
+                title: 'Координаты',
+                text: 'В правом нижнем углу карты указаны текущие координаты в формате WGS-84. Координаты соответствуют месту расположения курсора на карте.',
+                element: '.coordinates'
+            },
+            {
+                title: 'Масштабная линейка',
+                text: 'В левом нижнем углу карты расположена масштабная линейка. Она является динамической и автоматически подстраивается под выбранный масштаб карты.',
+                element: '.leaflet-control-graphicscale'
+            }
+        );
+
+        // Добавляем условный шаг
+        {% if coordinates %}
+            tourSteps.push(
+                {
+                    title: 'Создание изображений',
+                    text: 'Если вами предварительно были загружены картографические данные до вставки их в отчёт, то можно воспользоваться автоматизированным созданием изображений участка работ в масштабах страны/края/района/раскопок для дальнейшей их вставки в отчёт.',
+                    element: '#screenshotControls'
+                },
+                {
+                    title: 'Настройка скриншотов',
+                    text: 'Если автоматизированное создание изображений выполняется некорректно, то можно перейти в режим ручного создания изображений карты.',
+                    element: '#screenshotModeSelect'
+                },
+                {
+                    title: 'Размер карты и масштаб',
+                    text: 'В данных полях можно задать размер карты и поменять масштаб изображения.',
+                    element: '#manualScreenshotControls'
+                },
+                {
+                    title: 'Настройка полигонов',
+                    text: 'Для настройки отображения полигонов страны/края/района используйте данную панель. Здесь можно задать цвет границ и заливки, размер и цвет надписи. Прозрачность заливки задаётся в виде вещественного числа в диапазоне от 0.0 до 1.0, где 0.0 - это полная прозрачность, а 1.0 - это полная непрозрачность.',
+                    element: '#stagesControls'
+                },
+            );
+        {% endif %}
+
+        // Функция для включения чекбоксов
+        function switchOnCheckbox(selector) {
+            const checkbox = document.querySelector(selector);
+            if (!checkbox.checked) {
+                checkbox.checked = true;
+                const event = new Event('change', {bubbles: true});
+                checkbox.dispatchEvent(event);
+            }
+        }
+
+        function switchSelect(selector, index) {
+            let select = document.querySelector(selector);
+            select.selectedIndex = index;
+            select.dispatchEvent(new Event('change'));
+        }
+
+        tour.on('show', (event) => {
+            const stepName = event.step.options.title;
+
+            switch (stepName) {
+                case 'Легенда':
+                    switchOnCheckbox('#toggleLegend');
+                    break;
+                case 'Масштаб':
+                    switchOnCheckbox('#toggleScale');
+                    break;
+                case 'Координаты':
+                    switchOnCheckbox('#toggleCoordinates');
+                    break;
+                case 'Масштабная линейка':
+                    switchOnCheckbox('#toggleGraphicScale');
+                    break;
+                case 'Создание изображений':
+                    switchSelect('select#screenshotModeSelect', 0)
+                    break;
+                case 'Настройка скриншотов':
+                    switchSelect('select#screenshotModeSelect', 1)
+                    setTimeout(() => {
+                        switchSelect('select#screenshotStageSelect', 2)
+                    }, 50);
+                    break;
+                case 'Размер карты и масштаб':
+                    switchSelect('select#screenshotModeSelect', 1)
+                    setTimeout(() => {
+                        switchSelect('select#screenshotStageSelect', 2)
+                    }, 50);
+                    break;
+                case 'Настройка полигонов':
+                    switchSelect('select#screenshotModeSelect', 1)
+                    setTimeout(() => {
+                        switchSelect('select#screenshotStageSelect', 2)
+                    }, 50);
+                    break;
+            }
+        });
+    {% endblock %}
+</script>

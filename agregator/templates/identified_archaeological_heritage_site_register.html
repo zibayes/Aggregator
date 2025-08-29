@@ -1,4 +1,4 @@
-{% extends 'bases/base.html' %}
+{% extends 'bases/register_base.html' %}
 
 {% block title %}Перечень выявленных объектов археологического наследия{% endblock %}
 
@@ -6,163 +6,137 @@
     <li class="breadcrumb-item active" aria-current="page">Перечень выявленных объектов археологического наследия</li>
 {% endblock %}
 
-{% block content %}
-
-    <br>
-    <h2 align="center">Перечень выявленных объектов археологического наследия</h2>
-    <br>
-
-    <div class="accordion" id="accordionColumns">
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapseColumns" aria-expanded="false" aria-controls="collapseColumns">
-                    Отображение колонок
-                </button>
-            </h2>
-            <div id="collapseColumns" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
-                <div class="accordion-body">
-                    <label><input type="checkbox" class="column-toggle" data-column="0" checked>
-                        Наименование</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="1" checked> Адрес</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="2" checked> Информация</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="3" checked> Документ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="4" checked> Дата
-                        загрузки</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="5" checked> Исключён</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="6" checked> Формализованный
-                        документ</label><br>
-                    <label><input type="checkbox" class="column-toggle" data-column="7" checked>
-                        Редактирование</label><br>
-                </div>
-            </div>
-        </div>
-
-        <div class="accordion-item">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
-                    Фильтры
-                </button>
-            </h2>
-            <div id="collapseFilters" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
-                <div class="accordion-body">
-                    <form id="filterForm">
-                        <div class="mb-3" id="filterNameContainer">
-                            <label for="filterName" class="form-label">Наименование</label>
-                            <input type="text" class="form-control" id="filterName" placeholder="Введите наименование">
-                        </div>
-                        <div class="mb-3" id="filterAddressContainer">
-                            <label for="filterAddress" class="form-label">Адрес</label>
-                            <input type="text" class="form-control" id="filterAddress" placeholder="Введите адрес">
-                        </div>
-                        <div class="mb-3" id="filterObjInfoContainer">
-                            <label for="filterObjInfo" class="form-label">Информация</label>
-                            <input type="text" class="form-control" id="filterObjInfo" placeholder="Введите информацию">
-                        </div>
-                        <div class="mb-3" id="filterDocumentContainer">
-                            <label for="filterDocument" class="form-label">Документ</label>
-                            <input type="text" class="form-control" id="filterDocument" placeholder="Введите документ">
-                        </div>
-                        <div class="mb-3" id="filterDateUploadedContainer">
-                            <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
-                            <input type="text" class="form-control" id="filterDateUploaded"
-                                   placeholder="Введите дату загрузки">
-                        </div>
-                        <div class="mb-3">
-                            <label>
-                                <input type="checkbox" id="showExcluded"/> Показать исключённые объекты
-                            </label>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Применить фильтры</button>
-                    </form>
-                </div>
-            </div>
-        </div>
+{% block column_toggles %}
+    <div data-columns-count="8">
+        <label><input type="checkbox" class="column-toggle" data-column="0" checked> Наименование</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="1" checked> Адрес</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="2" checked> Информация</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="3" checked> Документ</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="4" checked> Дата загрузки</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="5" checked> Исключён</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="6" checked> Формализованный
+            документ</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="7" checked> Редактирование</label><br>
     </div>
+{% endblock %}
 
+{% block filter_form %}
+    <div class="mb-3" id="filterNameContainer">
+        <label for="filterName" class="form-label">Наименование</label>
+        <input type="text" class="form-control" id="filterName" placeholder="Введите наименование">
+    </div>
+    <div class="mb-3" id="filterAddressContainer">
+        <label for="filterAddress" class="form-label">Адрес</label>
+        <input type="text" class="form-control" id="filterAddress" placeholder="Введите адрес">
+    </div>
+    <div class="mb-3" id="filterObjInfoContainer">
+        <label for="filterObjInfo" class="form-label">Информация</label>
+        <input type="text" class="form-control" id="filterObjInfo" placeholder="Введите информацию">
+    </div>
+    <div class="mb-3" id="filterDocumentContainer">
+        <label for="filterDocument" class="form-label">Документ</label>
+        <input type="text" class="form-control" id="filterDocument" placeholder="Введите документ">
+    </div>
+    <div class="mb-3" id="filterDateUploadedContainer">
+        <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+        <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
+    </div>
+    <div class="mb-3">
+        <label>
+            <input type="checkbox" id="showExcluded"/> Показать исключённые объекты
+        </label>
+    </div>
+    {{ block.super }}
+{% endblock %}
+
+{% block download_link %}
+    <a href="/identified_archaeological_heritage_sites_download/">
+        Скачать перечень в формате .docx
+    </a>
+{% endblock %}
+
+{% block table_headers %}
+    <th>Наименование</th>
+    <th>Адрес</th>
+    <th>Информация</th>
+    <th>Документ</th>
+    <th>Дата загрузки</th>
+    <th>Исключён</th>
+    <th>Формализованный документ</th>
+    <th>Редактирование</th>
+{% endblock %}
+
+{% block table_body %}
+    {% for site in voan %}
+        <tr data-act-id="{{ site.id }}"
+            data-user-id="{{ site.user.id|default:'' }}"
+            data-name="{{ site.name }}"
+            data-address="{{ site.address }}"
+            data-obj-info="{{ site.obj_info }}"
+            data-document="{{ site.document }}"
+            data-date-uploaded="{{ site.date_uploaded }}"
+            data-is-excluded="{{ site.is_excluded }}"
+            data-is-public="{{ site.is_public }}">
+            <td><a{% if site.account_card.id %}
+                href="/account_cards/{{ site.account_card.id }}" {% endif %}>{{ site.name }}</a></td>
+            <td>{{ site.address }}</td>
+            <td>{{ site.obj_info }}</td>
+            <td>{{ site.document }}</td>
+            <td>{{ site.date_uploaded }}</td>
+            <td>{{ site.is_excluded|yesno:"Да,Нет" }}</td>
+            <td>
+                {% include 'includes/buttons/view_button.html' with object_type='identified_archaeological_heritage_site' object=site %}
+            </td>
+            {% include 'includes/buttons/action_buttons.html' with object_type='identified_archaeological_heritage_site' object=site %}
+        </tr>
+    {% endfor %}
+{% endblock %}
+
+{% block modal_dialogs %}
+    {% for site in voan %}
+        {% include 'includes/modal_delete.html' with object_type='identified_archaeological_heritage_site' object_name='памятник' object=site %}
+    {% endfor %}
+{% endblock %}
+
+{% block filter_script %}
+    {{ block.super }}
+    const nameFilter = document.getElementById('filterName').value.toLowerCase();
+    const addressFilter = document.getElementById('filterAddress').value.toLowerCase();
+    const objInfoFilter = document.getElementById('filterObjInfo').value.toLowerCase();
+    const documentFilter = document.getElementById('filterDocument').value.toLowerCase();
+    const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
+    const showExcluded = document.getElementById('showExcluded').checked;
+{% endblock %}
+
+{% block filter_logic %}
+    {{ block.super }}
+    const nameText = row.dataset.name ? row.dataset.name.toLowerCase() : '';
+    const addressText = row.dataset.address ? row.dataset.address.toLowerCase() : '';
+    const objInfoText = row.dataset.objInfo ? row.dataset.objInfo.toLowerCase() : '';
+    const documentText = row.dataset.document ? row.dataset.document.toLowerCase() : '';
+    const dateUploadedText = row.dataset.dateUploaded ? row.dataset.dateUploaded.toLowerCase() : '';
+    const isExcluded = row.dataset.isExcluded === "True";
+{% endblock %}
+
+{% block filter_conditions %}
+    ({{ block.super }}) &&
+    (nameFilter === '' || nameText.includes(nameFilter)) &&
+    (addressFilter === '' || addressText.includes(addressFilter)) &&
+    (objInfoFilter === '' || objInfoText.includes(objInfoFilter)) &&
+    (documentFilter === '' || documentText.includes(documentFilter)) &&
+    (dateUploadedFilter === '' || dateUploadedText.includes(dateUploadedFilter)) &&
+    (showExcluded || !isExcluded)
+{% endblock %}
+
+{% block storage_switch %}
+    {# Скрываем переключатель хранилища для этого реестра #}
+{% endblock %}
+
+{% block table_controls %}
     <div class="container mt-1">
-        <div class="controls" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-            <a href="/identified_archaeological_heritage_sites_download/">
-                Скачать перечень в формате .docx
-            </a>
-            <div style="display: flex; align-items: center; margin-left: auto;">
-                <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-                   href="{% url 'update_voan_list' %}">Обновить перечень</a>
-            </div>
+        <div style="display: flex; align-items: center; margin-left: auto;">
+            <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+               href="{% url 'update_voan_list' %}">Обновить перечень</a>
         </div>
     </div>
-
-    <div class="table-responsive overflow-auto">
-        <table class="table table-striped w-100">
-            <thead>
-            <tr>
-                <th>Наименование</th>
-                <th>Адрес</th>
-                <th>Информация</th>
-                <th>Документ</th>
-                <th>Дата загрузки</th>
-                <th>Исключён</th>
-                <th>Формализованный документ</th>
-                <th>Редактирование</th>
-            </tr>
-            </thead>
-            <tbody>
-            {% for site in voan %}
-                <tr data-act-id="{{ site.id }}" data-name="{{ site.name }}" data-address="{{ site.address }}"
-                    data-obj-info="{{ site.obj_info }}" data-document="{{ site.document }}"
-                    data-date-uploaded="{{ site.date_uploaded }}" data-is-excluded="{{ site.is_excluded }}">
-                    <td><a{% if site.account_card.id %}
-                        href="/account_cards/{{ site.account_card.id }}" {% endif %}>{{ site.name }}</a></td>
-                    <td>{{ site.address }}</td>
-                    <td>{{ site.obj_info }}</td>
-                    <td>{{ site.document }}</td>
-                    <td>{{ site.date_uploaded }}</td>
-                    <td>{{ site.is_excluded|yesno:"Да,Нет" }}</td>
-                    <td>
-                        {% include 'includes/buttons/view_button.html' with object_type='identified_archaeological_heritage_site' object=site %}
-                    </td>
-                    {% include 'includes/buttons/action_buttons.html' with object_type='identified_archaeological_heritage_site' object=site %}
-                </tr>
-                {% block modal_dialog %}
-                    {% include 'includes/modal_delete.html' with object_type='identified_archaeological_heritage_site' object_name='памятник' object=site %}
-                {% endblock modal_dialog %}
-            {% endfor %}
-            </tbody>
-        </table>
-    </div>
-
-    <script>
-        document.getElementById('filterForm').addEventListener('submit', function (e) {
-            e.preventDefault();
-
-            const nameFilter = document.getElementById('filterName').value.toLowerCase();
-            const addressFilter = document.getElementById('filterAddress').value.toLowerCase();
-            const objInfoFilter = document.getElementById('filterObjInfo').value.toLowerCase();
-            const documentFilter = document.getElementById('filterDocument').value.toLowerCase();
-            const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
-            const showExcluded = document.getElementById('showExcluded').checked;
-
-            const rows = document.querySelectorAll('.table tbody tr');
-            rows.forEach(row => {
-                const nameText = row.dataset.name.toLowerCase();
-                const addressText = row.dataset.address.toLowerCase();
-                const objInfoText = row.dataset.objInfo.toLowerCase();
-                const documentText = row.dataset.document.toLowerCase();
-                const dateUploadedText = row.dataset.dateUploaded.toLowerCase();
-                const isExcluded = row.dataset.isExcluded === "True";
-
-                const isNameMatch = nameText.includes(nameFilter);
-                const isAddressMatch = addressText.includes(addressFilter);
-                const isObjInfoMatch = objInfoText.includes(objInfoFilter);
-                const isDocumentMatch = documentText.includes(documentFilter);
-                const isDateUploadedMatch = dateUploadedText.includes(dateUploadedFilter);
-                const showRow = (isNameMatch && isAddressMatch && isObjInfoMatch &&
-                        isDocumentMatch && isDateUploadedMatch) &&
-                    (showExcluded || !isExcluded);
-
-                row.style.display = showRow ? '' : 'none';
-            });
-        });
-    </script>
 {% endblock %}

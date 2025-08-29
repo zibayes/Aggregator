@@ -34,7 +34,9 @@
 
     <hr>
     <h2>Содержание</h2>
-    {% block document_contents %}{% endblock %}
+    <div id="document-contents">
+        {% block document_contents %}{% endblock %}
+    </div>
     <hr>
 
     {% block document_sections %}{% endblock %}
@@ -45,3 +47,51 @@
         }
     </style>
 {% endblock %}
+
+<script>
+    {% block guide_steps %}
+        const tourSteps = [
+            {
+                title: 'Просмотр документа',
+                text: 'На странице просмотра формализованного документа представлена информация, которая была считана системой при его обработке.',
+                element: null
+            },
+            {
+                title: 'Исходники',
+                text: 'По данной ссылке вы можете просмотреть и скачать исходный файл, который был загружен в систему.',
+                element: '.source-button'
+            },
+            {% if account_card.heritage_url %}
+                {
+                    title: 'Привязка к памятнику',
+                    text: 'Если к учётной карте привязан памятник из перечня, то по данной ссылке можно перейти на страницу памятника.',
+                    element: '.heritage-button'
+                },
+            {% endif %}
+            {% if account_card.coordinates_dict %}
+                {
+                    title: 'Просмотр координат',
+                    text: 'Если в документе были распознаны и считаны координаты, то их можно посмотреть на интерактивной карте.',
+                    element: '.coordinates-button'
+                },
+            {% endif %}
+            {% if archaeological_heritage_site.user.id == user.id or user.is_superuser %}
+                {
+                    title: 'Редактирование',
+                    text: 'Также формализованную информацию о документе можно изменить с помощью встроенного редактора.',
+                    element: '.edit-button'
+                },
+                {
+                    title: 'Удаление',
+                    text: 'При необходимости документ возможно удалить из системы вместе с исходником.',
+                    element: '.delete-button'
+                },
+            {% endif %}
+            {
+                title: 'Оглавление',
+                text: 'После обработки документа автоматически выстраивается навигация по основным разделам. Используйте данные гиперссылки для быстрого перемещения к нужному разделу документа.',
+                element: '#document-contents'
+            }
+        ];
+    {% endblock %}
+</script>

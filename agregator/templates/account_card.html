@@ -12,21 +12,21 @@
 
 {% block document_sources %}
     {% if account_card.upload_source_dict %}
-        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+        <a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px;"
            href="/{{ account_card.source }}">
             Исходник: {{ account_card.origin_filename }}
         </a>
         <br><br>
     {% endif %}
     {% if account_card.heritage_url %}
-        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+        <a class="btn btn-primary lang heritage-button" style="border-radius: 12px; margin-right:10px;"
            href="{{ account_card.heritage_url }}">
             Памятник
         </a>
         <br><br>
     {% endif %}
     {% if account_card.coordinates_dict %}
-        <a class="btn btn-success lang" style="border-radius: 12px; margin-right:10px;"
+        <a class="btn btn-success lang coordinates-button" style="border-radius: 12px; margin-right:10px;"
            href="/map/account_card/{{ account_card.id }}">
             Просмотр координат
         </a>
@@ -37,12 +37,13 @@
 {% block document_actions %}
     {% if account_card.user.id == user.id or user.is_superuser %}
         <a href="/account_cards_edit/{{ account_card.id }}">
-            <button type="button" class="btn btn-primary"
+            <button type="button" class="btn btn-primary edit-button"
                     style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
                 Редактировать
             </button>
         </a>
-        <button type="button" class="btn btn-danger" data-bs-target="#delete_document" data-bs-toggle="modal">
+        <button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_document"
+                data-bs-toggle="modal">
             Удалить
         </button>
     {% endif %}

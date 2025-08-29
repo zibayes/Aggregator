@@ -13,23 +13,27 @@
         <form method="post" enctype="multipart/form-data">
             {% csrf_token %}
             {% block upload_options %}{% endblock %}
-            <a>Выберите хранилище:</a>
+            <div id="storage-choice">
+                <a>Выберите хранилище:</a>
+                <br>
+                <input required id="storage_type_private" type="radio" name="storage_type" value="private"
+                        {% if not user.is_superuser %}
+                       disabled checked
+                        {% endif %}
+                >
+                <label style="padding-right: 8px;" for="storage_type_private">Частное</label>
+                <input required id="storage_type_public" type="radio" name="storage_type" value="public"
+                        {% if not user.is_superuser %}
+                       disabled
+                        {% endif %}
+                >
+                <label style="padding-right: 8px;" for="storage_type_public">Публичное</label>
+            </div>
             <br>
-            <input required id="storage_type_private" type="radio" name="storage_type" value="private"
-                    {% if not user.is_superuser %}
-                   disabled checked
-                    {% endif %}
-            >
-            <label style="padding-right: 8px;" for="storage_type_private">Частное</label>
-            <input required id="storage_type_public" type="radio" name="storage_type" value="public"
-                    {% if not user.is_superuser %}
-                   disabled
-                    {% endif %}
-            >
-            <label style="padding-right: 8px;" for="storage_type_public">Публичное</label>
             <br>
-            <br>
-            {{ form.as_p }}
+            <div id="file-choice">
+                {{ form.as_p }}
+            </div>
             {% block additional_options %}{% endblock %}
             <button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить
             </button>
@@ -230,3 +234,30 @@
         </script>
     </div>
 {% endblock %}
+
+<script>
+    {% block guide_steps %}
+        const tourSteps = [
+            {
+                title: 'Менеджер загрузок',
+                text: 'На странице менеджера загрузок представлена информация по пользовательским загрузкам выбранного типа документов. Страницы менеджеров загрузки для каждого вида документов имеют общий функционал.',
+                element: null
+            },
+            {
+                title: 'Выбор хранилища',
+                text: 'Перед загрузкой файлов необходимо выбрать, будут ли они находиться в общем доступе (публичное хранилище) или останутся доступны только вам (частное хранилище). Возможность загружать файлы в общий доступ есть только у пользователей с правами администратора',
+                element: '#storage-choice'
+            },
+            {
+                title: 'Выбор файлов',
+                text: 'При загрузке файлов необходимо удостовериться, что их расширение является допустимым - перечень таких расширений указан справа от кнопки выбора файлов.',
+                element: '#file-choice'
+            },
+            {
+                title: 'Журнал загрузок',
+                text: 'Информация о процессе загрузки и обработке файлов будет выводиться в журнале загрузок.',
+                element: '.upload-section'
+            }
+        ];
+    {% endblock %}
+</script>

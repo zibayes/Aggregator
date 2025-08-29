@@ -65,3 +65,76 @@
     visibility: visible;
     opacity: 1;
 }
+
+/* Стиль для кнопки помощи */
+.help-btn {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    border: none;
+    background: #3b71ca;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    margin-left: 15px;
+    margin-top: 4px;
+}
+
+/* Кастомизация самого Intro.js */
+.introjs-tooltip {
+    border-radius: 8px;
+    font-family: inherit;
+    max-width: 800px;
+    min-width: 400px;
+    width: auto;
+}
+
+.introjs-button {
+    text-shadow: none;
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.introjs-skipbutton {
+    color: #7f8c8d;
+}
+
+.introjs-progressbar {
+    height: 5px;
+}
+
+/* Свой класс для подсветки (если задали highlightClass) */
+.myHighlight {
+    border: 2px solid #f1c40f;
+    box-shadow: 0 0 20px rgba(241, 196, 15, 0.8);
+}
+
+/* Кастомные стили для карусели */
+.shepherd-progress {
+    display: flex;
+    justify-content: center;
+    margin: 15px 0 10px;
+    gap: 8px;
+}
+
+.shepherd-progress-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ccc;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.shepherd-progress-dot.active {
+    background: #3b82f6;
+    transform: scale(1.2);
+}
+
+.shepherd-counter {
+    text-align: center;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+}

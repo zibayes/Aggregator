@@ -9,84 +9,88 @@
 {% endblock %}
 
 {% block upload_options %}
-    <a>Выберите тип документа:</a>
+    <div id="document-type-choice">
+        <a>Выберите тип документа:</a>
+        <br>
+        <input required id="file_type_act" type="radio" name="file_type" value="act">
+        <label style="padding-right: 8px;" for="file_type_act">Акт</label>
+        <input required id="file_type_scientific_report" type="radio" name="file_type" value="scientific_report">
+        <label style="padding-right: 8px;" for="file_type_scientific_report">Научный отчёт</label>
+        <input required id="file_type_tech_report" type="radio" name="file_type" value="tech_report">
+        <label style="padding-right: 8px;" for="file_type_tech_report">Научно-технический отчёт</label>
+    </div>
     <br>
-    <input required id="file_type_act" type="radio" name="file_type" value="act">
-    <label style="padding-right: 8px;" for="file_type_act">Акт</label>
-    <input required id="file_type_scientific_report" type="radio" name="file_type" value="scientific_report">
-    <label style="padding-right: 8px;" for="file_type_scientific_report">Научный отчёт</label>
-    <input required id="file_type_tech_report" type="radio" name="file_type" value="tech_report">
-    <label style="padding-right: 8px;" for="file_type_tech_report">Научно-технический отчёт</label>
     <br>
-    <br>
-    <a>Выберите способ загрузки:</a>
-    <br>
-    <input required id="upload_type_detached" type="radio" name="upload_type" value="detached">
-    <label style="padding-right: 8px;" for="upload_type_detached">
-        Каждый файл - отдельный отчёт
-        <div class="tooltipcustom">
-            <span>ℹ️</span>
-            <span class="tooltiptext" style="width: 250px;">
-                Каждый загружаемый файл будет идентифицирован как отдельный отчёт
-                и будет обрабатываться и сохраняться отдельно. В результате обработки
-                файлы не будут между собой связаны.
-            </span>
-        </div>
-    </label>
-    <input required id="upload_type_fully" type="radio" name="upload_type" value="fully">
-    <label style="padding-right: 8px;" for="upload_type_fully">
-        Каждый файл - часть одного и того же отчёта
-        <div class="tooltipcustom">
-            <span>ℹ️</span>
-            <span class="tooltiptext" style="width: 650px;">
-                Все файлы будут идентифицированы как части одного и того же отчёта
-                и будут обрабатываться и сохраняться совместно. В результате обработки все файлы
-                будут связаны между собой и будут входить в один отчёт.
-                Для корректного разделения <span style="color: lightskyblue;">текста</span>
-                и <span style="color: lightskyblue;">приложения</span> отчёта
-                укажите в названии файла его <span style="color: lightskyblue;">тип</span>.
-                <br><br>
-                Пример для отчёта из двух файлов:
-                <br>
-                &nbsp; • <span style="color: lightskyblue;">Приложение</span> ОПИ Аф-5(2018).pdf
-                <br>
-                &nbsp; • <span style="color: lightskyblue;">Текст</span> ОПИ Аф-5(2018).pdf
-            </span>
-        </div>
-    </label>
-    <input required id="upload_type_mixed" type="radio" name="upload_type" value="mixed">
-    <label style="padding-right: 8px;" for="upload_type_mixed">
-        Смешанная загрузка
-        <div class="tooltipcustom">
-            <span>ℹ️</span>
-            <span class="tooltiptext" style="width: 850px;">
-                Файлы, в зависимости от группировки, будут идентифицированы как части одного и того же отчёта и
-                обработаны совместно или будут идентифицированы как отдельные отчёты и обработаны отдельно.
-                Для корректного разделения <span style="color: lightskyblue;">текста</span>
-                и <span style="color: lightskyblue;">приложения</span>, а также <span
-                    style="color: yellow;">группировки</span>
-                отчёта укажите в названии файла его
-                <span style="color: lightskyblue;">тип</span>, при этом <span style="color: yellow;">остальная часть названия</span>
-                у файлов одного и того же отчёта <span style="color: yellow;">должна быть одинаковой</span>.
-                <br><br>
-                Пример для трёх файлов, два из которых являются частями одного и того же отчёта:
-                <br>
-                &nbsp; • Норильск_Талнах_отрецензировано_05_07_2023.pdf
-                <br>
-                &nbsp; • <span style="color: lightskyblue;">Приложение</span> <span style="color: yellow;">ОПИ Аф-5(2018)</span>.pdf
-                <br>
-                &nbsp; • <span style="color: lightskyblue;">Текст</span> <span
-                    style="color: yellow;">ОПИ Аф-5(2018)</span>.pdf
-            </span>
-        </div>
-    </label>
+    <div id="upload-type-choice">
+        <a>Выберите способ загрузки:</a>
+        <br>
+        <input required id="upload_type_detached" type="radio" name="upload_type" value="detached">
+        <label style="padding-right: 8px;" for="upload_type_detached">
+            Каждый файл - отдельный отчёт
+            <div class="tooltipcustom">
+                <span>ℹ️</span>
+                <span class="tooltiptext" style="width: 250px;">
+                    Каждый загружаемый файл будет идентифицирован как отдельный отчёт
+                    и будет обрабатываться и сохраняться отдельно. В результате обработки
+                    файлы не будут между собой связаны.
+                </span>
+            </div>
+        </label>
+        <input required id="upload_type_fully" type="radio" name="upload_type" value="fully">
+        <label style="padding-right: 8px;" for="upload_type_fully">
+            Каждый файл - часть одного и того же отчёта
+            <div class="tooltipcustom">
+                <span>ℹ️</span>
+                <span class="tooltiptext" style="width: 650px;">
+                    Все файлы будут идентифицированы как части одного и того же отчёта
+                    и будут обрабатываться и сохраняться совместно. В результате обработки все файлы
+                    будут связаны между собой и будут входить в один отчёт.
+                    Для корректного разделения <span style="color: lightskyblue;">текста</span>
+                    и <span style="color: lightskyblue;">приложения</span> отчёта
+                    укажите в названии файла его <span style="color: lightskyblue;">тип</span>.
+                    <br><br>
+                    Пример для отчёта из двух файлов:
+                    <br>
+                    &nbsp; • <span style="color: lightskyblue;">Приложение</span> ОПИ Аф-5(2018).pdf
+                    <br>
+                    &nbsp; • <span style="color: lightskyblue;">Текст</span> ОПИ Аф-5(2018).pdf
+                </span>
+            </div>
+        </label>
+        <input required id="upload_type_mixed" type="radio" name="upload_type" value="mixed">
+        <label style="padding-right: 8px;" for="upload_type_mixed">
+            Смешанная загрузка
+            <div class="tooltipcustom">
+                <span>ℹ️</span>
+                <span class="tooltiptext" style="width: 850px;">
+                    Файлы, в зависимости от группировки, будут идентифицированы как части одного и того же отчёта и
+                    обработаны совместно или будут идентифицированы как отдельные отчёты и обработаны отдельно.
+                    Для корректного разделения <span style="color: lightskyblue;">текста</span>
+                    и <span style="color: lightskyblue;">приложения</span>, а также <span
+                        style="color: yellow;">группировки</span>
+                    отчёта укажите в названии файла его
+                    <span style="color: lightskyblue;">тип</span>, при этом <span style="color: yellow;">остальная часть названия</span>
+                    у файлов одного и того же отчёта <span style="color: yellow;">должна быть одинаковой</span>.
+                    <br><br>
+                    Пример для трёх файлов, два из которых являются частями одного и того же отчёта:
+                    <br>
+                    &nbsp; • Норильск_Талнах_отрецензировано_05_07_2023.pdf
+                    <br>
+                    &nbsp; • <span style="color: lightskyblue;">Приложение</span> <span style="color: yellow;">ОПИ Аф-5(2018)</span>.pdf
+                    <br>
+                    &nbsp; • <span style="color: lightskyblue;">Текст</span> <span
+                        style="color: yellow;">ОПИ Аф-5(2018)</span>.pdf
+                </span>
+            </div>
+        </label>
+    </div>
     <br>
     <br>
 {% endblock %}
 
 {% block additional_options %}
     <div class="accordion" id="accordionColumns" style="margin-bottom: 12px;">
-        <div class="accordion-item">
+        <div class="accordion-item" id="document-part-choice">
             <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                         data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
@@ -103,3 +107,45 @@
         </div>
     </div>
 {% endblock %}
+
+<script>
+    {% block guide_steps %}
+        const tourSteps = [
+            {
+                title: 'Менеджер загрузок',
+                text: 'На странице менеджера загрузок представлена информация по пользовательским загрузкам выбранного типа документов. Страницы менеджеров загрузки для каждого вида документов имеют общий функционал.',
+                element: null
+            },
+            {
+                title: 'Выбор типа документов',
+                text: 'Перед загрузкой файлов необходимо выбрать тип загружаемых документов. За один раз можно загрузить файлы только одно типа.',
+                element: '#document-type-choice'
+            },
+            {
+                title: 'Способ загрузки',
+                text: 'Также существует несколько способов загрузки группы файлов (для единичного файла данный параметр роли не играет). Более подробную информацию по каждому способу можно посмотреть по всплывающей подсказке.',
+                element: '#upload-type-choice'
+            },
+            {
+                title: 'Выбор хранилища',
+                text: 'Перед загрузкой файлов необходимо выбрать, будут ли они находиться в общем доступе (публичное хранилище) или останутся доступны только вам (частное хранилище). Возможность загружать файлы в общий доступ есть только у пользователей с правами администратора',
+                element: '#storage-choice'
+            },
+            {
+                title: 'Выбор файлов',
+                text: 'При загрузке файлов необходимо удостовериться, что их расширение является допустимым - перечень таких расширений указан справа от кнопки выбора файлов.',
+                element: '#file-choice'
+            },
+            {
+                title: 'Тип данных',
+                text: 'Если полная обработка документа является избыточной, то можно ограничиться только определённым типом данных, что можно указать в данном разделе.',
+                element: '#document-part-choice'
+            },
+            {
+                title: 'Журнал загрузок',
+                text: 'Информация о процессе загрузки и обработке файлов будет выводиться в журнале загрузок.',
+                element: '.upload-section'
+            }
+        ];
+    {% endblock %}
+</script>

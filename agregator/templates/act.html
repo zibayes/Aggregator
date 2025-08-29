@@ -15,7 +15,7 @@
 
 {% block report_sources %}
     {% for source in report.source_dict %}
-        <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+        <a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px;"
            href="/{{ source.path }}">
             Исходник: {{ source.origin_filename }}
         </a>
@@ -27,17 +27,19 @@
 {% block report_actions %}
     {% if report.user.id == user.id or user.is_superuser %}
         <a href="/acts_edit/{{ report.id }}">
-            <button type="button" class="btn btn-primary"
+            <button type="button" class="btn btn-primary edit-button"
                     style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
                 Редактировать
             </button>
         </a>
-        <button type="button" class="btn btn-danger" data-bs-target="#delete_report" data-bs-toggle="modal">
+        <button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_report"
+                data-bs-toggle="modal">
             Удалить
         </button>
         <br>
         <br>
-        <button type="button" class="btn btn-primary" data-bs-target="#reprocess" data-bs-toggle="modal">
+        <button type="button" class="btn btn-primary reprocess-button" data-bs-target="#reprocess"
+                data-bs-toggle="modal">
             Повторная обработка документа
         </button>
     {% endif %}

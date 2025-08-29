@@ -38,7 +38,9 @@
 
     <hr>
     <h2>Содержание</h2>
-    {% block heritage_contents %}{% endblock %}
+    <div id="heritage-contents">
+        {% block heritage_contents %}{% endblock %}
+    </div>
     <hr>
 
     {% block heritage_sections %}{% endblock %}
@@ -49,3 +51,39 @@
         }
     </style>
 {% endblock %}
+
+<script>
+    {% block guide_steps %}
+        const tourSteps = [
+            {
+                title: 'Просмотр памятника',
+                text: 'На странице просмотра формализованного документа представлена информация, которая была считана системой при его обработке.',
+                element: null
+            },
+            {% if archaeological_heritage_site.account_card_id or identified_archaeological_heritage_site.account_card_id %}
+                {
+                    title: 'Привязка к памятнику',
+                    text: 'Если к памятнику привязана учётная карта, то по данной ссылке можно перейти на страницу учётной карты.',
+                    element: '.account-card-button'
+                },
+            {% endif %}
+            {% if archaeological_heritage_site.user.id == user.id or user.is_superuser %}
+                {
+                    title: 'Редактирование',
+                    text: 'Также формализованную информацию о памятнике можно изменить с помощью встроенного редактора.',
+                    element: '.edit-button'
+                },
+                {
+                    title: 'Удаление',
+                    text: 'При необходимости памятник возможно удалить из системы.',
+                    element: '.delete-button'
+                },
+            {% endif %}
+            {
+                title: 'Оглавление',
+                text: 'После обработки документа автоматически выстраивается навигация по основным разделам. Используйте данные гиперссылки для быстрого перемещения к нужному разделу документа.',
+                element: '#heritage-contents'
+            }
+        ];
+    {% endblock %}
+</script>

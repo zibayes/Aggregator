@@ -10,90 +10,86 @@ document.getElementById('screenshotModeSelect').addEventListener('change', funct
     }
 });
 
-document.getElementById('manualScreenshotControls').addEventListener('change', function (event) {
-    const stageSelect = document.getElementById('screenshotStageSelect');
+document.getElementById('screenshotStageSelect').addEventListener('change', function (event) {
+    const selectedStage = this.value;
+    countryControls.style.display = 'none';
+    subjectControls.style.display = 'none';
+    regionControls.style.display = 'none';
 
-    if (event.target === stageSelect) {
-        const selectedStage = stageSelect.value;
-        countryControls.style.display = 'none';
-        subjectControls.style.display = 'none';
-        regionControls.style.display = 'none';
+    if (selectedStage === 'russia') {
+        countryControls.style.display = 'block';
+        subjectControls.style.display = 'block';
+    } else if (selectedStage === 'subject') {
+        subjectControls.style.display = 'block';
+        regionControls.style.display = 'block';
+    } else if (selectedStage === 'region') {
+        regionControls.style.display = 'block';
+    }
 
-        if (selectedStage === 'russia') {
-            countryControls.style.display = 'block';
-            subjectControls.style.display = 'block';
-        } else if (selectedStage === 'subject') {
-            subjectControls.style.display = 'block';
-            regionControls.style.display = 'block';
-        } else if (selectedStage === 'region') {
-            regionControls.style.display = 'block';
+    if (window.layers_russia) {
+        window.layers_russia.forEach(layer => map.removeLayer(layer));
+    }
+    if (window.layers_subject) {
+        window.layers_subject.forEach(layer => map.removeLayer(layer));
+    }
+    if (window.labels_regions) {
+        window.labels_regions.forEach(layer => map.removeLayer(layer));
+    }
+    if (window.layers_regions) {
+        window.layers_regions.forEach(layer => map.removeLayer(layer));
+    }
+    if (window.labels_subject) {
+        window.labels_subject.forEach(layer => map.removeLayer(layer));
+    }
+
+    const mapWidth = document.getElementById('mapWidth').value;
+    const mapHeight = document.getElementById('mapHeight').value;
+    const mapElement = document.getElementById('map');
+
+    // Элементы для страны
+    const countryBorderColor = document.getElementById('countryBorderColor');
+    const countryBorderOpacity = document.getElementById('countryBorderOpacity');
+
+    // Элементы для субъекта
+    const subjectBorderColor = document.getElementById('subjectBorderColor');
+    const subjectBorderOpacity = document.getElementById('subjectBorderOpacity');
+    const subjectLabelColor = document.getElementById('subjectLabelColor');
+    // const subjectLabelSize = document.getElementById('subjectLabelSize');
+
+    // Элементы для района
+    const regionBorderColor = document.getElementById('regionBorderColor');
+    const regionBorderOpacity = document.getElementById('regionBorderOpacity');
+
+    if (selectedStage === 'region') {
+        result = prtScrRegion(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value);
+        window.layers_regions = result[0];
+        borders_bounds = result[1];
+        if (borders_bounds.length > 0) {
+            allBounds = L.latLngBounds(borders_bounds);
+            map.fitBounds(allBounds);
         }
-
-        if (window.layers_russia) {
-            window.layers_russia.forEach(layer => map.removeLayer(layer));
+    } else if (selectedStage === 'subject') {
+        result = prtScrSubject(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, regionLabelColor.value, regionLabelSize.value);
+        window.layers_subject = result[0][0];
+        borders_bounds = result[0][1];
+        window.layers_regions = result[1][0];
+        borders_bounds.push(result[1][1]);
+        labels_regions = result[1][2];
+        if (borders_bounds.length > 0) {
+            map.fitBounds(L.latLngBounds(borders_bounds));
         }
-        if (window.layers_subject) {
-            window.layers_subject.forEach(layer => map.removeLayer(layer));
+    } else if (selectedStage === 'russia') {
+        result = prtScrCountry(mapElement, window.data, mapWidth, mapHeight, countryBorderColor.value, countryBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, subjectLabelColor.value, subjectLabelSize.value);
+        window.layers_russia = result[0][0];
+        borders_bounds = result[0][1];
+        window.layers_subject = result[1][0];
+        borders_bounds.push(result[1][1]);
+        window.labels_subject = result[1][2];
+        if (borders_bounds.length > 0) {
+            map.fitBounds(L.latLngBounds(borders_bounds));
         }
-        if (window.labels_regions) {
-            window.labels_regions.forEach(layer => map.removeLayer(layer));
-        }
-        if (window.layers_regions) {
-            window.layers_regions.forEach(layer => map.removeLayer(layer));
-        }
-        if (window.labels_subject) {
-            window.labels_subject.forEach(layer => map.removeLayer(layer));
-        }
-
-        const mapWidth = document.getElementById('mapWidth').value;
-        const mapHeight = document.getElementById('mapHeight').value;
-        const mapElement = document.getElementById('map');
-
-        // Элементы для страны
-        const countryBorderColor = document.getElementById('countryBorderColor');
-        const countryBorderOpacity = document.getElementById('countryBorderOpacity');
-
-        // Элементы для субъекта
-        const subjectBorderColor = document.getElementById('subjectBorderColor');
-        const subjectBorderOpacity = document.getElementById('subjectBorderOpacity');
-        const subjectLabelColor = document.getElementById('subjectLabelColor');
-        // const subjectLabelSize = document.getElementById('subjectLabelSize');
-
-        // Элементы для района
-        const regionBorderColor = document.getElementById('regionBorderColor');
-        const regionBorderOpacity = document.getElementById('regionBorderOpacity');
-
-        if (selectedStage === 'region') {
-            result = prtScrRegion(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value);
-            window.layers_regions = result[0];
-            borders_bounds = result[1];
-            if (borders_bounds.length > 0) {
-                allBounds = L.latLngBounds(borders_bounds);
-                map.fitBounds(allBounds);
-            }
-        } else if (selectedStage === 'subject') {
-            result = prtScrSubject(mapElement, window.data, mapWidth, mapHeight, regionBorderColor.value, regionBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, regionLabelColor.value, regionLabelSize.value);
-            window.layers_subject = result[0][0];
-            borders_bounds = result[0][1];
-            window.layers_regions = result[1][0];
-            borders_bounds.push(result[1][1]);
-            labels_regions = result[1][2];
-            if (borders_bounds.length > 0) {
-                map.fitBounds(L.latLngBounds(borders_bounds));
-            }
-        } else if (selectedStage === 'russia') {
-            result = prtScrCountry(mapElement, window.data, mapWidth, mapHeight, countryBorderColor.value, countryBorderOpacity.value, subjectBorderColor.value, subjectBorderOpacity.value, subjectLabelColor.value, subjectLabelSize.value);
-            window.layers_russia = result[0][0];
-            borders_bounds = result[0][1];
-            window.layers_subject = result[1][0];
-            borders_bounds.push(result[1][1]);
-            window.labels_subject = result[1][2];
-            if (borders_bounds.length > 0) {
-                map.fitBounds(L.latLngBounds(borders_bounds));
-            }
-        } else if (selectedStage === 'excavation') {
-            prtScrExcavation(mapElement, window.data);
-        }
+    } else if (selectedStage === 'excavation') {
+        prtScrExcavation(mapElement, window.data);
     }
 });
 

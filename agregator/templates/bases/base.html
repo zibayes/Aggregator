@@ -38,6 +38,10 @@
     <link rel="stylesheet" href="{% static 'css/fancybox.css' %}"/>
     <script src="{% static 'js/fancybox.umd.js' %}"></script>
 
+    <!-- Shepherd -->
+    <script src="https://cdn.jsdelivr.net/npm/shepherd.js@11/dist/js/shepherd.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/shepherd.js@11/dist/css/shepherd.css">
+
     <!--
     <script src="https://cdn.jsdelivr.net/npm/mdb-ui-kit/js/mdb.min.js"></script>
     <script type="module" src="{% static 'js/mdb.es.min.js' %}"></script>
@@ -74,11 +78,11 @@
         <ul class="navbar-nav me-auto">
             <li class="nav-item" style="margin-right:10px;">
                 <div class="dropdown">
-                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton1"
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="reports-menu"
                             data-bs-toggle="dropdown" aria-expanded="false">
                         Отчёты
                     </button>
-                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                    <ul class="dropdown-menu" aria-labelledby="reports-menu">
                         <!-- <li><a class="dropdown-item" href="{% url 'constructor' %}">Конструктор отчётов</a></li> -->
                         <li><a class="dropdown-item" href="{% url 'acts_register' %}">Реестр актов</a></li>
                         <li><a class="dropdown-item" href="{% url 'scientific_reports_register' %}">Реестр научных
@@ -95,11 +99,11 @@
             </li>
             <li class="nav-item" style="margin-right:10px;">
                 <div class="dropdown">
-                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton2"
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="open-lists-menu"
                             data-bs-toggle="dropdown" aria-expanded="false">
                         Открытые листы
                     </button>
-                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                    <ul class="dropdown-menu" aria-labelledby="open-lists-menu">
                         <li><a class="dropdown-item" href="{% url 'open_lists_register' %}">Реестр открытых листов</a>
                         </li>
                         {% if user.is_authenticated %}
@@ -110,11 +114,11 @@
             </li>
             <li class="nav-item" style="margin-right:10px;">
                 <div class="dropdown">
-                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton3"
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="heritage-menu"
                             data-bs-toggle="dropdown" aria-expanded="false">
                         Памятники
                     </button>
-                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                    <ul class="dropdown-menu" aria-labelledby="heritage-menu">
                         <li><a class="dropdown-item" href="{% url 'archaeological_heritage_sites' %}">Перечень объектов
                             археологического наследия</a>
                         </li>
@@ -128,11 +132,11 @@
             </li>
             <li class="nav-item" style="margin-right:10px;">
                 <div class="dropdown">
-                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton4"
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="account-cards-menu"
                             data-bs-toggle="dropdown" aria-expanded="false">
                         Учётные карты
                     </button>
-                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                    <ul class="dropdown-menu" aria-labelledby="account-cards-menu">
                         <li><a class="dropdown-item" href="{% url 'account_cards_register' %}">Реестр учётных карт</a>
                         </li>
                         {% if user.is_authenticated %}
@@ -144,11 +148,11 @@
             </li>
             <li class="nav-item" style="margin-right:10px;">
                 <div class="dropdown">
-                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton5"
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="commercial-offers-menu"
                             data-bs-toggle="dropdown" aria-expanded="false">
                         Коммерческие предложения
                     </button>
-                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                    <ul class="dropdown-menu" aria-labelledby="account-cards-menu">
                         <li><a class="dropdown-item" href="{% url 'commercial_offers_register' %}">Реестр коммерческих
                             предложений</a>
                         </li>
@@ -162,11 +166,11 @@
             </li>
             <li class="nav-item" style="margin-right:10px;">
                 <div class="dropdown">
-                    <button class="btn btn-primary dropdown-toggle" type="button" id="dropdownMenuButton5"
+                    <button class="btn btn-primary dropdown-toggle" type="button" id="geo-objects-menu"
                             data-bs-toggle="dropdown" aria-expanded="false">
                         Географические объекты
                     </button>
-                    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                    <ul class="dropdown-menu" aria-labelledby="geo-objects-menu">
                         <li><a class="dropdown-item" href="{% url 'geo_objects_register' %}">Реестр географических
                             объектов</a>
                         </li>
@@ -178,29 +182,32 @@
                     </ul>
                 </div>
             </li>
-            <li class="nav-item" style="margin-right:10px;">
+            <li class="nav-item" style="margin-right:10px;" id="interactive-map-menu">
                 <a class="nav-link" style="white-space: nowrap;" href="{% url 'interactive_map' %}">Интерактивная
                     карта</a>
             </li>
-            <li class="nav-item" style="margin-right:10px;">
+            <li class="nav-item" style="margin-right:10px;" id="gpt-chat-menu">
                 <a class="nav-link" href="{% url 'gpt_chat' %}">Нейросеть</a>
+            </li>
+            <li class="nav-item" style="margin-right:10px;" id="guide-menu">
+                <button class="help-btn" onclick="startTour()">?</button>
             </li>
         </ul>
         <ul class="navbar-nav ms-auto">
             {% if user.is_authenticated %}
-                <li class="nav-item d-flex align-items-center me-3">
+                <li class="nav-item d-flex align-items-center me-3" id="profile">
                     <a href="{% url 'profile' %}" style="margin-right:15px; white-space: nowrap;">
                         <img src="{{ user.avatar.url }}" class="rounded-circle" height="35" width="35" loading="lazy"
                              style="object-fit: cover;" alt=""/>
                         {{ user.username }}
                     </a>
                 </li>
-                <li class="nav-item">
+                <li class="nav-item" id="logout">
                     <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
                        href="{% url 'logout' %}">Выход</a>
                 </li>
             {% else %}
-                <li class="nav-item">
+                <li class="nav-item" id="login">
                     <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
                        href="{% url 'login' %}">Вход</a>
                 </li>
@@ -235,7 +242,86 @@
 </footer>
 
 <script>
+    const navbarHeight = 80; // Высота вашего навбара
+    const tour = new Shepherd.Tour({
+        useModalOverlay: true,
+        defaultStepOptions: {
+            classes: 'shepherd-theme-custom shepherd-has-progress',
+            cancelIcon: {enabled: true},
+            scrollTo: {behavior: 'smooth', block: 'center'}, // Центрируем элемент
+            scrollToHandler: function (element) {
+                const elementRect = element.getBoundingClientRect();
+                const offsetPosition = elementRect.top + window.pageYOffset - navbarHeight;
 
+                window.scrollTo({
+                    top: offsetPosition,
+                    behavior: 'smooth'
+                });
+            },
+            when: {
+                show: function () {
+                    // Дополнительная корректировка после скролла
+                    setTimeout(() => {
+                        const currentElement = this.el;
+                        if (currentElement) {
+                            const rect = currentElement.getBoundingClientRect();
+                            if (rect.top < navbarHeight) {
+                                window.scrollBy(0, rect.top - navbarHeight - 20);
+                            }
+                        }
+                    }, 100);
+                }
+            }
+        }
+    });
+
+    function startTour() {
+        tour.start();
+    }
+
+    {% block guide_steps %}{% endblock %}
+
+    // Добавляем кастомный HTML с прогрессом в каждый шаг
+    tourSteps.forEach((stepData, index) => {
+        tour.addStep({
+            title: stepData.title,
+            text: `
+                <div class="shepherd-progress">
+                    ${tourSteps.map((_, i) =>
+                `<div class="shepherd-progress-dot ${i === index ? 'active' : ''}"
+                              data-step="${i}"></div>`
+            ).join('')}
+                </div>
+                <div class="shepherd-counter">Шаг ${index + 1} из ${tourSteps.length}</div>
+                <div class="shepherd-content">${stepData.text}</div>
+            `,
+            attachTo: stepData.element ? {
+                element: stepData.element,
+                on: 'bottom'
+            } : undefined,
+            buttons: [
+                {
+                    text: 'Назад',
+                    action: tour.back,
+                    classes: 'shepherd-button-secondary',
+                    disabled: index === 0
+                },
+                {
+                    text: index === tourSteps.length - 1 ? 'Завершить' : 'Далее',
+                    action: index === tourSteps.length - 1 ? tour.complete : tour.next
+                }
+            ]
+        });
+    });
+
+    // Обработчик кликов на точки прогресса
+    tour.on('show', () => {
+        setTimeout(() => {
+            document.querySelectorAll('.shepherd-progress-dot').forEach(dot => {
+                dot.onclick = () => tour.show(parseInt(dot.dataset.step));
+            });
+        }, 50);
+    });
 </script>
 
 </body>
