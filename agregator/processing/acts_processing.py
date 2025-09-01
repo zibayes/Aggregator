@@ -11,18 +11,15 @@ import fitz  # PyMuPDF
 import pandas as pd
 import pdfplumber
 from celery import shared_task
-from celery_progress.backend import ProgressRecorder
 
-from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
-from .coordinates_tables import analyze_coordinates_in_tables_from_pdf, extract_tables_from_pdf, \
-    format_coordinates
-from .files_saving import load_raw_reports
-from .hash import calculate_file_hash
-from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
-from .models import Act
-from .redis_config import redis_client
-from .celery_task_template import process_documents
-from .coordinates_tables import dms_to_decimal, search_coords_in_text
+from agregator.processing.files_saving import load_raw_reports
+from agregator.hash import calculate_file_hash
+from agregator.processing.images_extraction import extract_images_with_captions, insert_supplement_links, \
+    SUPPLEMENT_CONTENT
+from agregator.models import Act
+from agregator.redis_config import redis_client
+from agregator.celery_task_template import process_documents
+from agregator.processing.coordinates_tables import search_coords_in_text
 
 SQUARE_RESERVE = []
 

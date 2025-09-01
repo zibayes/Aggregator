@@ -13,7 +13,7 @@ from agregator.models import UserTasks
 from .files_saving import raw_open_lists_save
 from .open_lists_ocr import process_open_lists, error_handler_open_lists, \
     borders_cut, get_image_angle, image_binarization_plain, rotate_image
-from .torch_image_classifier import PyTorchImageClassifier
+from agregator.torch_image_classifier import PyTorchImageClassifier
 
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 IMAGE_MIN_SIZE = 150

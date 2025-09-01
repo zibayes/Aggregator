@@ -10,7 +10,8 @@ import fitz
 import pandas as pd
 from PIL import Image
 
-from .models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers, GeoObject
+from agregator.models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers, \
+    GeoObject
 
 SOURCE_CONTENT = []  # [{'type': 'text/images/all', 'path': 'path/to/file.pdf'}, {}, ...]
 

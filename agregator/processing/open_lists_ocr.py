@@ -23,10 +23,10 @@ from skimage import filters
 from transliterate import translit
 
 from .files_saving import load_raw_open_lists
-from .hash import calculate_file_hash
-from .models import OpenLists
-from .redis_config import redis_client
-from .celery_task_template import process_documents
+from agregator.hash import calculate_file_hash
+from agregator.models import OpenLists
+from agregator.redis_config import redis_client
+from agregator.celery_task_template import process_documents
 
 FRAME_BORDERS = [204, 800, 48, 545]  # each need to '* koef' [204, 778, 63, 555]
 FIO_BORDERS = [390, 512, 40, 550]  # [390, 490, 60, 560]

@@ -11,15 +11,15 @@ import fitz  # PyMuPDF
 import pandas as pd
 import pdfplumber
 from celery import shared_task
-from celery_progress.backend import ProgressRecorder
 
-from .coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
-from .files_saving import load_raw_reports
-from .hash import calculate_file_hash
-from .images_extraction import extract_images_with_captions, insert_supplement_links, SUPPLEMENT_CONTENT
-from .models import TechReport
-from .redis_config import redis_client
-from .celery_task_template import process_documents
+from agregator.processing.coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
+from agregator.processing.files_saving import load_raw_reports
+from agregator.hash import calculate_file_hash
+from agregator.processing.images_extraction import extract_images_with_captions, insert_supplement_links, \
+    SUPPLEMENT_CONTENT
+from agregator.models import ScientificReport
+from agregator.redis_config import redis_client
+from agregator.celery_task_template import process_documents
 
 
 def choose_file() -> str:
@@ -30,62 +30,25 @@ def choose_file() -> str:
 
 
 @shared_task(bind=True)
-def process_tech_reports(self, reports_ids, user_id, select_text, select_image, select_coord):
-    return process_documents(self, reports_ids, user_id, 'tech_reports', model_class=TechReport,
+def process_scientific_reports(self, reports_ids, user_id, select_text, select_image, select_coord):
+    return process_documents(self, reports_ids, user_id, 'scientific_reports', model_class=ScientificReport,
                              load_function=load_raw_reports,
                              select_text=select_text, select_image=select_image, select_coord=select_coord,
                              process_function=extract_text_and_images)
-    progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(0, 100, '')
-    reports, pages_count = load_raw_reports(reports_ids, TechReport)
-    # delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
-    total_processed = [0]
-    file_groups = {}
-    for report in reports:
-        for source in report.source_dict:
-            file = source.copy()
-            file['processed'] = 'False'
-            file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
-            if str(report.id) in file_groups.keys():
-                file_groups[str(report.id)].append(file)
-            else:
-                file_groups[str(report.id)] = [file]
-    progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'tech_reports',
-                     'time_started': datetime.now().strftime(
-                         "%Y-%m-%d %H:%M:%S")}
-    redis_client.set(self.request.id, json.dumps(progress_json))
-    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-    for current_report in reports:
-        i = 0
-        for source in current_report.source_dict:
-            if not source['path'].lower().endswith(('.pdf', '.doc', '.docx')):
-                continue
-            progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'Processing'
-            extract_text_and_images(current_report, source['path'], progress_recorder, pages_count,
-                                    total_processed, progress_json, current_report.id, i, self.request.id, user_id,
-                                    current_report.is_public, select_text, select_image, select_coord)
-            progress_json['file_groups'][str(current_report.id)][i]['pages']['processed'] = \
-                progress_json['file_groups'][str(current_report.id)][i]['pages']['all']
-            progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'True'
-            redis_client.set(self.request.id, json.dumps(progress_json))
-            progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-            i += 1
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return progress_json
 
 
 def extract_text_and_images(current_report, file, progress_recorder, pages_count, total_processed, progress_json,
                             report_id,
                             source_index, task_id, user_id, is_public, select_text, select_image, select_coord):
     if current_report.supplement:
-        supplement_content = current_report.supplement_dict
+        supplement_content = current_report.supplement_dict  # json.loads(current_report.supplement)
     else:
         supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
     if current_report.coordinates:
-        coordinates = current_report.coordinates_dict
+        coordinates = current_report.coordinates_dict  # json.loads(current_report.coordinates)
     else:
         coordinates = copy.deepcopy(COORDINATES_SAMPLE)
-    reports = TechReport.objects.all()
+    reports = ScientificReport.objects.all()
     for report in reports:
         if report.source_dict is not None:
             for source in report.source_dict:
@@ -105,7 +68,7 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
     # Разделы
     report_parts = ['аннотация', 'оглавление']  # , 'ведение', 'список исполнителей работ'
     report_parts_info = {i: '' for i in report_parts}
-    table_columns = ['Название отчёта', 'Организация', 'Заказчик', 'Автор',
+    table_columns = ['Название отчёта', 'Организация', 'Автор',
                      'Открытый лист', 'Населённый пункт', 'Год написания отчёта',
                      'Вид работ', 'Площадь', 'Исполнители',
                      'Заключение']
@@ -233,21 +196,18 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
 
                     if page_number + 1 == 1:
                         report_name = re.search(
-                            r'н*\s*а*\s*у*\s*ч*\s*н*\s*[оый]*\s*-*\s*т*\s*е*\s*х*\s*н*\s*и*\s*ч*\s*е*\s*с*\s*к*\s*и*\s*й*\s*о\s*т\s*ч\s*[её]\s*т[\s\S]*?(?=выполнил|открытый)',
+                            r'н*\s*а*\s*у*\s*ч*\s*н*\s*ы*\s*й*\s*о\s*т\s*ч\s*[её]\s*т[\s\S]*?\d{4}\s*.*г\.*[оду]*',
                             text,
                             re.IGNORECASE)
                         if report_name:
                             report_name = report_name.group(0)
                             table_columns_info['Название отчёта'] = report_name
 
-                            place = re.search(r'г\. *\w+', report_name, re.IGNORECASE)
+                            place = re.search(r'г\.[\s\S]+?\d{4}', report_name, re.IGNORECASE)
                             if place:
                                 table_columns_info['Населённый пункт'] = place.group(0)
 
-                        author = re.search(
-                            r'[Вв]ыполнил:\s+.*|[Аа]втор:\s+.*|[А-ЯЁ][а-яё]*[\. ]+[А-ЯЁ][а-яё]*[\. ]+[А-ЯЁ][а-яё]*[\.\s]+?(?=научн)',
-                            text,
-                            re.MULTILINE)
+                        author = re.search(r'выполнил:\s+.*|автор:\s+.*', text, re.IGNORECASE)
                         if author:
                             author = re.search(
                                 r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.|[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]+[а-яё]+',
@@ -256,10 +216,22 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                                 table_columns_info['Автор'] = author.group(0)
 
                         open_list = re.search(
-                            r'[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*? от\s+\d{2}\.\d{2}\.\d{4}\s*г*\.*\s+№\s*\w*\d+-*\d*-*\d*\/*\\*\d*',
+                            r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?\d{2}\.\s*\d{2}\.\s*\d+|[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]+[а-яё]+[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?\d{2}\.\s*\d{2}\.\s*\d+',
                             text)
+                        if not open_list:
+                            open_list = re.search(
+                                r'[А-ЯЁ]+[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?|[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]+[а-яё]+[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?',
+                                text)
+                            if not open_list:
+                                open_list = re.findall(
+                                    r'[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.[ \n]+[А-ЯЁ]{1}[а-яё]+|[Держатель]*\s*Открыт[ыйого]*\sлист[а]*[\s\S]*?№\s\d+-*\d*[\s\S]*?[А-ЯЁ]{1}[а-яё]+[ \n]+[А-Яа-яёЁ]{1}\.[ \n]*[А-Яа-яёЁ]{1}\.',
+                                    text)
+                                if open_list:
+                                    open_list = ';\n'.join(open_list)
+                        if open_list and not isinstance(open_list, (list, str)):
+                            open_list = open_list.group(0)
                         if open_list:
-                            table_columns_info['Открытый лист'] = open_list.group(0)
+                            table_columns_info['Открытый лист'] = open_list
 
                         organization = re.search(r'Общество\s+с\s+ограниченной\s+ответственностью\s*[\n]*«[^»]+»', text,
                                                  re.IGNORECASE)
@@ -270,11 +242,6 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                             organization = re.search(r'ООО\s+«[^»]+»', text, re.IGNORECASE)
                         if organization:
                             table_columns_info['Организация'] = organization.group(0)
-
-                        customer = re.search(r'Заказчик:[\S ]+', text,
-                                             re.IGNORECASE)
-                        if customer:
-                            table_columns_info['Заказчик'] = customer.group(0)
 
                         year_of_writing = re.search(
                             r'[А-ЯЁ]{1}[а-яё,]+-*[А-ЯЁ]*[а-яё,]*\s*\d{4}', text)
@@ -314,9 +281,8 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                     if is_introduction or 'список исполнителей' in report_parts[current_part].lower():
                         with pdfplumber.open(file) as pdf:
                             page_tables = pdf.pages[page_number].extract_tables()
-                        executors = []
-                        print(page_tables)
                         if page_tables and len(page_tables[0]) > 0 and len(page_tables[0][0]) == 2:
+                            executors = []
                             if 'ФИО' in page_tables[0][0] and 'Степень участия' in page_tables[0][0]:
                                 df_new = pd.DataFrame(page_tables[0], columns=['ФИО', 'Степень участия'])
                                 for cell in df_new['ФИО']:
@@ -327,33 +293,6 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                                 if executors:
                                     table_columns_info['Исполнители'] = ';\n'.join(executors)
                             else:
-                                df_new = pd.DataFrame(page_tables[0], columns=['Параметр', 'Значение'])
-                                print(df_new)
-                                fio = None
-                                for index, cell in df_new.iterrows():
-                                    if fio is None:
-                                        fio = re.search(r'[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+',
-                                                        cell['Параметр'])
-                                        if fio:
-                                            fio = fio.group(0)
-                                        elif 'Степень участия' in cell['Параметр']:
-                                            works = cell['Значение']
-                                            if fio and works:
-                                                executors.append(fio + ': ' + works)
-                                                fio = None
-                                        else:
-                                            fio = re.search(r'[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+\s+[А-ЯЁ]{1}[а-яё]+',
-                                                            cell['Значение'])
-                                            if fio:
-                                                fio = fio.group(0)
-                                    elif 'Степень участия' in cell['Параметр']:
-                                        works = cell['Значение']
-                                        if fio and works:
-                                            executors.append(fio + ': ' + works)
-                                            fio = None
-                                table_columns_info['Исполнители'] = ';\n'.join(executors)
-                                print(executors)
-                                r''' IN CASE OF ONE PERSON
                                 df_new = pd.DataFrame(page_tables[0], columns=['Параметр', 'Значение'])
                                 fio = None
                                 works = None
@@ -369,7 +308,6 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                                         works = cell['Значение']
                                 if fio and works:
                                     table_columns_info['Исполнители'] = fio + ': ' + works
-                                '''
 
                     if next_index:
                         current_part += 1
@@ -422,17 +360,18 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
 
 
 @shared_task
-def error_handler_tech_reports(task, exception, exception_desc):
+def error_handler_scientific_reports(task, exception, exception_desc):
     print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
     progress_json = redis_client.get(task.id)
     if progress_json is None:
         progress_json = redis_client.get('celery-task-meta-' + str(task.id))
-    progress_json = json.loads(progress_json)
+    if not isinstance(progress_json, dict):
+        progress_json = json.loads(progress_json)
     for report_id, sources in progress_json['file_groups'].items():
         deleted_report = False
         for source in sources:
             if source['processed'] != 'True':
-                report = TechReport.objects.get(id=report_id)
+                report = ScientificReport.objects.get(id=report_id)
                 report.delete()
                 deleted_report = True
                 break

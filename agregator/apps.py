@@ -15,7 +15,7 @@ class AgregatorConfig(AppConfig):
         post_migrate.connect(self.load_geojson_data)
 
     def load_geojson_data(self, **kwargs):
-        from .coordinates_extraction import save_geojson_polygons_to_db
+        from agregator.processing.coordinates_extraction import save_geojson_polygons_to_db
         save_geojson_polygons_to_db()
 
     '''  Создание системных папок 

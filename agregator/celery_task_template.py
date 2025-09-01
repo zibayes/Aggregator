@@ -2,10 +2,8 @@ import json
 import traceback
 from datetime import datetime
 
-from celery import shared_task
 from celery_progress.backend import ProgressRecorder
 
-from .files_saving import load_raw_reports
 from .redis_config import redis_client
 
 

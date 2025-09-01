@@ -1,4 +1,3 @@
-import copy
 import json
 import os
 import re
@@ -6,7 +5,6 @@ from urllib.parse import quote
 
 import pandas as pd
 import simplekml
-from django.db.models import Q
 from django.contrib import messages
 from django.contrib.auth import login, authenticate
 from django.contrib.auth import logout
@@ -16,38 +14,38 @@ from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django_celery_results.models import TaskResult
 from celery.result import AsyncResult
-from celery import states
 from pyproj import Geod
 from rest_framework import generics
 from shapely.geometry import Polygon, LineString
 from shapely.geometry import shape, Point
 from shapely.ops import nearest_points
 
-from .account_cards_processing import process_account_cards, error_handler_account_cards
-from .acts_processing import process_acts, error_handler_acts
-from .ask import ask_question_with_context
-from .commercial_offers_processing import process_commercial_offers, error_handler_commercial_offers
-from .coordinates_extraction import process_coords_from_edit_page
-from .coordinates_tables import convert_to_wgs84
+from agregator.processing.account_cards_processing import process_account_cards, error_handler_account_cards
+from agregator.processing.acts_processing import process_acts, error_handler_acts
+from agregator.llm.ask import ask_question_with_context
+from agregator.processing.commercial_offers_processing import process_commercial_offers, error_handler_commercial_offers
+from agregator.processing.coordinates_extraction import process_coords_from_edit_page
+from agregator.processing.coordinates_tables import convert_to_wgs84
 from .decorators import owner_or_admin_required
-from .external_sources import external_sources_processing, external_voan_list_processing
-from .files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, raw_commercial_offers_save, \
+from agregator.processing.external_sources import external_sources_processing, external_voan_list_processing
+from agregator.processing.files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, \
+    raw_commercial_offers_save, \
     raw_geo_objects_save
 from .forms import UploadReportsForm, UploadOpenListsForm, UploadCommercialOffersForm, UploadGeoObjectsForm
 from .forms import UserRegisterForm
-from .geo_objects_processing import process_geo_objects, error_handler_geo_objects
+from agregator.processing.geo_objects_processing import process_geo_objects, error_handler_geo_objects
 from .models import User, Act, ScientificReport, TechReport, OpenLists, UserTasks, \
     ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, CommercialOffers, GeoObject, \
     GeojsonData, \
     Chat, Message
-from .open_lists_ocr import process_open_lists, error_handler_open_lists
-from .scientific_reports_processing import process_scientific_reports, error_handler_scientific_reports
+from agregator.processing.open_lists_ocr import process_open_lists, error_handler_open_lists
+from agregator.processing.scientific_reports_processing import process_scientific_reports, \
+    error_handler_scientific_reports
 from .serializers import UserSerializer, ActSerializer, ScientificReportSerializer, \
     TechReportSerializer, OpenListsSerializer, ObjectAccountCardSerializer, ArchaeologicalHeritageSiteSerializer, \
     IdentifiedArchaeologicalHeritageSiteSerializer, CommercialOffersSerializer, GeoObjectSerializer, \
     GeojsonDataSerializer, ChatSerializer, MessageSerializer
-from .tech_reports_processing import process_tech_reports, error_handler_tech_reports
-from .celery_task_template import process_documents
+from agregator.processing.tech_reports_processing import process_tech_reports, error_handler_tech_reports
 from .views_utils import generate_excel_report, upload_entity_view, get_register_view, process_edit_form, \
     process_supplement, create_model_dataframe
 

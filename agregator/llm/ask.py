@@ -1,8 +1,6 @@
-from agregator.chroma import CHROMA_PATH, get_embeddings
+from agregator.llm.chroma import CHROMA_PATH, get_embeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_openai import ChatOpenAI
-from langchain.retrievers import EnsembleRetriever
-from langchain_community.retrievers import BM25Retriever
 from langchain_community.vectorstores.chroma import Chroma
 import os
 import re

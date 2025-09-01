@@ -16,10 +16,10 @@ from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from docx import Document
 
-from .account_cards_processing import connect_account_card_to_heritage
-from .acts_processing import process_acts, error_handler_acts
+from agregator.processing.account_cards_processing import connect_account_card_to_heritage
+from agregator.processing.acts_processing import process_acts, error_handler_acts
 from .files_saving import raw_reports_save
-from .models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
+from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
 
 
 @shared_task(bind=True)

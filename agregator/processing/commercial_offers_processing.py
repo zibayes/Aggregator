@@ -6,12 +6,12 @@ from tkinter import filedialog
 from celery import shared_task
 from docx import Document
 
-from .files_saving import load_raw_commercial_offers
-from .hash import calculate_file_hash
-from .models import CommercialOffers
-from .redis_config import redis_client
-from .celery_task_template import process_documents
-from .coordinates_tables import extract_tables_from_pdf, analyze_coordinates_in_tables_from_pdf, \
+from agregator.processing.files_saving import load_raw_commercial_offers
+from agregator.hash import calculate_file_hash
+from agregator.models import CommercialOffers
+from agregator.redis_config import redis_client
+from agregator.celery_task_template import process_documents
+from agregator.processing.coordinates_tables import extract_tables_from_pdf, analyze_coordinates_in_tables_from_pdf, \
     extract_coordinates_from_docx_table, extract_coordinates_xlsx, format_coordinates
 
 

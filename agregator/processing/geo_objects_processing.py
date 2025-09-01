@@ -6,15 +6,13 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
 
-import redis
 from celery import shared_task
-from celery_progress.backend import ProgressRecorder
 
-from .files_saving import load_raw_geo_objects
-from .hash import calculate_file_hash
-from .models import GeoObject
-from .redis_config import redis_client
-from .celery_task_template import process_documents
+from agregator.processing.files_saving import load_raw_geo_objects
+from agregator.hash import calculate_file_hash
+from agregator.models import GeoObject
+from agregator.redis_config import redis_client
+from agregator.celery_task_template import process_documents
 
 COORDINATE_SYSTEMS = [
     r'wgs.*?\d+',

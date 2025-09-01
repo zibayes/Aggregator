@@ -12,16 +12,15 @@ import numpy as np
 import pytesseract
 from PIL import Image
 from celery import shared_task
-from celery_progress.backend import ProgressRecorder
 from docx import Document
 from pytesseract import Output
 
-from .coordinates_tables import dms_to_decimal, normalize_coordinates
-from .files_saving import load_raw_account_cards
-from .hash import calculate_file_hash
-from .models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
-from .redis_config import redis_client
-from .celery_task_template import process_documents
+from agregator.processing.coordinates_tables import dms_to_decimal, normalize_coordinates
+from agregator.processing.files_saving import load_raw_account_cards
+from agregator.hash import calculate_file_hash
+from agregator.models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
+from agregator.redis_config import redis_client
+from agregator.celery_task_template import process_documents
 
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
