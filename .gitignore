@@ -166,6 +166,7 @@ chroma/
 media/
 *.keras
 
+agregator/migrations/
 agregator/__pycache__/
 
 wheelhouse/

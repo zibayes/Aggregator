@@ -121,8 +121,13 @@ def extract_coordinates(file, document, page_number, folder, coordinates) -> Non
 
 def save_geojson_polygons_to_db():
     geojson_folder = os.path.join(os.getcwd(), 'uploaded_files/regions_polygons')
+    if not os.path.exists(geojson_folder):
+        print(f"Папка {geojson_folder} не существует!")
+        return
+
     for dirpath, dirnames, filenames in os.walk(geojson_folder):
         for filename in filenames:
+            print('file: ' + filename)
             if filename.endswith('.geojson'):
                 short_filename = filename[:filename.rfind('.')]
                 file_path = os.path.join(dirpath, filename)

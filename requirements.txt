@@ -13,6 +13,7 @@ langchain-chroma==0.1.4
 
 torch #==2.5.1+cu124
 torchvision #==0.20.1
+torchaudio
 
 unrar
 xlrd
