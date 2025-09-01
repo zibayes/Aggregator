@@ -45,6 +45,8 @@ class AgregatorConfig(AppConfig):
             'uploaded_files/account_cards',
             'uploaded_files/voan_list',
             'uploaded_files/commercial_offers',
+
+            'uploaded_files/geo_objects',
         ]
         for folder in folders:
             nested_folders = Path(folder)
