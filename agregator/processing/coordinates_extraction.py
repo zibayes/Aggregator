@@ -8,6 +8,7 @@ import pandas as pd
 from django.http import JsonResponse
 from agregator.models import GeojsonData
 from agregator.processing.coordinates_tables import convert_proj4, convert_to_wgs84, dms_to_decimal
+from agregator.geo_utils import wgs84_polygon_area
 
 COORDINATES_SAMPLE = {'Шурфы': {}}
 
@@ -107,6 +108,11 @@ def extract_coordinates(file, document, page_number, folder, coordinates) -> Non
                         lon = -lon
 
                     coordinates[points_type][point_number] = [lat, lon]
+
+    for key in coordinates.keys():
+        if 'каталог' in key.lower() and coordinates[key]['coordinate_system'] == 'wgs84':
+            coordinates[key]['area'] = wgs84_polygon_area(
+                [value for key, value in list(coordinates['Каталог координат'].items()) if key != 'coordinate_system'])
 
     pits_coordinates = re.findall(
         r'Шурф\s№\s\d+[\s\S]+?Координаты\s+шурфа\s+в\s+системе\s+WGS-\d+:*\s+[NS]\d+°\d+\'\d+[\.,]\d+";*\s+[EW]\d+°\d+\'\d+[\.,]\d+"',

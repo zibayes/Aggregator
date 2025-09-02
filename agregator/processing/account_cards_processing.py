@@ -23,6 +23,7 @@ from agregator.hash import calculate_file_hash
 from agregator.models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
 from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents
+from agregator.geo_utils import wgs84_polygon_area
 
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
@@ -252,6 +253,10 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                     coordinates['Каталог координат'][points[3]], coordinates['Каталог координат'][points[2]]
                 coordinates['Каталог координат'] = {k: coordinates['Каталог координат'][k] for k in
                                                     sorted(coordinates['Каталог координат'])}
+
+        if 'Каталог координат' in coordinates and coordinates['Каталог координат']['coordinate_system'] == 'wgs84':
+            coordinates['Каталог координат']['area'] = wgs84_polygon_area(
+                [value for key, value in list(coordinates['Каталог координат'].items()) if key != 'coordinate_system'])
 
     elif file.endswith('.pdf'):
         doc = fitz.open(file)
@@ -587,7 +592,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
     current_account_card.is_processing = False
     current_account_card.save()
     if current_account_card.name:
-        connect_account_card_to_heritage(current_account_card.name)
+        connect_account_card_to_heritage(current_account_card.name, progress_json)
 
 
 def ccw(A, B, C):
@@ -614,7 +619,7 @@ def error_handler_account_cards(task, exception, exception_desc):
     raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception
 
 
-def connect_account_card_to_heritage(object_name):
+def connect_account_card_to_heritage(object_name, progress_json=None):
     account_card = ObjectAccountCard.objects.filter(name=object_name)
     heritage = IdentifiedArchaeologicalHeritageSite.objects.filter(name=object_name)
     if not heritage:
@@ -648,3 +653,5 @@ def connect_account_card_to_heritage(object_name):
         account_card.source = new_source
         account_card.supplement = account_card_supplement
         account_card.save()
+        if progress_json is not None:
+            progress_json['file_groups'][str(account_card.id)]['path'] = account_card.source
