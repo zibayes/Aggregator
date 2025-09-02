@@ -426,6 +426,7 @@ class ArchaeologicalHeritageSite(models.Model):
     document = models.TextField(null=True, blank=True)
     register_num = models.TextField(null=True, blank=True)
     is_excluded = models.BooleanField(default=False)
+    source = models.TextField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Археологический объект культурного наследия"
@@ -444,6 +445,7 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
     obj_info = models.TextField(null=True, blank=True)
     document = models.TextField(null=True, blank=True)
     is_excluded = models.BooleanField(default=False)
+    source = models.TextField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Выявленный археологический объект культурного наследия"
