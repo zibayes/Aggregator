@@ -6,99 +6,105 @@
 {% block delete_object_url %}{% url 'account_cards_delete' account_card.id %}{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="/account_cards_register/">Реестр учётных карт</a></li>
-    <li class="breadcrumb-item"><a href="/account_cards/{{ account_card.id }}">Учётная карта
-        объекта: {{ account_card.name }}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Редактирование
-    </li>
+<li class="breadcrumb-item"><a href="/account_cards_register/">Реестр учётных карт</a></li>
+<li class="breadcrumb-item"><a href="/account_cards/{{ account_card.id }}">Учётная карта
+    объекта: {{ account_card.name }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Редактирование
+</li>
 {% endblock %}
 
 {% block form_fields %}
-    <div class="mb-3">
-        <label for="name" class="form-label">Наименование объекта</label>
-        <input type="text" class="form-control" id="name" name="name" value="{{ account_card.name }}" required>
-    </div>
+<div class="mb-3">
+    <label for="name" class="form-label">Наименование объекта</label>
+    <input type="text" class="form-control" id="name" name="name" value="{{ account_card.name }}" required>
+</div>
 
-    <div class="mb-3">
-        <label for="creation_time" class="form-label">Время создания</label>
-        <input type="text" class="form-control" id="creation_time" name="creation_time"
-               value="{{ account_card.creation_time }}" required>
-    </div>
+<div class="mb-3">
+    <label for="creation_time" class="form-label">Время создания</label>
+    <input type="text" class="form-control" id="creation_time" name="creation_time"
+           value="{{ account_card.creation_time }}" required>
+</div>
 
-    <div class="mb-3">
-        <label for="address" class="form-label">Адрес</label>
-        <input type="text" class="form-control" id="address" name="address" value="{{ account_card.address }}"
-               required>
-    </div>
+<div class="mb-3">
+    <label for="address" class="form-label">Адрес</label>
+    <input type="text" class="form-control" id="address" name="address" value="{{ account_card.address }}"
+           required>
+</div>
 
-    <div class="mb-3">
-        <label for="object_type" class="form-label">Вид объекта</label>
-        <input type="text" class="form-control" id="object_type" name="object_type"
-               value="{{ account_card.object_type }}" required>
-    </div>
+<div class="mb-3">
+    <label for="object_type" class="form-label">Вид объекта</label>
+    <input type="text" class="form-control" id="object_type" name="object_type"
+           value="{{ account_card.object_type }}" required>
+</div>
 
-    <div class="mb-3">
-        <label for="general_classification" class="form-label">Общая видовая принадлежность</label>
-        <input type="text" class="form-control" id="general_classification" name="general_classification"
-               value="{{ account_card.general_classification }}">
-    </div>
+<div class="mb-3">
+    <label for="general_classification" class="form-label">Общая видовая принадлежность</label>
+    <input type="text" class="form-control" id="general_classification" name="general_classification"
+           value="{{ account_card.general_classification }}">
+</div>
 
-    <div class="mb-3">
-        <label for="description" class="form-label">Описание</label>
-        <textarea class="form-control" id="description" name="description"
-                  rows="3">{{ account_card.description }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="description" class="form-label">Описание</label>
+    <textarea class="form-control" id="description" name="description"
+              rows="3">{{ account_card.description }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="usage" class="form-label">Использование</label>
-        <textarea class="form-control" id="usage" name="usage" rows="3">{{ account_card.usage }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="usage" class="form-label">Использование</label>
+    <textarea class="form-control" id="usage" name="usage" rows="3">{{ account_card.usage }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="discovery_info" class="form-label">Сведения о выявлении</label>
-        <textarea class="form-control" id="discovery_info" name="discovery_info"
-                  rows="3">{{ account_card.discovery_info }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="discovery_info" class="form-label">Сведения о выявлении</label>
+    <textarea class="form-control" id="discovery_info" name="discovery_info"
+              rows="3">{{ account_card.discovery_info }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="compiler" class="form-label">Составитель учетной карты</label>
-        <textarea class="form-control" id="compiler" name="compiler"
-                  rows="3">{{ account_card.compiler }}</textarea>
-    </div>
-    
-    <div class="mb-3">
-        <label for="upload_source" class="form-label">Источник загрузки</label>
-        <input type="text" class="form-control" id="upload_source" name="upload_source"
-               value="{{ account_card.upload_source }}">
-    </div>
+<div class="mb-3">
+    <label for="compiler" class="form-label">Составитель учетной карты</label>
+    <textarea class="form-control" id="compiler" name="compiler"
+              rows="3">{{ account_card.compiler }}</textarea>
+</div>
 
-    <!-- Координаты -->
-    {% include 'includes/coordinates_content.html' with object=account_card %}
+<div class="mb-3">
+    <label for="compile_date" class="form-label">Дата составления учетной карты</label>
+    <textarea class="form-control" id="compile_date" name="compile_date"
+              rows="1">{{ account_card.compile_date }}</textarea>
+</div>
 
-    <br>
-    <h2 id="supplement">Приложение</h2>
+<div class="mb-3">
+    <label for="upload_source" class="form-label">Источник загрузки</label>
+    <input type="text" class="form-control" id="upload_source" name="upload_source"
+           value="{{ account_card.upload_source }}">
+</div>
 
-    <h3 id="address_maps">Адрес</h3>
-    {% for map in account_card.supplement_dict.address %}
-        <img src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}" style="max-width: 400px;"/>
-        <textarea class="form-control mt-2" id="{{ map.source }}"
-                  name="source-{{ map.source }}" rows="3"
-                  placeholder="Ссылка на изображение">{{ map.source }}</textarea>
-        <textarea class="form-control mt-2" id="{{ map.source }}"
-                  name="label-{{ map.source }}" rows="3"
-                  placeholder="Подпись для изображения">{{ map.label }}</textarea>
-        <br>
-    {% endfor %}
+<!-- Координаты -->
+{% include 'includes/coordinates_content.html' with object=account_card %}
 
-    <h3 id="description_maps">Описание</h3>
-    {% for scheme in account_card.supplement_dict.description %}
-        <img src="/{{ scheme.source }}" loading="lazy" alt="{{ scheme.source }}" style="max-width: 400px;"/>
-        <textarea class="form-control mt-2" id="{{ scheme.source }}"
-                  name="source-{{ scheme.source }}" rows="3"
-                  placeholder="Ссылка на изображение">{{ scheme.source }}</textarea>
-        <textarea class="form-control mt-2" id="{{ scheme.source }}"
-                  name="label-{{ scheme.source }}" rows="3"
-                  placeholder="Подпись для изображения">{{ scheme.label }}</textarea>
-        <br>
-    {% endfor %}
+<br>
+<h2 id="supplement">Приложение</h2>
+
+<h3 id="address_maps">Адрес</h3>
+{% for map in account_card.supplement_dict.address %}
+<img src="/{{ map.source }}" loading="lazy" alt="{{ map.source }}" style="max-width: 400px;"/>
+<textarea class="form-control mt-2" id="{{ map.source }}"
+          name="source-{{ map.source }}" rows="3"
+          placeholder="Ссылка на изображение">{{ map.source }}</textarea>
+<textarea class="form-control mt-2" id="{{ map.source }}"
+          name="label-{{ map.source }}" rows="3"
+          placeholder="Подпись для изображения">{{ map.label }}</textarea>
+<br>
+{% endfor %}
+
+<h3 id="description_maps">Описание</h3>
+{% for scheme in account_card.supplement_dict.description %}
+<img src="/{{ scheme.source }}" loading="lazy" alt="{{ scheme.source }}" style="max-width: 400px;"/>
+<textarea class="form-control mt-2" id="{{ scheme.source }}"
+          name="source-{{ scheme.source }}" rows="3"
+          placeholder="Ссылка на изображение">{{ scheme.source }}</textarea>
+<textarea class="form-control mt-2" id="{{ scheme.source }}"
+          name="label-{{ scheme.source }}" rows="3"
+          placeholder="Подпись для изображения">{{ scheme.label }}</textarea>
+<br>
+{% endfor %}
 {% endblock %}

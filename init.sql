@@ -182,6 +182,7 @@ CREATE TABLE object_account_cards
     usage                  text                     NULL, -- VII. Использование объекта культурного наследия или пользователь
     discovery_info         text                     NULL, -- VIII. Сведения о дате и обстоятельствах выявления (обнаружения) объекта
     compiler               text                     NULL, -- Составитель учетной карты
+    compile_date           text                     NULL, -- Дата составления учетной карты
     supplement             json                     NULL, -- приложение к учётной карте (иллюстрации)
     coordinates            json                     NULL, -- каталог координат
     source                 text                     NULL  -- путь к файлам учётной карты а на сервере

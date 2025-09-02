@@ -1,5 +1,7 @@
+import copy
 import io
 import json
+import shutil
 import os
 import re
 import zipfile
@@ -112,7 +114,8 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                                        progress_json)
     '''
 
-    folder = file[:file.rfind(".")]
+    # folder = file[:file.rfind(".")]
+    folder = file[:file.rfind("/") + 1] + 'Изображения'
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -171,6 +174,10 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                 current_account_card.discovery_info = table[0][0]
             elif i == 9 and len(table) == 2:
                 current_account_card.compiler = table[0][0] + ' ' + table[0][2]
+            elif i == 11 and len(table) == 1:
+                current_account_card.compile_date = ''
+                for digit in table[0]:
+                    current_account_card.compile_date += digit
             i += 1
 
         image_captions = {}
@@ -613,5 +620,31 @@ def connect_account_card_to_heritage(object_name):
     if not heritage:
         heritage = ArchaeologicalHeritageSite.objects.filter(doc_name=object_name)
     if account_card and heritage:
-        heritage[0].account_card_id = account_card[0].id
-        heritage[0].save()
+        account_card = account_card[0]
+        heritage = heritage[0]
+        heritage.account_card_id = account_card.id
+        heritage.save()
+
+        folder_to_move = account_card.source[:account_card.source.rfind('/')]
+        destination_path = os.path.join(heritage.source, os.path.basename(folder_to_move))
+        shutil.move(folder_to_move, destination_path)
+        new_destination = destination_path[:destination_path.rfind('/') + 1] + 'Учётная карта'
+        os.rename(destination_path, new_destination)
+        account_card.source = new_destination + account_card.source[account_card.source.rfind('/'):]
+        account_card_supplement = copy.deepcopy(account_card.supplement_dict)
+        for category, images in account_card_supplement.items():
+            for i in range(len(images)):
+                image_name = account_card_supplement[category][i]['source']
+                account_card_supplement[category][i]['source'] = new_destination + '/Изображения' + image_name[
+                                                                                                    image_name.rfind(
+                                                                                                        '/'):]
+        folder = account_card.source[:account_card.source.rfind('/') + 1]
+        new_source = folder + account_card.origin_filename[
+                              :account_card.origin_filename.rfind('.')] + account_card.source[
+                                                                          account_card.source.rfind(
+                                                                              '.'):]
+
+        os.rename(account_card.source, new_source)
+        account_card.source = new_source
+        account_card.supplement = account_card_supplement
+        account_card.save()
