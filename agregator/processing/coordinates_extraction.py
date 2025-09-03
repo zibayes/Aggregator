@@ -8,7 +8,7 @@ import pandas as pd
 from django.http import JsonResponse
 from agregator.models import GeojsonData
 from agregator.processing.coordinates_tables import convert_proj4, convert_to_wgs84, dms_to_decimal
-from agregator.geo_utils import wgs84_polygon_area
+from agregator.geo_utils import calculate_polygons_area
 
 COORDINATES_SAMPLE = {'Шурфы': {}}
 
@@ -109,10 +109,7 @@ def extract_coordinates(file, document, page_number, folder, coordinates) -> Non
 
                     coordinates[points_type][point_number] = [lat, lon]
 
-    for key in coordinates.keys():
-        if 'каталог' in key.lower() and coordinates[key]['coordinate_system'] == 'wgs84':
-            coordinates[key]['area'] = wgs84_polygon_area(
-                [value for key, value in list(coordinates['Каталог координат'].items()) if key != 'coordinate_system'])
+    calculate_polygons_area(coordinates)
 
     pits_coordinates = re.findall(
         r'Шурф\s№\s\d+[\s\S]+?Координаты\s+шурфа\s+в\s+системе\s+WGS-\d+:*\s+[NS]\d+°\d+\'\d+[\.,]\d+";*\s+[EW]\d+°\d+\'\d+[\.,]\d+"',
@@ -155,6 +152,7 @@ def save_geojson_polygons_to_db():
 
 
 def process_coords_from_edit_page(request, entity) -> dict:
+    print('TESSTAAA')
     entity.coordinates = entity.coordinates_dict
     coordinates = {}
     current_group = None
@@ -180,7 +178,7 @@ def process_coords_from_edit_page(request, entity) -> dict:
             if 'coordinate_system' not in entity.coordinates[group]:
                 entity.coordinates[group]['coordinate_system'] = polygon['coordinate_system']
                 coordinates[group]['coordinate_system'] = 'wgs84'
-            if polygon['coordinate_system'] != entity.coordinates[group]['coordinate_system']:
+            if coordinates[group]['coordinate_system'] != entity.coordinates[group]['coordinate_system']:
                 for point_name, coords in polygon.items():
                     if point_name == 'coordinate_system':
                         continue
@@ -188,4 +186,6 @@ def process_coords_from_edit_page(request, entity) -> dict:
                                              entity.coordinates[group]['coordinate_system'],
                                              coordinates[group]['coordinate_system'])
                     coordinates[group][point_name] = [lat, lon]
+    print('TESSTAAA11')
+    calculate_polygons_area(coordinates)
     return coordinates

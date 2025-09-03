@@ -6,6 +6,8 @@ import pdfplumber
 import pandas as pd
 from pyproj import Proj, transform
 
+from agregator.geo_utils import calculate_polygons_area
+
 COORDINATE_SYSTEMS = [
     r'wgs.*?\d+',
     r'мск.*?\d+',
@@ -660,6 +662,8 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
             if table:
                 tables.append(table)
 
+    calculate_polygons_area(coordinates)
+
     pits_coordinates = re.findall(
         r'Шурф\s+№\s+\d+\**[\s\S]+?Координаты\s+шурфа\s+в\s+системе\s+WGS-\d+:*\s+[NSEW]\s*?\d+°\d+\'\d+[\.,]\d+";*\s+[NSEW]\s*?\d+°\d+\'\d+[\.,]\d+"',
         text, re.IGNORECASE)
@@ -717,6 +721,7 @@ def format_coordinates(results, coordinate_systems):
         inside_counter = 0
         title = {'zone': None, '№': None, 'x': None, 'y': None}
         points_type = 'Каталог координат'
+        prev_index = None
         if len(results) > 1:
             counter += 1
             points_type += ' [' + str(counter) + ']'
@@ -754,9 +759,17 @@ def format_coordinates(results, coordinate_systems):
                         new_name = row[title['zone']].replace('\n', ' ').replace('"', '').replace("'", '')
                         if ' [' in points_type and points_type[:points_type.rfind(' [')] != new_name:
                             points_type = new_name + ' [' + str(counter) + ']'
+                            prev_index = index
                         else:
+                            if prev_index is not None and prev_index == index:
+                                break
                             inside_counter += 1
                             points_type = new_name + ' [' + str(counter) + '-' + str(inside_counter) + ']'
+                        print('points_type: ' + points_type)
+                        print('column: ' + str(column))
+                        print('cell: ' + str(cell))
+                        print('index: ' + str(index))
+                        print('row: ' + str(row))
                     point_number = row[title['№']]
                     if not pd.isna(point_number) and (isinstance(point_number, float) or isinstance(point_number,
                                                                                                     str) and point_number.isdigit()):
@@ -798,7 +811,8 @@ def format_coordinates(results, coordinate_systems):
                             if 'гск' in coord_sys:
                                 lat = dms_to_decimal(lat)
                                 lon = dms_to_decimal(lon)
-                            lat, lon = convert_to_wgs84(lat, lon, coord_sys)
+                            else:
+                                lat, lon = convert_to_wgs84(lat, lon, coord_sys)
                             if f' ({coord_sys})' not in points_type:
                                 points_type += f' ({coord_sys})'
                                 if points_type not in coordinates.keys():
@@ -815,6 +829,9 @@ def format_coordinates(results, coordinate_systems):
                     if points_type not in coordinates.keys():
                         coordinates[points_type] = {}
                     coordinates[points_type][point_number] = [lat, lon]
+
+    calculate_polygons_area(coordinates)
+
     return coordinates
 
 

@@ -223,22 +223,32 @@ def external_sources(request):
 
     if request.method == 'POST' and scan_task_id is None:
         start_date = end_date = None
-        if 'enableDateRange' in request.POST.keys() and 'start_date' in request.POST.keys() and 'start_date' in request.POST.keys():
-            start_date = request.POST['start_date']
-            end_date = request.POST['end_date']
-            match = re.search(r"\d{2}\.\d{2}\.\d{4}", start_date)
+        if 'enableDateRange' in request.POST.keys() and 'startDate' in request.POST.keys() and 'endDate' in request.POST.keys():
+            start_date = request.POST['startDate']
+            end_date = request.POST['endDate']
+
+            match = re.search(r"\d{2}-\d{2}-\d{4}", start_date)
             if match:
                 date_str = match.group(0)
-                start_date = [int(x) for x in date_str.split('.')]
+                start_date = [int(x) for x in date_str.split('-')][::-1]
             else:
                 start_date = None
-            match = re.search(r"\d{2}\.\d{2}\.\d{4}", end_date)
+            match = re.search(r"\d{2}-\d{2}-\d{4}", end_date)
             if match:
                 date_str = match.group(0)
-                end_date = [int(x) for x in date_str.split('.')]
+                end_date = [int(x) for x in date_str.split('-')][::-1]
             else:
                 end_date = None
-        scan_task = external_sources_processing.delay(start_date, end_date)
+
+        select_text = select_image = select_coord = False
+        if 'select_text' in request.POST:
+            select_text = True
+        if 'select_image' in request.POST:
+            select_image = True
+        if 'select_coord' in request.POST:
+            select_coord = True
+
+        scan_task = external_sources_processing.delay(start_date, end_date, select_text, select_image, select_coord)
         scan_task_id = scan_task.id
         is_processing = True
     admin = User.objects.get(is_superuser=True)
@@ -1356,7 +1366,9 @@ def account_cards_register(request):
 def commercial_offers_edit(request, pk):
     commercial_offer = CommercialOffers.objects.get(id=pk)
     commercial_offer.coordinates = commercial_offer.coordinates_dict
+    print('TESSTAAA+++++')
     if request.method == 'POST':
+        print('TESSTAAA*******')
         commercial_offer.coordinates = process_coords_from_edit_page(request, commercial_offer)
         commercial_offer.save()
         messages.success(request, 'Коммерческое предложение успешно обновлено.')
@@ -1416,9 +1428,9 @@ def download_commercial_offer_report(request, pk):
                         if 'coordinate_system' not in co_polygon.keys() or co_polygon['coordinate_system'] == 'None':
                             continue
                         polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
-                                    key != 'coordinate_system']
+                                    key not in ('coordinate_system', 'area')]
                         polygon2 = [[float(value[0]), float(value[1])] for key, value in ac_polygon.items() if
-                                    key != 'coordinate_system']
+                                    key not in ('coordinate_system', 'area')]
 
                         if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
                             polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in
@@ -1462,7 +1474,7 @@ def download_commercial_offer_report(request, pk):
                                 'coordinate_system'] == 'None':
                                 continue
                             polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
-                                        key != 'coordinate_system']
+                                        key not in ('coordinate_system', 'area')]
                             polygon2 = [[float(value) for value in coords]]
 
                             if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):

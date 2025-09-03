@@ -251,7 +251,7 @@
                         {% endif %}
 
                         {% for point_name, coords in point.items %}
-                            {% if point_name != 'coordinate_system' %}
+                            {% if not point_name in "coordinate_system,area" %}
                                 content += createCheckboxItem(`togglePoints-{{ report_name }}-{{ group }}-{{ point_name }}`, '{{ point_name }}');
                             {% endif %}
                         {% endfor %}
@@ -287,7 +287,7 @@
                                 {% endif %}
 
                                 {% for point_name, coords in point.items %}
-                                    {% if point_name != 'coordinate_system' %}
+                                    {% if not point_name in "coordinate_system,area" %}
                                         content += createCheckboxItem(`togglePoints-{{ report_id }}-{{ group }}-{{ point_name }}`, '{{ point_name }}', true, 40);
                                     {% endif %}
                                 {% endfor %}
@@ -400,13 +400,19 @@
             {% for group, point in coordinates.items %}
                 {% if point.coordinate_system or report_type == 'account_card' %}
                     {% for point_name, coords in point.items %}
-                        {% if point_name != 'coordinate_system' %}
+                        {% if not point_name in "coordinate_system,area" %}
+                            polygon_area = undefined;
+                            {% if point.area %}
+                                polygon_area = parseFloat(`{{ point.area }}`.replace(',', '.'))
+                            {% endif %}
+
                             marker = createMapMarker(
                                 {{ coords|safe }},
                                 '{{ report_type }}',
                                 '{{ report_name }}',
                                 '{{ group }}',
                                 '{{ point_name }}',
+                                polygon_area,
                             );
 
                             markers.push({
@@ -477,13 +483,19 @@
                     {% for group, point in report.coordinates.items %}
                         {% if point.coordinate_system or report_type == 'account_card' %}
                             {% for point_name, coords in point.items %}
-                                {% if point_name != 'coordinate_system' %}
+                                {% if not point_name in "coordinate_system,area" %}
+                                    polygon_area = undefined;
+                                    {% if point.area %}
+                                        polygon_area = parseFloat(`{{ point.area }}`.replace(',', '.'))
+                                    {% endif %}
+
                                     marker = createMapMarker(
                                         {{ coords|safe }},
                                         '{{ report_type }}',
                                         '{{ report.report_name }}',
                                         '{{ group }}',
                                         '{{ point_name }}',
+                                        polygon_area,
                                     );
 
                                     all_markers['{{ report_id }}'].push({
@@ -574,7 +586,7 @@
                                 <label for="{{ group|cut:" "|cut:"."|cut:":"|cut:"["|cut:"]"|cut:"("|cut:")" }}_checkbox">{{ group }}</label>
                                 <div id="{{ group }}_content" style="margin-left: 40px; display: none;">
                                     {% for point_name, coordinates in point.items %}
-                                        {% if point_name != 'coordinate_system' %}
+                                        {% if not point_name in "coordinate_system,area" %}
                                             <input type="checkbox"
                                                    class="{{ group|cut:" "|cut:"."|cut:":"|cut:"["|cut:"]"|cut:"("|cut:")" }}_point"
                                                    checked
@@ -649,7 +661,7 @@
                                                 <div id="report-{{ counter }}_{{ group|cut:" "|cut:"."|cut:":"|cut:"["|cut:"]"|cut:"("|cut:")" }}_content"
                                                      style="margin-left: 40px; display: none;">
                                                     {% for point_name, coordinates in coords.items %}
-                                                        {% if point_name != 'coordinate_system' %}
+                                                        {% if not point_name in "coordinate_system,area" %}
                                                             <input type="checkbox"
                                                                    class="report-{{ counter }}_{{ group|cut:" "|cut:"."|cut:":"|cut:"["|cut:"]"|cut:"("|cut:")" }}_point report-{{ report_type|cut:" "|cut:"."|cut:":"|cut:"["|cut:"]"|cut:"("|cut:")" }}_point report-{{ counter }}_point"
                                                                    checked

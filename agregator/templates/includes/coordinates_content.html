@@ -85,7 +85,7 @@
         <label for="point[{{ group }}-{{ point_name }}]">Координаты: </label>
         <div id="points-{{ group }}">
             {% for point_name, coordinates in point.items %}
-                {% if point_name != 'coordinate_system' %}
+                {% if not point_name in "coordinate_system,area" %}
                     <div class="input-group mb-3">
                         <input type="text" name="point[{{ group }}-{{ point_name }}]"
                                value="{{ point_name }}; {{ coordinates|join:'; ' }}"
