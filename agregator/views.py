@@ -223,22 +223,32 @@ def external_sources(request):
 
     if request.method == 'POST' and scan_task_id is None:
         start_date = end_date = None
-        if 'enableDateRange' in request.POST.keys() and 'start_date' in request.POST.keys() and 'start_date' in request.POST.keys():
-            start_date = request.POST['start_date']
-            end_date = request.POST['end_date']
-            match = re.search(r"\d{2}\.\d{2}\.\d{4}", start_date)
+        if 'enableDateRange' in request.POST.keys() and 'startDate' in request.POST.keys() and 'endDate' in request.POST.keys():
+            start_date = request.POST['startDate']
+            end_date = request.POST['endDate']
+
+            match = re.search(r"\d{2}-\d{2}-\d{4}", start_date)
             if match:
                 date_str = match.group(0)
-                start_date = [int(x) for x in date_str.split('.')]
+                start_date = [int(x) for x in date_str.split('-')][::-1]
             else:
                 start_date = None
-            match = re.search(r"\d{2}\.\d{2}\.\d{4}", end_date)
+            match = re.search(r"\d{2}-\d{2}-\d{4}", end_date)
             if match:
                 date_str = match.group(0)
-                end_date = [int(x) for x in date_str.split('.')]
+                end_date = [int(x) for x in date_str.split('-')][::-1]
             else:
                 end_date = None
-        scan_task = external_sources_processing.delay(start_date, end_date)
+
+        select_text = select_image = select_coord = False
+        if 'select_text' in request.POST:
+            select_text = True
+        if 'select_image' in request.POST:
+            select_image = True
+        if 'select_coord' in request.POST:
+            select_coord = True
+
+        scan_task = external_sources_processing.delay(start_date, end_date, select_text, select_image, select_coord)
         scan_task_id = scan_task.id
         is_processing = True
     admin = User.objects.get(is_superuser=True)

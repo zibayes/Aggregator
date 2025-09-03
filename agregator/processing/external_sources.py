@@ -23,7 +23,7 @@ from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, I
 
 
 @shared_task(bind=True)
-def external_sources_processing(self, start_date, end_date):
+def external_sources_processing(self, start_date, end_date, select_text, select_image, select_coord):
     self.update_state(
         state='PROGRESS',
         meta={
@@ -93,18 +93,22 @@ def external_sources_processing(self, start_date, end_date):
         '''
 
         for item in soup.find_all('p', class_='news-item'):
-
             if start_date is not None and end_date is not None:
                 title = item.find('b').get_text(strip=True) if item.find('b') else ''
 
                 match = re.search(r"\d{2}\.\d{2}\.\d{4}", title)
                 if match:
                     date_str = match.group(0)
-                    current_date = [int(x) for x in date_str.split('.')]
+                    current_date = [int(x) for x in date_str.split('.')][::-1]
+                    print('start_date+: ' + str(start_date))
+                    print('current_date+: ' + str(current_date))
+                    print('end_date+: ' + str(end_date))
+                    print('start_date <= current_date <= end_date: ' + str(start_date <= current_date <= end_date))
                     if not (start_date <= current_date <= end_date):
                         continue
                 else:
                     continue
+            print('PROSHLO PROVERKUUU')
 
             link = item.find('a', href=True)
             if link and '/upload/iblock/' in link['href'] and (
@@ -158,7 +162,10 @@ def external_sources_processing(self, start_date, end_date):
                     if path_to_download.lower().endswith(('.zip', '.rar')):
                         folder = path_to_download[:path_to_download.rfind('.')]
                         Path(folder).mkdir(exist_ok=True)
-                        patoolib.extract_archive(path_to_download, outdir=folder)
+                        try:
+                            patoolib.extract_archive(path_to_download, outdir=folder)
+                        except patoolib.util.PatoolError as e:
+                            print(f'Ошибка при разархивировании: {e}')
                         for root, dirs, files in os.walk(os.getcwd() + '/' + folder):
                             for file in files:
                                 if file.lower().endswith('.pdf') and not re.search(r'проверк[\s\S]+подпис[\S]+', file,
@@ -195,7 +202,7 @@ def external_sources_processing(self, start_date, end_date):
                     if folder is not None:
                         shutil.rmtree(folder)
                     os.remove(path_to_download)
-                    task = process_acts.apply_async((acts_ids, admin.id, True, True, True),
+                    task = process_acts.apply_async((acts_ids, admin.id, select_text, select_image, select_coord),
                                                     link_error=error_handler_acts.s())
                     user_task = UserTasks(user_id=admin.id, task_id=task.task_id, files_type='act',
                                           upload_source=upload_source)
