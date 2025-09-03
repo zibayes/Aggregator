@@ -22,13 +22,19 @@ function getGroupIcon(group, reportType) {
 }
 
 // Универсальная функция создания маркера
-function createMapMarker(point, reportType, reportName, group, point_name) {
+function createMapMarker(point, reportType, reportName, group, point_name, area = undefined) {
     const icon = getGroupIcon(group, reportType);
+    let popup = `<b>${point_name}</b><br><br><i>[${reportType}]</i><br><i>${reportName}</i><br><br>[${group}]<br>${point[0]}, ${point[1]}`;
+
+    if (area !== undefined){
+        popup += `<br><br>[Площадь полигона]<br>${area.toFixed(2)} м²`;
+    }
+
     const marker = L.marker([point[0], point[1]], {
         color: 'red',
         icon: icon
     }).addTo(map)
-        .bindPopup(`<b>${point_name}</b><br><br><i>[${reportType}]</i><br><i>${reportName}</i><br><br>[${group}]<br>${point[0]}, ${point[1]}`)
+        .bindPopup(popup)
         .bindTooltip(`<b>${point_name}</b>`, {
             permanent: true,
             direction: 'bottom'

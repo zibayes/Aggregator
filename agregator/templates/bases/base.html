@@ -90,9 +90,9 @@
                         <li><a class="dropdown-item" href="{% url 'tech_reports_register' %}">Реестр научно-технических
                             отчётов</a></li>
                         {% if user.is_authenticated %}
-                            <li><a class="dropdown-item" href="{% url 'deconstructor' %}">Менеджер загрузок</a></li>
-                            <li><a class="dropdown-item" href="{% url 'external_sources' %}">Отчёты с внешних
-                                источников</a></li>
+                        <li><a class="dropdown-item" href="{% url 'deconstructor' %}">Менеджер загрузок</a></li>
+                        <li><a class="dropdown-item" href="{% url 'external_sources' %}">Отчёты с внешних
+                            источников</a></li>
                         {% endif %}
                     </ul>
                 </div>
@@ -107,7 +107,7 @@
                         <li><a class="dropdown-item" href="{% url 'open_lists_register' %}">Реестр открытых листов</a>
                         </li>
                         {% if user.is_authenticated %}
-                            <li><a class="dropdown-item" href="{% url 'open_list_ocr' %}">OCR для документов</a></li>
+                        <li><a class="dropdown-item" href="{% url 'open_list_ocr' %}">OCR для документов</a></li>
                         {% endif %}
                     </ul>
                 </div>
@@ -140,8 +140,8 @@
                         <li><a class="dropdown-item" href="{% url 'account_cards_register' %}">Реестр учётных карт</a>
                         </li>
                         {% if user.is_authenticated %}
-                            <li><a class="dropdown-item" href="{% url 'account_cards_upload' %}">Менеджер загрузок</a>
-                            </li>
+                        <li><a class="dropdown-item" href="{% url 'account_cards_upload' %}">Менеджер загрузок</a>
+                        </li>
                         {% endif %}
                     </ul>
                 </div>
@@ -157,9 +157,9 @@
                             предложений</a>
                         </li>
                         {% if user.is_authenticated %}
-                            <li><a class="dropdown-item" href="{% url 'commercial_offers_upload' %}">Менеджер
-                                загрузок</a>
-                            </li>
+                        <li><a class="dropdown-item" href="{% url 'commercial_offers_upload' %}">Менеджер
+                            загрузок</a>
+                        </li>
                         {% endif %}
                     </ul>
                 </div>
@@ -175,9 +175,9 @@
                             объектов</a>
                         </li>
                         {% if user.is_authenticated %}
-                            <li><a class="dropdown-item" href="{% url 'geo_objects_upload' %}">Менеджер
-                                загрузок</a>
-                            </li>
+                        <li><a class="dropdown-item" href="{% url 'geo_objects_upload' %}">Менеджер
+                            загрузок</a>
+                        </li>
                         {% endif %}
                     </ul>
                 </div>
@@ -195,25 +195,26 @@
         </ul>
         <ul class="navbar-nav ms-auto">
             {% if user.is_authenticated %}
-                <li class="nav-item d-flex align-items-center me-3" id="profile">
-                    <a href="{% url 'profile' %}" style="margin-right:15px; white-space: nowrap;">
-                        <img src="{{ user.avatar.url }}" class="rounded-circle" height="35" width="35" loading="lazy"
-                             style="object-fit: cover;" alt=""/>
-                        {{ user.username }}
-                    </a>
-                </li>
-                <li class="nav-item" id="logout">
-                    <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-                       href="{% url 'logout' %}">Выход</a>
-                </li>
+            <li class="nav-item d-flex align-items-center me-3" id="profile">
+                <a href="{% url 'profile' %}" style="margin-right:15px; white-space: nowrap;">
+                    <img src="{{ user.avatar.url }}" class="rounded-circle" height="35" width="35" loading="lazy"
+                         style="object-fit: cover;" alt=""/>
+                    {{ user.username }}
+                </a>
+            </li>
+            <li class="nav-item" id="logout">
+                <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+                   href="{% url 'logout' %}">Выход</a>
+            </li>
             {% else %}
-                <li class="nav-item" id="login">
-                    <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-                       href="{% url 'login' %}">Вход</a>
-                </li>
-                <li>
-                    <a class="btn btn-secondary lang" style="border-radius: 12px" href="{% url 'register' %}">Регистрация</a>
-                </li>
+            <li class="nav-item" id="login">
+                <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
+                   href="{% url 'login' %}">Вход</a>
+            </li>
+            <li>
+                <a class="btn btn-secondary lang" style="border-radius: 12px"
+                   href="{% url 'register' %}">Регистрация</a>
+            </li>
             {% endif %}
         </ul>
     </div>
@@ -250,13 +251,15 @@
             cancelIcon: {enabled: true},
             scrollTo: {behavior: 'smooth', block: 'center'}, // Центрируем элемент
             scrollToHandler: function (element) {
-                const elementRect = element.getBoundingClientRect();
-                const offsetPosition = elementRect.top + window.pageYOffset - navbarHeight;
+                if (element){
+                    const elementRect = element.getBoundingClientRect();
+                    const offsetPosition = elementRect.top + window.pageYOffset - navbarHeight;
 
-                window.scrollTo({
-                    top: offsetPosition,
-                    behavior: 'smooth'
-                });
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                    });
+                }
             },
             when: {
                 show: function () {
@@ -276,6 +279,14 @@
     });
 
     function startTour() {
+        if (`{{request.path}}` !== '/'){
+            const navbarCollapse = document.querySelector('.navbar-collapse');
+            const bsCollapse = bootstrap.Collapse.getInstance(navbarCollapse);
+            if (bsCollapse && bsCollapse._isShown) {
+                bsCollapse.hide();
+            }
+        }
+
         tour.start();
     }
 

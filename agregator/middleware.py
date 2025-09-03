@@ -109,7 +109,7 @@ class FilePreviewMiddleware(MiddlewareMixin):
             result = subprocess.run([
                 'libreoffice', '--headless', '--convert-to', 'html',
                 '--outdir', os.path.dirname(html_path), file_path
-            ], capture_output=True, timeout=30)
+            ], capture_output=True)  # , timeout=30
 
             if result.returncode == 0 and os.path.exists(html_path):
                 with open(html_path, 'r', encoding='utf-8') as f:

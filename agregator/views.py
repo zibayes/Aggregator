@@ -1356,7 +1356,9 @@ def account_cards_register(request):
 def commercial_offers_edit(request, pk):
     commercial_offer = CommercialOffers.objects.get(id=pk)
     commercial_offer.coordinates = commercial_offer.coordinates_dict
+    print('TESSTAAA+++++')
     if request.method == 'POST':
+        print('TESSTAAA*******')
         commercial_offer.coordinates = process_coords_from_edit_page(request, commercial_offer)
         commercial_offer.save()
         messages.success(request, 'Коммерческое предложение успешно обновлено.')
@@ -1416,9 +1418,9 @@ def download_commercial_offer_report(request, pk):
                         if 'coordinate_system' not in co_polygon.keys() or co_polygon['coordinate_system'] == 'None':
                             continue
                         polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
-                                    key != 'coordinate_system']
+                                    key not in ('coordinate_system', 'area')]
                         polygon2 = [[float(value[0]), float(value[1])] for key, value in ac_polygon.items() if
-                                    key != 'coordinate_system']
+                                    key not in ('coordinate_system', 'area')]
 
                         if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
                             polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in
@@ -1462,7 +1464,7 @@ def download_commercial_offer_report(request, pk):
                                 'coordinate_system'] == 'None':
                                 continue
                             polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
-                                        key != 'coordinate_system']
+                                        key not in ('coordinate_system', 'area')]
                             polygon2 = [[float(value) for value in coords]]
 
                             if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):

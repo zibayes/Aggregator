@@ -11,8 +11,8 @@ def wgs84_polygon_area(coords):
     n = len(coords)
 
     for i in range(n):
-        lon1, lat1 = coords[i]
-        lon2, lat2 = coords[(i + 1) % n]
+        lat1, lon1 = coords[i]
+        lat2, lon2 = coords[(i + 1) % n]
 
         # Переводим градусы в радианы
         lat1_rad = math.radians(lat1)
@@ -25,3 +25,25 @@ def wgs84_polygon_area(coords):
 
     area = abs(area * R ** 2 / 2)
     return area
+
+
+def calculate_polygons_area(coordinates: dict):
+    for key in coordinates.keys():
+        if any([catalog_type in key.lower() for catalog_type in ('каталог', 'участок')]) and 'coordinate_system' in \
+                coordinates[key] and coordinates[key][
+            'coordinate_system'] == 'wgs84':
+            if sum(1 for elem in coordinates[key] if elem not in {'coordinate_system', 'area'}) > 2:
+                coordinates[key]['area'] = wgs84_polygon_area(
+                    [[float(coord) for coord in value if is_float(coord)] for key, value in
+                     list(coordinates[key].items()) if
+                     key not in ('coordinate_system', 'area')])
+            elif 'area' in coordinates[key]:
+                del coordinates[key]['area']
+
+
+def is_float(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False

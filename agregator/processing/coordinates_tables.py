@@ -6,6 +6,8 @@ import pdfplumber
 import pandas as pd
 from pyproj import Proj, transform
 
+from agregator.geo_utils import calculate_polygons_area
+
 COORDINATE_SYSTEMS = [
     r'wgs.*?\d+',
     r'мск.*?\d+',
@@ -660,6 +662,8 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
             if table:
                 tables.append(table)
 
+    calculate_polygons_area(coordinates)
+
     pits_coordinates = re.findall(
         r'Шурф\s+№\s+\d+\**[\s\S]+?Координаты\s+шурфа\s+в\s+системе\s+WGS-\d+:*\s+[NSEW]\s*?\d+°\d+\'\d+[\.,]\d+";*\s+[NSEW]\s*?\d+°\d+\'\d+[\.,]\d+"',
         text, re.IGNORECASE)
@@ -798,7 +802,8 @@ def format_coordinates(results, coordinate_systems):
                             if 'гск' in coord_sys:
                                 lat = dms_to_decimal(lat)
                                 lon = dms_to_decimal(lon)
-                            lat, lon = convert_to_wgs84(lat, lon, coord_sys)
+                            else:
+                                lat, lon = convert_to_wgs84(lat, lon, coord_sys)
                             if f' ({coord_sys})' not in points_type:
                                 points_type += f' ({coord_sys})'
                                 if points_type not in coordinates.keys():
@@ -815,6 +820,9 @@ def format_coordinates(results, coordinate_systems):
                     if points_type not in coordinates.keys():
                         coordinates[points_type] = {}
                     coordinates[points_type][point_number] = [lat, lon]
+
+    calculate_polygons_area(coordinates)
+
     return coordinates
 
 

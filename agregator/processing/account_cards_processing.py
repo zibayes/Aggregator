@@ -23,7 +23,7 @@ from agregator.hash import calculate_file_hash
 from agregator.models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
 from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents
-from agregator.geo_utils import wgs84_polygon_area
+from agregator.geo_utils import calculate_polygons_area
 
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 
@@ -242,7 +242,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                     coordinates['Каталог координат']['coordinate_system'] = 'wgs84'
                     # coordinates['GPS координаты углов поворотов объекта'][point_number] = [lat, lon]
 
-        points = [x for x in list(coordinates['Каталог координат'].keys()) if x != 'coordinate_system']
+        points = [x for x in list(coordinates['Каталог координат'].keys()) if x not in ('coordinate_system', 'area')]
         if 'Каталог координат' in coordinates and len(points) == 4:
             if intersect(coordinates['Каталог координат'][points[0]], coordinates['Каталог координат'][points[1]],
                          coordinates['Каталог координат'][points[2]],
@@ -254,9 +254,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                 coordinates['Каталог координат'] = {k: coordinates['Каталог координат'][k] for k in
                                                     sorted(coordinates['Каталог координат'])}
 
-        if 'Каталог координат' in coordinates and coordinates['Каталог координат']['coordinate_system'] == 'wgs84':
-            coordinates['Каталог координат']['area'] = wgs84_polygon_area(
-                [value for key, value in list(coordinates['Каталог координат'].items()) if key != 'coordinate_system'])
+        calculate_polygons_area(coordinates)
 
     elif file.endswith('.pdf'):
         doc = fitz.open(file)
