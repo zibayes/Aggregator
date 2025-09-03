@@ -721,6 +721,7 @@ def format_coordinates(results, coordinate_systems):
         inside_counter = 0
         title = {'zone': None, '№': None, 'x': None, 'y': None}
         points_type = 'Каталог координат'
+        prev_index = None
         if len(results) > 1:
             counter += 1
             points_type += ' [' + str(counter) + ']'
@@ -758,9 +759,17 @@ def format_coordinates(results, coordinate_systems):
                         new_name = row[title['zone']].replace('\n', ' ').replace('"', '').replace("'", '')
                         if ' [' in points_type and points_type[:points_type.rfind(' [')] != new_name:
                             points_type = new_name + ' [' + str(counter) + ']'
+                            prev_index = index
                         else:
+                            if prev_index is not None and prev_index == index:
+                                break
                             inside_counter += 1
                             points_type = new_name + ' [' + str(counter) + '-' + str(inside_counter) + ']'
+                        print('points_type: ' + points_type)
+                        print('column: ' + str(column))
+                        print('cell: ' + str(cell))
+                        print('index: ' + str(index))
+                        print('row: ' + str(row))
                     point_number = row[title['№']]
                     if not pd.isna(point_number) and (isinstance(point_number, float) or isinstance(point_number,
                                                                                                     str) and point_number.isdigit()):
