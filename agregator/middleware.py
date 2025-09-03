@@ -6,6 +6,9 @@ from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 from pathlib import Path
 import magic
+import tempfile
+import subprocess
+import shutil
 
 
 class FilePreviewMiddleware(MiddlewareMixin):
@@ -97,26 +100,40 @@ class FilePreviewMiddleware(MiddlewareMixin):
 
     def _convert_to_html(self, file_path):
         """Конвертирует офисные документы в HTML через LibreOffice"""
+        import logging
+
+        logger = logging.getLogger(__name__)
+
         try:
-            import subprocess
-            import tempfile
+            outdir = os.path.dirname(file_path)
+            filename_wo_ext = os.path.splitext(os.path.basename(file_path))[0]
+            html_path = os.path.join(outdir, filename_wo_ext + '.html')
 
-            # Создаем временный HTML файл
-            with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as temp_html:
-                html_path = temp_html.name
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                base_name = os.path.basename(file_path)
+                tmp_file_path = os.path.join(tmp_dir, base_name)
+                shutil.copy(file_path, tmp_file_path)
+                # Конвертируем через LibreOffice
+                result = subprocess.run([
+                    'libreoffice', '--headless', '--convert-to', 'html',
+                    '--outdir', tmp_dir, tmp_file_path  # outdir, file_path
+                ], capture_output=True, text=True)  # text=True для удобства логов
 
-            # Конвертируем через LibreOffice
-            result = subprocess.run([
-                'libreoffice', '--headless', '--convert-to', 'html',
-                '--outdir', os.path.dirname(html_path), file_path
-            ], capture_output=True)  # , timeout=30
+                logger.debug(f"LibreOffice returncode: {result.returncode}")
+                logger.debug(f"LibreOffice stdout: {result.stdout}")
+                logger.debug(f"LibreOffice stderr: {result.stderr}")
+                logger.debug(f"Ожидаемый HTML файл: {html_path}")
+                logger.debug(f"HTML файл существует: {os.path.exists(html_path)}")
 
-            if result.returncode == 0 and os.path.exists(html_path):
-                with open(html_path, 'r', encoding='utf-8') as f:
-                    return f.read()
+                html_file = os.path.splitext(tmp_file_path)[0] + '.html'
+                if result.returncode == 0 and os.path.exists(html_file):
+                    with open(html_file, 'r', encoding='utf-8') as f:
+                        return f.read()
+                else:
+                    logger.error("Конвертация в HTML не удалась или файл не найден")
 
         except Exception as e:
-            print(f"Ошибка конвертации в HTML: {e}")
+            logger.exception(f"Ошибка конвертации в HTML: {e}")
 
         return None
 
@@ -201,9 +218,9 @@ class FilePreviewMiddleware(MiddlewareMixin):
         download_url = f"{request.path}?download=1"
 
         # Простая подсветка XML тегов
-        highlighted_content = escaped_content.replace('&lt;', '<span style="color: #905">&lt;')
+        highlighted_content = escaped_content.replace('&lt;', '<span class="xml-tag">&lt;')
         highlighted_content = highlighted_content.replace('&gt;', '&gt;</span>')
-        highlighted_content = highlighted_content.replace('&lt;/', '<span style="color: #905">&lt;/')
+        highlighted_content = highlighted_content.replace('&lt;/', '<span class="xml-tag">&lt;/')
 
         html_content = f'''
         <!DOCTYPE html>
@@ -211,12 +228,12 @@ class FilePreviewMiddleware(MiddlewareMixin):
         <head>
             <title>{html.escape(filename)}</title>
             <style>
-                body {{ 
-                    margin: 0; 
+                body {{
+                    margin: 0;
                     padding: 20px 20px 20px 0;
                     font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-                    background: #2d2d2d;
-                    color: #f8f8f2;
+                    background: #f9f9f9;
+                    color: #222222;
                     font-size: 14px;
                 }}
                 .download-btn {{
@@ -229,22 +246,23 @@ class FilePreviewMiddleware(MiddlewareMixin):
                     color: white;
                     text-decoration: none;
                     border-radius: 5px;
-                    font-family: Arial;
+                    font-family: Arial, sans-serif;
                     font-size: 14px;
                 }}
                 .download-btn:hover {{ background: #0056b3; }}
                 pre {{
-                    background: #1e1e1e;
+                    background: #ffffff;
                     padding: 20px;
                     border-radius: 5px;
-                    border: 1px solid #444;
+                    border: 1px solid #ccc;
                     overflow-x: auto;
                     max-width: 100%;
                     line-height: 1.4;
+                    color: #222222;
                 }}
-                .xml-tag {{ color: #905; }}
-                .xml-attr {{ color: #9cdcfe; }}
-                .xml-value {{ color: #ce9178; }}
+                .xml-tag {{ color: #000000; font-weight: bold; }}
+                .xml-attr {{ color: #0451a5; }}
+                .xml-value {{ color: #000000; }}
             </style>
         </head>
         <body>
