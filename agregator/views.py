@@ -1252,15 +1252,16 @@ def update_voan_list(request):
 
 def account_cards(request, pk):
     account_card = ObjectAccountCard.objects.get(id=pk)
-    heritage = IdentifiedArchaeologicalHeritageSite.objects.filter(id=pk, name=account_card.name)
+    heritage = IdentifiedArchaeologicalHeritageSite.objects.filter(account_card__id=pk, name=account_card.name)
     if not heritage:
-        heritage = ArchaeologicalHeritageSite.objects.filter(id=pk, doc_name=account_card.name)
+        heritage = ArchaeologicalHeritageSite.objects.filter(account_card__id=pk, doc_name=account_card.name)
         if heritage:
             account_card.heritage_url = '/archaeological_heritage_sites/'
     else:
         account_card.heritage_url = '/identified_archaeological_heritage_sites/'
     if heritage:
         account_card.heritage_url += str(heritage[0].id) + '/'
+        account_card.heritage_source = heritage[0].source
     return render(request, 'account_card.html', {'account_card': account_card})
 
 

@@ -4,80 +4,86 @@
 {% block heritage_header %}Объект археологического наследия {{ archaeological_heritage_site.doc_name }}{% endblock %}
 {% block heritage_delete_title %}Удаление объекта археологического наследия{% endblock %}
 {% block heritage_delete_url %}
-    {% url 'archaeological_heritage_sites_delete' archaeological_heritage_site.id %}{% endblock %}
+{% url 'archaeological_heritage_sites_delete' archaeological_heritage_site.id %}{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="/archaeological_heritage_sites/">Перечень объектов археологического
-        наследия</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Объект археологического
-        наследия {{ archaeological_heritage_site.doc_name }}
-    </li>
+<li class="breadcrumb-item"><a href="/archaeological_heritage_sites/">Перечень объектов археологического
+    наследия</a></li>
+<li class="breadcrumb-item active" aria-current="page">Объект археологического
+    наследия {{ archaeological_heritage_site.doc_name }}
+</li>
 {% endblock %}
 
 {% block heritage_links %}
-    {% if archaeological_heritage_site.account_card_id %}
-        <a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px;"
-           href="/account_cards/{{ archaeological_heritage_site.account_card_id }}">
-            Учётная карта
-        </a>
-    {% endif %}
+{% if archaeological_heritage_site.account_card_id %}
+<a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px;"
+   href="/account_cards/{{ archaeological_heritage_site.account_card_id }}">
+    Учётная карта
+</a>
+{% endif %}
 {% endblock %}
 
 {% block heritage_actions %}
-    {% if archaeological_heritage_site.user.id == user.id or user.is_superuser %}
-        <a href="/archaeological_heritage_sites_edit/{{ archaeological_heritage_site.id }}">
-            <button type="button" class="btn btn-primary edit-button"
-                    style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
-                Редактировать
-            </button>
-        </a>
-        <button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_heritage"
-                data-bs-toggle="modal">
-            Удалить
-        </button>
-    {% endif %}
+{% if archaeological_heritage_site.user.id == user.id or user.is_superuser %}
+<a href="/admin/filebrowser/browse/?&dir={{ archaeological_heritage_site.source|cut:'uploaded_files/' }}">
+    <button type="button" class="btn btn-primary edit-button"
+            style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+        Открыть в файловом менеджере
+    </button>
+</a>
+<a href="/archaeological_heritage_sites_edit/{{ archaeological_heritage_site.id }}">
+    <button type="button" class="btn btn-primary edit-button"
+            style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+        Редактировать
+    </button>
+</a>
+<button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_heritage"
+        data-bs-toggle="modal">
+    Удалить
+</button>
+{% endif %}
 {% endblock %}
 
 {% block heritage_contents %}
-    <ul>
-        {% if archaeological_heritage_site.doc_name %}
-            <li><a href="#doc_name">Наименование объекта</a></li>
-        {% endif %}
-        {% if archaeological_heritage_site.district %}
-            <li><a href="#district">Район местонахождения</a></li>
-        {% endif %}
-        {% if archaeological_heritage_site.document %}
-            <li><a href="#document">Документ о постановке на охрану</a></li>
-        {% endif %}
-        {% if archaeological_heritage_site.register_num %}
-            <li><a href="#register_num">Регистрационный номер</a></li>
-        {% endif %}
-    </ul>
+<ul>
+    {% if archaeological_heritage_site.doc_name %}
+    <li><a href="#doc_name">Наименование объекта</a></li>
+    {% endif %}
+    {% if archaeological_heritage_site.district %}
+    <li><a href="#district">Район местонахождения</a></li>
+    {% endif %}
+    {% if archaeological_heritage_site.document %}
+    <li><a href="#document">Документ о постановке на охрану</a></li>
+    {% endif %}
+    {% if archaeological_heritage_site.register_num %}
+    <li><a href="#register_num">Регистрационный номер</a></li>
+    {% endif %}
+</ul>
 {% endblock %}
 
 {% block heritage_sections %}
-    {% if archaeological_heritage_site.doc_name %}
-        <h2 id="doc_name">Наименование объекта</h2>
-        <p>{{ archaeological_heritage_site.doc_name | safe }}</p>
-    {% endif %}
+{% if archaeological_heritage_site.doc_name %}
+<h2 id="doc_name">Наименование объекта</h2>
+<p>{{ archaeological_heritage_site.doc_name | safe }}</p>
+{% endif %}
 
-    {% if archaeological_heritage_site.district %}
-        <h2 id="district">Район местонахождения</h2>
-        <p>{{ archaeological_heritage_site.district | safe }}</p>
-    {% endif %}
+{% if archaeological_heritage_site.district %}
+<h2 id="district">Район местонахождения</h2>
+<p>{{ archaeological_heritage_site.district | safe }}</p>
+{% endif %}
 
-    {% if archaeological_heritage_site.document %}
-        <h2 id="document">Документ о постановке на охрану</h2>
-        <p>{{ archaeological_heritage_site.document | safe }}</p>
-    {% endif %}
+{% if archaeological_heritage_site.document %}
+<h2 id="document">Документ о постановке на охрану</h2>
+<p>{{ archaeological_heritage_site.document | safe }}</p>
+{% endif %}
 
-    {% if archaeological_heritage_site.register_num %}
-        <h2 id="register_num">Регистрационный номер</h2>
-        <p>{{ archaeological_heritage_site.register_num | safe }}</p>
-    {% endif %}
+{% if archaeological_heritage_site.register_num %}
+<h2 id="register_num">Регистрационный номер</h2>
+<p>{{ archaeological_heritage_site.register_num | safe }}</p>
+{% endif %}
 {% endblock %}
 
 {% block heritage_modals %}
-    {{ block.super }}
-    <!-- Дополнительные модальные окна могут быть добавлены здесь -->
+{{ block.super }}
+<!-- Дополнительные модальные окна могут быть добавлены здесь -->
 {% endblock %}

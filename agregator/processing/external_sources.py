@@ -327,17 +327,24 @@ def external_voan_list_processing():
                                 address = address.strip()
                             else:
                                 address = row.iat[2].strip()
+                            folder = 'uploaded_files/Памятники/ВОАН/' + row[
+                                'Наименование выявленного объекта культурного наследия']
+                            nested_folders = Path(folder)
+                            nested_folders.mkdir(parents=True, exist_ok=True)
+                            folder = str(nested_folders)
                             identified_site = IdentifiedArchaeologicalHeritageSite(
                                 name=row['Наименование выявленного объекта культурного наследия'],
                                 address=address,
                                 obj_info=row['Сведения об историко-культурной ценности объекта'],
                                 document=row['Документ о включении в перечень выявленных объектов'],
+                                source=folder,
                             )
                             if not IdentifiedArchaeologicalHeritageSite.objects.filter(
                                     name=identified_site.name,
                                     address=identified_site.address,
                                     obj_info=identified_site.obj_info,
                                     document=identified_site.document,
+                                    source=identified_site.source,
                             ).exists():
                                 identified_site.save()
                             connect_account_card_to_heritage(identified_site.name)
@@ -349,6 +356,11 @@ def external_voan_list_processing():
 
                     elif title == 'Перечень объектов археологического наследия':
                         for index, row in df.iterrows():
+                            folder = 'uploaded_files/Памятники/ОАН/' + row[
+                                'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта']
+                            nested_folders = Path(folder)
+                            nested_folders.mkdir(parents=True, exist_ok=True)
+                            folder = str(nested_folders)
                             if not ArchaeologicalHeritageSite.objects.filter(
                                     doc_name=row[
                                         'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
@@ -356,6 +368,7 @@ def external_voan_list_processing():
                                     document=row['Документ о постановке на государственную охрану'],
                                     register_num=row[
                                         'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
+                                    source=folder,
                             ).exists():
                                 archaeological_site = ArchaeologicalHeritageSite(
                                     doc_name=row[
@@ -364,6 +377,7 @@ def external_voan_list_processing():
                                     document=row['Документ о постановке на государственную охрану'],
                                     register_num=row[
                                         'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
+                                    source=folder,
                                 )
                                 archaeological_site.save()
                                 connect_account_card_to_heritage(archaeological_site.doc_name)

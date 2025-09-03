@@ -15,6 +15,7 @@ torch #==2.5.1+cu124
 torchvision #==0.20.1
 torchaudio
 
+python-magic
 unrar
 xlrd
 django-filebrowser-no-grappelli==4.0.2

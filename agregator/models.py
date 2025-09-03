@@ -382,6 +382,7 @@ class ObjectAccountCard(models.Model):
     usage = models.TextField()
     discovery_info = models.TextField()
     compiler = models.TextField()
+    compile_date = models.TextField()
     supplement = models.JSONField(null=True, blank=True)
     coordinates = models.JSONField(null=True, blank=True)
     source = models.TextField(null=True, blank=True)
@@ -419,13 +420,15 @@ class ObjectAccountCard(models.Model):
 
 
 class ArchaeologicalHeritageSite(models.Model):
-    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.CASCADE, null=True, blank=True)
+    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.SET_NULL, null=True,
+                                     blank=True)  # , on_delete=models.CASCADE
     date_uploaded = models.DateTimeField(auto_now_add=True)
     doc_name = models.TextField(null=True, blank=True)
     district = models.TextField(null=True, blank=True)
     document = models.TextField(null=True, blank=True)
     register_num = models.TextField(null=True, blank=True)
     is_excluded = models.BooleanField(default=False)
+    source = models.TextField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Археологический объект культурного наследия"
@@ -437,13 +440,15 @@ class ArchaeologicalHeritageSite(models.Model):
 
 
 class IdentifiedArchaeologicalHeritageSite(models.Model):
-    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.CASCADE, null=True, blank=True)
+    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.SET_NULL, null=True,
+                                     blank=True)  # , on_delete=models.CASCADE
     date_uploaded = models.DateTimeField(auto_now_add=True)
     name = models.TextField(null=True, blank=True)
     address = models.TextField(null=True, blank=True)
     obj_info = models.TextField(null=True, blank=True)
     document = models.TextField(null=True, blank=True)
     is_excluded = models.BooleanField(default=False)
+    source = models.TextField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Выявленный археологический объект культурного наследия"

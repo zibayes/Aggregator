@@ -5,159 +5,173 @@
 {% block delete_url %}{% url 'account_cards_delete' account_card.id %}{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="/account_cards_register/">Реестр учётных карт</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Учётная карта объекта: {{ account_card.name }}
-    </li>
+<li class="breadcrumb-item"><a href="/account_cards_register/">Реестр учётных карт</a></li>
+<li class="breadcrumb-item active" aria-current="page">Учётная карта объекта: {{ account_card.name }}
+</li>
 {% endblock %}
 
 {% block document_sources %}
-    {% if account_card.upload_source_dict %}
-        <a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px;"
-           href="/{{ account_card.source }}">
-            Исходник: {{ account_card.origin_filename }}
-        </a>
-        <br><br>
-    {% endif %}
-    {% if account_card.heritage_url %}
-        <a class="btn btn-primary lang heritage-button" style="border-radius: 12px; margin-right:10px;"
-           href="{{ account_card.heritage_url }}">
-            Памятник
-        </a>
-        <br><br>
-    {% endif %}
-    {% if account_card.coordinates_dict %}
-        <a class="btn btn-success lang coordinates-button" style="border-radius: 12px; margin-right:10px;"
-           href="/map/account_card/{{ account_card.id }}">
-            Просмотр координат
-        </a>
-        <br><br>
-    {% endif %}
+{% if account_card.upload_source_dict %}
+<a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px;"
+   href="/{{ account_card.source }}">
+    Исходник: {{ account_card.origin_filename }}
+</a>
+<br><br>
+{% endif %}
+{% if account_card.heritage_url %}
+<a class="btn btn-primary lang heritage-button" style="border-radius: 12px; margin-right:10px;"
+   href="{{ account_card.heritage_url }}">
+    Памятник
+</a>
+<br><br>
+{% endif %}
+{% if account_card.coordinates_dict %}
+<a class="btn btn-success lang coordinates-button" style="border-radius: 12px; margin-right:10px;"
+   href="/map/account_card/{{ account_card.id }}">
+    Просмотр координат
+</a>
+<br><br>
+{% endif %}
 {% endblock %}
 
 {% block document_actions %}
-    {% if account_card.user.id == user.id or user.is_superuser %}
-        <a href="/account_cards_edit/{{ account_card.id }}">
-            <button type="button" class="btn btn-primary edit-button"
-                    style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
-                Редактировать
-            </button>
-        </a>
-        <button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_document"
-                data-bs-toggle="modal">
-            Удалить
-        </button>
-    {% endif %}
+{% if account_card.user.id == user.id or user.is_superuser %}
+<a href="/admin/filebrowser/browse/?&dir={{ account_card.heritage_source|cut:'uploaded_files/' }}">
+    <button type="button" class="btn btn-primary edit-button"
+            style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+        Открыть в файловом менеджере
+    </button>
+</a>
+<a href="/account_cards_edit/{{ account_card.id }}">
+    <button type="button" class="btn btn-primary edit-button"
+            style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+        Редактировать
+    </button>
+</a>
+<button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_document"
+        data-bs-toggle="modal">
+    Удалить
+</button>
+{% endif %}
 {% endblock %}
 
 {% block document_modals %}
-    {{ block.super }}
-    <!-- Доп модальные окна если нужны -->
+{{ block.super }}
+<!-- Доп модальные окна если нужны -->
 {% endblock %}
 
 {% block document_contents %}
-    <ul>
-        {% if account_card.name %}
-            <li><a href="#name">Наименование объекта</a></li>
-        {% endif %}
-        {% if account_card.creation_time %}
-            <li><a href="#creation_time">Время создания</a></li>
-        {% endif %}
-        {% if account_card.address %}
-            <li><a href="#address">Адрес</a></li>
-        {% endif %}
-        {% if account_card.object_type %}
-            <li><a href="#object_type">Вид объекта</a></li>
-        {% endif %}
-        {% if account_card.general_classification %}
-            <li><a href="#general_classification">Общая видовая принадлежность</a></li>
-        {% endif %}
-        {% if account_card.description %}
-            <li><a href="#description">Описание</a></li>
-        {% endif %}
-        {% if account_card.usage %}
-            <li><a href="#usage">Использование</a></li>
-        {% endif %}
-        {% if account_card.discovery_info %}
-            <li><a href="#discovery_info">Сведения о выявлении</a></li>
-        {% endif %}
-        {% if account_card.compiler %}
-            <li><a href="#compiler">Составитель учетной карты</a></li>
-        {% endif %}
-    </ul>
+<ul>
+    {% if account_card.name %}
+    <li><a href="#name">Наименование объекта</a></li>
+    {% endif %}
+    {% if account_card.creation_time %}
+    <li><a href="#creation_time">Время создания</a></li>
+    {% endif %}
+    {% if account_card.address %}
+    <li><a href="#address">Адрес</a></li>
+    {% endif %}
+    {% if account_card.object_type %}
+    <li><a href="#object_type">Вид объекта</a></li>
+    {% endif %}
+    {% if account_card.general_classification %}
+    <li><a href="#general_classification">Общая видовая принадлежность</a></li>
+    {% endif %}
+    {% if account_card.description %}
+    <li><a href="#description">Описание</a></li>
+    {% endif %}
+    {% if account_card.usage %}
+    <li><a href="#usage">Использование</a></li>
+    {% endif %}
+    {% if account_card.discovery_info %}
+    <li><a href="#discovery_info">Сведения о выявлении</a></li>
+    {% endif %}
+    {% if account_card.compiler %}
+    <li><a href="#compiler">Составитель учетной карты</a></li>
+    {% endif %}
+    {% if account_card.compile_date %}
+    <li><a href="#compile_date">Дата составления учетной карты</a></li>
+    {% endif %}
+</ul>
 {% endblock %}
 
 {% block document_sections %}
-    {% if account_card.name %}
-        <h2 id="name">Наименование объекта</h2>
-        <p>{{ account_card.name|safe }}</p>
-    {% endif %}
+{% if account_card.name %}
+<h2 id="name">Наименование объекта</h2>
+<p>{{ account_card.name|safe }}</p>
+{% endif %}
 
-    {% if account_card.creation_time %}
-        <h2 id="creation_time">Время создания</h2>
-        <p>{{ account_card.creation_time|safe }}</p>
-    {% endif %}
+{% if account_card.creation_time %}
+<h2 id="creation_time">Время создания</h2>
+<p>{{ account_card.creation_time|safe }}</p>
+{% endif %}
 
-    {% if account_card.address %}
-        <h2 id="address">Адрес</h2>
-        <p>{{ account_card.address|safe }}</p>
+{% if account_card.address %}
+<h2 id="address">Адрес</h2>
+<p>{{ account_card.address|safe }}</p>
 
-        {% if account_card.supplement_dict and account_card.supplement_dict.address %}
-            {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
-                {% for map in account_card.supplement_dict.address %}
-                    <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
-                        <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
-                             alt="{{ map.source }}" style="max-width: 400px;"/>
-                        <p>{{ map.label }}</p>
-                    </a>
-                    <br>
-                {% endfor %}
-            {% endwith %}
-        {% endif %}
-    {% endif %}
+{% if account_card.supplement_dict and account_card.supplement_dict.address %}
+{% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
+{% for map in account_card.supplement_dict.address %}
+<a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
+    <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
+         alt="{{ map.source }}" style="max-width: 400px;"/>
+    <p>{{ map.label }}</p>
+</a>
+<br>
+{% endfor %}
+{% endwith %}
+{% endif %}
+{% endif %}
 
-    {% if account_card.object_type %}
-        <h2 id="object_type">Вид объекта</h2>
-        <p>{{ account_card.object_type|safe }}</p>
-    {% endif %}
+{% if account_card.object_type %}
+<h2 id="object_type">Вид объекта</h2>
+<p>{{ account_card.object_type|safe }}</p>
+{% endif %}
 
-    {% if account_card.general_classification %}
-        <h2 id="general_classification">Общая видовая принадлежность</h2>
-        <p>{{ account_card.general_classification|safe }}</p>
-    {% endif %}
+{% if account_card.general_classification %}
+<h2 id="general_classification">Общая видовая принадлежность</h2>
+<p>{{ account_card.general_classification|safe }}</p>
+{% endif %}
 
-    {% if account_card.description %}
-        <h2 id="description">Описание</h2>
-        <p>{{ account_card.description|safe }}</p>
+{% if account_card.description %}
+<h2 id="description">Описание</h2>
+<p>{{ account_card.description|safe }}</p>
 
-        {% if account_card.supplement_dict and account_card.supplement_dict.description %}
-            {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
-                {% for map in account_card.supplement_dict.description %}
-                    <a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
-                        <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
-                             alt="{{ map.source }}" style="max-width: 400px;"/>
-                        <p>{{ map.label }}</p>
-                    </a>
-                    <br>
-                {% endfor %}
-            {% endwith %}
-        {% endif %}
-    {% endif %}
+{% if account_card.supplement_dict and account_card.supplement_dict.description %}
+{% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
+{% for map in account_card.supplement_dict.description %}
+<a data-fancybox="gallery" href="/{{ map.source }}" data-caption="{{ map.label }}">
+    <img id="image-link-{{ map.image_num }}" src="/{{ map.source }}" loading="lazy"
+         alt="{{ map.source }}" style="max-width: 400px;"/>
+    <p>{{ map.label }}</p>
+</a>
+<br>
+{% endfor %}
+{% endwith %}
+{% endif %}
+{% endif %}
 
-    {% if account_card.usage %}
-        <h2 id="usage">Использование</h2>
-        <p>{{ account_card.usage|safe }}</p>
-    {% endif %}
+{% if account_card.usage %}
+<h2 id="usage">Использование</h2>
+<p>{{ account_card.usage|safe }}</p>
+{% endif %}
 
-    {% if account_card.discovery_info %}
-        <h2 id="discovery_info">Сведения о выявлении</h2>
-        <p>{{ account_card.discovery_info|safe }}</p>
-    {% endif %}
+{% if account_card.discovery_info %}
+<h2 id="discovery_info">Сведения о выявлении</h2>
+<p>{{ account_card.discovery_info|safe }}</p>
+{% endif %}
 
-    {% if account_card.compiler %}
-        <h2 id="compiler">Составитель учетной карты</h2>
-        <p>{{ account_card.compiler|safe }}</p>
-    {% endif %}
+{% if account_card.compiler %}
+<h2 id="compiler">Составитель учетной карты</h2>
+<p>{{ account_card.compiler|safe }}</p>
+{% endif %}
 
-    {% load static %}
-    <script src="{% static 'js/gallery_scripts.js' %}"></script>
+{% if account_card.compile_date %}
+<h2 id="compile_date">Дата составления учетной карты</h2>
+<p>{{ account_card.compile_date|safe }}</p>
+{% endif %}
+
+{% load static %}
+<script src="{% static 'js/gallery_scripts.js' %}"></script>
 {% endblock %}
