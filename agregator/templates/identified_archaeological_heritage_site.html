@@ -21,8 +21,15 @@
    href="/account_cards/{{ identified_archaeological_heritage_site.account_card_id }}">
     Учётная карта
 </a>
-<br><br>
 {% endif %}
+{% for source in identified_archaeological_heritage_site.document_source_dict %}
+<a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px;"
+   href="/{{ source.path }}">
+    Приказ
+</a>
+<br>
+<br>
+{% endfor %}
 {% endblock %}
 
 {% block heritage_actions %}

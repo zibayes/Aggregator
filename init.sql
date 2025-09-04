@@ -203,7 +203,8 @@ CREATE TABLE archaeological_heritage_sites
     document        text                     NULL,                -- Документ о постановке на государственную охрану
     register_num    text                     NULL,                -- Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)
     is_excluded     BOOLEAN DEFAULT FALSE,                        -- Является ли объект исключенным из списка
-    source          text                     NULL                 -- путь к файлам ОАН а на сервере
+    source          text                     NULL,                -- путь к файлам ОАН а на сервере
+    document_source json                     NULL                 -- путь к файлу приказа о постановке на гос. охрану
 );
 
 -- Перечень выявленных объектов культурного наследия
@@ -219,7 +220,8 @@ CREATE TABLE identified_archaeological_heritage_sites
     obj_info        text                     NULL,                -- Сведения об историко-культурной ценности объекта
     document        text                     NULL,                -- Документ о включении в перечень выявленных объектов
     is_excluded     BOOLEAN DEFAULT FALSE,                        -- Является ли объект исключенным из списка
-    source          text                     NULL                 -- путь к файлам ВОАН а на сервере
+    source          text                     NULL,                -- путь к файлам ВОАН а на сервере
+    document_source json                     NULL                 -- путь к файлу приказа о постановке на гос. охрану
 );
 
 -- Коммерческие предложения

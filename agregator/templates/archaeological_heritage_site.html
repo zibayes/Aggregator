@@ -21,6 +21,14 @@
     Учётная карта
 </a>
 {% endif %}
+{% for source in archaeological_heritage_site.document_source_dict %}
+<a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px;"
+   href="/{{ source.path }}">
+    Приказ
+</a>
+<br>
+<br>
+{% endfor %}
 {% endblock %}
 
 {% block heritage_actions %}

@@ -42,6 +42,14 @@
         <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
     </div>
     <div class="mb-3">
+        <label for="account_card_filter">Фильтрация по наличию учётной карты:</label>
+        <select class="form-select" id="account_card_filter" name="account_card_filter">
+          <option value="filter_off" selected>Отключить фильтр</option>
+          <option value="available">В наличии</option>
+          <option value=not_available>Отсутствует</option>
+        </select>
+    </div>
+    <div class="mb-3">
         <label>
             <input type="checkbox" id="showExcluded"/> Показать исключённые объекты
         </label>
@@ -76,12 +84,14 @@
             data-document="{{ site.document }}"
             data-date-uploaded="{{ site.date_uploaded }}"
             data-is-excluded="{{ site.is_excluded }}"
+            data-account-card="{% if site.account_card %}{{ site.account_card.id }}{% else %}not_available{% endif %}"
             data-is-public="{{ site.is_public }}">
             <td><a{% if site.account_card.id %}
                 href="/account_cards/{{ site.account_card.id }}" {% endif %}>{{ site.name }}</a></td>
             <td>{{ site.address }}</td>
             <td>{{ site.obj_info }}</td>
-            <td>{{ site.document }}</td>
+            <td><a{% if site.document_source_dict %}
+                href="/{{ site.document_source_dict.0.path }}" {% endif %}>{{ site.document }}</a></td>
             <td>{{ site.date_uploaded }}</td>
             <td>{{ site.is_excluded|yesno:"Да,Нет" }}</td>
             <td>
@@ -106,6 +116,7 @@
     const documentFilter = document.getElementById('filterDocument').value.toLowerCase();
     const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
     const showExcluded = document.getElementById('showExcluded').checked;
+    const accountCardFilter = document.getElementById('account_card_filter').value;
 {% endblock %}
 
 {% block filter_logic %}
@@ -116,6 +127,7 @@
     const documentText = row.dataset.document ? row.dataset.document.toLowerCase() : '';
     const dateUploadedText = row.dataset.dateUploaded ? row.dataset.dateUploaded.toLowerCase() : '';
     const isExcluded = row.dataset.isExcluded === "True";
+    const accountCardStatus = row.dataset.accountCard || 'not_available';
 {% endblock %}
 
 {% block filter_conditions %}
@@ -125,7 +137,12 @@
     (objInfoFilter === '' || objInfoText.includes(objInfoFilter)) &&
     (documentFilter === '' || documentText.includes(documentFilter)) &&
     (dateUploadedFilter === '' || dateUploadedText.includes(dateUploadedFilter)) &&
-    (showExcluded || !isExcluded)
+    (showExcluded || !isExcluded) &&
+    (
+        accountCardFilter === 'filter_off' ||
+        (accountCardFilter === 'available' && accountCardStatus !== 'not_available') ||
+        (accountCardFilter === 'not_available' && accountCardStatus === 'not_available')
+    )
 {% endblock %}
 
 {% block storage_switch %}
