@@ -15,11 +15,14 @@ from celery import shared_task
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from docx import Document
+import logging
 
 from agregator.processing.account_cards_processing import connect_account_card_to_heritage
 from agregator.processing.acts_processing import process_acts, error_handler_acts
 from .files_saving import raw_reports_save
 from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task(bind=True)
@@ -273,11 +276,19 @@ def external_voan_list_processing():
             if 'list_voan - ' in line:
                 line = line.replace('list_voan - ', '')
                 if os.path.exists(line):
-                    os.remove(line)
+                    try:
+                        os.remove(line)
+                    except PermissionError as e:
+                        logger.debug(f"Ошибка удаления перечня ВОАН: {e}")
+                        return
             elif 'list_oan - ' in line:
                 line = line.replace('list_oan - ', '')
                 if os.path.exists(line):
-                    os.remove(line)
+                    try:
+                        os.remove(line)
+                    except PermissionError as e:
+                        logger.debug(f"Ошибка удаления перечня ОАН: {e}")
+                        return
 
     for item in soup.find_all('p', class_='news-item'):
         title = item.find('b').get_text(strip=True) if item.find('b') else ''
@@ -292,8 +303,8 @@ def external_voan_list_processing():
             file_encoded = file.replace(' ', '%20')
             path_to_download = 'uploaded_files/voan_list/' + file_encoded
 
-            print(f"Заголовок: {title}")
-            print(f"Ссылка: {link['href']}")
+            logger.debug(f"Заголовок: {title}")
+            logger.debug(f"Ссылка: {link['href']}")
 
             href = link['href'][:link['href'].rfind('/')]
             params = urllib.parse.urlencode({'address': file})
@@ -301,8 +312,13 @@ def external_voan_list_processing():
             url = f"https://ookn.ru{href}"
 
             context = ssl._create_unverified_context()
-            print('URLLL', url)
-            print(context)
+            logger.debug(f'URLLL: {url}')
+            logger.debug(context)
+            try:
+                urllib.request.urlopen(url, context=context)
+            except urllib.error.URLError as e:
+                logger.debug(f'Ошибка подключения: {e}')
+                continue
             with urllib.request.urlopen(url, context=context) as response:
                 with open(path_to_download, 'wb') as out_file:
                     out_file.write(response.read())
@@ -329,12 +345,24 @@ def external_voan_list_processing():
                         existing_sites_set = set(
                             (site.name, site.address, site.obj_info, site.document) for site in existing_sites)
                         for index, row in df.iterrows():
+                            logger.debug('Log-test:')
+                            logger.debug(row)
+                            logger.debug(row['Адрес объекта (или описание местоположения объекта)*'])
+                            logger.debug(type(row['Адрес объекта (или описание местоположения объекта)*']))
                             address = row['Адрес объекта (или описание местоположения объекта)*']
                             if isinstance(address, str):
                                 address = address.strip()
-                            else:
-                                address = row.iat[2].strip()
-                            folder = 'uploaded_files/Памятники/ВОАН/' + row[
+                            elif isinstance(address, pd.Series):
+                                if len(address) > 1 and isinstance(address.iloc[1], str) and address.iloc[1].strip() != \
+                                        row['Наименование выявленного объекта культурного наследия']:
+                                    address = address.iloc[1].strip()
+                                elif len(address) > 0 and isinstance(address.iloc[0], str) and address.iloc[
+                                    0].strip() != row['Наименование выявленного объекта культурного наследия']:
+                                    address = address.iloc[0].strip()
+                                else:
+                                    address = ''
+                            logger.debug(f'Итоговый адрес: {address}')
+                            folder = 'uploaded_files/Памятники/ВОАН/' + address + '/' + row[
                                 'Наименование выявленного объекта культурного наследия']
                             nested_folders = Path(folder)
                             nested_folders.mkdir(parents=True, exist_ok=True)
@@ -363,7 +391,7 @@ def external_voan_list_processing():
 
                     elif title == 'Перечень объектов археологического наследия':
                         for index, row in df.iterrows():
-                            folder = 'uploaded_files/Памятники/ОАН/' + row[
+                            folder = 'uploaded_files/Памятники/ОАН/' + row['Район местонахождения'] + '/' + row[
                                 'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта']
                             nested_folders = Path(folder)
                             nested_folders.mkdir(parents=True, exist_ok=True)
