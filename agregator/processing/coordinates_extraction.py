@@ -152,7 +152,6 @@ def save_geojson_polygons_to_db():
 
 
 def process_coords_from_edit_page(request, entity) -> dict:
-    print('TESSTAAA')
     entity.coordinates = entity.coordinates_dict
     coordinates = {}
     current_group = None
@@ -170,6 +169,8 @@ def process_coords_from_edit_page(request, entity) -> dict:
             if len(val) != 3:
                 continue
             point_name, x, y = [x.strip() for x in val]
+            x = x.replace(',', '.')
+            y = y.replace(',', '.')
             coordinates[current_group][point_name] = [x, y]
     for group, polygon in coordinates.items():
         if polygon['coordinate_system'] == 'None':
@@ -186,6 +187,5 @@ def process_coords_from_edit_page(request, entity) -> dict:
                                              entity.coordinates[group]['coordinate_system'],
                                              coordinates[group]['coordinate_system'])
                     coordinates[group][point_name] = [lat, lon]
-    print('TESSTAAA11')
     calculate_polygons_area(coordinates)
     return coordinates
