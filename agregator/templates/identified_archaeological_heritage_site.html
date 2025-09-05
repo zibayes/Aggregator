@@ -22,14 +22,23 @@
     Учётная карта
 </a>
 {% endif %}
+
+{% if identified_archaeological_heritage_site.document_source_dict %}
+<br>
 {% for source in identified_archaeological_heritage_site.document_source_dict %}
-<a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px;"
+<a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px; margin-bottom:8px;"
+   id="order-{{ forloop.counter }}"
    href="/{{ source.path }}">
-    Приказ
+    {{ source.path }}
 </a>
-<br>
-<br>
+<script>
+    var path = "{{ source.path|escapejs }}";
+    var filename = path.substring(path.lastIndexOf('/') + 1);
+    document.getElementById('order-{{ forloop.counter }}').textContent = 'Приказ: ' + filename;
+</script>
 {% endfor %}
+<br>
+{% endif %}
 {% endblock %}
 
 {% block heritage_actions %}

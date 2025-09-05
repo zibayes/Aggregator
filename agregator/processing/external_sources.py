@@ -364,30 +364,33 @@ def external_voan_list_processing():
                                 else:
                                     address = ''
                             logger.debug(f'Итоговый адрес: {address}')
-                            folder = 'uploaded_files/Памятники/ВОАН/' + address + '/' + clean_path_component(row[
-                                                                                                                 'Наименование выявленного объекта культурного наследия'])
-                            nested_folders = Path(folder)
-                            nested_folders.mkdir(parents=True, exist_ok=True)
-                            folder = str(nested_folders)
                             document_source = []
                             identified_site = IdentifiedArchaeologicalHeritageSite(
                                 name=row['Наименование выявленного объекта культурного наследия'],
                                 address=address,
                                 obj_info=row['Сведения об историко-культурной ценности объекта'],
                                 document=row['Документ о включении в перечень выявленных объектов'],
-                                source=folder,
                             )
                             if not IdentifiedArchaeologicalHeritageSite.objects.filter(
                                     name=identified_site.name,
                                     address=identified_site.address,
                                     obj_info=identified_site.obj_info,
                                     document=identified_site.document,
-                                    source=identified_site.source,
                             ).exists():
+                                folder = 'uploaded_files/Памятники/ВОАН/' + address + '/' + clean_path_component(row[
+                                                                                                                     'Наименование выявленного объекта культурного наследия'])
+                                nested_folders = Path(folder)
+                                nested_folders.mkdir(parents=True, exist_ok=True)
+                                folder = str(nested_folders)
+                                identified_site.source = folder
                                 external_orders_download(identified_site.document, folder, document_source)
                                 identified_site.document_source = document_source
                                 identified_site.save()
                                 connect_account_card_to_heritage(identified_site.name)
+                            elif not identified_site.document_source_dict:
+                                external_orders_download(identified_site.document, folder, document_source)
+                                identified_site.document_source = document_source
+                                identified_site.save()
 
                             for site in existing_sites:
                                 if (site.name, site.address, site.obj_info, site.document) not in existing_sites_set:
@@ -396,22 +399,22 @@ def external_voan_list_processing():
 
                     elif title == 'Перечень объектов археологического наследия':
                         for index, row in df.iterrows():
-                            folder = 'uploaded_files/Памятники/ОАН/' + row[
-                                'Район местонахождения'] + '/' + clean_path_component(row[
-                                                                                          'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'])
-                            nested_folders = Path(folder)
-                            nested_folders.mkdir(parents=True, exist_ok=True)
-                            folder = str(nested_folders)
                             document_source = []
-                            if not ArchaeologicalHeritageSite.objects.filter(
-                                    doc_name=row[
-                                        'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
-                                    district=row['Район местонахождения'],
-                                    document=row['Документ о постановке на государственную охрану'],
-                                    register_num=row[
-                                        'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
-                                    source=folder,
-                            ).exists():
+                            archaeological_site = ArchaeologicalHeritageSite.objects.filter(
+                                doc_name=row[
+                                    'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
+                                district=row['Район местонахождения'],
+                                document=row['Документ о постановке на государственную охрану'],
+                                register_num=row[
+                                    'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
+                            )
+                            if not archaeological_site.exists():
+                                folder = 'uploaded_files/Памятники/ОАН/' + row[
+                                    'Район местонахождения'] + '/' + clean_path_component(row[
+                                                                                              'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'])
+                                nested_folders = Path(folder)
+                                nested_folders.mkdir(parents=True, exist_ok=True)
+                                folder = str(nested_folders)
                                 archaeological_site = ArchaeologicalHeritageSite(
                                     doc_name=row[
                                         'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
@@ -425,6 +428,10 @@ def external_voan_list_processing():
                                 archaeological_site.document_source = document_source
                                 archaeological_site.save()
                                 connect_account_card_to_heritage(archaeological_site.doc_name)
+                            elif not archaeological_site[0].document_source_dict:
+                                external_orders_download(archaeological_site.document, folder, document_source)
+                                archaeological_site.document_source = document_source
+                                archaeological_site.save()
 
 
 def external_orders_download(query: str, output_path: str, document_source: List) -> None:
@@ -434,19 +441,19 @@ def external_orders_download(query: str, output_path: str, document_source: List
 
     order_text = re.search(r'\D+?(?= от )', query, re.IGNORECASE | re.MULTILINE)
     if order_text:
-        order_text = order_text.group(0).strip()
+        order_text = order_text.group(0).strip().lower()
     order_number = re.findall(r'№\s+\d+-*\d*', query, re.IGNORECASE | re.MULTILINE)
-    order_number = [x.strip().replace(' ', '') for x in order_number]
+    order_number = [x.strip().replace(' ', '').replace('№', '').lower() for x in order_number]
     order_date = re.findall(r'\d{2}\.\d{2}\.\d{4}', query, re.IGNORECASE | re.MULTILINE)
-    order_date = [x.strip().replace(' ', '') for x in order_date]
+    order_date = [x.strip().replace(' ', '').lower() for x in order_date]
     logger.debug(f'order_text: {order_text}')
     logger.debug(f'order_number: {order_number}')
     logger.debug(f'order_date: {order_date}')
 
     for item in soup.find_all('a', href=lambda href: href and "/docs/?ELEMENT_ID=" in href):
         # Извлекаем заголовок
-        href_text = item.text
-        title = item.find_next_sibling().get_text() if item.find_next_sibling() else ''
+        href_text = item.text.lower()
+        title = item.find_next_sibling().get_text().lower() if item.find_next_sibling() else ''
         logger.debug(f'item.text: {item.text}')
         logger.debug(f'title: {title}')
 
@@ -457,6 +464,9 @@ def external_orders_download(query: str, output_path: str, document_source: List
             continue
         if order_date and not any([number in href_text for number in order_date]) and not any(
                 [number in title for number in order_date]):
+            continue
+        if re.search(r'акт\s+гикэ', href_text, re.IGNORECASE | re.MULTILINE) or re.search(r'акт\s+гикэ', title,
+                                                                                          re.IGNORECASE | re.MULTILINE):
             continue
 
         doc_request = requests.get('https://ookn.ru' + item['href'], verify=False)

@@ -1,29 +1,33 @@
 {% if object_type != 'commercial_offer' and object_type != 'geo_object' %}
 
-    <a href="/{{ object_type }}s/{{ object.id }}/">
-        <button type="button" class="btn btn-primary" style="border-radius: 12px;"
-                {% if not object.coordinates_dict|default:True %}disabled{% endif %}>
-            Просмотр
-        </button>
-    </a>
+<a href="/{{ object_type }}s/{{ object.id }}/">
+    <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;"
+            {% if not object.coordinates_dict|default:True %}disabled{% endif %}>
+        {% if button_text %}
+        {{ button_text }}
+        {% else %}
+        Просмотр
+        {% endif %}
+    </button>
+</a>
 
 {% endif %}
 
 {% if object.coordinates_dict %}
-    <a href="/map/{{ object_type }}/{{ object.id }}">
-        <button type="button" class="btn btn-success" style="border-radius: 12px; margin-top: 8px;"
-                {% if not object.coordinates_dict|default:None %}disabled{% endif %}>
-            Координаты
-        </button>
-    </a>
+<a href="/map/{{ object_type }}/{{ object.id }}">
+    <button type="button" class="btn btn-success" style="border-radius: 12px; margin-bottom: 8px;"
+            {% if not object.coordinates_dict|default:None %}disabled{% endif %}>
+        Координаты
+    </button>
+</a>
 {% endif %}
 
 {% if object_type == 'commercial_offer' %}
-    {% if object.coordinates_dict|default:None %}
-        <a href="/download_commercial_offer_report/{{ commercial_offer.id }}">
-            <button type="button" class="btn btn-success" style="border-radius: 12px; margin-top: 8px;">
-                Скачать отчёт
-            </button>
-        </a>
-    {% endif %}
+{% if object.coordinates_dict|default:None %}
+<a href="/download_commercial_offer_report/{{ commercial_offer.id }}">
+    <button type="button" class="btn btn-success" style="border-radius: 12px; margin-bottom: 8px;">
+        Скачать отчёт
+    </button>
+</a>
+{% endif %}
 {% endif %}
