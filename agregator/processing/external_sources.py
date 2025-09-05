@@ -1,9 +1,11 @@
+import copy
 import os
 import re
 import shutil
 import ssl
 import urllib.request
 from pathlib import Path
+import time
 from time import sleep
 from typing import List
 from urllib.parse import quote
@@ -11,12 +13,16 @@ from urllib.parse import quote
 import pandas as pd
 import patoolib
 import requests
+from requests.adapters import HTTPAdapter
+from requests.packages.urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 from celery import shared_task
 from django.core.files.base import ContentFile
 from django.core.files.uploadedfile import InMemoryUploadedFile
 from docx import Document
 import logging
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 from agregator.processing.account_cards_processing import connect_account_card_to_heritage
 from agregator.processing.acts_processing import process_acts, error_handler_acts
@@ -25,6 +31,23 @@ from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, I
 from agregator.processing.utils import clean_path_component
 
 logger = logging.getLogger(__name__)
+
+session = requests.Session()
+retry_strategy = Retry(
+    total=3,
+    backoff_factor=0.1,
+    status_forcelist=[429, 500, 502, 503, 504],
+)
+adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=100, pool_maxsize=100)
+session.mount("http://", adapter)
+session.mount("https://", adapter)
+document_cache = {}
+download_lock = threading.Lock()
+
+ORDER_TEXT_PATTERN = re.compile(r'\D+?(?= от )', re.IGNORECASE | re.MULTILINE)
+ORDER_NUMBER_PATTERN = re.compile(r'№\s+\d+-*\d*', re.IGNORECASE | re.MULTILINE)
+ORDER_DATE_PATTERN = re.compile(r'\d{2}\.\d{2}\.\d{4}', re.IGNORECASE | re.MULTILINE)
+AKT_GIKE_PATTERN = re.compile(r'акт\s+гикэ', re.IGNORECASE | re.MULTILINE)
 
 
 @shared_task(bind=True)
@@ -101,7 +124,7 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
             if start_date is not None and end_date is not None:
                 title = item.find('b').get_text(strip=True) if item.find('b') else ''
 
-                match = re.search(r"\d{2}\.\d{2}\.\d{4}", title)
+                match = ORDER_DATE_PATTERN.search(title)
                 if match:
                     date_str = match.group(0)
                     current_date = [int(x) for x in date_str.split('.')][::-1]
@@ -262,7 +285,11 @@ def tables_to_dataframes(tables):
 
 
 def external_voan_list_processing():
-    r = requests.get(f"https://ookn.ru/gosohrana/", verify=False)
+    try:
+        r = requests.get(f"https://ookn.ru/gosohrana/", verify=False)
+    except Exception as e:
+        logger.debug(f"Ошибка полкючения к сайту ООКН: {e}")
+        return
     data = r.text
     soup = BeautifulSoup(data, 'html.parser')
     current_lists = 'uploaded_files/voan_list/current_lists.txt'
@@ -397,7 +424,7 @@ def external_voan_list_processing():
                                     site.is_excluded = True
                                     site.save()
 
-                    elif title == 'Перечень объектов археологического наследия':
+                    elif False and title == 'Перечень объектов археологического наследия':
                         for index, row in df.iterrows():
                             document_source = []
                             archaeological_site = ArchaeologicalHeritageSite.objects.filter(
@@ -435,72 +462,133 @@ def external_voan_list_processing():
 
 
 def external_orders_download(query: str, output_path: str, document_source: List) -> None:
-    r = requests.get(f"https://ookn.ru/docs/?section=&q={query}", verify=False)
-    data = r.text
-    soup = BeautifulSoup(data, 'html.parser')  # Убедитесь, что указали парсер
+    if not query.strip():
+        return
 
-    order_text = re.search(r'\D+?(?= от )', query, re.IGNORECASE | re.MULTILINE)
+    cache_key = query.lower().strip()
+    if cache_key in document_cache:
+        document_source.extend(document_cache[cache_key])
+        for doc in document_source:
+            if os.path.isdir(output_path) and os.path.isfile(doc['path']):
+                path_to_download = output_path + doc['path'][doc['path'].rfind('/'):]
+                shutil.copy(doc['path'], path_to_download)
+        return
+
+    order_text = ORDER_TEXT_PATTERN.search(query)
     if order_text:
         order_text = order_text.group(0).strip().lower()
-    order_number = re.findall(r'№\s+\d+-*\d*', query, re.IGNORECASE | re.MULTILINE)
+    order_number = ORDER_NUMBER_PATTERN.findall(query)
     order_number = [x.strip().replace(' ', '').replace('№', '').lower() for x in order_number]
-    order_date = re.findall(r'\d{2}\.\d{2}\.\d{4}', query, re.IGNORECASE | re.MULTILINE)
+    len_order_number = len(order_number)
+    order_date = ORDER_DATE_PATTERN.findall(query)
     order_date = [x.strip().replace(' ', '').lower() for x in order_date]
+    len_order_date = len(order_date)
     logger.debug(f'order_text: {order_text}')
     logger.debug(f'order_number: {order_number}')
     logger.debug(f'order_date: {order_date}')
+    query_set = ([query] + [order_date[i] + ' ' + order_number[i] for i in range(len_order_date) if
+                            i < len_order_number and i < len_order_date] +
+                 [order_date[i] for i in range(len_order_date)] +
+                 [order_number[i] for i in range(len_order_number)])
+    downloaded_counter = 0
 
-    for item in soup.find_all('a', href=lambda href: href and "/docs/?ELEMENT_ID=" in href):
-        # Извлекаем заголовок
-        href_text = item.text.lower()
-        title = item.find_next_sibling().get_text().lower() if item.find_next_sibling() else ''
-        logger.debug(f'item.text: {item.text}')
-        logger.debug(f'title: {title}')
+    for query_value in query_set:
+        try:
+            r = session.get(f"https://ookn.ru/docs/?section=&q={query_value}",
+                            verify=False, timeout=30)
+            r.raise_for_status()
+        except Exception as e:
+            logger.debug(f"Ошибка загрузки приказов: {e}")
+            return
+        data = r.text
+        soup = BeautifulSoup(data, 'html.parser')  # Убедитесь, что указали парсер
 
-        if order_text and order_text not in href_text and order_text not in title:
-            continue
-        if order_number and not any([number in href_text for number in order_number]) and not any(
-                [number in title for number in order_number]):
-            continue
-        if order_date and not any([number in href_text for number in order_date]) and not any(
-                [number in title for number in order_date]):
-            continue
-        if re.search(r'акт\s+гикэ', href_text, re.IGNORECASE | re.MULTILINE) or re.search(r'акт\s+гикэ', title,
-                                                                                          re.IGNORECASE | re.MULTILINE):
-            continue
+        for item in soup.find_all('a', href=lambda href: href and "/docs/?ELEMENT_ID=" in href):
+            # Извлекаем заголовок
+            href_text = item.text.lower()
+            title = item.find_next_sibling().get_text().lower() if item.find_next_sibling() else ''
+            logger.debug(f'item.text: {item.text}')
+            logger.debug(f'title: {title}')
 
-        doc_request = requests.get('https://ookn.ru' + item['href'], verify=False)
-        doc_data = doc_request.text
-        if doc_data:
-            logger.debug(f'GOT DOC PAGE!')
-        doc_soup = BeautifulSoup(doc_data, 'html.parser')
-        for doc_item in doc_soup.find_all('div', class_='docs_list'):
-            link = doc_item.find('a', href=True)
-            logger.debug(f'Link: {link}')
-            if link and '/upload/iblock/' in link['href']:
-                logger.debug(f'NASHLI LINKU!: {link}')
-                file = link['href'][link['href'].rfind('/') + 1:]
+            if order_text and order_text in query_value.lower() and order_text not in href_text and order_text not in title:
+                continue
+            if order_number and not any([number in href_text for number in order_number]) and not any(
+                    [number in title for number in order_number]):
+                continue
+            if order_date and not any([number in href_text for number in order_date]) and not any(
+                    [number in title for number in order_date]):
+                continue
+            if AKT_GIKE_PATTERN.search(href_text) or AKT_GIKE_PATTERN.search(title):
+                continue
 
-                logger.debug(f"Ссылка: {link['href']}")
+            try:
+                doc_request = requests.get('https://ookn.ru' + item['href'], verify=False)
+                doc_request.raise_for_status()
+            except ConnectionError as e:
+                logger.debug(f"Ошибка подключения к {item['href']}: {e}")
+                continue
+            except requests.HTTPError as e:
+                logger.debug(f"HTTP ошибка: {e}")
+                continue
+            except Exception as e:
+                logger.debug(f"Неизвестная ошибка подключения: {e}")
+                continue
 
-                href = link['href'][:link['href'].rfind('/')]
-                params = urllib.parse.urlencode({'address': file})
-                href = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace('%29',
-                                                                                                                ')')
-                url = f"https://ookn.ru{href}"
+            doc_data = doc_request.text
+            if doc_data:
+                logger.debug(f'GOT DOC PAGE!')
+            doc_soup = BeautifulSoup(doc_data, 'html.parser')
+            download_tasks = []
+            for doc_item in doc_soup.find_all('div', class_='docs_list'):
+                link = doc_item.find('a', href=True)
+                logger.debug(f'Link: {link}')
+                if link and '/upload/iblock/' in link['href']:
+                    logger.debug(f'NASHLI LINKU!: {link}')
+                    file = link['href'][link['href'].rfind('/') + 1:]
 
-                path_to_download = output_path + '/' + file
-                found_file = True
+                    logger.debug(f"Ссылка: {link['href']}")
 
-                try:
-                    urllib.request.urlretrieve(url, path_to_download)
-                except Exception:
+                    href = link['href'][:link['href'].rfind('/')]
+                    params = urllib.parse.urlencode({'address': file})
+                    href = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace(
+                        '%29',
+                        ')')
+                    url = f"https://ookn.ru{href}"
+
+                    path_to_download = os.path.join(output_path, file)
+                    if os.path.exists(path_to_download):
+                        document_source.append({'path': path_to_download})
+                        continue
+                    download_tasks.append((url, path_to_download))
+
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                future_to_url = {
+                    executor.submit(download_file, url, path): (url, path)
+                    for url, path in download_tasks
+                }
+
+                for future in as_completed(future_to_url):
+                    url, path = future_to_url[future]
                     try:
-                        response = requests.get(url, verify=False)
-                        with open(path_to_download, 'wb') as out_file:
-                            out_file.write(response.content)
-                    except Exception:
-                        logger.debug("Файл не найден")
-                        found_file = False
-                if found_file:
-                    document_source.append({'path': path_to_download})
+                        if future.result():
+                            with download_lock:
+                                document_source.append({'path': path})
+                                document_cache[cache_key] = copy.deepcopy(document_source)
+                                downloaded_counter += 1
+                    except Exception as e:
+                        logger.debug(f"Ошибка при скачивании {url}: {e}")
+
+        if downloaded_counter >= len_order_number and downloaded_counter >= len_order_date:
+            break
+
+
+def download_file(url, path_to_download):
+    try:
+        with session.get(url, verify=False, timeout=30) as response:
+            response.raise_for_status()
+            with open(path_to_download, 'wb') as out_file:
+                out_file.write(response.content)
+            return True
+    except Exception as e:
+        logger.debug(f"Ошибка скачивания {url}: {e}")
+        return False
