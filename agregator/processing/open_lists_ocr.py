@@ -547,6 +547,29 @@ def spell_check(string: str) -> Optional[str]:
         return string
 
 
+def pil_to_cv2(pil_img):
+    """Конвертирует PIL Image в OpenCV format в памяти"""
+    cv2_img = np.array(pil_img)
+
+    # Конвертируем RGB to BGR (OpenCV format)
+    if len(cv2_img.shape) == 3:
+        if cv2_img.shape[2] == 3:
+            cv2_img = cv2.cvtColor(cv2_img, cv2.COLOR_RGB2BGR)
+        elif cv2_img.shape[2] == 4:
+            cv2_img = cv2.cvtColor(cv2_img, cv2.COLOR_RGBA2BGR)
+
+    return cv2_img
+
+
+def cv2_to_pil(cv2_img):
+    """Конвертирует OpenCV format в PIL Image"""
+    # Конвертируем BGR to RGB
+    if len(cv2_img.shape) == 3:
+        cv2_img = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2RGB)
+
+    return Image.fromarray(cv2_img)
+
+
 def compare_two_texts(extracted_text, extracted_text_twin):
     extracted_len = len(extracted_text) >= 45
     twin_len = len(extracted_text_twin) >= 45
@@ -599,7 +622,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
                                        progress_json)
         page = document.load_page(page_number)
 
-        image_filename = translit(pdf_path[:pdf_path.rfind(".")], 'ru', reversed=True)
+        image_filename = pdf_path[:pdf_path.rfind(".")]
         image_filename = image_filename + ".png"
         if not os.path.isfile(image_filename):
             pix = page.get_pixmap(dpi=300)
@@ -612,12 +635,13 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
                 pil_img = pil_img.resize(
                     (int(pil_img.width / ratio * new_ratio), int(pil_img.height / ratio * new_ratio)),
                     Image.LANCZOS)
-            pil_img.save(image_filename, format='PNG', optimize=True)
+            # pil_img.save(image_filename, format='PNG', optimize=True)
 
         list_data = {'Номер листа': '', 'Держатель': '', 'Объект': '', 'Работы': '', 'Начало срока': '',
                      'Конец срока': '', 'Тип работ': ''}
         binarization_threshold = 120
-        img_colored = cv2.imread(image_filename)
+        # img_colored = cv2.imread(image_filename)
+        img_colored = pil_to_cv2(pil_img)
         img_colored, image = image_binarization_plain(img_colored, binarization_threshold)
         '''
         image, img_colored = borders_cut(image, img_colored)
@@ -965,7 +989,8 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
                 break
             '''
         total_processed[0] += len(document)
-        os.remove(image_filename)
+        if os.path.isfile(image_filename):
+            os.remove(image_filename)
         open_list = OpenLists.objects.get(id=open_list_id)
         open_list.number = list_data['Номер листа']
         open_list.holder = list_data['Держатель']

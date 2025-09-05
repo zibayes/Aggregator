@@ -220,16 +220,20 @@ def raw_open_lists_save(uploaded_files, user_id, is_public, origin_filename=None
     for file in uploaded_files:
         open_list = OpenLists(user_id=user_id, is_public=is_public)
         open_list.save()
-        path = f'open_lists/{open_list.id}_open_list'
+        if origin_filename:
+            origin_filename_no_ext = origin_filename[:origin_filename.rfind('.')]
+        else:
+            origin_filename_no_ext = file.name[:file.name.rfind('.')]
+        path = f'Открытые листы/{origin_filename_no_ext}'
         full_path = f'uploaded_files/' + path
-        Path(full_path).mkdir(exist_ok=True)
+        Path(full_path).mkdir(parents=True, exist_ok=True)
         if isinstance(file, PIL.Image.Image):
             open_list.origin_filename = origin_filename
             open_list.upload_source = upload_source
-            new_filename = str(open_list.id) + '_open_list.png'
-            image_buffer = io.BytesIO()
+            new_filename = origin_filename_no_ext + '.png'
             file.save(full_path + '/' + new_filename, format='PNG', optimize=True)
             '''
+            image_buffer = io.BytesIO()
             image_buffer.seek(0)
             with open(full_path + '/' + new_filename, 'wb+') as destination:
                 destination.write(image_buffer.read())
@@ -237,7 +241,7 @@ def raw_open_lists_save(uploaded_files, user_id, is_public, origin_filename=None
         else:
             open_list.origin_filename = file.name
             open_list.upload_source = {'source': 'Пользовательский файл'}
-            new_filename = str(open_list.id) + '_open_list' + file.name[file.name.rfind('.'):]
+            new_filename = origin_filename_no_ext + file.name[file.name.rfind('.'):]
             with open(full_path + '/' + new_filename, 'wb+') as destination:
                 for chunk in file.chunks():
                     destination.write(chunk)
@@ -271,11 +275,11 @@ def load_raw_open_lists(open_lists_ids):
 
 def raw_reports_save(file_groups, uploaded_files, report_type, user_id, is_public, upload_source=None):
     if report_type == Act:
-        report_directory = 'act'
+        report_directory = 'Акты ГИКЭ'
     elif report_type == ScientificReport:
-        report_directory = 'scientific_report'
+        report_directory = 'Научные отчёты'
     elif report_type == TechReport:
-        report_directory = 'tech_report'
+        report_directory = 'Научно-технические отчёты'
     else:
         report_directory = ''
     reports_ids = []
@@ -295,8 +299,14 @@ def save_report(files, reports_ids, report_type, user_id, is_public, report_dire
     report.save()
     report_id = report.id
     reports_ids.append(report_id)
-    path = f'uploaded_files/{report_directory}s/{report_id}_{report_directory}'
-    Path(path).mkdir(exist_ok=True)
+    report_folder_name = None
+    if isinstance(files, list) and len(files) > 0:
+        report_folder_name = files[0]['file'].name
+    else:
+        report_folder_name = files.name
+    report_folder_name = report_folder_name[:report_folder_name.rfind('.')]
+    path = f'uploaded_files/{report_directory}/{report_folder_name}'
+    Path(path).mkdir(parents=True, exist_ok=True)
     if isinstance(files, list):
         i = 0
         for file in files:
@@ -320,10 +330,10 @@ def save_report_source(report, file, path, report_directory, report_id, source_c
         report.upload_source = {'source': 'Пользовательский файл'}
 
     if index:
-        file.name = f'{report_id}_{report_directory}_{index}' + file.name[file.name.rfind('.'):]
+        # file.name = f'{report_id}_{report_directory}_{index}' + file.name[file.name.rfind('.'):]
         source_content.append({'type': type, 'path': path + '/' + file.name, 'origin_filename': origin_name})
     else:
-        file.name = f'{report_id}_{report_directory}' + file.name[file.name.rfind('.'):]
+        # file.name = f'{report_id}_{report_directory}' + file.name[file.name.rfind('.'):]
         source_content.append({'type': 'all', 'path': path + '/' + file.name, 'origin_filename': origin_name})
 
     with open(path + '/' + file.name, 'wb+') as destination:
@@ -340,6 +350,7 @@ def load_raw_reports(reports_ids, report_type):
     pages_count = {}
     for report_id in reports_ids:
         report = report_type.objects.get(id=report_id)
+        report.source = report.source_dict
         i = 0
         for source in report.source_dict:
             if source['path'].lower().endswith(('.doc', '.docx')):
@@ -367,12 +378,11 @@ def raw_account_cards_save(uploaded_files, user_id, is_public, upload_source=Non
         account_card.save()
         account_card_id = account_card.id
         account_cards_ids.append(account_card_id)
-        path = f'uploaded_files/account_cards/{account_card_id}_account_card'
-        Path(path).mkdir(exist_ok=True)
+        path = f'uploaded_files/Учётные карты/{file.name[:file.name.rfind('.')]}'
+        Path(path).mkdir(parents=True, exist_ok=True)
         origin_name = file.name
         account_card.origin_filename = origin_name
         account_card.upload_source = {'source': 'Пользовательский файл'}
-        file.name = f'{account_card_id}_account_card' + file.name[file.name.rfind('.'):]
 
         with open(path + '/' + file.name, 'wb+') as destination:
             if upload_source:
@@ -415,12 +425,10 @@ def raw_commercial_offers_save(uploaded_files, user_id, is_public, upload_source
         commercial_offer.save()
         commercial_offer_id = commercial_offer.id
         commercial_offers_ids.append(commercial_offer_id)
-        path = f'uploaded_files/commercial_offers/{commercial_offer_id}_commercial_offer'
-        Path(path).mkdir(exist_ok=True)
-        origin_name = file.name
-        commercial_offer.origin_filename = origin_name
+        path = f'uploaded_files/Коммерческие предложения/{file.name[:file.name.rfind('.')]}'
+        Path(path).mkdir(parents=True, exist_ok=True)
+        commercial_offer.origin_filename = file.name
         commercial_offer.upload_source = {'source': 'Пользовательский файл'}
-        file.name = f'{commercial_offer_id}_commercial_offer' + file.name[file.name.rfind('.'):]
 
         with open(path + '/' + file.name, 'wb+') as destination:
             if upload_source:
@@ -474,12 +482,10 @@ def raw_geo_objects_save(uploaded_files, user_id, is_public, upload_source=None)
         geo_object.save()
         geo_object_id = geo_object.id
         account_cards_ids.append(geo_object_id)
-        path = f'uploaded_files/geo_objects/{geo_object_id}_geo_object'
-        Path(path).mkdir(exist_ok=True)
-        origin_name = file.name
-        geo_object.origin_filename = origin_name
+        path = f'uploaded_files/Географические объекты/{file.name[:file.name.rfind('.')]}'
+        Path(path).mkdir(parents=True, exist_ok=True)
+        geo_object.origin_filename = file.name
         geo_object.upload_source = {'source': 'Пользовательский файл'}
-        file.name = f'{geo_object_id}_geo_object' + file.name[file.name.rfind('.'):]
 
         with open(path + '/' + file.name, 'wb+') as destination:
             if upload_source:

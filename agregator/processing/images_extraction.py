@@ -105,22 +105,33 @@ def image_rotate(pil_img):
     success, encoded_image = cv2.imencode('.png', image_cv)
     if success:
         image_bytes = encoded_image.tobytes()
+        if not is_valid_image(image_bytes):
+            image_bytes = encoded_image.tobytes("png")
         pil_img = Image.open(io.BytesIO(image_bytes))
     return pil_img, image_bytes
 
 
 def get_pil_image_from_pixmap(pixmap):
-    if pixmap.n == 1:  # Черно-белое изображение
-        img = Image.frombytes("L", [pixmap.width, pixmap.height], pixmap.samples)
-        img = img.convert("RGB")
-    elif pixmap.n == 3:  # RGB
-        img = Image.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
-    elif pixmap.n == 4:  # RGBA
-        img = Image.frombytes("RGBA", [pixmap.width, pixmap.height], pixmap.samples)
-        img = img.convert("RGB")
-    else:
-        raise ValueError("Неподдерживаемый формат изображения.")
+    try:
+        if pixmap.alpha:
+            img = Image.frombytes("RGBA", [pixmap.width, pixmap.height], pixmap.samples)
+            img = img.convert("RGB")
+        else:
+            img = Image.frombytes("RGB", [pixmap.width, pixmap.height], pixmap.samples)
+    except Exception as e:
+        print(f"Ошибка преобразования pixmap: {e}")
+        image_bytes = pixmap.tobytes("png")
+        return Image.open(io.BytesIO(image_bytes))
     return img
+
+
+def is_valid_image(image_bytes):
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        img.verify()
+        return True
+    except:
+        return False
 
 
 def calculate_average_rgb(img):
@@ -269,13 +280,17 @@ def extract_images_with_captions(text, page, page_number, document, folder,
         pixmap = fitz.Pixmap(image_bytes)
         if pixmap.width <= IMAGE_MIN_SIZE or pixmap.height <= IMAGE_MIN_SIZE:
             continue
+        if not is_valid_image(image_bytes):
+            image_bytes = pixmap.tobytes("png")
         image = Image.open(io.BytesIO(image_bytes))
         pixels = list(image.getdata())
         num_pixels = len(pixels)
         avg_color = sum([(x[0] + x[1] + x[2]) // 3 if isinstance(x, tuple) else x // 1 for x in pixels]) // num_pixels
         if avg_color == 255 or avg_color == 0:
             continue
-        image_filename = f"page_{page_number + 1}_img_{img_index}.png"
+        image_ext = base_image["ext"]
+        image_filename = f"page_{page_number + 1}_img_{img_index}.{image_ext}"
+        # image_filename = f"page_{page_number + 1}_img_{img_index}.png"
         current_folder = folder
         pil_img = get_pil_image_from_pixmap(pixmap)
         avg_color = calculate_average_rgb(pil_img)
@@ -430,8 +445,15 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 supplement_content["no_captions"].append(
                     {"source": current_folder + "/" + image_filename})
         Path(current_folder).mkdir(exist_ok=True)
-        with open(current_folder + "/" + image_filename, "wb") as img_file:
-            img_file.write(image_bytes)
+        try:
+            if not image_bytes.startswith(b'\x89PNG'):
+                pil_img.save(current_folder + "/" + image_filename, "PNG")
+            else:
+                with open(current_folder + "/" + image_filename, "wb") as img_file:
+                    img_file.write(image_bytes)
+        except Exception as e:
+            print(f"Ошибка сохранения изображения: {e}")
+            pil_img.save(current_folder + "/" + image_filename, "PNG")
 
 
 def insert_supplement_links(report_parts: dict) -> None:

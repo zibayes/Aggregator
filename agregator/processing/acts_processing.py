@@ -131,7 +131,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                      'Объекты расположенные в непосредственной близости. Для границ']
     months = {'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04', 'мая': '05', 'июня': '06', 'июля': '07',
               'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12', }
-    table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
+    table_path = "uploaded_files/Акты ГИКЭ/РЕЕСТР актов ГИКЭ.xlsx"
     broken_structure = False
     exploration_object = False
     sectors_square = []
