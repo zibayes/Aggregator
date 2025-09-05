@@ -36,15 +36,15 @@ class AgregatorConfig(AppConfig):
             'uploaded_files/regions_polygons/Красноярский край/Округа (муниципальные округа)',
             'uploaded_files/regions_polygons/Красноярский край/Районы (муниципальные районы)',
 
-            'uploaded_files/acts',
-            'uploaded_files/scientific_reports',
-            'uploaded_files/tech_reports',
+            'uploaded_files/Акты ГИКЭ',
+            'uploaded_files/Научные отчёты',
+            'uploaded_files/Научно-технические отчёты',
 
-            'uploaded_files/open_lists',
+            'uploaded_files/Открытые листы',
 
-            'uploaded_files/account_cards',
-            'uploaded_files/voan_list',
-            'uploaded_files/commercial_offers',
+            'uploaded_files/Учётные карты',
+            'uploaded_files/Памятники',
+            'uploaded_files/Коммерческие предложения',
         ]
         for folder in folders:
             nested_folders = Path(folder)

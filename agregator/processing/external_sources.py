@@ -292,8 +292,8 @@ def external_voan_list_processing():
         return
     data = r.text
     soup = BeautifulSoup(data, 'html.parser')
-    current_lists = 'uploaded_files/voan_list/current_lists.txt'
-    Path('uploaded_files/voan_list/').mkdir(exist_ok=True)
+    current_lists = 'uploaded_files/Памятники/current_lists.txt'
+    Path('uploaded_files/Памятники/').mkdir(exist_ok=True)
 
     with open(current_lists, 'a+', encoding='utf-8') as file:
         file.seek(0)
@@ -330,7 +330,7 @@ def external_voan_list_processing():
             file = link['href'][link['href'].rfind('/') + 1:]
 
             file_encoded = file.replace(' ', '%20')
-            path_to_download = 'uploaded_files/voan_list/' + file_encoded
+            path_to_download = 'uploaded_files/Памятники/' + file_encoded
 
             logger.debug(f"Заголовок: {title}")
             logger.debug(f"Ссылка: {link['href']}")
@@ -424,7 +424,7 @@ def external_voan_list_processing():
                                     site.is_excluded = True
                                     site.save()
 
-                    elif False and title == 'Перечень объектов археологического наследия':
+                    elif title == 'Перечень объектов археологического наследия':
                         for index, row in df.iterrows():
                             document_source = []
                             archaeological_site = ArchaeologicalHeritageSite.objects.filter(

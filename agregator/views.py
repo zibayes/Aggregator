@@ -602,7 +602,7 @@ def open_lists_register(request):
 
 
 def open_lists_register_download(request):
-    table_path = "uploaded_files/open_lists/Открытые листы.xlsx"
+    table_path = "uploaded_files/Открытые листы/Открытые листы.xlsx"
     fields_mapping = {
         'Номер листа': 'number',
         'Держатель': 'holder',
@@ -1232,7 +1232,7 @@ def identified_archaeological_heritage_sites_delete(request, pk):
 
 
 def archaeological_heritage_sites_download(request):
-    current_lists = 'uploaded_files/voan_list/current_lists.txt'
+    current_lists = 'uploaded_files/Памятники/current_lists.txt'
     link = None
     with open(current_lists, 'r', encoding='utf-8') as file:
         for line in file.readlines():
@@ -1244,7 +1244,7 @@ def archaeological_heritage_sites_download(request):
 
 
 def identified_archaeological_heritage_sites_download(request):
-    current_lists = 'uploaded_files/voan_list/current_lists.txt'
+    current_lists = 'uploaded_files/Памятники/current_lists.txt'
     link = None
     with open(current_lists, 'r', encoding='utf-8') as file:
         for line in file.readlines():
