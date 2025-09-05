@@ -49,6 +49,13 @@ ORDER_NUMBER_PATTERN = re.compile(r'№\s+\d+-*\d*', re.IGNORECASE | re.MULTILIN
 ORDER_DATE_PATTERN = re.compile(r'\d{2}\.\d{2}\.\d{4}', re.IGNORECASE | re.MULTILINE)
 AKT_GIKE_PATTERN = re.compile(r'акт\s+гикэ', re.IGNORECASE | re.MULTILINE)
 
+ACTS_QUERY_EXCLUDE = [
+    'архитектурно-художественного',
+    'проекта изменений зон охраны',
+    'Проекта зон охраны объекта',
+    'выполнение работ по оценке технического состояния',
+]
+
 
 @shared_task(bind=True)
 def external_sources_processing(self, start_date, end_date, select_text, select_image, select_coord):
@@ -121,10 +128,18 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
         '''
 
         for item in soup.find_all('p', class_='news-item'):
-            if start_date is not None and end_date is not None:
-                title = item.find('b').get_text(strip=True) if item.find('b') else ''
+            to_exclude = False
+            for query in ACTS_QUERY_EXCLUDE:
+                if query in item.text:
+                    to_exclude = True
+                    break
+            if to_exclude is True:
+                continue
 
-                match = ORDER_DATE_PATTERN.search(title)
+            if start_date is not None and end_date is not None:
+                # title = item.find('b').get_text(strip=True) if item.find('b') else ''
+
+                match = ORDER_DATE_PATTERN.search(item.text)
                 if match:
                     date_str = match.group(0)
                     current_date = [int(x) for x in date_str.split('.')][::-1]
@@ -144,7 +159,7 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
                 file = link['href'][link['href'].rfind('/') + 1:]
                 href = link['href']
 
-                if file in downloaded_files or file.endswith('.sig'):
+                if file in downloaded_files or file.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff')):
                     continue
 
                 file_encoded = file.replace(' ', '%20')
