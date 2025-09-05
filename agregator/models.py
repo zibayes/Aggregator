@@ -429,6 +429,7 @@ class ArchaeologicalHeritageSite(models.Model):
     register_num = models.TextField(null=True, blank=True)
     is_excluded = models.BooleanField(default=False)
     source = models.TextField(null=True, blank=True)
+    document_source = models.JSONField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Археологический объект культурного наследия"
@@ -436,7 +437,25 @@ class ArchaeologicalHeritageSite(models.Model):
         db_table = 'archaeological_heritage_sites'
 
     def __str__(self):
-        return self.doc_name or f"Объект {self.id}"
+        return self.doc_name or f"ОАН {self.id}"
+
+    def save(self, *args, **kwargs):
+        self.document_source = to_json(self.document_source)
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if not isinstance(self.document_source, dict):
+            self.document_source = json.loads(self.document_source)
+        if self.document_source and len(self.document_source) > 0:
+            delete_files(self.document_source[0]['path'])
+
+        if self.source and len(self.source) > 0:
+            delete_files(self.source)
+        super().delete(*args, **kwargs)
+
+    @property
+    def document_source_dict(self):
+        return from_json(self.document_source)
 
 
 class IdentifiedArchaeologicalHeritageSite(models.Model):
@@ -449,6 +468,7 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
     document = models.TextField(null=True, blank=True)
     is_excluded = models.BooleanField(default=False)
     source = models.TextField(null=True, blank=True)
+    document_source = models.JSONField(null=True, blank=True)
 
     class Meta:
         verbose_name = "Выявленный археологический объект культурного наследия"
@@ -456,7 +476,25 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
         db_table = 'identified_archaeological_heritage_sites'
 
     def __str__(self):
-        return self.name or f"Объект {self.id}"
+        return self.name or f"ВОАН {self.id}"
+
+    def save(self, *args, **kwargs):
+        self.document_source = to_json(self.document_source)
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if not isinstance(self.document_source, dict):
+            self.document_source = json.loads(self.document_source)
+        if self.document_source and len(self.document_source) > 0:
+            delete_files(self.document_source[0]['path'])
+
+        if self.source and len(self.source) > 0:
+            delete_files(self.source)
+        super().delete(*args, **kwargs)
+
+    @property
+    def document_source_dict(self):
+        return from_json(self.document_source)
 
 
 class CommercialOffers(models.Model):

@@ -7,16 +7,32 @@
 {% endblock %}
 
 {% block column_toggles %}
-    <div data-columns-count="8">
+    <div data-columns-count="22">
         <label><input type="checkbox" class="column-toggle" data-column="0" checked> Наименование</label><br>
         <label><input type="checkbox" class="column-toggle" data-column="1" checked> Адрес</label><br>
         <label><input type="checkbox" class="column-toggle" data-column="2" checked> Информация</label><br>
         <label><input type="checkbox" class="column-toggle" data-column="3" checked> Документ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="4" checked> Дата загрузки</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="4" checked> Дата загрузки памятника</label><br>
         <label><input type="checkbox" class="column-toggle" data-column="5" checked> Исключён</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="6" checked> Формализованный
-            документ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="7" checked> Редактирование</label><br>
+
+        <!-- Новые колонки из account_card -->
+        <label><input type="checkbox" class="column-toggle" data-column="6" checked> Время создания</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="7" checked> Адрес учётной карты</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="8" checked> Вид объекта</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="9" checked> Общая видовая принадлежность</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="10" checked> Описание</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="11" checked> Использование</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="12" checked> Сведения о выявлении</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="13" checked> Составитель учетной карты</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="14" checked> Дата составления учетной карты</label><br>
+
+        <!-- Пропущенные колонки -->
+        <label><input type="checkbox" class="column-toggle" data-column="15" checked> Владелец документа</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="16" checked> Дата загрузки учетной карты</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="17" checked> Источник</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="18" checked> Формализованный документ</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="19" checked> Исходный документ</label><br>
+        <label><input type="checkbox" class="column-toggle" data-column="20" checked> Редактирование</label><br>
     </div>
 {% endblock %}
 
@@ -38,8 +54,76 @@
         <input type="text" class="form-control" id="filterDocument" placeholder="Введите документ">
     </div>
     <div class="mb-3" id="filterDateUploadedContainer">
-        <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
-        <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
+        <label for="filterDateUploaded" class="form-label">Дата загрузки памятника</label>
+        <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки памятника">
+    </div>
+
+    <!-- Новые фильтры из account_card -->
+    <div class="mb-3" id="filterCreationTimeContainer">
+        <label for="filterCreationTime" class="form-label">Время создания</label>
+        <input type="text" class="form-control" id="filterCreationTime" placeholder="Введите время создания">
+    </div>
+    <div class="mb-3" id="filterAddressAccountCardContainer">
+        <label for="filterAddress" class="form-label">Адрес</label>
+        <input type="text" class="form-control" id="filterAddressAccountCard" placeholder="Введите адрес учётной карты">
+    </div>
+    <div class="mb-3" id="filterObjectTypeContainer">
+        <label for="filterObjectType" class="form-label">Вид объекта</label>
+        <input type="text" class="form-control" id="filterObjectType" placeholder="Введите вид объекта">
+    </div>
+    <div class="mb-3" id="filterGeneralClassificationContainer">
+        <label for="filterGeneralClassification" class="form-label">Общая видовая принадлежность</label>
+        <input type="text" class="form-control" id="filterGeneralClassification" placeholder="Введите общую видовую принадлежность">
+    </div>
+    <div class="mb-3" id="filterDescriptionContainer">
+        <label for="filterDescription" class="form-label">Описание</label>
+        <input type="text" class="form-control" id="filterDescription" placeholder="Введите описание">
+    </div>
+    <div class="mb-3" id="filterUsageContainer">
+        <label for="filterUsage" class="form-label">Использование</label>
+        <input type="text" class="form-control" id="filterUsage" placeholder="Введите использование">
+    </div>
+    <div class="mb-3" id="filterDiscoveryInfoContainer">
+        <label for="filterDiscoveryInfo" class="form-label">Сведения о выявлении</label>
+        <input type="text" class="form-control" id="filterDiscoveryInfo" placeholder="Введите сведения о выявлении">
+    </div>
+    <div class="mb-3" id="filterCompilerContainer">
+        <label for="filterCompiler" class="form-label">Составитель учетной карты</label>
+        <input type="text" class="form-control" id="filterCompiler" placeholder="Введите составителя учетной карты">
+    </div>
+    <div class="mb-3" id="filterCompileDateContainer">
+        <label for="filterCompileDate" class="form-label">Дата составления учетной карты</label>
+        <input type="text" class="form-control" id="filterCompileDate" placeholder="Введите дату составления учетной карты">
+    </div>
+
+    <div class="mb-3" id="filterOwnerContainer">
+        <label for="filterOwner" class="form-label">Владелец документа</label>
+        <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
+    </div>
+    <div class="mb-3" id="filterCardDateUploadedContainer">
+        <label for="filterCardDateUploaded" class="form-label">Дата загрузки учетной карты</label>
+        <input type="text" class="form-control" id="filterCardDateUploaded" placeholder="Введите дату загрузки учетной карты">
+    </div>
+    <div class="mb-3" id="filterSourceContainer">
+        <label for="filterSource" class="form-label">Источник</label>
+        <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
+    </div>
+    <div class="mb-3" id="filterFormalizedDocumentContainer">
+        <label for="filterFormalizedDocument" class="form-label">Формализованный документ</label>
+        <input type="text" class="form-control" id="filterFormalizedDocument" placeholder="Введите формализованный документ">
+    </div>
+    <div class="mb-3" id="filterOriginalDocumentContainer">
+        <label for="filterOriginalDocument" class="form-label">Исходный документ</label>
+        <input type="text" class="form-control" id="filterOriginalDocument" placeholder="Введите исходный документ">
+    </div>
+
+    <div class="mb-3">
+        <label for="account_card_filter">Фильтрация по наличию учётной карты:</label>
+        <select class="form-select" id="account_card_filter" name="account_card_filter">
+          <option value="filter_off" selected>Отключить фильтр</option>
+          <option value="available">В наличии</option>
+          <option value=not_available>Отсутствует</option>
+        </select>
     </div>
     <div class="mb-3">
         <label>
@@ -60,9 +144,26 @@
     <th>Адрес</th>
     <th>Информация</th>
     <th>Документ</th>
-    <th>Дата загрузки</th>
+    <th>Дата загрузки памятника</th>
     <th>Исключён</th>
+
+    <!-- Новые заголовки из account_card -->
+    <th>Время создания</th>
+    <th>Адрес учётной карты</th>
+    <th>Вид объекта</th>
+    <th>Общая видовая принадлежность</th>
+    <th>Описание</th>
+    <th>Использование</th>
+    <th>Сведения о выявлении</th>
+    <th>Составитель учетной карты</th>
+    <th>Дата составления учетной карты</th>
+
+    <!-- Пропущенные заголовки -->
+    <th>Владелец документа</th>
+    <th>Дата загрузки учётной карты</th>
+    <th>Источник</th>
     <th>Формализованный документ</th>
+    <th>Исходный документ</th>
     <th>Редактирование</th>
 {% endblock %}
 
@@ -76,17 +177,72 @@
             data-document="{{ site.document }}"
             data-date-uploaded="{{ site.date_uploaded }}"
             data-is-excluded="{{ site.is_excluded }}"
+            data-creation-time="{% if site.account_card %}{{ site.account_card.creation_time }}{% endif %}"
+            data-address-account-card="{% if site.account_card %}{{ site.account_card.address }}{% endif %}"
+            data-object-type="{% if site.account_card %}{{ site.account_card.object_type }}{% endif %}"
+            data-general-classification="{% if site.account_card %}{{ site.account_card.general_classification }}{% endif %}"
+            data-description="{% if site.account_card %}{{ site.account_card.description }}{% endif %}"
+            data-usage="{% if site.account_card %}{{ site.account_card.usage }}{% endif %}"
+            data-discovery-info="{% if site.account_card %}{{ site.account_card.discovery_info }}{% endif %}"
+            data-compiler="{% if site.account_card %}{{ site.account_card.compiler }}{% endif %}"
+            data-compile-date="{% if site.account_card %}{{ site.account_card.compile_date }}{% endif %}"
+            data-owner="{% if site.account_card %}{{ site.account_card.user.username }}{% endif %}"
+            data-card-date-uploaded="{% if site.account_card %}{{ site.account_card.date_uploaded }}{% endif %}"
+            data-source="{% if site.account_card %}{{ site.account_card.upload_source_dict.source }}{% endif %}"
+            data-formalized-document="{% if site.account_card %}{{ site.account_card.formalized_document }}{% endif %}"
+            data-original-document="{% if site.account_card %}{{ site.account_card.origin_filename }}{% endif %}"
+            data-account-card="{% if site.account_card %}{{ site.account_card.id }}{% else %}not_available{% endif %}"
             data-is-public="{{ site.is_public }}">
-            <td><a{% if site.account_card.id %}
-                href="/account_cards/{{ site.account_card.id }}" {% endif %}>{{ site.name }}</a></td>
+
+            <td><a{% if site.account_card.id %} href="/account_cards/{{ site.account_card.id }}" {% endif %}>{{ site.name }}</a></td>
             <td>{{ site.address }}</td>
             <td>{{ site.obj_info }}</td>
-            <td>{{ site.document }}</td>
+            <td><a{% if site.document_source_dict %} href="/{{ site.document_source_dict.0.path }}" {% endif %}>{{ site.document }}</a></td>
             <td>{{ site.date_uploaded }}</td>
             <td>{{ site.is_excluded|yesno:"Да,Нет" }}</td>
+
+            <!-- Новые ячейки из account_card -->
+            <td>{% if site.account_card %}{{ site.account_card.creation_time }}{% endif %}</td>
+            <td>{% if site.account_card %}{{ site.account_card.address }}{% endif %}</td>
+            <td>{% if site.account_card %}{{ site.account_card.object_type }}{% endif %}</td>
+            <td>{% if site.account_card %}{{ site.account_card.general_classification }}{% endif %}</td>
+            <td>{% if site.account_card %}{{ site.account_card.description }}{% endif %}</td>
+            <td>{% if site.account_card %}{{ site.account_card.usage }}{% endif %}</td>
+            <td>{% if site.account_card %}{{ site.account_card.discovery_info }}{% endif %}</td>
+            <td>{% if site.account_card %}{{ site.account_card.compiler }}{% endif %}</td>
+            <td>{% if site.account_card %}{{ site.account_card.compile_date }}{% endif %}</td>
+
             <td>
-                {% include 'includes/buttons/view_button.html' with object_type='identified_archaeological_heritage_site' object=site %}
+                {% if site.account_card and site.account_card.user %}
+                    <a href="/users/{{ site.account_card.user.id }}">
+                        <img src="{{ site.account_card.user.avatar.url }}" class="rounded-circle" height="25" width="25"
+                             loading="lazy" style="object-fit: cover;" alt=""/>
+                        {{ site.account_card.user.username }}
+                    </a>
+                {% endif %}
             </td>
+            <td>{% if site.account_card %}{{ site.account_card.date_uploaded }}{% endif %}</td>
+            <td>
+                {% if site.account_card and site.account_card.upload_source_dict.link %}
+                    <a href="{{ site.account_card.upload_source_dict.link }}">
+                        {{ site.account_card.upload_source_dict.source }}
+                    </a>
+                {% elif site.account_card %}
+                    {{ site.account_card.upload_source_dict.source }}
+                {% endif %}
+            </td>
+            <td>
+                {% include 'includes/buttons/view_button.html' with object_type='identified_archaeological_heritage_site' object=site button_text='Просмотр памятника' %}
+                {% if site.account_card %}
+                    {% include 'includes/buttons/view_button.html' with object_type='account_card' object=site.account_card button_text='Просмотр учётной карты' %}
+                {% endif %}
+            </td>
+            <td>
+                {% if site.account_card and site.account_card.source %}
+                    <a href="/{{ site.account_card.source }}">{{ site.account_card.origin_filename }}</a>
+                {% endif %}
+            </td>
+
             {% include 'includes/buttons/action_buttons.html' with object_type='identified_archaeological_heritage_site' object=site %}
         </tr>
     {% endfor %}
@@ -105,7 +261,26 @@
     const objInfoFilter = document.getElementById('filterObjInfo').value.toLowerCase();
     const documentFilter = document.getElementById('filterDocument').value.toLowerCase();
     const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
+
+    // Новые фильтры из account_card
+    const creationTimeFilter = document.getElementById('filterCreationTime').value.toLowerCase();
+    const addressAccountCardFilter = document.getElementById('filterAddressAccountCard').value.toLowerCase();
+    const objectTypeFilter = document.getElementById('filterObjectType').value.toLowerCase();
+    const generalClassificationFilter = document.getElementById('filterGeneralClassification').value.toLowerCase();
+    const descriptionFilter = document.getElementById('filterDescription').value.toLowerCase();
+    const usageFilter = document.getElementById('filterUsage').value.toLowerCase();
+    const discoveryInfoFilter = document.getElementById('filterDiscoveryInfo').value.toLowerCase();
+    const compilerFilter = document.getElementById('filterCompiler').value.toLowerCase();
+    const compileDateFilter = document.getElementById('filterCompileDate').value.toLowerCase();
+
+    const ownerFilter = document.getElementById('filterOwner').value.toLowerCase();
+    const cardDateUploadedFilter = document.getElementById('filterCardDateUploaded').value.toLowerCase();
+    const sourceFilter = document.getElementById('filterSource').value.toLowerCase();
+    const formalizedDocumentFilter = document.getElementById('filterFormalizedDocument').value.toLowerCase();
+    const originalDocumentFilter = document.getElementById('filterOriginalDocument').value.toLowerCase();
+
     const showExcluded = document.getElementById('showExcluded').checked;
+    const accountCardFilter = document.getElementById('account_card_filter').value;
 {% endblock %}
 
 {% block filter_logic %}
@@ -115,7 +290,27 @@
     const objInfoText = row.dataset.objInfo ? row.dataset.objInfo.toLowerCase() : '';
     const documentText = row.dataset.document ? row.dataset.document.toLowerCase() : '';
     const dateUploadedText = row.dataset.dateUploaded ? row.dataset.dateUploaded.toLowerCase() : '';
+
+    // Новые переменные из account_card
+    const creationTimeText = row.dataset.creationTime ? row.dataset.creationTime.toLowerCase() : '';
+    const addressAccountCardText = row.dataset.addressAccountCard ? row.dataset.addressAccountCard.toLowerCase() : '';
+    const objectTypeText = row.dataset.objectType ? row.dataset.objectType.toLowerCase() : '';
+    const generalClassificationText = row.dataset.generalClassification ? row.dataset.generalClassification.toLowerCase() : '';
+    const descriptionText = row.dataset.description ? row.dataset.description.toLowerCase() : '';
+    const usageText = row.dataset.usage ? row.dataset.usage.toLowerCase() : '';
+    const discoveryInfoText = row.dataset.discoveryInfo ? row.dataset.discoveryInfo.toLowerCase() : '';
+    const compilerText = row.dataset.compiler ? row.dataset.compiler.toLowerCase() : '';
+    const compileDateText = row.dataset.compileDate ? row.dataset.compileDate.toLowerCase() : '';
+
+    // Переменные для пропущенных колонок
+    const ownerText = row.dataset.owner ? row.dataset.owner.toLowerCase() : '';
+    const cardDateUploadedText = row.dataset.cardDateUploaded ? row.dataset.cardDateUploaded.toLowerCase() : '';
+    const sourceText = row.dataset.source ? row.dataset.source.toLowerCase() : '';
+    const formalizedDocumentText = row.dataset.formalizedDocument ? row.dataset.formalizedDocument.toLowerCase() : '';
+    const originalDocumentText = row.dataset.originalDocument ? row.dataset.originalDocument.toLowerCase() : '';
+
     const isExcluded = row.dataset.isExcluded === "True";
+    const accountCardStatus = row.dataset.accountCard || 'not_available';
 {% endblock %}
 
 {% block filter_conditions %}
@@ -125,7 +320,27 @@
     (objInfoFilter === '' || objInfoText.includes(objInfoFilter)) &&
     (documentFilter === '' || documentText.includes(documentFilter)) &&
     (dateUploadedFilter === '' || dateUploadedText.includes(dateUploadedFilter)) &&
-    (showExcluded || !isExcluded)
+    (creationTimeFilter === '' || creationTimeText.includes(creationTimeFilter)) &&
+    (addressAccountCardFilter === '' || addressText.includes(addressAccountCardFilter)) &&
+    (objectTypeFilter === '' || objectTypeText.includes(objectTypeFilter)) &&
+    (generalClassificationFilter === '' || generalClassificationText.includes(generalClassificationFilter)) &&
+    (descriptionFilter === '' || descriptionText.includes(descriptionFilter)) &&
+    (usageFilter === '' || usageText.includes(usageFilter)) &&
+    (discoveryInfoFilter === '' || discoveryInfoText.includes(discoveryInfoFilter)) &&
+    (compilerFilter === '' || compilerText.includes(compilerFilter)) &&
+    (compileDateFilter === '' || compileDateText.includes(compileDateFilter)) &&
+    (ownerFilter === '' || ownerText.includes(ownerFilter)) &&
+    (cardDateUploadedFilter === '' || cardDateUploadedText.includes(cardDateUploadedFilter)) &&
+    (sourceFilter === '' || sourceText.includes(sourceFilter)) &&
+    (formalizedDocumentFilter === '' || formalizedDocumentText.includes(formalizedDocumentFilter)) &&
+    (originalDocumentFilter === '' || originalDocumentText.includes(originalDocumentFilter)) &&
+
+    (showExcluded || !isExcluded) &&
+    (
+        accountCardFilter === 'filter_off' ||
+        (accountCardFilter === 'available' && accountCardStatus !== 'not_available') ||
+        (accountCardFilter === 'not_available' && accountCardStatus === 'not_available')
+    )
 {% endblock %}
 
 {% block storage_switch %}

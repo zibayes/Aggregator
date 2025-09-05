@@ -1366,9 +1366,7 @@ def account_cards_register(request):
 def commercial_offers_edit(request, pk):
     commercial_offer = CommercialOffers.objects.get(id=pk)
     commercial_offer.coordinates = commercial_offer.coordinates_dict
-    print('TESSTAAA+++++')
     if request.method == 'POST':
-        print('TESSTAAA*******')
         commercial_offer.coordinates = process_coords_from_edit_page(request, commercial_offer)
         commercial_offer.save()
         messages.success(request, 'Коммерческое предложение успешно обновлено.')

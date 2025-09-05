@@ -7,6 +7,7 @@ import pandas as pd
 from pyproj import Proj, transform
 
 from agregator.geo_utils import calculate_polygons_area
+from agregator.processing.utils import str_is_float
 
 COORDINATE_SYSTEMS = [
     r'wgs.*?\d+',
@@ -74,14 +75,6 @@ def convert_to_wgs84(x, y, system):
 def convert_proj4(x, y, init_system, final_system):
     y, x = transform(projections[init_system], projections[final_system], y, x)
     return x, y
-
-
-def str_is_float(string):
-    try:
-        result = float(string)
-    except ValueError:
-        return False
-    return True
 
 
 def normalize_coordinates(coord: str) -> str:
