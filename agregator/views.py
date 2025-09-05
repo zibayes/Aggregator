@@ -627,7 +627,7 @@ def open_lists_register_download(request):
 
 
 def acts_register_download(request):
-    table_path = "uploaded_files/acts/РЕЕСТР актов ГИКЭ.xlsx"
+    table_path = "uploaded_files/Акты ГИКЭ/РЕЕСТР актов ГИКЭ.xlsx"
     fields_mapping = {
         'ГОД': 'year',
         'Дата окончания проведения ГИКЭ': 'finish_date',
@@ -664,7 +664,7 @@ def acts_register_download(request):
 
 
 def scientific_reports_register_download(request):
-    table_path = "uploaded_files/scientific_reports/РЕЕСТР ПНО.xlsx"
+    table_path = "uploaded_files/Научные отчёты/РЕЕСТР ПНО.xlsx"
     fields_mapping = {
         'Год написания отчёта': 'writing_date',
         'Название отчёта': 'name',
@@ -697,7 +697,7 @@ def scientific_reports_register_download(request):
 
 
 def tech_reports_register_download(request):
-    table_path = "uploaded_files/tech_reports/РЕЕСТР ПНТО.xlsx"
+    table_path = "uploaded_files/Научно-технические отчёты/РЕЕСТР ПНТО.xlsx"
     fields_mapping = {
         'Год написания отчёта': 'writing_date',
         'Название отчёта': 'name',
@@ -931,7 +931,7 @@ def download_coordinates(request, report_type, pk):
                                                                   coords[0])])  # TODO: менять их местами или нет?!
                         photo_point.style = current_style
 
-            file_path = f'uploaded_files/{report_type}s/{pk}_{report_type}/{pk}_{report_type}/coordinates.kml'
+            file_path = f'uploaded_files/Координаты-{report_type}-{pk}/coordinates.kml'
             kml.save(file_path)
             return redirect('/' + file_path)
         return JsonResponse({'response': f'Coordinates to download not selected'})
@@ -1319,7 +1319,7 @@ def account_cards_upload(request):
 
 
 def account_cards_register_download(request):
-    table_path = "uploaded_files/account_cards/РЕЕСТР Учётных карт.xlsx"
+    table_path = "uploaded_files/Учётные карты/РЕЕСТР Учётных карт.xlsx"
     fields_mapping = {
         'Наименование объекта': 'name',
         'Время создания (возникновения) объекта': 'creation_time',
@@ -1402,7 +1402,7 @@ def commercial_offers_register(request):
 
 def download_commercial_offer_report(request, pk):
     commercial_offer = CommercialOffers.objects.get(id=pk)
-    table_path = f"uploaded_files/commercial_offers/{commercial_offer.id}_commercial_offer/Отчёт.xlsx"
+    table_path = f"uploaded_files/Коммерческие предложения/{commercial_offer.id}_commercial_offer/Отчёт.xlsx"
     table_columns = ['Памятник', 'Дистанция до памятника (км)']
     account_cards = ObjectAccountCard.objects.all()
     if not account_cards:

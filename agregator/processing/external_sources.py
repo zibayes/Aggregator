@@ -163,7 +163,7 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
                     continue
 
                 file_encoded = file.replace(' ', '%20')
-                new_files.append(file_encoded)
+                new_files.append(file)
 
                 print(href)
                 href = href[:href.rfind('/')]
@@ -172,7 +172,7 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
                 href = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace('%29',
                                                                                                                 ')')
                 url = f"https://ookn.ru{href}"
-                path_to_download = 'uploaded_files/acts/' + file_encoded
+                path_to_download = 'uploaded_files/Акты ГИКЭ/' + file
 
                 file_not_found = False
 

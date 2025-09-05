@@ -9,7 +9,6 @@ import PIL
 import fitz
 import pandas as pd
 from PIL import Image
-from transliterate import translit
 
 from agregator.models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers, \
     GeoObject
@@ -225,13 +224,13 @@ def raw_open_lists_save(uploaded_files, user_id, is_public, origin_filename=None
             origin_filename_no_ext = origin_filename[:origin_filename.rfind('.')]
         else:
             origin_filename_no_ext = file.name[:file.name.rfind('.')]
-        path = translit(f'Открытые листы/{origin_filename_no_ext}', 'ru', reversed=True)
+        path = f'Открытые листы/{origin_filename_no_ext}'
         full_path = f'uploaded_files/' + path
         Path(full_path).mkdir(parents=True, exist_ok=True)
         if isinstance(file, PIL.Image.Image):
             open_list.origin_filename = origin_filename
             open_list.upload_source = upload_source
-            new_filename = translit(origin_filename_no_ext + '.png', 'ru', reversed=True)
+            new_filename = origin_filename_no_ext + '.png'
             file.save(full_path + '/' + new_filename, format='PNG', optimize=True)
             '''
             image_buffer = io.BytesIO()
@@ -242,7 +241,7 @@ def raw_open_lists_save(uploaded_files, user_id, is_public, origin_filename=None
         else:
             open_list.origin_filename = file.name
             open_list.upload_source = {'source': 'Пользовательский файл'}
-            new_filename = translit(origin_filename_no_ext + file.name[file.name.rfind('.'):], 'ru', reversed=True)
+            new_filename = origin_filename_no_ext + file.name[file.name.rfind('.'):]
             with open(full_path + '/' + new_filename, 'wb+') as destination:
                 for chunk in file.chunks():
                     destination.write(chunk)
