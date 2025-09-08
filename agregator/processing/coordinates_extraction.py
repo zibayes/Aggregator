@@ -7,8 +7,7 @@ import pdfplumber
 import pandas as pd
 from django.http import JsonResponse
 from agregator.models import GeojsonData
-from agregator.processing.coordinates_tables import convert_proj4, convert_to_wgs84, dms_to_decimal
-from agregator.geo_utils import calculate_polygons_area
+from agregator.processing.geo_utils import calculate_polygons_area, convert_proj4, convert_to_wgs84, dms_to_decimal
 
 COORDINATES_SAMPLE = {'Шурфы': {}}
 

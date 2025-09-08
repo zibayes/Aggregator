@@ -17,13 +17,12 @@ from celery import shared_task
 from docx import Document
 from pytesseract import Output
 
-from agregator.processing.coordinates_tables import dms_to_decimal, normalize_coordinates
 from agregator.processing.files_saving import load_raw_account_cards
 from agregator.hash import calculate_file_hash
 from agregator.models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
 from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents
-from agregator.geo_utils import calculate_polygons_area
+from agregator.processing.geo_utils import calculate_polygons_area, dms_to_decimal, normalize_coordinates
 
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
 

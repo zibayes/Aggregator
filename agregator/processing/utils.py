@@ -9,7 +9,7 @@ def clean_path_component(name):
 
 def str_is_float(string):
     try:
-        result = float(string)
+        float(string)
     except ValueError:
         return False
     return True
