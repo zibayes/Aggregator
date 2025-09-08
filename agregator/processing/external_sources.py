@@ -23,6 +23,7 @@ from docx import Document
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
+from django.core.cache import cache
 
 from agregator.processing.account_cards_processing import connect_account_card_to_heritage
 from agregator.processing.acts_processing import process_acts, error_handler_acts
@@ -69,37 +70,52 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
         }
     )
 
+    # Получаем данные один раз
+    admin = User.objects.get(is_superuser=True)
+
+    # Создаем множество для быстрого поиска
+    downloaded_files = get_downloaded_files_cache(admin.id)
+
+    # Определяем игнорирование SSL с использованием сессии
     ignore_ssl = False
     try:
-        r = requests.get("https://ookn.ru/experts/")
+        response = session.get("https://ookn.ru/experts/", timeout=30)
+        response.raise_for_status()
     except requests.exceptions.SSLError:
-        print(f"SSL Error, ignore certificate verification")
-        r = requests.get(f"https://ookn.ru/experts/", verify=False)
+        logger.warning("SSL Error, ignore certificate verification")
         ignore_ssl = True
-    data = r.text
-    soup = BeautifulSoup(data, features="html.parser")
+        # Для SSL ошибок создаем отдельную сессию без верификации
+        ssl_session = requests.Session()
+        ssl_session.verify = False
+        response = ssl_session.get("https://ookn.ru/experts/", timeout=30)
+    except requests.RequestException as e:
+        logger.error(f"Ошибка при подключении: {e}")
+        return {
+            'current': 0,
+            'total': 1,
+            'type': 'page_progress',
+            'message': f'Ошибка подключения: {e}'
+        }
+
+    # Получаем общее количество страниц
+    soup = BeautifulSoup(response.text, features="html.parser")
+    total_pages = 1
 
     pagination = soup.find('div', class_='news-list')
     if pagination:
         end_link = pagination.find('a', string='Конец')
-        print('pagination: ' + str(pagination))
-        print('end_link: ' + str(end_link))
-        total_pages = str(end_link.get('href'))
-        print('total_pages: ' + str(total_pages))
-        total_pages = int(total_pages[total_pages.rfind('=') + 1:])
-        print('total_pages: ' + str(total_pages))
-    else:
-        total_pages = 1
+        if end_link:
+            total_pages_href = end_link.get('href', '')
+            if total_pages_href:
+                try:
+                    total_pages = int(total_pages_href[total_pages_href.rfind('=') + 1:])
+                except (ValueError, IndexError):
+                    logger.warning(f"Не удалось распарсить количество страниц: {total_pages_href}")
 
-    page = 1
-    pages = [str(page)]
+    # Используем правильную сессию в зависимости от SSL
+    current_session = ssl_session if ignore_ssl else session
 
-    admin = User.objects.get(is_superuser=True)
-    acts = Act.objects.filter(user_id=admin.id)
-    downloaded_files = [y['origin_filename'] for x in acts if x.upload_source_dict is not None and
-                        x.upload_source_dict['source'] != 'Пользовательский файл' for y in x.source_dict]
-    # while str(page) in pages:
-    while page <= total_pages:
+    for page in range(1, total_pages + 1):
         self.update_state(
             state='PROGRESS',
             meta={
@@ -110,157 +126,187 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
             }
         )
 
-        print(f"PAGE={page}")
-        if ignore_ssl is False:
-            r = requests.get(f"https://ookn.ru/experts/?PAGEN_1={page}")
-        elif ignore_ssl is True:
-            print(f"SSL Error, ignore certificate verification")
-            r = requests.get(f"https://ookn.ru/experts/?PAGEN_1={page}", verify=False)
-        data = r.text
-        soup = BeautifulSoup(data, features="html.parser")
-        new_files = []
+        logger.info(f"Обработка страницы {page}")
 
-        '''
-        for root, dirs, files in os.walk('.'):
-            for file in files:
-                if file.lower().endswith('.pdf') or file.lower().endswith('.zip') or file.lower().endswith('.rar'):
-                    downloaded_files.append(file)
-        '''
+        try:
+            response = current_session.get(
+                f"https://ookn.ru/experts/?PAGEN_1={page}",
+                timeout=30
+            )
+            response.raise_for_status()
+        except requests.RequestException as e:
+            logger.error(f"Ошибка при получении страницы {page}: {e}")
+            continue
 
-        for item in soup.find_all('p', class_='news-item'):
-            to_exclude = False
-            for query in ACTS_QUERY_EXCLUDE:
-                if query in item.text:
-                    to_exclude = True
-                    break
-            if to_exclude is True:
-                continue
+        soup = BeautifulSoup(response.text, features="html.parser")
+        page_files = []
 
-            if start_date is not None and end_date is not None:
-                # title = item.find('b').get_text(strip=True) if item.find('b') else ''
-
-                match = ORDER_DATE_PATTERN.search(item.text)
-                if match:
-                    date_str = match.group(0)
-                    current_date = [int(x) for x in date_str.split('.')][::-1]
-                    print('start_date+: ' + str(start_date))
-                    print('current_date+: ' + str(current_date))
-                    print('end_date+: ' + str(end_date))
-                    print('start_date <= current_date <= end_date: ' + str(start_date <= current_date <= end_date))
-                    if not (start_date <= current_date <= end_date):
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_file = {}
+            # Обрабатываем элементы страницы
+            for item in soup.find_all('p', class_='news-item'):
+                try:
+                    # Проверка исключений
+                    if any(query in item.text for query in ACTS_QUERY_EXCLUDE):
                         continue
-                else:
-                    continue
-            print('PROSHLO PROVERKUUU')
 
-            link = item.find('a', href=True)
-            if link and '/upload/iblock/' in link['href'] and (
-                    'акт' in link['href'].lower() or 'гикэ' in link['href'].lower()):
-                file = link['href'][link['href'].rfind('/') + 1:]
-                href = link['href']
+                    # Проверка даты
+                    if start_date and end_date:
+                        match = ORDER_DATE_PATTERN.search(item.text)
+                        if not match:
+                            continue
 
-                if file in downloaded_files or file.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff')):
-                    continue
-
-                file_encoded = file.replace(' ', '%20')
-                new_files.append(file)
-
-                print(href)
-                href = href[:href.rfind('/')]
-
-                params = urllib.parse.urlencode({'address': file})
-                href = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace('%29',
-                                                                                                                ')')
-                url = f"https://ookn.ru{href}"
-                path_to_download = 'uploaded_files/Акты ГИКЭ/' + file
-
-                file_not_found = False
-
-                if ignore_ssl is False:
-                    try:
-                        urllib.request.urlretrieve(url, path_to_download)
-                    except Exception:
-                        print("Файл не найден")
-                        file_not_found = True
-                else:
-                    '''
-                    context = ssl._create_unverified_context()
-                    with urllib.request.urlopen(url, context=context) as response:
-                        with open(path_to_download, 'wb') as out_file:
-                            out_file.write(response.read())
-                    '''
-                    try:
-                        response = requests.get(url, verify=False)
-                        with open(path_to_download, 'wb') as out_file:
-                            out_file.write(response.content)
-                    except Exception:
-                        print("Файл не найден")
-                        file_not_found = True
-
-                while file_not_found is False:
-                    sleep(1.5)
-
-                    folder = None
-                    archive_files = []
-                    if path_to_download.lower().endswith(('.zip', '.rar')):
-                        folder = path_to_download[:path_to_download.rfind('.')]
-                        Path(folder).mkdir(exist_ok=True)
+                        date_str = match.group(0)
                         try:
-                            patoolib.extract_archive(path_to_download, outdir=folder)
-                        except patoolib.util.PatoolError as e:
-                            print(f'Ошибка при разархивировании: {e}')
-                        for root, dirs, files in os.walk(os.getcwd() + '/' + folder):
-                            for file in files:
-                                if file.lower().endswith('.pdf') and not re.search(r'проверк[\s\S]+подпис[\S]+', file,
-                                                                                   re.IGNORECASE):
-                                    archive_files.append(os.path.join(root, file))
+                            day, month, year = map(int, date_str.split('.'))
+                            current_date = [year, month, day]
+                            if not (start_date <= current_date <= end_date):
+                                continue
+                        except (ValueError, IndexError):
+                            continue
 
-                    '''
-                    try:
-                        with fitz.open(path_to_download) as pdf_doc:
-                            print('PAGES! ' + str(len(pdf_doc)))
-                    '''
+                    # Поиск ссылки
+                    link = item.find('a', href=True)
+                    if not link or '/upload/iblock/' not in link['href']:
+                        continue
 
-                    files_to_save = []
-                    file_groups = {}
-                    if archive_files:
-                        file_groups['fully'] = []
-                        types_convert = {'текст': 'text', 'приложение': 'images', 'иллюстрации': 'images'}
-                        for file in archive_files:
-                            filename = file.lower()
-                            report_type = 'all'
-                            for typename in types_convert.keys():
-                                if typename in filename:
-                                    index = filename.find(typename)
-                                    if index >= 0:
-                                        report_type = types_convert[typename]
-                                        break
-                            file_groups['fully'].append(
-                                {'type': report_type, 'file': convert_file_to_uploaded_file(file)})
-                    else:
-                        files_to_save = [convert_file_to_uploaded_file(path_to_download)]
-                    admin = User.objects.get(is_superuser=True)
-                    upload_source = {'source': 'ООКН', 'link': url}
-                    acts_ids = raw_reports_save(file_groups, files_to_save, Act, admin.id, True, upload_source)
-                    if folder is not None:
-                        shutil.rmtree(folder)
-                    os.remove(path_to_download)
-                    task = process_acts.apply_async((acts_ids, admin.id, select_text, select_image, select_coord),
-                                                    link_error=error_handler_acts.s())
-                    user_task = UserTasks(user_id=admin.id, task_id=task.task_id, files_type='act',
-                                          upload_source=upload_source)
-                    user_task.save()
-                    break
-                    # except Exception as e:
-                    #     continue
-        # external_storage_files_processing(new_files)
-        page += 1
+                    if not ('акт' in link['href'].lower() or 'гикэ' in link['href'].lower()):
+                        continue
+
+                    file = link['href'][link['href'].rfind('/') + 1:]
+
+                    # Пропускаем уже скачанные или ненужные файлы
+                    if (file in downloaded_files or
+                            file.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff'))):
+                        continue
+
+                    # Формируем URL
+                    href = link['href'][:link['href'].rfind('/')]
+                    params = urllib.parse.urlencode({'address': file})
+                    url = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace(
+                        '%29',
+                        ')')
+                    url = f"https://ookn.ru{url}"
+
+                    # Скачиваем файл
+                    path_to_download = f'uploaded_files/Акты ГИКЭ/{file}'
+                    future = executor.submit(download_file, url, path_to_download)
+                    future_to_file[future] = (path_to_download, url, file)
+
+                except Exception as e:
+                    logger.error(f"Ошибка при обработке элемента: {e}")
+                    continue
+
+        page_files = []
+        for future in as_completed(future_to_file):
+            path, url, file = future_to_file[future]
+            if future.result():
+                page_files.append((path, url, file))
+
+        # Обрабатываем скачанные файлы
+        process_downloaded_files(page_files, admin, select_text, select_image, select_coord)
+
     return {
         'current': page,
         'total': total_pages,
         'type': 'page_progress',
         'message': 'Сканирование всех страниц завершено.'
     }
+
+
+def get_downloaded_files_cache(admin_id):
+    cache_key = f'downloaded_files_{admin_id}'
+    downloaded_files = cache.get(cache_key)
+
+    if downloaded_files is None:
+        acts = Act.objects.filter(user_id=admin_id)
+        downloaded_files = set()
+        for act in acts:
+            if act.upload_source_dict and act.upload_source_dict['source'] != 'Пользовательский файл':
+                for source in act.source_dict:
+                    if 'origin_filename' in source:
+                        downloaded_files.add(source['origin_filename'])
+        cache.set(cache_key, downloaded_files, timeout=3600)  # 1 час
+
+    return downloaded_files
+
+
+def process_downloaded_files(files_data, admin, select_text, select_image, select_coord):
+    """Обрабатывает скачанные файлы с использованием ThreadPoolExecutor для архивов"""
+    for path_to_download, url, original_filename in files_data:
+        try:
+            archive_files = []
+            folder = None
+
+            if path_to_download.lower().endswith(('.zip', '.rar')):
+                folder = path_to_download[:path_to_download.rfind('.')]
+                os.makedirs(folder, exist_ok=True)
+
+                try:
+                    patoolib.extract_archive(path_to_download, outdir=folder)
+
+                    # Используем ThreadPool для поиска файлов в архиве
+                    with ThreadPoolExecutor(max_workers=5) as executor:
+                        future_to_file = {
+                            executor.submit(find_pdf_files, root, files): (root, files)
+                            for root, dirs, files in os.walk(folder)
+                        }
+
+                        for future in as_completed(future_to_file):
+                            root, files = future_to_file[future]
+                            try:
+                                pdf_files = future.result()
+                                archive_files.extend(pdf_files)
+                            except Exception as e:
+                                logger.error(f"Ошибка при поиске PDF в {root}: {e}")
+
+                except patoolib.util.PatoolError as e:
+                    logger.error(f'Ошибка при разархивировании {path_to_download}: {e}')
+                    continue
+
+            files_to_save = []
+            file_groups = {}
+            if archive_files:
+                file_groups['fully'] = []
+                types_convert = {'текст': 'text', 'приложение': 'images', 'иллюстрации': 'images'}
+                for file in archive_files:
+                    filename = file.lower()
+                    report_type = 'all'
+                    for typename in types_convert.keys():
+                        if typename in filename:
+                            index = filename.find(typename)
+                            if index >= 0:
+                                report_type = types_convert[typename]
+                                break
+                    file_groups['fully'].append(
+                        {'type': report_type, 'file': convert_file_to_uploaded_file(file)})
+            else:
+                files_to_save = [convert_file_to_uploaded_file(path_to_download)]
+            upload_source = {'source': 'ООКН', 'link': url}
+            acts_ids = raw_reports_save(file_groups, files_to_save, Act, admin.id, True, upload_source)
+            if folder is not None:
+                shutil.rmtree(folder)
+            os.remove(path_to_download)
+            task = process_acts.apply_async((acts_ids, admin.id, select_text, select_image, select_coord),
+                                            link_error=error_handler_acts.s())
+            user_task = UserTasks(user_id=admin.id, task_id=task.task_id, files_type='act',
+                                  upload_source=upload_source)
+            user_task.save()
+            break
+
+        except Exception as e:
+            logger.error(f"Ошибка при обработке файла {path_to_download}: {e}")
+            continue
+
+
+def find_pdf_files(root, files):
+    """Вспомогательная функция для поиска PDF файлов"""
+    pdf_files = []
+    for file in files:
+        if (file.lower().endswith('.pdf') and
+                not re.search(r'проверк[\s\S]+подпис[\S]+', file, re.IGNORECASE)):
+            pdf_files.append(os.path.join(root, file))
+    return pdf_files
 
 
 def convert_file_to_uploaded_file(file_path):
