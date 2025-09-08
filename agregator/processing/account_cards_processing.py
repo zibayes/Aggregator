@@ -624,13 +624,17 @@ def connect_account_card_to_heritage(object_name, progress_json=None):
     if account_card and heritage:
         account_card = account_card[0]
         heritage = heritage[0]
-        heritage.account_card_id = account_card.id
-        heritage.save()
 
         folder_to_move = account_card.source[:account_card.source.rfind('/')]
         destination_path = os.path.join(heritage.source, os.path.basename(folder_to_move))
-        shutil.move(folder_to_move, destination_path)
         new_destination = destination_path[:destination_path.rfind('/') + 1] + 'Учётная карта'
+        if os.path.exists(new_destination):
+            return
+
+        heritage.account_card_id = account_card.id
+        heritage.save()
+
+        shutil.move(folder_to_move, destination_path)
         os.rename(destination_path, new_destination)
         account_card.source = new_destination + account_card.source[account_card.source.rfind('/'):]
         account_card_supplement = copy.deepcopy(account_card.supplement_dict)

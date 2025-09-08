@@ -1,161 +1,164 @@
 {% extends 'bases/base.html' %}
 
 {% block content %}
-    <br>
-    <h2 align="center">{{ title }}</h2>
-    <br>
+<br>
+<h2 align="center">{{ title }}</h2>
+<br>
 
-    <div class="accordion" id="accordionColumns">
-        <div class="accordion-item" id="columns-toggle">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapseColumns" aria-expanded="false" aria-controls="collapseColumns">
-                    Отображение колонок
-                </button>
-            </h2>
-            <div id="collapseColumns" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
-                <div class="accordion-body">
-                    {% block column_toggles %}{% endblock %}
-                </div>
-            </div>
-        </div>
-
-        <div class="accordion-item" id="filters">
-            <h2 class="accordion-header">
-                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
-                    Фильтры
-                </button>
-            </h2>
-            <div id="collapseFilters" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
-                <div class="accordion-body">
-                    <form id="filterForm">
-                        {% block filter_form %}{% endblock %}
-                        <div class="mb-3">
-                            <label>
-                                <input type="checkbox" id="showMyDocs"/> Показать только свои документы
-                            </label>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Применить фильтры</button>
-                    </form>
-                </div>
+<div class="accordion" id="accordionColumns">
+    <div class="accordion-item" id="columns-toggle">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseColumns" aria-expanded="false" aria-controls="collapseColumns">
+                Отображение колонок
+            </button>
+        </h2>
+        <div id="collapseColumns" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+            <div class="accordion-body">
+                {% block column_toggles %}{% endblock %}
             </div>
         </div>
     </div>
 
-    <div style="display: flex; align-items: center; justify-content: space-between;">
-        <div id="download-link-container">
-            {% block download_link %}{% endblock %}
-        </div>
-        <div class="form-check form-switch d-inline-block ms-3" id="storage-switcher">
-            {% block table_controls %}
-                <input class="form-check-input" type="checkbox" id="storageSwitch">
-                <label class="form-check-label" for="storageSwitch" id="storageLabel">Публичное хранилище</label>
-            {% endblock %}
+    <div class="accordion-item" id="filters">
+        <h2 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                    data-bs-target="#collapseFilters" aria-expanded="false" aria-controls="collapseFilters">
+                Фильтры
+            </button>
+        </h2>
+        <div id="collapseFilters" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+            <div class="accordion-body">
+                <form id="filterForm">
+                    {% block filter_form %}{% endblock %}
+                    <div class="mb-3">
+                        <label>
+                            <input type="checkbox" id="showMyDocs"/> Показать только свои документы
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Применить фильтры</button>
+                </form>
+            </div>
         </div>
     </div>
+</div>
 
-    <div class="table-responsive overflow-auto">
-        <table class="table table-striped w-100">
-            <thead>
-            <tr>
-                {% block table_headers %}{% endblock %}
-            </tr>
-            </thead>
-            <tbody>
-            {% block table_body %}{% endblock %}
-            </tbody>
-        </table>
+<div style="display: flex; align-items: center; justify-content: space-between;">
+    <div id="download-link-container">
+        {% block download_link %}{% endblock %}
     </div>
+    <div class="form-check form-switch d-inline-block ms-3" id="storage-switcher">
+        {% block table_controls %}
+        <input class="form-check-input" type="checkbox" id="storageSwitch">
+        <label class="form-check-label" for="storageSwitch" id="storageLabel">Публичное хранилище</label>
+        {% endblock %}
+    </div>
+</div>
 
-    {% block modal_dialogs %}{% endblock %}
+{% block external_scan_progress_bar %}
+{% endblock %}
 
-    <script>
-        document.getElementById('filterForm').addEventListener('submit', function (e) {
-            e.preventDefault();
+<div class="table-responsive overflow-auto">
+    <table class="table table-striped w-100">
+        <thead>
+        <tr>
+            {% block table_headers %}{% endblock %}
+        </tr>
+        </thead>
+        <tbody>
+        {% block table_body %}{% endblock %}
+        </tbody>
+    </table>
+</div>
 
-            {% block filter_script %}{% endblock %}
+{% block modal_dialogs %}{% endblock %}
 
-            const showMyDocs = document.getElementById('showMyDocs').checked;
-            const rows = document.querySelectorAll('.table tbody tr');
+<script>
+    document.getElementById('filterForm').addEventListener('submit', function (e) {
+        e.preventDefault();
 
-            rows.forEach(row => {
-                const userId = row.dataset.userId;
-                const isOwnerMatch = userId === "{{ user.id }}";
+        {% block filter_script %}{% endblock %}
 
-                {% block filter_logic %}{% endblock %}
-                const showRow = ({% block filter_conditions %}true{% endblock %}) && (!showMyDocs || isOwnerMatch);
+        const showMyDocs = document.getElementById('showMyDocs').checked;
+        const rows = document.querySelectorAll('.table tbody tr');
 
-                if (showRow) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
+        rows.forEach(row => {
+            const userId = row.dataset.userId;
+            const isOwnerMatch = userId === "{{ user.id }}";
+
+            {% block filter_logic %}{% endblock %}
+            const showRow = ({% block filter_conditions %}true{% endblock %}) && (!showMyDocs || isOwnerMatch);
+
+            if (showRow) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
         });
+    });
 
-        function updateFilterVisibility() {
-            let columnToggles = document.querySelectorAll('.column-toggle');
-            let filterForm = document.getElementById('filterForm');
+    function updateFilterVisibility() {
+        let columnToggles = document.querySelectorAll('.column-toggle');
+        let filterForm = document.getElementById('filterForm');
 
-            columnToggles.forEach(toggle => {
-                let columnIndex = toggle.getAttribute('data-column');
-                let columns_count = parseInt(toggle.closest('[data-columns-count]').dataset.columnsCount);
+        columnToggles.forEach(toggle => {
+            let columnIndex = toggle.getAttribute('data-column');
+            let columns_count = parseInt(toggle.closest('[data-columns-count]').dataset.columnsCount);
 
-                // Пропускаем колонки без соответствующих фильтров
-                if (columnIndex >= filterForm.children.length) {
-                    return;
+            // Пропускаем колонки без соответствующих фильтров
+            if (columnIndex >= filterForm.children.length) {
+                return;
+            }
+
+            let filterContainer = filterForm.children[columnIndex];
+
+            // Проверяем что элемент существует и является DOM-элементом
+            if (filterContainer && filterContainer.style) {
+                if (toggle.checked) {
+                    filterContainer.style.display = '';
+                } else {
+                    filterContainer.style.display = 'none';
                 }
+            }
+        });
+    }
 
-                let filterContainer = filterForm.children[columnIndex];
+    document.querySelectorAll('.column-toggle').forEach(toggle => {
+        toggle.addEventListener('change', updateFilterVisibility);
+    });
 
-                // Проверяем что элемент существует и является DOM-элементом
-                if (filterContainer && filterContainer.style) {
-                    if (toggle.checked) {
-                        filterContainer.style.display = '';
-                    } else {
-                        filterContainer.style.display = 'none';
-                    }
-                }
-            });
+    document.addEventListener("DOMContentLoaded", function () {
+        if (document.getElementById('filterForm')) {
+            setTimeout(updateFilterVisibility, 300);
         }
 
-        document.querySelectorAll('.column-toggle').forEach(toggle => {
-            toggle.addEventListener('change', updateFilterVisibility);
-        });
+        const storageSwitch = document.getElementById('storageSwitch');
+        const storageLabel = document.getElementById('storageLabel');
 
-        document.addEventListener("DOMContentLoaded", function () {
-            if (document.getElementById('filterForm')) {
-                setTimeout(updateFilterVisibility, 300);
-            }
+        if (storageSwitch !== null) {
+            storageSwitch.addEventListener('change', function () {
+                const isPrivate = storageSwitch.checked;
+                storageLabel.textContent = isPrivate ? "Частное хранилище" : "Публичное хранилище";
 
-            const storageSwitch = document.getElementById('storageSwitch');
-            const storageLabel = document.getElementById('storageLabel');
+                if (typeof $.fn.dataTable !== 'undefined') {
+                    $.fn.dataTable.ext.search.pop();
+                    $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
+                        const row = window.dataTable.row(dataIndex).node();
+                        const isPublic = row.getAttribute('data-is-public') === "True";
+                        return isPrivate ? !isPublic : isPublic;
+                    });
+                    window.dataTable.draw();
+                }
+            });
 
-            if (storageSwitch !== null) {
-                storageSwitch.addEventListener('change', function () {
-                    const isPrivate = storageSwitch.checked;
-                    storageLabel.textContent = isPrivate ? "Частное хранилище" : "Публичное хранилище";
-
-                    if (typeof $.fn.dataTable !== 'undefined') {
-                        $.fn.dataTable.ext.search.pop();
-                        $.fn.dataTable.ext.search.push(function (settings, data, dataIndex) {
-                            const row = window.dataTable.row(dataIndex).node();
-                            const isPublic = row.getAttribute('data-is-public') === "True";
-                            return isPrivate ? !isPublic : isPublic;
-                        });
-                        window.dataTable.draw();
-                    }
-                });
-
-                setTimeout(() => {
-                    if (storageSwitch) {
-                        storageSwitch.dispatchEvent(new Event('change'));
-                    }
-                }, 200);
-            }
-        });
-    </script>
+            setTimeout(() => {
+                if (storageSwitch) {
+                    storageSwitch.dispatchEvent(new Event('change'));
+                }
+            }, 200);
+        }
+    });
+</script>
 {% endblock %}
 
 <script>

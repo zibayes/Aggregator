@@ -27,7 +27,7 @@ from agregator.processing.commercial_offers_processing import process_commercial
 from agregator.processing.coordinates_extraction import process_coords_from_edit_page
 from agregator.processing.coordinates_tables import convert_to_wgs84
 from .decorators import owner_or_admin_required
-from agregator.processing.external_sources import external_sources_processing, external_voan_list_processing
+from agregator.processing.external_sources import external_sources_processing, process_oan_list, process_voan_list
 from agregator.processing.files_saving import raw_open_lists_save, raw_reports_save, raw_account_cards_save, \
     raw_commercial_offers_save, \
     raw_geo_objects_save
@@ -47,7 +47,7 @@ from .serializers import UserSerializer, ActSerializer, ScientificReportSerializ
     GeojsonDataSerializer, ChatSerializer, MessageSerializer
 from agregator.processing.tech_reports_processing import process_tech_reports, error_handler_tech_reports
 from .views_utils import generate_excel_report, upload_entity_view, get_register_view, process_edit_form, \
-    process_supplement, create_model_dataframe
+    process_supplement, create_model_dataframe, get_scan_task
 
 
 def get_user_tasks(user_id, file_types, upload_source=False):
@@ -209,17 +209,8 @@ def deconstructor(request):
 
 @login_required
 def external_sources(request):
-    is_processing = False
-    scan_task_id = None
-
-    active_scan_task = TaskResult.objects.filter(
-        task_name='agregator.external_sources.external_sources_processing'
-    ).exclude(
-        status__in=['SUCCESS', 'FAILURE', 'REVOKED']  # Исключаем точно завершенные
-    ).order_by('-date_created').first()
-    if active_scan_task:
-        scan_task_id = active_scan_task.task_id
-        is_processing = True
+    is_processing, scan_task_id, active_scan_task = get_scan_task(
+        'agregator.processing.external_sources.external_sources_processing')
 
     if request.method == 'POST' and scan_task_id is None:
         start_date = end_date = None
@@ -259,7 +250,7 @@ def external_sources(request):
 
 
 @login_required
-def check_scan_progress(request, task_id):
+def check_external_scan_progress(request, task_id):
     """Защищенная версия проверки прогресса"""
     try:
         # Пытаемся получить задачу через AsyncResult
@@ -321,7 +312,7 @@ def check_scan_progress(request, task_id):
 
 
 @login_required
-def cancel_scan_task(request, task_id):
+def cancel_external_scan_task(request, task_id):
     """View для прерывания задачи сканирования"""
     try:
         task = AsyncResult(task_id)
@@ -1156,13 +1147,31 @@ def open_lists_delete(request, pk):
 
 
 def archaeological_heritage_sites(request):
+    is_processing, scan_task_id, active_scan_task = get_scan_task(
+        'agregator.processing.external_sources.process_oan_list')
+
+    if request.method == 'POST' and scan_task_id is None:
+        scan_task = process_oan_list.delay()
+        scan_task_id = scan_task.id
+        is_processing = True
     oan = ArchaeologicalHeritageSite.objects.all()
-    return render(request, 'archaeological_heritage_site_register.html', {'oan': oan})
+    return render(request, 'archaeological_heritage_site_register.html',
+                  {'oan': oan, 'is_processing': is_processing, 'scan_task_id': scan_task_id,
+                   'active_scan_task': active_scan_task})
 
 
 def identified_archaeological_heritage_sites(request):
+    is_processing, scan_task_id, active_scan_task = get_scan_task(
+        'agregator.processing.external_sources.process_voan_list')
+
+    if request.method == 'POST' and scan_task_id is None:
+        scan_task = process_voan_list.delay()
+        scan_task_id = scan_task.id
+        is_processing = True
     voan = IdentifiedArchaeologicalHeritageSite.objects.all()
-    return render(request, 'identified_archaeological_heritage_site_register.html', {'voan': voan})
+    return render(request, 'identified_archaeological_heritage_site_register.html',
+                  {'voan': voan, 'is_processing': is_processing, 'scan_task_id': scan_task_id,
+                   'active_scan_task': active_scan_task})
 
 
 def archaeological_heritage_site(request, pk):

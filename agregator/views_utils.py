@@ -1,6 +1,7 @@
 import copy
 
 from agregator.models import UserTasks
+from django_celery_results.models import TaskResult
 from django.shortcuts import render
 import pandas as pd
 from openpyxl.reader.excel import load_workbook
@@ -91,3 +92,19 @@ def create_model_dataframe(model, fields_mapping):
         row = {display: getattr(instance, field) for display, field in fields_mapping.items()}
         df = pd.DataFrame([row]) if df is None else df._append(pd.DataFrame([row]), ignore_index=True)
     return df
+
+
+def get_scan_task(task_name):
+    is_processing = False
+    scan_task_id = None
+
+    active_scan_task = TaskResult.objects.filter(
+        task_name=task_name
+    ).exclude(
+        status__in=['SUCCESS', 'FAILURE', 'REVOKED']  # Исключаем точно завершенные
+    ).order_by('-date_created').first()
+    if active_scan_task:
+        scan_task_id = active_scan_task.task_id
+        is_processing = True
+
+    return is_processing, scan_task_id, active_scan_task

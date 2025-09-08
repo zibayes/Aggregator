@@ -350,181 +350,459 @@ def tables_to_dataframes(tables):
     return dataframes
 
 
-def external_voan_list_processing():
+@shared_task(bind=True)
+def process_voan_list(self, progress_key=None):
+    """Обработка перечня выявленных объектов культурного наследия"""
     try:
-        r = requests.get(f"https://ookn.ru/gosohrana/", verify=False)
-    except Exception as e:
-        logger.debug(f"Ошибка полкючения к сайту ООКН: {e}")
-        return
-    data = r.text
-    soup = BeautifulSoup(data, 'html.parser')
-    current_lists = 'uploaded_files/Памятники/current_lists.txt'
-    Path('uploaded_files/Памятники/').mkdir(exist_ok=True)
+        # Шаг 1: Получение данных с сайта
+        try:
+            r = requests.get("https://ookn.ru/gosohrana/", verify=False, timeout=30)
+            r.raise_for_status()
+        except Exception as e:
+            logger.error(f"Ошибка подключения к сайту ООКН: {e}")
+            return {
+                'current': 0,
+                'total': 1,
+                'type': 'page_progress',
+                'message': f'Ошибка подключения к сайту ООКН: {e}'
+            }
 
-    with open(current_lists, 'a+', encoding='utf-8') as file:
-        file.seek(0)
-        text = file.read()
-        lines = [line for line in text.split('\n') if line.strip()]
-        file.seek(0)
-        file.truncate()
-        for line in lines:
-            if 'list_voan - ' in line:
-                line = line.replace('list_voan - ', '')
-                if os.path.exists(line):
-                    try:
-                        os.remove(line)
-                    except PermissionError as e:
-                        logger.debug(f"Ошибка удаления перечня ВОАН: {e}")
-                        return
-            elif 'list_oan - ' in line:
-                line = line.replace('list_oan - ', '')
-                if os.path.exists(line):
-                    try:
-                        os.remove(line)
-                    except PermissionError as e:
-                        logger.debug(f"Ошибка удаления перечня ОАН: {e}")
-                        return
+        # Шаг 2: Парсинг
+        soup = BeautifulSoup(r.text, 'html.parser')
+        current_lists = 'uploaded_files/Памятники/current_lists.txt'
+        Path('uploaded_files/Памятники/').mkdir(exist_ok=True)
 
-    for item in soup.find_all('p', class_='news-item'):
-        title = item.find('b').get_text(strip=True) if item.find('b') else ''
-        if title not in (
-                'Перечень объектов археологического наследия', 'Перечень выявленных объектов культурного наследия'):
-            continue
+        # Шаг 3: Очистка старых файлов
 
-        link = item.find('a', href=True)
-        if link and '/upload/iblock/' in link['href']:
-            file = link['href'][link['href'].rfind('/') + 1:]
+        _clean_old_files(current_lists, 'list_voan')
 
-            file_encoded = file.replace(' ', '%20')
-            path_to_download = 'uploaded_files/Памятники/' + file_encoded
-
-            logger.debug(f"Заголовок: {title}")
-            logger.debug(f"Ссылка: {link['href']}")
-
-            href = link['href'][:link['href'].rfind('/')]
-            params = urllib.parse.urlencode({'address': file})
-            href = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace('%29', ')')
-            url = f"https://ookn.ru{href}"
-
-            context = ssl._create_unverified_context()
-            logger.debug(f'URLLL: {url}')
-            logger.debug(context)
-            try:
-                urllib.request.urlopen(url, context=context)
-            except urllib.error.URLError as e:
-                logger.debug(f'Ошибка подключения: {e}')
+        # Шаг 4: Поиск и скачивание файла
+        file_path = None
+        for item in soup.find_all('p', class_='news-item'):
+            title = item.find('b').get_text(strip=True) if item.find('b') else ''
+            if title != 'Перечень выявленных объектов культурного наследия':
                 continue
-            with urllib.request.urlopen(url, context=context) as response:
-                with open(path_to_download, 'wb') as out_file:
-                    out_file.write(response.read())
 
-                with open(current_lists, 'a+', encoding='utf-8') as file:
-                    if title == 'Перечень выявленных объектов культурного наследия':
-                        file.write('list_voan - ' + path_to_download + '\n')
-                    elif title == 'Перечень объектов археологического наследия':
-                        file.write('list_oan - ' + path_to_download + '\n')
-                tables = extract_tables_from_docx(path_to_download)
-                dataframes = tables_to_dataframes(tables)
-                for i, df in enumerate(dataframes):
-                    # df = df.replace('\n', '', regex=True)
-                    df.columns = df.columns.str.replace('\n', '', regex=True)
-                    '''
-                    print(f"Таблица {i + 1}:")
-                    print(df)
-                    print("\n")
-                    '''
+            link = item.find('a', href=True)
+            if link and '/upload/iblock/' in link['href']:
+                file_path = _download_file(link['href'], title, current_lists)
+                break
 
-                    if title == 'Перечень выявленных объектов культурного наследия' and 'Адрес объекта (или описание местоположения объекта)*' in df.columns:
-                        # df['Адрес объекта (или описание местоположения объекта)*'].str.contains('ВОАН', na=False)
-                        existing_sites = IdentifiedArchaeologicalHeritageSite.objects.all()
-                        existing_sites_set = set(
-                            (site.name, site.address, site.obj_info, site.document) for site in existing_sites)
-                        for index, row in df.iterrows():
-                            logger.debug('Log-test:')
-                            logger.debug(row)
-                            logger.debug(row['Адрес объекта (или описание местоположения объекта)*'])
-                            logger.debug(type(row['Адрес объекта (или описание местоположения объекта)*']))
-                            address = row['Адрес объекта (или описание местоположения объекта)*']
-                            if isinstance(address, str):
-                                address = address.strip()
-                            elif isinstance(address, pd.Series):
-                                if len(address) > 1 and isinstance(address.iloc[1], str) and address.iloc[1].strip() != \
-                                        row['Наименование выявленного объекта культурного наследия']:
-                                    address = address.iloc[1].strip()
-                                elif len(address) > 0 and isinstance(address.iloc[0], str) and address.iloc[
-                                    0].strip() != row['Наименование выявленного объекта культурного наследия']:
-                                    address = address.iloc[0].strip()
-                                else:
-                                    address = ''
-                            logger.debug(f'Итоговый адрес: {address}')
-                            document_source = []
-                            identified_site = IdentifiedArchaeologicalHeritageSite(
-                                name=row['Наименование выявленного объекта культурного наследия'],
-                                address=address,
-                                obj_info=row['Сведения об историко-культурной ценности объекта'],
-                                document=row['Документ о включении в перечень выявленных объектов'],
-                            )
-                            if not IdentifiedArchaeologicalHeritageSite.objects.filter(
-                                    name=identified_site.name,
-                                    address=identified_site.address,
-                                    obj_info=identified_site.obj_info,
-                                    document=identified_site.document,
-                            ).exists():
-                                folder = 'uploaded_files/Памятники/ВОАН/' + address + '/' + clean_path_component(row[
-                                                                                                                     'Наименование выявленного объекта культурного наследия'])
-                                nested_folders = Path(folder)
-                                nested_folders.mkdir(parents=True, exist_ok=True)
-                                folder = str(nested_folders)
-                                identified_site.source = folder
-                                external_orders_download(identified_site.document, folder, document_source)
-                                identified_site.document_source = document_source
-                                identified_site.save()
-                                connect_account_card_to_heritage(identified_site.name)
-                            elif not identified_site.document_source_dict:
-                                external_orders_download(identified_site.document, folder, document_source)
-                                identified_site.document_source = document_source
-                                identified_site.save()
+        if not file_path:
+            logger.error("Файл перечня ВОАН не найден")
+            return {
+                'current': 0,
+                'total': 1,
+                'type': 'page_progress',
+                'message': f'Файл перечня ВОАН не найден'
+            }
 
-                            for site in existing_sites:
-                                if (site.name, site.address, site.obj_info, site.document) not in existing_sites_set:
-                                    site.is_excluded = True
-                                    site.save()
+        # Шаг 5: Извлечение таблиц
+        tables = extract_tables_from_docx(file_path)
+        dataframes = tables_to_dataframes(tables)
 
-                    elif title == 'Перечень объектов археологического наследия':
-                        for index, row in df.iterrows():
-                            document_source = []
-                            archaeological_site = ArchaeologicalHeritageSite.objects.filter(
-                                doc_name=row[
-                                    'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
-                                district=row['Район местонахождения'],
-                                document=row['Документ о постановке на государственную охрану'],
-                                register_num=row[
-                                    'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
-                            )
-                            if not archaeological_site.exists():
-                                folder = 'uploaded_files/Памятники/ОАН/' + row[
-                                    'Район местонахождения'] + '/' + clean_path_component(row[
-                                                                                              'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'])
-                                nested_folders = Path(folder)
-                                nested_folders.mkdir(parents=True, exist_ok=True)
-                                folder = str(nested_folders)
-                                archaeological_site = ArchaeologicalHeritageSite(
-                                    doc_name=row[
-                                        'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
-                                    district=row['Район местонахождения'],
-                                    document=row['Документ о постановке на государственную охрану'],
-                                    register_num=row[
-                                        'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
-                                    source=folder,
-                                )
-                                external_orders_download(archaeological_site.document, folder, document_source)
-                                archaeological_site.document_source = document_source
-                                archaeological_site.save()
-                                connect_account_card_to_heritage(archaeological_site.doc_name)
-                            elif not archaeological_site[0].document_source_dict:
-                                external_orders_download(archaeological_site.document, folder, document_source)
-                                archaeological_site.document_source = document_source
-                                archaeological_site.save()
+        # Шаг 6: Обработка данных
+        existing_sites = IdentifiedArchaeologicalHeritageSite.objects.all()
+        existing_sites_set = set(
+            (site.name, site.address, site.obj_info, site.document) for site in existing_sites
+        )
+
+        processed = 0
+        total_rows = sum(len(df) for df in dataframes)
+
+        for i, df in enumerate(dataframes):
+            df.columns = df.columns.str.replace('\n', '', regex=True)
+
+            if 'Адрес объекта (или описание местоположения объекта)*' not in df.columns:
+                continue
+
+            for index, row in df.iterrows():
+                # Обработка каждой строки
+                _process_voan_row(row, existing_sites_set)
+
+                processed += 1
+                self.update_state(
+                    state='PROGRESS',
+                    meta={
+                        'current': processed,
+                        'total': total_rows,
+                        'type': 'page_progress',
+                        'message': f'Обработка памятника {processed} из {total_rows}'
+                    }
+                )
+
+        # Шаг 7: Помечаем удаленные объекты
+        for site in existing_sites:
+            if (site.name, site.address, site.obj_info, site.document) not in existing_sites_set:
+                site.is_excluded = True
+                site.save()
+
+        return {
+            'current': processed,
+            'total': total_rows,
+            'type': 'page_progress',
+            'message': 'Сканирование всех страниц завершено.'
+        }
+
+    except Exception as e:
+        logger.exception("Ошибка в процессе обработки ВОАН")
+        return {
+            'current': 0,
+            'total': 1,
+            'type': 'page_progress',
+            'message': f'Ошибка в процессе обработки ВОАН: {e}'
+        }
+
+
+@shared_task(bind=True)
+def process_oan_list(self, progress_key=None):
+    """Обработка перечня объектов археологического наследия"""
+    try:
+        # Шаг 1: Получение данных с сайта
+        try:
+            r = requests.get("https://ookn.ru/gosohrana/", verify=False, timeout=30)
+            r.raise_for_status()
+        except Exception as e:
+            logger.error(f"Ошибка подключения к сайту ООКН для ОАН: {e}")
+            return {
+                'current': 0,
+                'total': 1,
+                'type': 'page_progress',
+                'message': f'Ошибка подключения к сайту ООКН: {e}'
+            }
+
+        # Шаг 2: Парсинг HTML
+        soup = BeautifulSoup(r.text, 'html.parser')
+        current_lists = 'uploaded_files/Памятники/current_lists.txt'
+        Path('uploaded_files/Памятники/').mkdir(exist_ok=True)
+
+        # Шаг 3: Очистка старых файлов ОАН
+        _clean_old_files(current_lists, 'list_oan')
+
+        # Шаг 4: Поиск и скачивание файла перечня ОАН
+        file_path = None
+        for item in soup.find_all('p', class_='news-item'):
+            title = item.find('b').get_text(strip=True) if item.find('b') else ''
+            if title != 'Перечень объектов археологического наследия':
+                continue
+
+            link = item.find('a', href=True)
+            if link and '/upload/iblock/' in link['href']:
+                file_path = _download_file(link['href'], title, current_lists)
+                break
+
+        if not file_path:
+            logger.error("Файл перечня ОАН не найден")
+            return {
+                'current': 0,
+                'total': 1,
+                'type': 'page_progress',
+                'message': f'Файл перечня ОАН не найден'
+            }
+
+        # Шаг 5: Извлечение таблиц из документа
+        tables = extract_tables_from_docx(file_path)
+        dataframes = tables_to_dataframes(tables)
+
+        if not dataframes:
+            logger.error("Не удалось извлечь таблицы из файла ОАН")
+            return {
+                'current': 0,
+                'total': 1,
+                'type': 'page_progress',
+                'message': f'Не удалось извлечь таблицы из файла ОАН'
+            }
+
+        # Шаг 6: Обработка данных ОАН
+        # Получаем существующие объекты для сравнения
+        existing_sites = ArchaeologicalHeritageSite.objects.all()
+        existing_sites_set = set(
+            (site.doc_name, site.district, site.document, site.register_num)
+            for site in existing_sites
+        )
+
+        processed = 0
+        total_rows = sum(len(df) for df in dataframes)
+
+        # Шаг 7: Обработка каждой таблицы и строки
+        for i, df in enumerate(dataframes):
+            # Очищаем названия колонок от переносов строк
+            df.columns = df.columns.str.replace('\n', '', regex=True)
+
+            # Проверяем наличие необходимых колонок
+            required_columns = [
+                'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта',
+                'Район местонахождения',
+                'Документ о постановке на государственную охрану',
+                'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'
+            ]
+
+            if not all(col in df.columns for col in required_columns):
+                logger.warning(f"Таблица {i + 1} не содержит всех необходимых колонок для ОАН")
+                continue
+
+            # Обрабатываем каждую строку в таблице
+            for index, row in df.iterrows():
+                try:
+                    # Обработка одной строки данных ОАН
+                    document_source = []
+
+                    # Создаем или получаем объект археологического наследия
+                    archaeological_site, created = ArchaeologicalHeritageSite.objects.get_or_create(
+                        doc_name=row[
+                            'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
+                        district=row['Район местонахождения'],
+                        document=row['Документ о постановке на государственную охрану'],
+                        register_num=row[
+                            'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
+                        defaults={
+                            'source': ''
+                        }
+                    )
+
+                    # Если объект создан впервые, создаем папку и скачиваем документы
+                    if created:
+                        folder = f'uploaded_files/Памятники/ОАН/{row["Район местонахождения"]}/{clean_path_component(row["Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта"])}'
+                        nested_folders = Path(folder)
+                        nested_folders.mkdir(parents=True, exist_ok=True)
+
+                        archaeological_site.source = str(nested_folders)
+                        external_orders_download(archaeological_site.document, archaeological_site.source,
+                                                 document_source)
+                        archaeological_site.document_source = document_source
+                        archaeological_site.save()
+
+                        # Связываем с учетной карточкой
+                        connect_account_card_to_heritage(archaeological_site.doc_name)
+
+                    # Если объект уже существовал, но нет документов - скачиваем
+                    elif not archaeological_site.document_source_dict:
+                        external_orders_download(archaeological_site.document, archaeological_site.source,
+                                                 document_source)
+                        archaeological_site.document_source = document_source
+                        archaeological_site.save()
+
+                    # Удаляем из множества для последующего определения удаленных объектов
+                    site_key = (
+                        archaeological_site.doc_name,
+                        archaeological_site.district,
+                        archaeological_site.document,
+                        archaeological_site.register_num
+                    )
+                    if site_key in existing_sites_set:
+                        existing_sites_set.remove(site_key)
+
+                except Exception as row_error:
+                    logger.error(f"Ошибка обработки строки {index} в таблице {i + 1}: {row_error}")
+                    continue
+
+                # Обновляем прогресс
+                processed += 1
+                self.update_state(
+                    state='PROGRESS',
+                    meta={
+                        'current': processed,
+                        'total': total_rows,
+                        'type': 'page_progress',
+                        'message': f'Обработка памятника {processed} из {total_rows}'
+                    }
+                )
+
+        # Шаг 8: Помечаем удаленные объекты ОАН
+        marked_excluded = 0
+        for site in existing_sites:
+            site_key = (site.doc_name, site.district, site.document, site.register_num)
+            if site_key in existing_sites_set:
+                site.is_excluded = True
+                site.save()
+                marked_excluded += 1
+
+        logger.info(f"Помечено как исключенных: {marked_excluded} объектов ОАН")
+
+        # Шаг 9: Финализация
+        logger.info(f"Обработка перечня ОАН завершена успешно. Обработано: {processed} объектов")
+        return {
+            'current': processed,
+            'total': total_rows,
+            'type': 'page_progress',
+            'message': 'Обработка всех ОАН завершена.'
+        }
+
+    except Exception as e:
+        logger.exception("Ошибка в процессе обработки ОАН")
+        return {
+            'current': 0,
+            'total': 1,
+            'type': 'page_progress',
+            'message': f'Ошибка в процессе обработки ОАН: {e}'
+        }
+
+
+# Вспомогательная функция для обработки строк ОАН (может быть вынесена отдельно)
+def _process_oan_row(row, existing_sites_set):
+    """Обработка одной строки данных объектов археологического наследия"""
+    try:
+        document_source = []
+
+        # Поиск существующего объекта или создание нового
+        archaeological_site, created = ArchaeologicalHeritageSite.objects.get_or_create(
+            doc_name=row[
+                'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
+            district=row['Район местонахождения'],
+            document=row['Документ о постановке на государственную охрану'],
+            register_num=row[
+                'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
+            defaults={
+                'source': ''
+            }
+        )
+
+        # Если объект новый - создаем структуру папок и скачиваем документы
+        if created:
+            folder = f'uploaded_files/Памятники/ОАН/{row["Район местонахождения"]}/{clean_path_component(row["Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта"])}'
+            nested_folders = Path(folder)
+            nested_folders.mkdir(parents=True, exist_ok=True)
+
+            archaeological_site.source = str(nested_folders)
+            external_orders_download(archaeological_site.document, archaeological_site.source, document_source)
+            archaeological_site.document_source = document_source
+            archaeological_site.save()
+
+            # Связываем с учетной карточкой
+            connect_account_card_to_heritage(archaeological_site.doc_name)
+
+        # Если объект уже существует, но нет документов - скачиваем
+        elif not archaeological_site.document_source_dict:
+            external_orders_download(archaeological_site.document, archaeological_site.source, document_source)
+            archaeological_site.document_source = document_source
+            archaeological_site.save()
+
+        # Удаляем из множества для определения удаленных объектов
+        site_key = (
+            archaeological_site.doc_name,
+            archaeological_site.district,
+            archaeological_site.document,
+            archaeological_site.register_num
+        )
+        if site_key in existing_sites_set:
+            existing_sites_set.remove(site_key)
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Ошибка обработки строки ОАН: {e}")
+        return False
+
+
+def _clean_old_files(current_lists, prefix):
+    """Очистка старых файлов"""
+    try:
+        with open(current_lists, 'a+', encoding='utf-8') as file:
+            file.seek(0)
+            text = file.read()
+            lines = [line for line in text.split('\n') if line.strip()]
+            file.seek(0)
+            file.truncate()
+
+            for line in lines:
+                if f'{prefix} - ' in line:
+                    file_path = line.replace(f'{prefix} - ', '')
+                    if os.path.exists(file_path):
+                        try:
+                            os.remove(file_path)
+                        except PermissionError as e:
+                            logger.warning(f"Не удалось удалить файл {file_path}: {e}")
+                else:
+                    file.write(line + '\n')
+
+    except Exception as e:
+        logger.error(f"Ошибка при очистке файлов: {e}")
+
+
+def _download_file(href, title, current_lists):
+    """Скачивание файла"""
+    file_name = href[href.rfind('/') + 1:]
+    file_encoded = file_name.replace(' ', '%20')
+    path_to_download = f'uploaded_files/Памятники/{file_encoded}'
+
+    # Формирование URL для скачивания
+    base_href = href[:href.rfind('/')]
+    params = urllib.parse.urlencode({'address': file_name})
+    download_url = f"https://ookn.ru{(base_href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace('%29', ')')}"
+
+    # Скачивание
+    context = ssl._create_unverified_context()
+    with urllib.request.urlopen(download_url, context=context) as response:
+        with open(path_to_download, 'wb') as out_file:
+            out_file.write(response.read())
+
+    # Запись в current_lists
+    with open(current_lists, 'a', encoding='utf-8') as file:
+        if title == 'Перечень выявленных объектов культурного наследия':
+            file.write(f'list_voan - {path_to_download}\n')
+        elif title == 'Перечень объектов археологического наследия':
+            file.write(f'list_oan - {path_to_download}\n')
+
+    return path_to_download
+
+
+def _process_voan_row(row, existing_sites_set):
+    """Обработка одной строки данных ВОАН"""
+    address = row['Адрес объекта (или описание местоположения объекта)*']
+    if isinstance(address, str):
+        address = address.strip()
+    elif isinstance(address, pd.Series):
+        if len(address) > 1 and isinstance(address.iloc[1], str) and address.iloc[1].strip() != row[
+            'Наименование выявленного объекта культурного наследия']:
+            address = address.iloc[1].strip()
+        elif len(address) > 0 and isinstance(address.iloc[0], str) and address.iloc[0].strip() != row[
+            'Наименование выявленного объекта культурного наследия']:
+            address = address.iloc[0].strip()
+        else:
+            address = ''
+
+    document_source = []
+    identified_site = IdentifiedArchaeologicalHeritageSite(
+        name=row['Наименование выявленного объекта культурного наследия'],
+        address=address,
+        obj_info=row['Сведения об историко-культурной ценности объекта'],
+        document=row['Документ о включении в перечень выявленных объектов'],
+    )
+
+    # Проверяем существование
+    site_exists = IdentifiedArchaeologicalHeritageSite.objects.filter(
+        name=identified_site.name,
+        address=identified_site.address,
+        obj_info=identified_site.obj_info,
+        document=identified_site.document,
+    ).exists()
+
+    if not site_exists:
+        folder = f'uploaded_files/Памятники/ВОАН/{address}/{clean_path_component(row["Наименование выявленного объекта культурного наследия"])}'
+        Path(folder).mkdir(parents=True, exist_ok=True)
+
+        identified_site.source = folder
+        external_orders_download(identified_site.document, folder, document_source)
+        identified_site.document_source = document_source
+        identified_site.save()
+        connect_account_card_to_heritage(identified_site.name)
+    else:
+        # Обновляем существующий
+        existing_site = IdentifiedArchaeologicalHeritageSite.objects.get(
+            name=identified_site.name,
+            address=identified_site.address,
+            obj_info=identified_site.obj_info,
+            document=identified_site.document,
+        )
+        if not existing_site.document_source_dict:
+            external_orders_download(existing_site.document, existing_site.source, document_source)
+            existing_site.document_source = document_source
+            existing_site.save()
+
+    # Удаляем из множества для последующего определения удаленных
+    site_key = (identified_site.name, identified_site.address, identified_site.obj_info, identified_site.document)
+    if site_key in existing_sites_set:
+        existing_sites_set.remove(site_key)
 
 
 def external_orders_download(query: str, output_path: str, document_source: List) -> None:

@@ -347,10 +347,17 @@
 {% endblock %}
 
 {% block table_controls %}
-    <div class="container mt-1">
-        <div class="controls" style="display: flex; justify-content: flex-end; width: 100%;">
-            <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-               href="{% url 'update_voan_list' %}">Обновить перечень</a>
+    <form method="post" action="/archaeological_heritage_sites/">
+        {% csrf_token %}
+        <div class="container mt-1">
+            <div class="controls" style="display: flex; justify-content: flex-end; width: 100%;">
+                <button class="btn btn-primary lang" type="submit"  style="border-radius: 12px; margin-right:10px;"
+                   >Обновить перечень</button>
+            </div>
         </div>
-    </div>
+    </form>
+{% endblock %}
+
+{% block external_scan_progress_bar %}
+    {% include 'includes/external_scan_progress_bar.html' %}
 {% endblock %}
