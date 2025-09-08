@@ -141,67 +141,72 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
         soup = BeautifulSoup(response.text, features="html.parser")
         page_files = []
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            future_to_file = {}
-            # Обрабатываем элементы страницы
-            for item in soup.find_all('p', class_='news-item'):
-                try:
-                    # Проверка исключений
-                    if any(query in item.text for query in ACTS_QUERY_EXCLUDE):
-                        continue
-
-                    # Проверка даты
-                    if start_date and end_date:
-                        match = ORDER_DATE_PATTERN.search(item.text)
-                        if not match:
-                            continue
-
-                        date_str = match.group(0)
-                        try:
-                            day, month, year = map(int, date_str.split('.'))
-                            current_date = [year, month, day]
-                            if not (start_date <= current_date <= end_date):
-                                continue
-                        except (ValueError, IndexError):
-                            continue
-
-                    # Поиск ссылки
-                    link = item.find('a', href=True)
-                    if not link or '/upload/iblock/' not in link['href']:
-                        continue
-
-                    if not ('акт' in link['href'].lower() or 'гикэ' in link['href'].lower()):
-                        continue
-
-                    file = link['href'][link['href'].rfind('/') + 1:]
-
-                    # Пропускаем уже скачанные или ненужные файлы
-                    if (file in downloaded_files or
-                            file.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff'))):
-                        continue
-
-                    # Формируем URL
-                    href = link['href'][:link['href'].rfind('/')]
-                    params = urllib.parse.urlencode({'address': file})
-                    url = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace(
-                        '%29',
-                        ')')
-                    url = f"https://ookn.ru{url}"
-
-                    # Скачиваем файл
-                    path_to_download = f'uploaded_files/Акты ГИКЭ/{file}'
-                    future = executor.submit(download_file, url, path_to_download)
-                    future_to_file[future] = (path_to_download, url, file)
-
-                except Exception as e:
-                    logger.error(f"Ошибка при обработке элемента: {e}")
+        future_to_file = {}
+        # Обрабатываем элементы страницы
+        for item in soup.find_all('p', class_='news-item'):
+            try:
+                # Проверка исключений
+                if any(query in item.text for query in ACTS_QUERY_EXCLUDE):
                     continue
 
-        page_files = []
-        for future in as_completed(future_to_file):
-            path, url, file = future_to_file[future]
-            if future.result():
-                page_files.append((path, url, file))
+                # Проверка даты
+                if start_date and end_date:
+                    match = ORDER_DATE_PATTERN.search(item.text)
+                    if not match:
+                        continue
+
+                    date_str = match.group(0)
+                    try:
+                        day, month, year = map(int, date_str.split('.'))
+                        current_date = [year, month, day]
+                        if not (start_date <= current_date <= end_date):
+                            continue
+                    except (ValueError, IndexError):
+                        continue
+
+                # Поиск ссылки
+                link = item.find('a', href=True)
+                if not link or '/upload/iblock/' not in link['href']:
+                    continue
+
+                if not ('акт' in link['href'].lower() or 'гикэ' in link['href'].lower()):
+                    continue
+
+                file = link['href'][link['href'].rfind('/') + 1:]
+
+                # Пропускаем уже скачанные или ненужные файлы
+                if (file in downloaded_files or
+                        file.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff'))):
+                    continue
+
+                # Формируем URL
+                href = link['href'][:link['href'].rfind('/')]
+                params = urllib.parse.urlencode({'address': file})
+                url = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace(
+                    '%29',
+                    ')')
+                url = f"https://ookn.ru{url}"
+
+                # Добавление файла в очередь
+                path_to_download = f'uploaded_files/Акты ГИКЭ/{file}'
+                page_files.append((path_to_download, url, file))
+
+            except Exception as e:
+                logger.error(f"Ошибка при обработке элемента: {e}")
+                continue
+
+        # Параллельное скачивание файлов с одной страницы
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_file = {
+                executor.submit(download_file, url, path): (path, url, file)
+                for path, url, file in page_files
+            }
+
+            page_files = []
+            for future in as_completed(future_to_file):
+                path, url, file = future_to_file[future]
+                if future.result():
+                    page_files.append((path, url, file))
 
         # Обрабатываем скачанные файлы
         process_downloaded_files(page_files, admin, select_text, select_image, select_coord)
