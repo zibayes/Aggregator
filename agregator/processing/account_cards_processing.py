@@ -229,17 +229,19 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
         coordinates['Каталог координат'] = {}
         for table in nested_tables:
             for row in table:
-                if 'угол поворота' in row[0].lower() or 'северная широта' in row[1].lower() or 'восточная долгота' in \
-                        row[
-                            2].lower():
-                    continue
-                else:
-                    point_number = row[0]
-                    lat = dms_to_decimal(normalize_coordinates(row[1]))
-                    lon = dms_to_decimal(normalize_coordinates(row[2]))
-                    coordinates['Каталог координат'][point_number] = [lat, lon]
-                    coordinates['Каталог координат']['coordinate_system'] = 'wgs84'
-                    # coordinates['GPS координаты углов поворотов объекта'][point_number] = [lat, lon]
+                if len(row) >= 3:
+                    if 'угол поворота' in row[0].lower() or 'северная широта' in row[
+                        1].lower() or 'восточная долгота' in \
+                            row[
+                                2].lower():
+                        continue
+                    else:
+                        point_number = row[0]
+                        lat = dms_to_decimal(normalize_coordinates(row[1]))
+                        lon = dms_to_decimal(normalize_coordinates(row[2]))
+                        coordinates['Каталог координат'][point_number] = [lat, lon]
+                        coordinates['Каталог координат']['coordinate_system'] = 'wgs84'
+                        # coordinates['GPS координаты углов поворотов объекта'][point_number] = [lat, lon]
 
         points = [x for x in list(coordinates['Каталог координат'].keys()) if x not in ('coordinate_system', 'area')]
         if 'Каталог координат' in coordinates and len(points) == 4:

@@ -57,6 +57,42 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: postgres
+      
+  kodexplorer:
+    image: debian:bookworm
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./uploaded_files:/opt/kodexplorer/data/files  # ваша папка с файлами
+      - ./kodexplorer_config:/etc/nginx/sites-available
+    working_dir: /opt
+    command: >
+      sh -c "
+      apt update && apt install -y nginx php-fpm php-common php-mbstring php-xml php-zip wget unzip &&
+      wget https://github.com/kalcaddle/KodExplorer/archive/refs/tags/4.49.zip &&
+      unzip 4.49.zip && mv KodExplorer-4.49 kodexplorer && rm 4.49.zip &&
+      chown -R www-data:www-data kodexplorer &&
+      echo 'server {
+        listen 8080;
+        server_name localhost;
+        root /opt/kodexplorer;
+        index index.php index.html;
+
+        location / {
+          try_files \$uri \$uri/ /index.php?\$args;
+        }
+
+        location ~ \.php\$ {
+          include snippets/fastcgi-php.conf;
+          fastcgi_pass unix:/var/run/php/php8.4-fpm.sock;
+          fastcgi_param SCRIPT_FILENAME \$document_root\$fastcgi_script_name;
+          include fastcgi_params;
+        }
+      }' > /etc/nginx/sites-available/kodexplorer &&
+      ln -s /etc/nginx/sites-available/kodexplorer /etc/nginx/sites-enabled/ &&
+      service php8.4-fpm start && nginx -g 'daemon off;'
+      "
+    restart: unless-stopped
 
 volumes:
   postgres_data:
