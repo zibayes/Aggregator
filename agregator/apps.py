@@ -45,6 +45,8 @@ class AgregatorConfig(AppConfig):
             'uploaded_files/Учётные карты',
             'uploaded_files/Памятники',
             'uploaded_files/Коммерческие предложения',
+            
+            'uploaded_files/Географические объекты',
         ]
         for folder in folders:
             nested_folders = Path(folder)
