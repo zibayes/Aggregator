@@ -95,6 +95,77 @@ def dms_to_decimal(dms):
     return decimal
 
 
+def determine_regional_msk(coords):
+    """
+    Определяет региональную МСК по координатам WGS84
+    Возвращает ключ проекции из словаря
+
+    Логика определения:
+    1. Сначала проверяем старые МСК (162-171)
+    2. Затем проверяем МСК-24 (более крупные зоны)
+    3. Если не попали - расчёт проводится в WGS-84
+    """
+
+    latitude, longitude = coords
+
+    # 1. ПРОВЕРКА СТАРЫХ МСК (162-171) - 3-градусные зоны
+    # МСК-162: 78° в.д. (Западная Сибирь)
+    if 76.5 <= longitude < 79.5 and 50 <= latitude <= 60:
+        return "мск162"
+
+    # МСК-163: 81° в.д. (Западная Сибирь/Урал)
+    elif 79.5 <= longitude < 82.5 and 50 <= latitude <= 60:
+        return "мск163"
+
+    # МСК-164: 84° в.д. (Центральная Сибирь)
+    elif 82.5 <= longitude < 85.5 and 50 <= latitude <= 60:
+        return "мск164"
+
+    # МСК-165: 87° в.д. (Центральная Сибирь)
+    elif 85.5 <= longitude < 88.5 and 50 <= latitude <= 60:
+        return "мск165"
+
+    # МСК-166: 90° в.д. (Восточная Сибирь)
+    elif 88.5 <= longitude < 91.5 and 50 <= latitude <= 60:
+        return "мск166"
+
+    # МСК-167: 93° в.д. (Восточная Сибирь)
+    elif 91.5 <= longitude < 94.5 and 50 <= latitude <= 60:
+        return "мск167"
+
+    # МСК-168: 96° в.д. (Восточная Сибирь/Дальний Восток)
+    elif 94.5 <= longitude < 97.5 and 50 <= latitude <= 60:
+        return "мск168"
+
+    # МСК-169: 99° в.д. (Дальний Восток)
+    elif 97.5 <= longitude < 100.5 and 50 <= latitude <= 60:
+        return "мск169"
+
+    # МСК-170: 102° в.д. (Дальний Восток)
+    elif 100.5 <= longitude < 103.5 and 50 <= latitude <= 60:
+        return "мск170"
+
+    # МСК-171: 105° в.д. (Дальний Восток)
+    elif 103.5 <= longitude < 106.5 and 50 <= latitude <= 60:
+        return "мск171"
+
+    # 2. ПРОВЕРКА МСК-24 ЗОН (6-градусные зоны)
+    if 78 <= longitude < 84:
+        return "мск24зона1"  # 78° - 84° в.д.
+    elif 84 <= longitude < 90:
+        return "мск24зона2"  # 84° - 90° в.д.
+    elif 90 <= longitude < 96:
+        return "мск24зона3"  # 90° - 96° в.д.
+    elif 96 <= longitude < 102:
+        return "мск24зона4"  # 96° - 102° в.д.
+    elif 102 <= longitude < 108:
+        return "мск24зона5"  # 102° - 108° в.д.
+    elif 108 <= longitude < 114:
+        return "мск24зона6"  # 108° - 114° в.д.
+
+    return "wgs84"
+
+
 def wgs84_polygon_area(coords):
     """
     Вычисляет площадь полигона в WGS-84 (широта, долгота).
@@ -142,15 +213,49 @@ def wgs84_polygon_area(coords):
     return sum(area)
 
 
+def msk_polygon_area(coords, coordinates_system):
+    """
+    Вычисляет площадь полигона в МСК (широта, долгота).
+    Возвращает площадь в квадратных метрах.
+    """
+    area = []
+    n = len(coords)
+
+    if n < 3:
+        return 0.0
+
+    for i in range(n):
+        if len(coords[i]) != 2:
+            continue
+        elif None in coords[i]:
+            continue
+
+        lat1, lon1 = convert_proj4(coords[i][0], coords[i][1], 'wgs84', coordinates_system)
+        lat2, lon2 = convert_proj4(coords[(i + 1) % n][0], coords[(i + 1) % n][1], 'wgs84', coordinates_system)
+
+        local_area = (lat2 + lat1) * (lon2 - lon1) / 2
+        area.append(local_area)
+
+    return sum(area)
+
+
 def calculate_polygons_area(coordinates: dict):
     for key in coordinates.keys():
         if any([catalog_type in key.lower() for catalog_type in ('каталог', 'участок')]) and 'coordinate_system' in \
                 coordinates[key] and coordinates[key][
             'coordinate_system'] == 'wgs84':
             if sum(1 for elem in coordinates[key] if elem not in {'coordinate_system', 'area'}) > 2:
-                coordinates[key]['area'] = wgs84_polygon_area(
-                    [[float(coord) for coord in value if str_is_float(coord)] for key, value in
-                     list(coordinates[key].items()) if
-                     key not in ('coordinate_system', 'area')])
+                coordinates_extracted = [[float(coord) for coord in value if str_is_float(coord)] for key, value in
+                                         list(coordinates[key].items()) if key not in ('coordinate_system', 'area')]
+                coordinates_system = [determine_regional_msk(elem) for elem in coordinates_extracted]
+                print('all area coordinates_system: ' + str(coordinates_system))
+                coordinates_system = coordinates_system[0] if all(
+                    [coordinates_system[i] == coordinates_system[i + 1] for i in
+                     range(len(coordinates_system) - 1)]) and coordinates_system[0] else 'wgs84'
+                print('area coordinates_system: ' + coordinates_system)
+                if coordinates_system == 'wgs84':
+                    coordinates[key]['area'] = wgs84_polygon_area(coordinates_extracted)
+                else:
+                    coordinates[key]['area'] = msk_polygon_area(coordinates_extracted, coordinates_system)
             elif 'area' in coordinates[key]:
                 del coordinates[key]['area']
