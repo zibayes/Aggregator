@@ -59,16 +59,21 @@ services:
       POSTGRES_DB: postgres
       
   kodexplorer:
-    image: kodcloud/kodexplorer:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.kodexplorer
     container_name: kodexplorer
     restart: unless-stopped
     ports:
-      - "8080:80"  # Доступ к KodExplorer по http://localhost:8080
+      - "8080:80"
     volumes:
-      - ./uploaded_files:/var/www/html/data  # Хранение данных пользователя
-      - ./kodexplorer_config:/var/www/html/config  # Конфигурация (если нужна)
+      - ./uploaded_files:/var/www/html/data/uploaded_files
+      - ./convert_and_serve.php:/var/www/html/convert_and_serve.php
+      - ./kodexplorer_config:/var/www/html/data/User/admin/home/config
+      - kodexplorer_pdf:/tmp/kodexplorer_pdf
     environment:
-      - TZ=Asia/Krasnoyarsk  # Установите ваш часовой пояс
-      
+      - TZ=Asia/Krasnoyarsk
+
 volumes:
   postgres_data:
+  kodexplorer_pdf:

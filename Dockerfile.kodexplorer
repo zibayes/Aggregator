@@ -1,0 +1,2 @@
+FROM kodcloud/kodexplorer:latest
+RUN apk update && apk add --no-cache libreoffice libreoffice-lang-ru openjdk8-jre
