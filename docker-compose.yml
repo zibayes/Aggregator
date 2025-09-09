@@ -73,6 +73,21 @@ services:
       - kodexplorer_pdf:/tmp/kodexplorer_pdf
     environment:
       - TZ=Asia/Krasnoyarsk
+    user: root
+    
+  collabora:
+    image: collabora/code:latest
+    container_name: collabora
+    restart: unless-stopped
+    ports:
+      - "9980:9980"
+    environment:
+      - domain=127\\.0\\.0\\.1
+      - username=admin
+      - password=your_strong_password
+      - DONT_GEN_SSL_CERT=yes
+    cap_add:
+      - MKNOD
 
 volumes:
   postgres_data:
