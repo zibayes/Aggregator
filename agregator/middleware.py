@@ -74,6 +74,7 @@ class FilePreviewMiddleware(MiddlewareMixin):
         # Генерируем токен доступа
         access_token = generate_wopi_token(
             user_id=request.user.id if request.user.is_authenticated else 'anonymous',
+            username=request.user.username if request.user.is_authenticated else 'anonymous',
             file_path=relative_file_path,
             can_write=can_edit
         )

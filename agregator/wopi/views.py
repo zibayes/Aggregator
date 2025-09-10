@@ -7,7 +7,7 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.http import require_http_methods
 import jwt
 import datetime
-from urllib.parse import unquote
+from urllib.parse import unquote, quote
 import logging
 
 logger = logging.getLogger(__name__)
@@ -19,10 +19,11 @@ WOPI_FILE_ROOT = getattr(settings, 'WOPI_FILE_ROOT', '/app/user_data')
 WOPI_ACCESS_SECRET = getattr(settings, 'WOPI_ACCESS_SECRET', 'your_very_secret_key_change_me')
 
 
-def generate_wopi_token(user_id, file_path, can_write=True):
+def generate_wopi_token(user_id, username, file_path, can_write=True):
     """Генерирует JWT токен для WOPI доступа"""
     payload = {
         'user_id': user_id,
+        'username': username,
         'file_path': file_path,
         'can_write': can_write,
         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1)  # Токен на 1 час
@@ -125,27 +126,56 @@ def wopi_endpoint(request, file_id):
 
 def handle_check_file_info(request, file_path, file_id, token_data):
     """Обрабатывает запрос WOPI CheckFileInfo"""
-    file_name = os.path.basename(file_path)
-    file_size = os.path.getsize(file_path)
+    try:
+        file_name = os.path.basename(file_path)
+        file_size = os.path.getsize(file_path)
+        last_modified = os.path.getmtime(file_path)
 
-    can_write = token_data.get('can_write', False)
+        can_write = token_data.get('can_write', False)
 
-    response_data = {
-        'BaseFileName': file_name,
-        'Size': file_size,
-        'OwnerId': 'admin',
-        'UserId': token_data.get('user_id', 'anonymous'),
-        'UserFriendlyName': token_data.get('user_id', 'Anonymous'),
-        'UserCanWrite': can_write,  # Важно! Определяет права в Collabora
-        'UserCanNotWriteRelative': False,
-        'SupportsLocks': False,
-        'SupportsUpdate': True,
-        'SupportsGetLock': False,
-        'ReadOnly': not can_write,  # Противоположно UserCanWrite
-        'RestrictedWebViewOnly': False,
-        'LastModifiedTime': os.path.getmtime(file_path),
-    }
-    return JsonResponse(response_data)
+        response_data = {
+            'BaseFileName': file_name,
+            'Size': file_size,
+            'OwnerId': 'admin',
+            'UserId': token_data.get('user_id', 'anonymous'),
+            'UserFriendlyName': token_data.get('username', 'Anonymous'),
+            'UserCanWrite': can_write,  # Важно! Определяет права в Collabora
+            'UserCanNotWriteRelative': False,
+            'SupportsLocks': False,
+            'SupportsUpdate': True,
+            'SupportsGetLock': False,
+            'ReadOnly': not can_write,  # Противоположно UserCanWrite
+            'RestrictedWebViewOnly': False,
+            'LastModifiedTime': last_modified,
+
+            'Version': str(last_modified),
+            'BreadcrumbBrandName': 'Агрегатор',
+            'BreadcrumbDocName': file_name,
+            'BreadcrumbFolderName': os.path.dirname(file_id) or '/',
+
+            'DisablePrint': False,
+            'DisableExport': False,
+            'DisableCopy': False,
+            'EnableOwnerTermination': True,
+            'HidePrintOption': False,
+            'HideSaveOption': False,
+            'HideExportOption': False,
+            'HideUserList': False,
+            'MobileViewer': True,
+            'SupportsCobalt': False,
+            'SupportsRename': True,
+            'SupportsDeleteFile': True,
+            'CloseButtonClosesWindow': True,
+            'DownloadUrl': f'/wopi/files/{quote(file_id)}/contents?download=1',
+            'HostEditUrl': f'/uploaded_files/{file_id}',
+            'HostViewUrl': f'/uploaded_files/{file_id}',
+        }
+        logger.debug(f"CheckFileInfo response: {response_data}")
+        return JsonResponse(response_data)
+
+    except Exception as e:
+        logger.error(f"Error in CheckFileInfo: {e}")
+        return HttpResponse(status=500)
 
 
 def handle_get_file(request, file_path, token_data):
