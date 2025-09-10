@@ -5,11 +5,14 @@ from django.http import HttpResponse, FileResponse
 from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
 from django.http import HttpResponseRedirect
+from django.template.defaultfilters import filesizeformat
 from pathlib import Path
 import magic
 import tempfile
 import subprocess
 import shutil
+from urllib.parse import quote
+from .wopi.views import generate_wopi_token
 
 
 class FilePreviewMiddleware(MiddlewareMixin):
@@ -62,14 +65,47 @@ class FilePreviewMiddleware(MiddlewareMixin):
 
         relative_file_path = os.path.relpath(file_path, settings.MEDIA_ROOT)
 
+        # URL-кодируем путь для WOPI!
+        encoded_file_path = quote(relative_file_path)
+
+        # Определяем права пользователя (примерная логика)
+        can_edit = self._can_user_edit_file(request.user, file_path)
+
+        # Генерируем токен доступа
+        access_token = generate_wopi_token(
+            user_id=request.user.id if request.user.is_authenticated else 'anonymous',
+            file_path=relative_file_path,
+            can_write=can_edit
+        )
+
         # URL для WOPI-хоста (Django) - для Collabora (внутри Docker сети)
-        wopi_src_url = f"http://app:8000/wopi/files/{relative_file_path}"
+        wopi_src_url = f"http://app:8000/wopi/files/{encoded_file_path}"
 
         # Формируем полный URL для открытия в Collabora
-        collabora_url = f"http://127.0.0.1:9980/browser/dist/cool.html?WOPISrc={wopi_src_url}&lang=ru"
+        collabora_url = f"http://127.0.0.1:9980/browser/dist/cool.html?WOPISrc={wopi_src_url}&access_token={access_token}&lang=ru"
 
         # Немедленный редирект на Collabora
         return HttpResponseRedirect(collabora_url)
+
+    def _can_user_edit_file(self, user, file_path):
+        """Логика проверки прав на редактирование"""
+        # Здесь реализуй свою логику:
+        # - Проверка авторизации
+        # - Проверка прав доступа к файлу
+        # - Проверка ролей пользователя и т.д.
+
+        if not user.is_authenticated:
+            return False  # Анонимы не могут редактировать
+
+        # Пример: только суперпользователи могут редактировать
+        if user.is_superuser:
+            return True
+
+        # Пример: проверка прав через модель FileAccess
+        # from .models import FileAccess
+        # return FileAccess.objects.filter(user=user, file_path=file_path, can_edit=True).exists()
+
+        return False  # По умолчанию запрещаем редактирование
 
     def _convert_to_html(self, file_path):
         """Конвертирует офисные документы в HTML через LibreOffice"""
@@ -252,7 +288,6 @@ class FilePreviewMiddleware(MiddlewareMixin):
         """Показ информации о файле с возможностью скачивания"""
         try:
             file_size = os.path.getsize(file_path)
-            from django.template.defaultfilters import filesizeformat
             size_formatted = filesizeformat(file_size)
         except:
             size_formatted = "неизвестно"
