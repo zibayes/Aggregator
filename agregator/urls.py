@@ -1,6 +1,7 @@
 from django.urls import path, include
 from . import views
 from rest_framework.routers import DefaultRouter
+from agregator.wopi import views as wopi_views
 
 router = DefaultRouter()
 
@@ -116,4 +117,8 @@ urlpatterns = [
     path('api/scientific_reports/<int:pk>/', views.ScientificReportDetail.as_view()),
     path('api/tech_reports/', views.TechReportList.as_view()),
     path('api/tech_reports/<int:pk>/', views.TechReportDetail.as_view()),
+
+    path('wopi/files/<str:file_id>', wopi_views.wopi_endpoint, name='wopi_endpoint'),
+    path('wopi/files/<str:file_id>/contents', wopi_views.wopi_endpoint, name='wopi_get_file'),
+    path('wopi/files/<str:file_id>/contents', wopi_views.wopi_put_file, name='wopi_put_file'),
 ]

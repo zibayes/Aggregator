@@ -82,15 +82,13 @@ services:
     ports:
       - "9980:9980"
     environment:
-      - domain=127\\.0\\.0\\.1
+      - aliasgroup1=http://app:8000
       - username=admin
-      - password=your_strong_password
+      - password=admin
       - DONT_GEN_SSL_CERT=yes
-      - extra_params=--o:ssl.enable=false --o:storage.wopi[@allow]=true --o:storage.wopi.host.allowlist[0]=127.0.0.1 --o:storage.wopi.host.allowlist[1]=localhost --o:storage.wopi.host.allowlist[2]=app
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    volumes:
-      - ./uploaded_files:/var/www/html/uploaded_files
+      - extra_params=--o:ssl.enable=false --o:storage.wopi.host.allowlist=localhost,127.0.0.1,app,host.docker.internal
+      - dictionaries=ru en_US
+      - LANGUAGE=ru_RU.UTF-8
     cap_add:
       - MKNOD
 

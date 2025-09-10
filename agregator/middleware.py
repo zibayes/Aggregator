@@ -4,6 +4,7 @@ import html
 from django.http import HttpResponse, FileResponse
 from django.conf import settings
 from django.utils.deprecation import MiddlewareMixin
+from django.http import HttpResponseRedirect
 from pathlib import Path
 import magic
 import tempfile
@@ -42,7 +43,7 @@ class FilePreviewMiddleware(MiddlewareMixin):
 
         # Для текстовых файлов
         elif ext in ['.txt', '.csv', '.log', '.xml', '.html', '.htm', '.css', '.js', '.py']:
-            return self._serve_text(file_path, filename, request)
+            return self._serve_office(file_path, filename, request)
 
         # Для офисных документов
         elif ext in ['.doc', '.docx', '.odt', '.xlsx', '.xls', '.ppt', '.pptx']:
@@ -57,46 +58,18 @@ class FilePreviewMiddleware(MiddlewareMixin):
             return self._serve_file_info(file_path, filename, request)
 
     def _serve_office(self, file_path, filename, request):
-        """Конвертируем офисные документы в HTML для просмотра"""
-        download_url = f"{request.path}?download=1"
+        """Немедленно перенаправляем офисные документы в Collabora"""
 
-        # Конвертируем в HTML
-        html_content = self._convert_to_html(file_path)
+        relative_file_path = os.path.relpath(file_path, settings.MEDIA_ROOT)
 
-        if html_content:
-            html_content = f'''
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>{html.escape(filename)}</title>
-                <style>
-                    body {{ margin: 20px; }}
-                    .download-btn {{
-                        position: fixed;
-                        top: 15px;
-                        right: 15px;
-                        z-index: 1000;
-                        padding: 10px 20px;
-                        background: #007bff;
-                        color: white;
-                        text-decoration: none;
-                        border-radius: 5px;
-                    }}
-                </style>
-            </head>
-            <body>
-                <a href="{download_url}" class="download-btn">⬇️ Скачать оригинал</a>
-                <div style="margin-top: 60px;">
-                    {html_content}
-                </div>
-            </body>
-            </html>
-            '''
-        else:
-            # Fallback на информацию о файле
-            html_content = self._serve_file_info(file_path, filename, request)
+        # URL для WOPI-хоста (Django) - для Collabora (внутри Docker сети)
+        wopi_src_url = f"http://app:8000/wopi/files/{relative_file_path}"
 
-        return HttpResponse(html_content)
+        # Формируем полный URL для открытия в Collabora
+        collabora_url = f"http://127.0.0.1:9980/browser/dist/cool.html?WOPISrc={wopi_src_url}&lang=ru"
+
+        # Немедленный редирект на Collabora
+        return HttpResponseRedirect(collabora_url)
 
     def _convert_to_html(self, file_path):
         """Конвертирует офисные документы в HTML через LibreOffice"""
