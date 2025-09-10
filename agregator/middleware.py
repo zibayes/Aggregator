@@ -49,11 +49,11 @@ class FilePreviewMiddleware(MiddlewareMixin):
             return self._serve_office(file_path, filename, request)
 
         # Для офисных документов
-        elif ext in ['.doc', '.docx', '.odt', '.xlsx', '.xls', '.ppt', '.pptx']:
+        elif ext in ['.doc', '.docx', '.odt', '.xlsx', '.xlsm', '.xls', '.ppt', '.pptx']:
             return self._serve_office(file_path, filename, request)
 
-        # Для KML/KMZ - показываем как XML с подсветкой
-        elif ext in ['.kml', '.kmz']:
+        # Для KML - показываем как XML с подсветкой
+        elif ext in ['.kml']:
             return self._serve_kml(file_path, filename, request)
 
         # Для остальных форматов - показываем информацию о файле
