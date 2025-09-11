@@ -17,7 +17,7 @@
 
 {% block heritage_links %}
 {% if identified_archaeological_heritage_site.account_card_id %}
-<a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px;"
+<a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px; margin-bottom:8px;"
    href="/account_cards/{{ identified_archaeological_heritage_site.account_card_id }}">
     Учётная карта
 </a>
@@ -43,7 +43,8 @@
 
 {% block heritage_actions %}
 {% if identified_archaeological_heritage_site.user.id == user.id or user.is_superuser %}
-<a href="/admin/filebrowser/browse/?&dir={{ identified_archaeological_heritage_site.source|cut:'uploaded_files/' }}">
+<!-- href="/admin/filebrowser/browse/?&dir={{ identified_archaeological_heritage_site.source|cut:'uploaded_files/' }}" -->
+<a href="http://127.0.0.1:8080/index.php?explorer/&path=/var/www/html/data/{{ identified_archaeological_heritage_site.source }}">
     <button type="button" class="btn btn-primary edit-button"
             style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
         Открыть в файловом менеджере
