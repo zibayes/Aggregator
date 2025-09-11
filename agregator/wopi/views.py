@@ -37,8 +37,8 @@ def verify_wopi_token(token, file_path):
     try:
         payload = jwt.decode(token, WOPI_ACCESS_SECRET, algorithms=['HS256'])
         # Проверяем, что токен предназначен для этого файла
-        token_path = unquote(payload['file_path']).replace('+', ' ').strip().lstrip('/')
-        request_path = unquote(file_path).replace('+', ' ').strip().lstrip('/')
+        token_path = unquote(payload['file_path']).strip().lstrip('/')
+        request_path = unquote(file_path).strip().lstrip('/')
         if token_path != request_path:
             logger.error(f"Token path mismatch: '{token_path}' != '{request_path}'")
             return None
@@ -57,32 +57,24 @@ def get_safe_path(file_id):
     """
     logger.debug(f"RAW file_id: '{file_id}'")
 
-    # Декодируем URL без потери плюсов (меняем %20 на пробелы, но оставляем +)
-    decoded = unquote(file_id.replace('%20', ' '))
+    # Декодируем URL
+    decoded = unquote(file_id)
     clean_path = decoded.strip().lstrip('/')
     logger.debug(f"AFTER DECODING: '{clean_path}'")
 
-    # Пробуем оба варианта (с пробелами и с плюсами)
-    variants = [
-        clean_path,
-        clean_path.replace(' ', '+')  # Для файлов типа "+УК_10_12_2018..."
-    ]
+    abs_path = os.path.abspath(os.path.join(WOPI_FILE_ROOT, clean_path))
+    root_path = os.path.abspath(WOPI_FILE_ROOT)
 
-    # Проверяем каждый вариант пути
-    for variant in variants:
-        abs_path = os.path.abspath(os.path.join(WOPI_FILE_ROOT, variant))
-        root_path = os.path.abspath(WOPI_FILE_ROOT)
+    # Защита от path traversal
+    if not abs_path.startswith(root_path + os.sep):
+        logger.debug(f"BLOCKED PATH TRAVERSAL: {abs_path}")
+        return None
 
-        # Защита от path traversal
-        if not abs_path.startswith(root_path + os.sep):
-            logger.debug(f"BLOCKED PATH TRAVERSAL: {abs_path}")
-            continue
+    if os.path.exists(abs_path):
+        logger.debug(f"FOUND MATCHING PATH: {abs_path}")
+        return abs_path
 
-        if os.path.exists(abs_path):
-            logger.debug(f"FOUND MATCHING PATH: {abs_path}")
-            return abs_path
-
-    logger.error(f"FILE NOT FOUND. TRIED VARIANTS: {variants}")
+    logger.error(f"FILE NOT FOUND. TRIED VARIANTS: {clean_path}")
     return None
 
 
@@ -220,7 +212,10 @@ def handle_get_file(request, file_path, token_data):
 @require_http_methods(['POST'])
 def wopi_put_file(request, file_id):
     """Обрабатывает запрос WOPI PutFile - сохраняет изменения из Collabora"""
-    file_path = os.path.join(WOPI_FILE_ROOT, file_id)
+    # file_path = os.path.join(WOPI_FILE_ROOT, file_id)
+    file_path = get_safe_path(file_id)
+    if file_path is None:
+        return HttpResponse("Invalid file path", status=400)
 
     try:
         with open(file_path, 'wb') as f:
@@ -262,132 +257,46 @@ def kodexplorer_proxy(request):
     2. Находит реальный путь к файлу (с учётом пробелов/плюсов)
     3. Генерирует WOPI-ссылку с правильным кодированием
     """
-    logger.info(f"REQUEST: {request.GET}")
-
-    logger.info("=" * 80)
-    logger.info("FULL REQUEST DUMP:")
-    logger.info(f"Method: {request.method}")
-    logger.info(f"Path: {request.path}")
-    logger.info(f"Full path: {request.get_full_path()}")
-    logger.info(f"GET params: {dict(request.GET)}")
-    logger.info(f"POST params: {dict(request.POST)}")
-    logger.info(f"Headers: {dict(request.headers)}")
-    logger.info(f"META data:")
-    for key, value in request.META.items():
-        if any(kw in key for kw in ['HTTP', 'QUERY', 'PATH', 'CONTENT']):
-            logger.info(f"  {key}: {value}")
-
-    # Логируем сырой QUERY_STRING
-    query_string = request.META.get('QUERY_STRING', '')
-    logger.info(f"RAW QUERY_STRING: {query_string}")
-
-    # Парсим QUERY_STRING вручную
-    from urllib.parse import parse_qs
-    params = parse_qs(query_string, keep_blank_values=True)
-    logger.info(f"PARSED QUERY_STRING: {params}")
-
-    # Пробуем все возможные параметры
-    path_value = request.GET.get('path', '')
-    logger.info(f"Raw path value: {path_value}")
-
-    # Декодируем и анализируем
     try:
-        decoded_path = unquote(path_value)
-        prefix = '/var/www/html/data'
-        if decoded_path.startswith(prefix):
-            decoded_path = decoded_path[len(prefix):]
-        logger.info(f"Decoded path: {decoded_path}")
+        # Получаем полный путь из параметра
+        full_path = request.GET.get('path', '')
+        if not full_path:
+            return HttpResponse("Missing path parameter", status=400)
 
-        # Парсим как URL
-        parsed_url = urlparse(decoded_path)
-        logger.info(f"Parsed URL: {parsed_url}")
+        logger.info(f"Full path from Kodexplorer: {full_path}")
 
-        # Парсим query параметры из URL
-        url_params = parse_qs(parsed_url.query, keep_blank_values=True)
-        logger.info(f"URL query params: {url_params}")
-
-        # Ищем ВСЕ возможные параметры с путями
-        all_path_params = {}
-        for key, values in url_params.items():
-            if any(x in key.lower() for x in ['path', 'file', 'name', 'fid']):
-                all_path_params[key] = values
-
-        logger.info(f"All path-related params: {all_path_params}")
-
-    except Exception as e:
-        logger.error(f"Error parsing: {e}")
-
-    logger.info("=" * 80)
-
-    # Извлекаем file_name из вложенного URL
-    try:
-        path = request.GET.get('path')
-        if not path:
-            return HttpResponse("Missing 'path' parameter", status=400)
-
-        # Достаём file_name из параметров вложенного URL
-        parsed = urlparse(unquote(path))
-        params = parse_qs(parsed.query)
-        fid = params.get('fid', [''])[0]
-        file_name = params.get('file_name', [''])[0].strip()
-
-        logger.info(f"FID: {fid}")
-        logger.info(f"File name: {file_name}")
-
-        if not file_name:
-            return HttpResponse("Missing 'file_name'", status=400)
-
-        # Удаляем первый слэш, если есть, но сохраняем плюсы!
-        file_path = unquote(file_name).lstrip('/')
-        logger.info(f"EXTRACTED FILE PATH: '{file_path}'")
-
-        import glob
-        search_pattern = os.path.join(WOPI_FILE_ROOT, '**', file_name)
-        found_files = glob.glob(search_pattern, recursive=True)
-
-        if found_files:
-            # Берём первый найденный файл
-            full_file_path = os.path.relpath(found_files[0], WOPI_FILE_ROOT)
-            logger.info(f"Found file: '{full_file_path}'")
+        # Убираем корневую часть пути Kodexplorer
+        kode_root = '/var/www/html/data/uploaded_files/'
+        if full_path.startswith(kode_root):
+            file_path = full_path[len(kode_root):]
+            logger.info(f"Relative file path: {file_path}")
         else:
-            # Если не нашли - пробуем альтернативные варианты имени
-            logger.warning(f"File '{file_name}' not found, trying alternatives...")
+            file_path = full_path
+            logger.info(f"Using original path: {file_path}")
 
-            # Вариант 1: Заменяем пробелы на плюсы
-            alt_name_1 = file_name.replace(' ', '+')
-            search_pattern_1 = os.path.join(WOPI_FILE_ROOT, '**', alt_name_1)
-            found_files_1 = glob.glob(search_pattern_1, recursive=True)
+        # absolute_path = os.path.join(WOPI_FILE_ROOT, file_path)
+        absolute_path = get_safe_path(file_path)
 
-            # Вариант 2: Ищем без первого слэша
-            alt_name_2 = file_name.lstrip('/')
-            search_pattern_2 = os.path.join(WOPI_FILE_ROOT, '**', alt_name_2)
-            found_files_2 = glob.glob(search_pattern_2, recursive=True)
+        if absolute_path is None or not os.path.exists(absolute_path):
+            logger.error(f"File not found: {absolute_path}")
+            return HttpResponse("File not found", status=404)
 
-            if found_files_1:
-                full_file_path = os.path.relpath(found_files_1[0], WOPI_FILE_ROOT)
-                logger.info(f"Found with spaces replaced: '{full_file_path}'")
-            elif found_files_2:
-                full_file_path = os.path.relpath(found_files_2[0], WOPI_FILE_ROOT)
-                logger.info(f"Found without leading slash: '{full_file_path}'")
-            else:
-                # Последний вариант - используем как есть
-                full_file_path = file_name
-                logger.warning(f"Using original filename: '{full_file_path}'")
-
-        file_path = full_file_path
+        logger.info(f"File exists: {absolute_path}")
 
         # Генерация токена
         access_token = generate_wopi_token(
-            user_id=1,  # Заглушка (реализуй свою логику)
-            username='user',
+            user_id=request.user.id if request.user.is_authenticated else 'anonymous',
+            username=request.user.username if request.user.is_authenticated else 'Anonymous',
             file_path=file_path,
             can_write=True
         )
 
-        # URL для Collabora с двойным кодированием спецсимволов
-        wopi_src = quote(f"http://app:8000/wopi/files/{quote(file_path)}", safe='')
+        # Формируем WOPI URL
+        encoded_path = encode_file_path(file_path)
+        wopi_src = quote(f"http://app:8000/wopi/files/{encoded_path}", safe='')
         wopi_url = f"http://127.0.0.1:9980/browser/dist/cool.html?WOPISrc={wopi_src}&access_token={access_token}&lang=ru"
 
+        logger.info(f"Redirecting to Collabora: {wopi_url}")
         return HttpResponseRedirect(wopi_url)
 
     except Exception as e:
