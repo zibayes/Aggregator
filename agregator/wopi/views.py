@@ -9,6 +9,8 @@ import jwt
 import datetime
 from urllib.parse import unquote, quote, urlparse, parse_qs
 import logging
+from archeology.settings import BASE_URL
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +88,10 @@ def wopi_endpoint(request, file_id):
     - GET к /wopi/files/<file_id> -> CheckFileInfo
     - GET к /wopi/files/<file_id>/contents -> GetFile
     """
+    logger.debug(f"wopi_endpoint called with method {request.method} and file_id {file_id}")
+    if request.method == 'POST':
+        logger.error("POST request received in wopi_endpoint - should be handled by wopi_contents!")
+        return HttpResponse("POST not supported here", status=400)
     logger.debug(f"WOPI CHECKFILEINFO: file_id='{file_id}'")
     logger.debug(f"WOPI Request: {request.method} {request.path}")
     logger.debug(f"GET params: {dict(request.GET)}")
@@ -143,7 +149,7 @@ def handle_check_file_info(request, file_path, file_id, token_data):
     try:
         file_name = os.path.basename(file_path)
         file_size = os.path.getsize(file_path)
-        last_modified = os.path.getmtime(file_path)
+        last_modified = int(os.path.getmtime(file_path) * 1000)
 
         can_write = token_data.get('can_write', False)
 
@@ -155,9 +161,12 @@ def handle_check_file_info(request, file_path, file_id, token_data):
             'UserFriendlyName': token_data.get('username', 'Anonymous'),
             'UserCanWrite': can_write,  # Важно! Определяет права в Collabora
             'UserCanNotWriteRelative': False,
-            'SupportsLocks': False,
             'SupportsUpdate': True,
+            'SupportsLocks': False,
             'SupportsGetLock': False,
+            'SupportsCobalt': False,
+            'SupportsRename': True,
+            'SupportsDeleteFile': True,
             'ReadOnly': not can_write,  # Противоположно UserCanWrite
             'RestrictedWebViewOnly': False,
             'LastModifiedTime': last_modified,
@@ -176,13 +185,11 @@ def handle_check_file_info(request, file_path, file_id, token_data):
             'HideExportOption': False,
             'HideUserList': False,
             'MobileViewer': True,
-            'SupportsCobalt': False,
-            'SupportsRename': True,
-            'SupportsDeleteFile': True,
             'CloseButtonClosesWindow': True,
             'DownloadUrl': f'/wopi/files/{quote(file_id)}/contents?download=1',
             'HostEditUrl': f'/uploaded_files/{file_id}',
             'HostViewUrl': f'/uploaded_files/{file_id}',
+            'FileUrl': f'{BASE_URL}/wopi/files/{quote(file_id)}/contents',
 
             'X-WOPI-ServerVersion': '1.0',
             'X-WOPI-CollectionError': 'none',
@@ -207,26 +214,63 @@ def handle_get_file(request, file_path, token_data):
         return HttpResponse(status=404)
 
 
-# Обработчик для сохранения файла (POST /contents)
 @csrf_exempt
-@require_http_methods(['POST'])
+@require_http_methods(["GET", "POST"])
+def wopi_contents(request, file_id):
+    if request.method == "GET":
+        return wopi_get_file(request, file_id)
+    elif request.method == "POST":
+        return wopi_put_file(request, file_id)
+    return HttpResponse(status=405)
+
+
 def wopi_put_file(request, file_id):
     """Обрабатывает запрос WOPI PutFile - сохраняет изменения из Collabora"""
-    # file_path = os.path.join(WOPI_FILE_ROOT, file_id)
+    logger.debug(f"PUT_FILE request for: {file_id}")
+    logger.debug(f"Content-Length: {request.headers.get('Content-Length')}")
+    logger.debug(f"Content-Type: {request.headers.get('Content-Type')}")
+
     file_path = get_safe_path(file_id)
     if file_path is None:
         return HttpResponse("Invalid file path", status=400)
 
+    # Проверка токена
+    access_token = request.GET.get('access_token', '')
+    if not access_token:
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            access_token = auth_header[7:]
+
+    logger.debug(f"Access token: {access_token}")
+
+    if not access_token:
+        return HttpResponse("Access token required", status=401)
+
+    token_data = verify_wopi_token(access_token, file_id)
+    if not token_data or not token_data.get('can_write', False):
+        return HttpResponse("Access denied", status=403)
+
     try:
+        # Сохраняем файл
         with open(file_path, 'wb') as f:
             f.write(request.body)
-        return HttpResponse(status=200)
-    except IOError:
+        current_time = int(time.time() * 1000)
+
+        # Возвращаем правильный заголовок с временем модификации
+        response = HttpResponse(status=200)
+        response['X-WOPI-ItemVersion'] = str(current_time)
+        response['X-LOOL-WOPI-Timestamp'] = str(current_time)
+        response['Content-Length'] = '0'
+        file_size = os.path.getsize(file_path)
+        response['X-WOPI-ItemVersion'] = str(current_time)
+        response['X-WOPI-ItemSize'] = str(file_size)
+        return response
+
+    except IOError as e:
+        logger.error(f"Error saving file {file_path}: {e}")
         return HttpResponse(status=500)
 
 
-@csrf_exempt
-@require_http_methods(['GET'])
 def wopi_get_file(request, file_id):
     """Обрабатывает запрос WOPI GetFile - отдаёт содержимое файла"""
     print(f"WOPI GET FILE: file_id='{file_id}'")

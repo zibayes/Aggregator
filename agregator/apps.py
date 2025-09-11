@@ -15,6 +15,10 @@ class AgregatorConfig(AppConfig):
         print("AgregatorConfig.ready() вызван")
         # Подключаем сигнал
         post_migrate.connect(self.load_geojson_data)
+        post_migrate.connect(self.create_links_for_existing)
+
+        # Подключаем сигналы для автоматического создания ссылок
+        self.connect_model_signals()
 
         # Создаем папки при запуске
         self.create_folders()
@@ -23,6 +27,30 @@ class AgregatorConfig(AppConfig):
         print("Сигнал post_migrate получен")
         from .processing.coordinates_extraction import save_geojson_polygons_to_db
         save_geojson_polygons_to_db()
+
+    def connect_model_signals(self):
+        """Подключаем сигналы для моделей"""
+        from django.db.models.signals import post_save, post_delete
+        from agregator.models import (Act, ScientificReport, TechReport, OpenLists,
+                                      ObjectAccountCard, ArchaeologicalHeritageSite,
+                                      IdentifiedArchaeologicalHeritageSite, CommercialOffers, GeoObject)
+        from agregator.signals import auto_create_links, auto_delete_links
+
+        models = [Act, ScientificReport, TechReport, OpenLists,
+                  ObjectAccountCard, ArchaeologicalHeritageSite,
+                  IdentifiedArchaeologicalHeritageSite, CommercialOffers, GeoObject]
+
+        for model in models:
+            post_save.connect(auto_create_links, sender=model)
+            post_delete.connect(auto_delete_links, sender=model)
+
+        print("Сигналы для автоматических ссылок подключены")
+
+    def create_links_for_existing(self, **kwargs):
+        """Создает ссылки для существующих объектов после миграций"""
+        print("Создание ссылок для существующих объектов...")
+        from agregator.processing.links import create_links_for_all_existing
+        create_links_for_all_existing()
 
     def create_folders(self):
         """Создание системных папок"""
@@ -45,7 +73,7 @@ class AgregatorConfig(AppConfig):
             'uploaded_files/Учётные карты',
             'uploaded_files/Памятники',
             'uploaded_files/Коммерческие предложения',
-            
+
             'uploaded_files/Географические объекты',
         ]
         for folder in folders:

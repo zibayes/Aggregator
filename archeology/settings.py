@@ -17,6 +17,8 @@ from agregator.redis_config import REDIS_URL
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+BASE_URL = 'http://127.0.0.1:8000'
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
@@ -67,9 +69,12 @@ FILEBROWSER_ACTIONS = [
     'move', 'rename', 'delete', 'mkdir'
 ]
 AUTH_USER_MODEL = 'agregator.User'
+DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",  # URL Angular
+    "http://127.0.0.1:9980",  # URL Collabora
+    "http://localhost:9980",  # URL Collabora
 ]
 
 REST_FRAMEWORK = {

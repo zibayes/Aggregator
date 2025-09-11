@@ -3,6 +3,7 @@ from . import views
 from rest_framework.routers import DefaultRouter
 from agregator.wopi import views as wopi_views
 from agregator.wopi.views import kodexplorer_proxy
+from django.views.decorators.http import require_http_methods
 
 router = DefaultRouter()
 
@@ -119,8 +120,7 @@ urlpatterns = [
     path('api/tech_reports/', views.TechReportList.as_view()),
     path('api/tech_reports/<int:pk>/', views.TechReportDetail.as_view()),
 
+    path('wopi/files/<path:file_id>/contents', wopi_views.wopi_contents, name='wopi_contents'),
     path('wopi/files/<path:file_id>', wopi_views.wopi_endpoint, name='wopi_endpoint'),
-    path('wopi/files/<path:file_id>/contents', wopi_views.wopi_get_file, name='wopi_get_file'),
-    path('wopi/files/<path:file_id>/contents', wopi_views.wopi_put_file, name='wopi_put_file'),
     path('kodexplorer-proxy/', kodexplorer_proxy, name='kodexplorer_proxy'),
 ]
