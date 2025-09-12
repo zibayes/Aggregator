@@ -21,7 +21,7 @@ class UserTasksSerializer(serializers.ModelSerializer):
 class ActSerializer(serializers.ModelSerializer):
     class Meta:
         model = Act
-        fields = ['id', 'user_id', 'supplement_id', 'year',
+        fields = ['id', 'user_id', 'supplement', 'year',
                   'finish_date', 'type', 'name_number', 'place', 'customer',
                   'area', 'expert', 'executioner', 'open_list', 'conclusion', 'border_objects',
                   'act', 'start_date', 'exp_place', 'exp_customer', 'relationship', 'goal',
@@ -31,7 +31,7 @@ class ActSerializer(serializers.ModelSerializer):
 class ScientificReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = ScientificReport
-        fields = ['id', 'user_id', 'supplement_id', 'name',
+        fields = ['id', 'user_id', 'supplement', 'name',
                   'organization', 'author', 'open_list',
                   'writing_date', 'introduction', 'contractors', 'place',
                   'area_info', 'research_history', 'results', 'conclusion']
@@ -40,7 +40,7 @@ class ScientificReportSerializer(serializers.ModelSerializer):
 class TechReportSerializer(serializers.ModelSerializer):
     class Meta:
         model = TechReport
-        fields = ['id', 'user_id', 'supplement_id', 'name',
+        fields = ['id', 'user_id', 'supplement', 'name',
                   'organization', 'author', 'open_list',
                   'writing_date', 'introduction', 'contractors', 'place',
                   'area_info', 'research_history', 'results', 'conclusion']

@@ -87,7 +87,10 @@ def get_user_tasks_open_lists(request):
 
 @login_required
 def get_user_tasks_external(request):
-    admin = User.objects.get(is_superuser=True)
+    try:
+        admin = User.objects.get(is_superuser=True)
+    except User.DoesNotExist:
+        admin = request.user
     tasks_id = get_user_tasks(admin.id, ('act', 'scientific_report', 'tech_report', 'open_list'), True)
     return JsonResponse({'tasks_id': tasks_id})
 
@@ -242,7 +245,10 @@ def external_sources(request):
         scan_task = external_sources_processing.delay(start_date, end_date, select_text, select_image, select_coord)
         scan_task_id = scan_task.id
         is_processing = True
-    admin = User.objects.get(is_superuser=True)
+    try:
+        admin = User.objects.get(is_superuser=True)
+    except User.DoesNotExist:
+        admin = request.user
     tasks_id = get_user_tasks(admin.id, ('act', 'scientific_report', 'tech_report', 'open_list'), True)
     return render(request, 'external_sources.html',
                   {'is_processing': is_processing, 'tasks_id': tasks_id, 'scan_task_id': scan_task_id,
@@ -339,16 +345,18 @@ def interactive_map(request):
     for act in acts:
         all_coordinates['Акты'][
             act.id] = {'coordinates': act.coordinates_dict,
-                       'report_name': act.source_dict[0][
-                           'origin_filename']}
+                       'report_name': act.source_dict[0]['origin_filename'] if act.source_dict and len(
+                           act.source_dict) > 0 else 'Неизвестный файл'}
     for report in scientific_reports:
         all_coordinates['Научные отчёты'][report.id] = {'coordinates': report.coordinates_dict,
                                                         'report_name': report.source_dict[0][
-                                                            'origin_filename']}
+                                                            'origin_filename'] if report.source_dict and len(
+                                                            report.source_dict) > 0 else 'Неизвестный файл'}
     for report in tech_report:
         all_coordinates['Научно-технические отчёты'][report.id] = {'coordinates': report.coordinates_dict,
                                                                    'report_name': report.source_dict[0][
-                                                                       'origin_filename']}
+                                                                       'origin_filename'] if report.source_dict and len(
+                                                                       report.source_dict) > 0 else 'Неизвестный файл'}
     return render(request, 'interactive_map.html', {'all_coordinates': all_coordinates})
 
 
@@ -765,7 +773,9 @@ def map(request, report_type, pk):
             report = ScientificReport.objects.get(id=pk)
         elif report_type == 'tech_report':
             report = TechReport.objects.get(id=pk)
-        report_name = report.source_dict[0]['origin_filename']
+        report_name = report.source_dict[0]['origin_filename'] if report.source_dict and len(
+            report.source_dict) > 0 else report.origin_filename if hasattr(report,
+                                                                           'origin_filename') else 'Неизвестный файл'
     coordinates = report.coordinates_dict if report else {}
     matching_polygons = {'matching_polygons': get_geojson_polygons_sync(coordinates)}
     return render(request, 'interactive_map.html',

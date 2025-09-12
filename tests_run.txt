@@ -12,3 +12,13 @@ pytest agregator/tests/test_models.py --cov=agregator.models --cov-report=term-m
 
 # Детальный отчет о непокрытых строках
 pytest --cov=agregator.models --cov-report=html
+
+pytest agregator/tests/test_views/test_auth_views.py --cov=agregator.views --cov-report=term-missing -v
+
+pytest agregator/tests/test_views/test_crud_views.py --cov=agregator.views --cov-report=term-missing -v
+
+pytest agregator/tests/test_views/test_file_views.py --cov=agregator.views --cov-report=term-missing -v
+
+pytest agregator/tests/test_views/test_api_views.py --cov=agregator.views --cov-report=term-missing -v
+
+pytest agregator/tests/test_views/ --cov=agregator.views --cov-report=term-missing -v

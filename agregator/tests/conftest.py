@@ -1,6 +1,31 @@
 import pytest
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+
+@pytest.fixture
+def client():
+    from django.test import Client
+    return Client()
+
+
+@pytest.fixture
+def api_client():
+    from rest_framework.test import APIClient
+    return APIClient()
+
+
+@pytest.fixture
+def test_act(db, test_user):
+    from agregator.models import Act
+    return Act.objects.create(
+        user=test_user,
+        year='2023',
+        name_number='test-123'
+    )
 
 
 @pytest.fixture
