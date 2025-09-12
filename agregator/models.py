@@ -17,7 +17,10 @@ def to_json(value):
 
 def from_json(value):
     if value is not None and not isinstance(value, dict) and not isinstance(value, list):
-        return json.loads(value)
+        try:
+            return json.loads(value)
+        except (json.JSONDecodeError, TypeError):
+            return value
     return value
 
 
@@ -51,6 +54,24 @@ def delete_files(file_path):
         '''
 
 
+def delete_files_from_json_field(field_value):
+    if not field_value:
+        return
+    if isinstance(field_value, str):
+        try:
+            field_value = json.loads(field_value)
+        except (json.JSONDecodeError, TypeError):
+            return
+    if isinstance(field_value, list) and len(field_value) > 0:
+        path = field_value[0].get('path')
+        if path:
+            delete_files(path)
+    elif isinstance(field_value, dict):
+        path = field_value.get('path')
+        if path:
+            delete_files(path)
+
+
 # Модель для пользователей
 class User(AbstractUser):
     avatar = models.ImageField(upload_to='avatars/', default='avatars/default.png')
@@ -67,8 +88,7 @@ class User(AbstractUser):
         # Если у нас есть старый аватар и он не является значением по умолчанию
         if self.pk:  # Проверяем, что объект уже существует
             old_avatar = User.objects.get(pk=self.pk).avatar
-            if old_avatar and old_avatar.name != 'avatars/default.png' and \
-                    self.avatar and self.avatar.name != old_avatar.name:
+            if self._should_delete_old_avatar(old_avatar):
                 # Удаляем старый файл
                 if default_storage.exists(old_avatar.name):
                     default_storage.delete(old_avatar.name)
@@ -80,6 +100,13 @@ class User(AbstractUser):
         if self.avatar.name != 'avatars/default.png' and self.avatar:
             delete_files(self.avatar.path)
         super().delete(*args, **kwargs)
+
+    def _should_delete_old_avatar(self, old_avatar):
+        """Вспомогательный метод для тестирования логики удаления аватара"""
+        if old_avatar and old_avatar.name != 'avatars/default.png' and \
+                self.avatar and self.avatar.name != old_avatar.name:
+            return True
+        return False
 
 
 # Модель для пользовательских загрузок
@@ -161,10 +188,7 @@ class Act(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if not isinstance(self.source, dict):
-            self.source = json.loads(self.source)
-        if self.source and len(self.source) > 0:
-            delete_files(self.source[0]['path'])
+        delete_files_from_json_field(self.source)
         super().delete(*args, **kwargs)
 
     @property
@@ -227,10 +251,7 @@ class ScientificReport(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if not isinstance(self.source, dict):
-            self.source = json.loads(self.source)
-        if self.source and len(self.source) > 0:
-            delete_files(self.source[0]['path'])
+        delete_files_from_json_field(self.source)
         super().delete(*args, **kwargs)
 
     @property
@@ -297,10 +318,7 @@ class TechReport(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if not isinstance(self.source, dict):
-            self.source = json.loads(self.source)
-        if self.source and len(self.source) > 0:
-            delete_files(self.source[0]['path'])
+        delete_files_from_json_field(self.source)
         super().delete(*args, **kwargs)
 
     @property
@@ -444,10 +462,7 @@ class ArchaeologicalHeritageSite(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if not isinstance(self.document_source, dict):
-            self.document_source = json.loads(self.document_source)
-        if self.document_source and len(self.document_source) > 0:
-            delete_files(self.document_source[0]['path'])
+        delete_files_from_json_field(self.document_source)
 
         if self.source and len(self.source) > 0:
             delete_files(self.source)
@@ -483,10 +498,7 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if not isinstance(self.document_source, dict):
-            self.document_source = json.loads(self.document_source)
-        if self.document_source and len(self.document_source) > 0:
-            delete_files(self.document_source[0]['path'])
+        delete_files_from_json_field(self.document_source)
 
         if self.source and len(self.source) > 0:
             delete_files(self.source)
