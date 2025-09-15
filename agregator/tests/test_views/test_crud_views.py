@@ -7,6 +7,7 @@ from agregator.models import Act, ScientificReport, TechReport, OpenLists, Objec
     ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, UserTasks
 from django_celery_results.models import TaskResult
 from unittest.mock import patch, MagicMock
+import json
 
 User = get_user_model()
 
@@ -400,6 +401,49 @@ class TestFileUploadViews:
         mock_save.assert_called_once()
         mock_apply.assert_called_once()
 
+    @patch('agregator.views.raw_account_cards_save')
+    @patch('agregator.views.process_account_cards.apply_async')
+    def test_account_cards_upload_post(self, mock_process, mock_save, client, test_user):
+        """Тест загрузки учетных карт"""
+        client.force_login(test_user)
+
+        mock_save.return_value = [1, 2, 3]
+        mock_task = MagicMock()
+        mock_task.task_id = 'test-task-123'
+        mock_process.return_value = mock_task
+
+        file = SimpleUploadedFile("test.pdf", b"file_content", content_type="application/pdf")
+
+        response = client.post(reverse('account_cards_upload'), {
+            'files': [file],
+            'storage_type': 'private'
+        })
+
+        assert response.status_code == 200
+        mock_save.assert_called_once()
+        mock_process.assert_called_once()
+
+    @patch('agregator.views.raw_commercial_offers_save')
+    @patch('agregator.views.process_commercial_offers.apply_async')
+    def test_commercial_offers_upload_post(self, mock_process, mock_save, client, test_user):
+        """Тест загрузки коммерческих предложений"""
+        client.force_login(test_user)
+
+        mock_save.return_value = [1]
+        mock_task = MagicMock()
+        mock_task.task_id = 'test-task-456'
+        mock_process.return_value = mock_task
+
+        file = SimpleUploadedFile("offer.pdf", b"file_content", content_type="application/pdf")
+
+        response = client.post(reverse('commercial_offers_upload'), {
+            'files': [file],
+            'storage_type': 'private'
+        })
+
+        assert response.status_code == 200
+        mock_save.assert_called_once()
+
 
 @pytest.mark.django_db
 class TestErrorHandling:
@@ -433,6 +477,28 @@ class TestErrorHandling:
         response = client.post(reverse('download_coordinates', kwargs={
             'report_type': 'invalid_type',
             'pk': 1
+        }))
+
+        assert response.status_code == 404
+
+    def test_map_with_invalid_type(self, client, test_user):
+        """Тест карты с неверным типом отчета"""
+        client.force_login(test_user)
+
+        response = client.get(reverse('map', kwargs={
+            'report_type': 'invalid_type',
+            'pk': 999
+        }))
+
+        assert response.status_code == 404
+
+    def test_download_coordinates_invalid_type(self, client, test_user):
+        """Тест скачивания координатов с неверным типом"""
+        client.force_login(test_user)
+
+        response = client.post(reverse('download_coordinates', kwargs={
+            'report_type': 'invalid_type',
+            'pk': 999
         }))
 
         assert response.status_code == 404
@@ -476,3 +542,132 @@ class TestUserTasksViews:
         response = client.get(reverse('get_user_tasks_external'))
         assert response.status_code == 200
         assert 'test-task-ext' in response.json()['tasks_id']
+
+    def test_get_user_tasks_reports(self, client, test_user):
+        """Тест получения задач пользователя для отчетов"""
+        client.force_login(test_user)
+
+        # Создаем тестовую задачу
+        task = UserTasks.objects.create(
+            user=test_user,
+            task_id='test-task-789',
+            files_type='act',
+            upload_source={'source': 'Пользовательский файл'}
+        )
+        TaskResult.objects.create(
+            task_id='test-task-789',
+            status='SUCCESS',
+            result='{"message": "Успешно"}'
+        )
+
+        response = client.get(reverse('get_user_tasks_reports'))
+        assert response.status_code == 200
+        data = json.loads(response.content)
+        assert 'tasks_id' in data
+        assert len(data['tasks_id']) == 1
+
+    def test_download_delete_task(self, client, test_user):
+        """Тест удаления задачи"""
+        client.force_login(test_user)
+
+        # Создаем тестовую задачу
+        user_task = UserTasks.objects.create(
+            user=test_user,
+            task_id='test-task-delete',
+            files_type='act',
+            upload_source={'source': 'Пользовательский файл'}
+        )
+        TaskResult.objects.create(
+            task_id='test-task-delete',
+            status='SUCCESS',
+            result='{"message": "Успешно"}'
+        )
+
+        response = client.get(reverse('download_delete', kwargs={'task_id': 'test-task-delete'}))
+        assert response.status_code == 200
+        data = json.loads(response.content)
+        assert data['response'] == 'deleted'
+        assert not UserTasks.objects.filter(task_id='test-task-delete').exists()
+
+
+@pytest.mark.django_db
+class TestHeritage:
+    def test_archaeological_heritage_sites_view(self, client, test_user):
+        """Тест страницы археологических памятников"""
+        client.force_login(test_user)
+
+        # Создаем тестовые данные
+        ArchaeologicalHeritageSite.objects.create(
+            doc_name="Памятник 1",
+            district="Тестовый район"
+        )
+
+        response = client.get(reverse('archaeological_heritage_sites'))
+        assert response.status_code == 200
+        assert 'archaeological_heritage_site_register.html' in [t.name for t in response.templates]
+
+    def test_identified_archaeological_heritage_sites_view(self, client, test_user):
+        """Тест страницы выявленных памятников"""
+        client.force_login(test_user)
+
+        IdentifiedArchaeologicalHeritageSite.objects.create(
+            name="Выявленный памятник 1",
+            address="Тестовый адрес"
+        )
+
+        response = client.get(reverse('identified_archaeological_heritage_sites'))
+        assert response.status_code == 200
+
+    def test_archaeological_heritage_site_detail(self, client, test_user):
+        """Тест детальной страницы памятника"""
+        client.force_login(test_user)
+
+        site = ArchaeologicalHeritageSite.objects.create(
+            doc_name="Тестовый памятник",
+            district="Тестовый район"
+        )
+
+        response = client.get(reverse('archaeological_heritage_sites', kwargs={'pk': site.id}))
+        assert response.status_code == 200
+
+
+@pytest.mark.django_db
+class TestGeoData:
+    @patch('agregator.views.GeojsonData.objects.get')
+    def test_get_geojson_polygons_sync(self, mock_get, client, test_user):
+        """Тест синхронного получения полигонов"""
+        client.force_login(test_user)
+
+        # Мокируем геоданные
+        mock_russia = MagicMock()
+        mock_russia.geojson = {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[30, 50], [40, 50], [40, 60], [30, 60], [30, 50]]]
+            }
+        }
+
+        mock_krasnoyarsk = MagicMock()
+        mock_krasnoyarsk.geojson = {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[35, 55], [45, 55], [45, 65], [35, 65], [35, 55]]]
+            }
+        }
+
+        mock_get.side_effect = lambda name: mock_russia if name == 'Россия' else mock_krasnoyarsk
+
+        from agregator.views import get_geojson_polygons_sync
+
+        points = {
+            'Группа': {
+                'Точка1': [55.7558, 37.6176]  # Москва
+            }
+        }
+
+        result = get_geojson_polygons_sync(points)
+        assert 'Russia' in result
+        assert 'Subject' in result
+        assert 'Regions' in result

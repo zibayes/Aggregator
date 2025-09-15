@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.test import Client
 from django.core.files.uploadedfile import SimpleUploadedFile
 from agregator.models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, \
-    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, UserTasks
+    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, UserTasks, User
 from django_celery_results.models import TaskResult
 from unittest.mock import patch, MagicMock
 import pandas as pd
@@ -71,6 +71,30 @@ class TestFileProcessing:
         mock_create.return_value = None
         response = client.get(reverse('acts_register_download'))
         assert response.status_code == 302  # Редирект при пустых данных
+
+
+@pytest.mark.django_db
+class TestExternalProcessing:
+    @patch('agregator.views.external_sources_processing.delay')
+    def test_external_sources_scan(self, mock_delay, client, test_user):
+        """Тест запуска сканирования внешних источников"""
+        client.force_login(test_user)
+
+        # Создаем суперпользователя
+        User.objects.create_superuser('admin', 'admin@example.com', 'adminpass')
+
+        mock_task = MagicMock()
+        mock_task.id = 'scan-task-123'
+        mock_delay.return_value = mock_task
+
+        response = client.post(reverse('external_sources'), {
+            'select_text': 'on',
+            'select_image': 'on',
+            'select_coord': 'on'
+        })
+
+        assert response.status_code == 200
+        mock_delay.assert_called_once()
 
 
 @pytest.mark.django_db

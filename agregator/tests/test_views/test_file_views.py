@@ -10,7 +10,6 @@ User = get_user_model()
 
 @pytest.mark.django_db
 class TestFileViews:
-
     @patch('agregator.views.create_model_dataframe')
     @patch('agregator.views.generate_excel_report')
     def test_acts_register_download(self, mock_generate, mock_create):
@@ -32,6 +31,25 @@ class TestFileViews:
         assert response.status_code == 302
         mock_create.assert_called_once()
         mock_generate.assert_called_once()
+
+    def test_archaeological_heritage_sites_download(self, client, test_user):
+        """Тест скачивания списка памятников"""
+        client.force_login(test_user)
+
+        # Создаем тестовый файл
+        with open('uploaded_files/Памятники/current_lists.txt', 'w') as f:
+            f.write('list_oan - /test/path/oan.txt\n')
+            f.write('list_voan - /test/path/voan.txt\n')
+
+        response = client.get(reverse('archaeological_heritage_sites_download'))
+        assert response.status_code == 302
+
+    def test_identified_archaeological_heritage_sites_download(self, client, test_user):
+        """Тест скачивания списка выявленных памятников"""
+        client.force_login(test_user)
+
+        response = client.get(reverse('identified_archaeological_heritage_sites_download'))
+        assert response.status_code == 302
 
 
 @pytest.mark.django_db
