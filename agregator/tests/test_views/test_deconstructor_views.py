@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.test import Client
 from unittest.mock import patch, MagicMock
+from agregator.models import Act
 
 User = get_user_model()
 
@@ -118,8 +119,12 @@ class TestMapViews:
             year='2023',
             name_number='test-map',
             is_processing=False,
-            source=[{'origin_filename': 'test.pdf', 'path': '/test/path'}],  # ← ДОБАВЬ source!
-            coordinates={'test_point': [55.7558, 37.6176]}
+            source=[{'origin_filename': 'test.pdf', 'path': '/test/path'}],
+            coordinates={
+                'Группа точек': {
+                    'test_point': [55.7558, 37.6176]
+                }
+            }
         )
 
         response = client.get(reverse('map', kwargs={
@@ -128,3 +133,43 @@ class TestMapViews:
         }))
 
         assert response.status_code == 200
+
+
+@pytest.mark.django_db
+class TestCoordinatesHandling:
+    def test_download_coordinates(self, client, test_user):
+        """Тест скачивания координат"""
+        client.force_login(test_user)
+        act = Act.objects.create(
+            user=test_user,
+            year="2023",
+            name_number="Test Act",
+            coordinates={
+                "group1": {"point1": [55.7558, 37.6176]}
+            }
+        )
+        response = client.post(
+            reverse('download_coordinates', kwargs={'report_type': 'act', 'pk': act.id}),
+            {'group1-point1': 'on'}
+        )
+        assert response.status_code == 200
+        assert response['Content-Type'] == 'application/vnd.google-earth.kml+xml'
+        assert 'attachment' in response['Content-Disposition']
+
+    @patch('agregator.views.get_geojson_polygons_sync')
+    def test_map_view_with_polygons(self, mock_polygons, client, test_user):
+        """Тест отображения карты с полигонами"""
+        mock_polygons.return_value = {"Regions": [{"test": "polygon"}]}
+        act = Act.objects.create(
+            user=test_user,
+            coordinates={"group": {"point": [55.7558, 37.6176]}}
+        )
+
+        client.force_login(test_user)
+        response = client.get(reverse('map', kwargs={
+            'report_type': 'act',
+            'pk': act.id
+        }))
+
+        assert response.status_code == 200
+        assert 'polygon' in str(response.content)

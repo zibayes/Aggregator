@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.test import Client
 from unittest.mock import patch, MagicMock
+from django.core.files.uploadedfile import SimpleUploadedFile
 
 User = get_user_model()
 
@@ -31,3 +32,33 @@ class TestFileViews:
         assert response.status_code == 302
         mock_create.assert_called_once()
         mock_generate.assert_called_once()
+
+
+@pytest.mark.django_db
+class TestFileUploadViews:
+    def test_account_cards_upload_get(self, client, test_user):
+        """Тест GET запроса загрузки учётных карточек"""
+        client.force_login(test_user)
+        response = client.get(reverse('account_cards_upload'))
+        assert response.status_code == 200
+        assert 'account_cards_upload.html' in [t.name for t in response.templates]
+
+    @patch('agregator.views.raw_account_cards_save')
+    @patch('agregator.views.process_account_cards.apply_async')
+    def test_account_cards_upload_post(self, mock_process, mock_save, client, test_user):
+        """Тест POST загрузки учётных карточек"""
+        mock_save.return_value = [1]
+        mock_task = MagicMock(task_id='task-123')
+        mock_process.return_value = mock_task
+
+        test_file = SimpleUploadedFile("test.pdf", b"content")  # Вместо реального файла
+
+        client.force_login(test_user)
+        response = client.post(reverse('account_cards_upload'), {
+            'files': [test_file],
+            'file_type': 'account_card'
+        })
+
+        assert response.status_code == 200
+        mock_save.assert_called_once()
+        mock_process.assert_called_once()

@@ -1,6 +1,7 @@
 import json
 import os
 import re
+import io
 from urllib.parse import quote
 
 import pandas as pd
@@ -10,8 +11,8 @@ from django.contrib.auth import login, authenticate
 from django.contrib.auth import logout
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.decorators import login_required
-from django.http import JsonResponse
-from django.shortcuts import render, redirect
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import render, redirect, get_object_or_404
 from django_celery_results.models import TaskResult
 from celery.result import AsyncResult
 from pyproj import Geod
@@ -426,10 +427,11 @@ def download_all_coordinates(request):
                                                                               0])])  # TODO: менять их местами или нет?!
                                 photo_point.style = current_style
 
-            file_path = f'uploaded_files/{request.user.id}-all_coordinates.kml'
-            kml.save(file_path)
-            return redirect('/' + file_path)
-        return JsonResponse({'response': f'There is no selected coordinates'})
+            response = HttpResponse(kml.kml(), content_type='application/vnd.google-earth.kml+xml')
+            filename = f'all_coordinates.kml'
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+        return HttpResponse('Координаты для экспорта не выбраны', status=404)
     return JsonResponse({'response': f'Method {request.method} is not available for this URL'})
 
 
@@ -478,7 +480,7 @@ def edit_gpt_chat(request):
     if request.method == 'POST':
         body_unicode = request.body.decode('utf-8')
         body_data = json.loads(body_unicode)
-        chat = Chat.objects.get(id=body_data['chat_id'])
+        chat = get_object_or_404(Chat, id=body_data['chat_id'])
         chat.name = body_data['name']
         chat.save()
         return JsonResponse({'result': 'success'})
@@ -491,7 +493,7 @@ def delete_gpt_chat(request):
         body_data = json.loads(body_unicode)
         chat_id = int(body_data['chat_id'])
         Message.objects.filter(chat_id=chat_id).delete()
-        Chat.objects.get(id=chat_id).delete()
+        get_object_or_404(Chat, id=chat_id).delete()
         return JsonResponse({'result': 'success'})
 
 
@@ -515,7 +517,7 @@ def edit_chat_message(request):
     if request.method == 'POST':
         body_unicode = request.body.decode('utf-8')
         body_data = json.loads(body_unicode)
-        message = Message.objects.get(id=body_data['message_id'])
+        get_object_or_404(Message, id=body_data['message_id'])
         message.content = body_data['content']
         message.save()
         return JsonResponse({'result': 'success'})
@@ -527,7 +529,7 @@ def delete_chat_message(request):
         body_unicode = request.body.decode('utf-8')
         body_data = json.loads(body_unicode)
         chat_id = int(body_data['chat_id'])
-        message = Message.objects.filter(chat_id=chat_id).order_by('-sent_at').first()
+        get_object_or_404(Message, chat_id=chat_id).order_by('-sent_at').first()
         if message.sender == 'ai':
             message.delete()
             message = Message.objects.filter(chat_id=chat_id, sender='user').order_by('-sent_at').first()
@@ -751,28 +753,31 @@ def tech_reports_register(request):
 
 
 def users(request, pk):
-    user = User.objects.get(id=pk)
+    user = get_object_or_404(User, id=pk)
     return render(request, 'profile.html', {'user_to_show': user})
 
 
 def map(request, report_type, pk):
     report = None
     if report_type == 'account_card':
-        report = ObjectAccountCard.objects.get(id=pk)
+        report = get_object_or_404(ObjectAccountCard, id=pk)
         report_name = report.origin_filename
     elif report_type == 'commercial_offer':
-        report = CommercialOffers.objects.get(id=pk)
+        report = get_object_or_404(CommercialOffers, id=pk)
         report_name = report.origin_filename
     elif report_type == 'geo_object':
-        report = GeoObject.objects.get(id=pk)
+        report = get_object_or_404(GeoObject, id=pk)
         report_name = report.origin_filename
     else:
         if report_type == 'act':
-            report = Act.objects.get(id=pk)
+            report = get_object_or_404(Act, id=pk)
         elif report_type == 'scientific_report':
-            report = ScientificReport.objects.get(id=pk)
+            report = get_object_or_404(ScientificReport, id=pk)
         elif report_type == 'tech_report':
-            report = TechReport.objects.get(id=pk)
+            report = get_object_or_404(TechReport, id=pk)
+        else:
+            return HttpResponse("Некорректный тип отчёта", status=404)
+
         report_name = report.source_dict[0]['origin_filename'] if report.source_dict and len(
             report.source_dict) > 0 else report.origin_filename if hasattr(report,
                                                                            'origin_filename') else 'Неизвестный файл'
@@ -838,9 +843,9 @@ def get_geojson_polygons(request):
         if matching_polygons:
             return JsonResponse({'matching_polygons': matching_polygons}, status=200)
         else:
-            return JsonResponse({'message': 'Нет совпадений с полигонами'}, status=404)
+            return HttpResponse("Нет совпадений с полигонами", status=404)
 
-    return JsonResponse({'error': 'Метод не поддерживается'}, status=405)
+    return HttpResponse("Метод не поддерживается", status=405)
 
 
 def check_point_in_polygon(feature, point_coords):
@@ -851,8 +856,8 @@ def check_point_in_polygon(feature, point_coords):
 
 def get_geojson_polygons_sync(points):
     matching_polygons = {
-        'Russia': [GeojsonData.objects.get(name='Россия').geojson],
-        'Subject': [GeojsonData.objects.get(name='Красноярский край').geojson],
+        'Russia': [get_object_or_404(GeojsonData, name='Россия').geojson],
+        'Subject': [get_object_or_404(GeojsonData, name='Красноярский край').geojson],
         'Regions': []
     }
     regions = GeojsonData.objects.exclude(name__in=('Россия', 'Красноярский край'))
@@ -870,19 +875,20 @@ def get_geojson_polygons_sync(points):
 
 def download_coordinates(request, report_type, pk):
     if request.method == 'POST':
-        report = None
         if report_type == 'act':
-            report = Act.objects.get(id=pk)
+            report = get_object_or_404(Act, id=pk)
         elif report_type == 'scientific_report':
-            report = ScientificReport.objects.get(id=pk)
+            report = get_object_or_404(ScientificReport, id=pk)
         elif report_type == 'tech_report':
-            report = TechReport.objects.get(id=pk)
+            report = get_object_or_404(TechReport, id=pk)
         elif report_type == 'account_card':
-            report = ObjectAccountCard.objects.get(id=pk)
+            report = get_object_or_404(ObjectAccountCard, id=pk)
         elif report_type == 'commercial_offer':
-            report = CommercialOffers.objects.get(id=pk)
+            report = get_object_or_404(CommercialOffers, id=pk)
         elif report_type == 'geo_object':
-            report = GeoObject.objects.get(id=pk)
+            report = get_object_or_404(GeoObject, id=pk)
+        else:
+            return HttpResponse("Некорректный тип отчёта", status=404)
         coordinates = report.coordinates_dict if report else {}
         coordinates_to_download = {}
         print('request.POST.keys(): ' + str(request.POST.keys()))
@@ -932,22 +938,23 @@ def download_coordinates(request, report_type, pk):
                                                                   coords[0])])  # TODO: менять их местами или нет?!
                         photo_point.style = current_style
 
-            file_path = f'uploaded_files/Координаты-{report_type}-{pk}/coordinates.kml'
-            kml.save(file_path)
-            return redirect('/' + file_path)
-        return JsonResponse({'response': f'Coordinates to download not selected'})
+            response = HttpResponse(kml.kml(), content_type='application/vnd.google-earth.kml+xml')
+            filename = f'coordinates-{report_type}-{pk}.kml'
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+        return HttpResponse('Координаты для экспорта не выбраны', status=404)
     return JsonResponse({'response': f'Method {request.method} is not available for this URL'})
 
 
 def acts(request, pk):
-    act = Act.objects.get(id=pk)
+    act = get_object_or_404(Act, id=pk)
     return render(request, 'act.html', {'report': act})
 
 
 @login_required
 @owner_or_admin_required(Act)
 def acts_edit(request, pk):
-    act = Act.objects.get(id=pk)
+    act = get_object_or_404(Act, id=pk)
     if request.method == 'POST':
         fields = [
             'year',
@@ -977,7 +984,7 @@ def acts_edit(request, pk):
 @login_required
 @owner_or_admin_required(Act)
 def acts_delete(request, pk):
-    act_instance = Act.objects.get(id=pk)
+    act_instance = get_object_or_404(Act, id=pk)
     act_instance.delete()
     return redirect(f'acts_register')
 
@@ -993,6 +1000,8 @@ def doc_reprocess(request, pk):
             report_type = 'scientific_report'
         elif 'tech' in url:
             report_type = 'tech_report'
+        else:
+            return HttpResponse("Некорректный тип отчёта", status=404)
         user = request.user
         tasks_id = get_user_tasks(user.id, ('act', 'scientific_report', 'tech_report'))
         form = UploadReportsForm()
@@ -1015,7 +1024,7 @@ def doc_reprocess(request, pk):
                 ([pk], user.id, select_text, select_image, select_coord),
                 link_error=error_handler_tech_reports.s())
         else:
-            return JsonResponse({'response': 'invalid doc type'})
+            return HttpResponse("Некорректный тип отчёта", status=404)
         tasks_id = [task.task_id] + tasks_id
         user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type=report_type,
                               upload_source={'source': 'Пользовательский файл'})
@@ -1029,22 +1038,22 @@ def doc_reprocess(request, pk):
 @login_required
 # @owner_or_admin_required(UserTasks)
 def download_delete(request, task_id):
-    user_task = UserTasks.objects.get(task_id=task_id)
+    user_task = get_object_or_404(UserTasks, task_id=task_id)
     user_task.delete()
-    task = TaskResult.objects.get(task_id=task_id)
+    task = get_object_or_404(TaskResult, task_id=task_id)
     task.delete()
     return JsonResponse({'response': 'deleted'})
 
 
 def scientific_reports(request, pk):
-    report = ScientificReport.objects.get(id=pk)
+    report = get_object_or_404(ScientificReport, id=pk)
     return render(request, 'scientific_report.html', {'report': report})
 
 
 @login_required
 @owner_or_admin_required(ScientificReport)
 def scientific_reports_edit(request, pk):
-    report = ScientificReport.objects.get(id=pk)
+    report = get_object_or_404(ScientificReport, id=pk)
     if request.method == 'POST':
         fields = [
             'name',
@@ -1074,20 +1083,20 @@ def scientific_reports_edit(request, pk):
 @login_required
 @owner_or_admin_required(ScientificReport)
 def scientific_reports_delete(request, pk):
-    report_instance = ScientificReport.objects.get(id=pk)
+    report_instance = get_object_or_404(ScientificReport, id=pk)
     report_instance.delete()
     return redirect(f'scientific_reports_register')
 
 
 def tech_reports(request, pk):
-    report = TechReport.objects.get(id=pk)
+    report = get_object_or_404(TechReport, id=pk)
     return render(request, 'tech_report.html', {'report': report})
 
 
 @login_required
 @owner_or_admin_required(TechReport)
 def tech_reports_edit(request, pk):
-    report = TechReport.objects.get(id=pk)
+    report = get_object_or_404(TechReport, id=pk)
     if request.method == 'POST':
         fields = [
             'name',
@@ -1117,20 +1126,20 @@ def tech_reports_edit(request, pk):
 @login_required
 @owner_or_admin_required(TechReport)
 def tech_reports_delete(request, pk):
-    report_instance = TechReport.objects.get(id=pk)
+    report_instance = get_object_or_404(TechReport, id=pk)
     report_instance.delete()
     return redirect(f'tech_reports_register')
 
 
 def open_lists(request, pk):
-    open_list = OpenLists.objects.get(id=pk)
+    open_list = get_object_or_404(OpenLists, id=pk)
     return render(request, 'open_list.html', {'open_list': open_list})
 
 
 @login_required
 @owner_or_admin_required(OpenLists)
 def open_lists_edit(request, pk):
-    open_list = OpenLists.objects.get(id=pk)
+    open_list = get_object_or_404(OpenLists, id=pk)
     if request.method == 'POST':
         fields = [
             'number',
@@ -1151,7 +1160,7 @@ def open_lists_edit(request, pk):
 @login_required
 @owner_or_admin_required(OpenLists)
 def open_lists_delete(request, pk):
-    list_instance = OpenLists.objects.get(id=pk)
+    list_instance = get_object_or_404(OpenLists, id=pk)
     list_instance.delete()
     return redirect(f'open_lists_register')
 
@@ -1185,12 +1194,12 @@ def identified_archaeological_heritage_sites(request):
 
 
 def archaeological_heritage_site(request, pk):
-    oan = ArchaeologicalHeritageSite.objects.get(id=pk)
+    oan = get_object_or_404(ArchaeologicalHeritageSite, id=pk)
     return render(request, 'archaeological_heritage_site.html', {'archaeological_heritage_site': oan})
 
 
 def identified_archaeological_heritage_site(request, pk):
-    voan = IdentifiedArchaeologicalHeritageSite.objects.get(id=pk)
+    voan = get_object_or_404(IdentifiedArchaeologicalHeritageSite, id=pk)
     return render(request, 'identified_archaeological_heritage_site.html',
                   {'identified_archaeological_heritage_site': voan})
 
@@ -1198,7 +1207,7 @@ def identified_archaeological_heritage_site(request, pk):
 @login_required
 @owner_or_admin_required(ArchaeologicalHeritageSite)
 def archaeological_heritage_sites_edit(request, pk):
-    oan = ArchaeologicalHeritageSite.objects.get(id=pk)
+    oan = get_object_or_404(ArchaeologicalHeritageSite, id=pk)
     if request.method == 'POST':
         fields = [
             'doc_name',
@@ -1217,7 +1226,7 @@ def archaeological_heritage_sites_edit(request, pk):
 @login_required
 @owner_or_admin_required(IdentifiedArchaeologicalHeritageSite)
 def identified_archaeological_heritage_sites_edit(request, pk):
-    voan = IdentifiedArchaeologicalHeritageSite.objects.get(id=pk)
+    voan = get_object_or_404(IdentifiedArchaeologicalHeritageSite, id=pk)
     if request.method == 'POST':
         fields = [
             'name',
@@ -1237,7 +1246,7 @@ def identified_archaeological_heritage_sites_edit(request, pk):
 @login_required
 @owner_or_admin_required(ArchaeologicalHeritageSite)
 def archaeological_heritage_sites_delete(request, pk):
-    oan = ArchaeologicalHeritageSite.objects.get(id=pk)
+    oan = get_object_or_404(ArchaeologicalHeritageSite, id=pk)
     oan.delete()
     return redirect(f'archaeological_heritage_sites')
 
@@ -1245,7 +1254,7 @@ def archaeological_heritage_sites_delete(request, pk):
 @login_required
 @owner_or_admin_required(IdentifiedArchaeologicalHeritageSite)
 def identified_archaeological_heritage_sites_delete(request, pk):
-    voan = IdentifiedArchaeologicalHeritageSite.objects.get(id=pk)
+    voan = get_object_or_404(IdentifiedArchaeologicalHeritageSite, id=pk)
     voan.delete()
     return redirect(f'identified_archaeological_heritage_sites')
 
@@ -1280,7 +1289,7 @@ def update_voan_list(request):
 
 
 def account_cards(request, pk):
-    account_card = ObjectAccountCard.objects.get(id=pk)
+    account_card = get_object_or_404(ObjectAccountCard, id=pk)
     heritage = IdentifiedArchaeologicalHeritageSite.objects.filter(account_card__id=pk, name=account_card.name)
     if not heritage:
         heritage = ArchaeologicalHeritageSite.objects.filter(account_card__id=pk, doc_name=account_card.name)
@@ -1297,7 +1306,7 @@ def account_cards(request, pk):
 @login_required
 @owner_or_admin_required(ObjectAccountCard)
 def account_cards_edit(request, pk):
-    account_card = ObjectAccountCard.objects.get(id=pk)
+    account_card = get_object_or_404(ObjectAccountCard, id=pk)
     if request.method == 'POST':
         fields = [
             'name',
@@ -1323,7 +1332,7 @@ def account_cards_edit(request, pk):
 @login_required
 @owner_or_admin_required(ObjectAccountCard)
 def account_cards_delete(request, pk):
-    account_card_instance = ObjectAccountCard.objects.get(id=pk)
+    account_card_instance = get_object_or_404(ObjectAccountCard, id=pk)
     account_card_instance.delete()
     return redirect(f'account_cards_register')
 
@@ -1383,7 +1392,7 @@ def account_cards_register(request):
 @login_required
 @owner_or_admin_required(CommercialOffers)
 def commercial_offers_edit(request, pk):
-    commercial_offer = CommercialOffers.objects.get(id=pk)
+    commercial_offer = get_object_or_404(CommercialOffers, id=pk)
     commercial_offer.coordinates = commercial_offer.coordinates_dict
     if request.method == 'POST':
         commercial_offer.coordinates = process_coords_from_edit_page(request, commercial_offer)
@@ -1398,7 +1407,7 @@ def commercial_offers_edit(request, pk):
 @login_required
 @owner_or_admin_required(CommercialOffers)
 def commercial_offers_delete(request, pk):
-    commercial_offer_instance = CommercialOffers.objects.get(id=pk)
+    commercial_offer_instance = get_object_or_404(CommercialOffers, id=pk)
     commercial_offer_instance.delete()
     return redirect(f'commercial_offers_register')
 
@@ -1420,7 +1429,7 @@ def commercial_offers_register(request):
 
 
 def download_commercial_offer_report(request, pk):
-    commercial_offer = CommercialOffers.objects.get(id=pk)
+    commercial_offer = get_object_or_404(CommercialOffers, id=pk)
     table_path = f"uploaded_files/Коммерческие предложения/{commercial_offer.id}_commercial_offer/Отчёт.xlsx"
     table_columns = ['Памятник', 'Дистанция до памятника (км)']
     account_cards = ObjectAccountCard.objects.all()
@@ -1553,7 +1562,7 @@ def download_commercial_offer_report(request, pk):
 @login_required
 @owner_or_admin_required(GeoObject)
 def geo_objects_edit(request, pk):
-    geo_object = GeoObject.objects.get(id=pk)
+    geo_object = get_object_or_404(GeoObject, id=pk)
     geo_object.coordinates = geo_object.coordinates_dict
     if request.method == 'POST':
         geo_object.coordinates = process_coords_from_edit_page(request, geo_object)
@@ -1568,7 +1577,7 @@ def geo_objects_edit(request, pk):
 @login_required
 @owner_or_admin_required(GeoObject)
 def geo_objects_delete(request, pk):
-    geo_object = GeoObject.objects.get(id=pk)
+    geo_object = get_object_or_404(GeoObject, id=pk)
     geo_object.delete()
     return redirect(f'geo_objects_register')
 
@@ -1610,7 +1619,7 @@ class ActDetail(generics.RetrieveAPIView):
 
 class ScientificReportList(generics.ListAPIView):
     queryset = ScientificReport.objects.all()
-    serializer_class = ScientificReport
+    serializer_class = ScientificReportSerializer
 
 
 class ScientificReportDetail(generics.RetrieveAPIView):
@@ -1620,7 +1629,7 @@ class ScientificReportDetail(generics.RetrieveAPIView):
 
 class TechReportList(generics.ListAPIView):
     queryset = TechReport.objects.all()
-    serializer_class = TechReport
+    serializer_class = TechReportSerializer
 
 
 class TechReportDetail(generics.RetrieveAPIView):
