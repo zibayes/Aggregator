@@ -174,7 +174,7 @@ def process_coords_from_edit_page(request, entity) -> dict:
     for group, polygon in coordinates.items():
         if polygon['coordinate_system'] == 'None':
             continue
-        elif group in entity.coordinates.keys():
+        elif entity.coordinates and group in entity.coordinates.keys():
             if 'coordinate_system' not in entity.coordinates[group]:
                 entity.coordinates[group]['coordinate_system'] = polygon['coordinate_system']
                 coordinates[group]['coordinate_system'] = 'wgs84'

@@ -894,10 +894,12 @@ def download_coordinates(request, report_type, pk):
         print('request.POST.keys(): ' + str(request.POST.keys()))
         print('coordinates.items(): ' + str(coordinates.items()))
 
-        for group, point in coordinates.items():
-            for point_name, coords in point.items():
-                if f'{group}-{point_name}' in request.POST.keys():
-                    if group not in coordinates_to_download.keys():
+        post_keys = list(request.POST.keys())
+        for group, points in coordinates.items():
+            for point_name, coords in points.items():
+                key = f'{group}-{point_name}'
+                if key in post_keys:
+                    if group not in coordinates_to_download:
                         coordinates_to_download[group] = {}
                     coordinates_to_download[group][point_name] = coords
 
@@ -992,16 +994,18 @@ def acts_delete(request, pk):
 @login_required
 def doc_reprocess(request, pk):
     if request.method == 'POST':
-        report_type = None
         url = request.META.get('HTTP_REFERER')
-        if 'act' in url:
-            report_type = 'act'
-        elif 'scientific' in url:
-            report_type = 'scientific_report'
-        elif 'tech' in url:
-            report_type = 'tech_report'
+        if url:
+            if 'act' in url:
+                report_type = 'act'
+            elif 'scientific' in url:
+                report_type = 'scientific_report'
+            elif 'tech' in url:
+                report_type = 'tech_report'
+            else:
+                return HttpResponse("Некорректный тип отчёта", status=404)
         else:
-            return HttpResponse("Некорректный тип отчёта", status=404)
+            return HttpResponse("Тип отчёта неопределён", status=404)
         user = request.user
         tasks_id = get_user_tasks(user.id, ('act', 'scientific_report', 'tech_report'))
         form = UploadReportsForm()
@@ -1445,7 +1449,8 @@ def download_commercial_offer_report(request, pk):
         print('TYPE: ' + str(type(account_card)))
 
         min_distance = None
-        if account_card.coordinates_dict and commercial_offer.coordinates_dict:
+        if hasattr(account_card, 'coordinates_dict') and account_card.coordinates_dict and hasattr(commercial_offer,
+                                                                                                   'coordinates_dict') and commercial_offer.coordinates_dict:
             if type(account_card) != GeoObject:
                 for ac_polygon in account_card.coordinates_dict.values():
                     if 'coordinate_system' not in ac_polygon.keys() or ac_polygon['coordinate_system'] == 'None':

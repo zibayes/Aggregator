@@ -69,7 +69,9 @@ def generate_excel_report(dataframe, file_path, column_widths=None, height_title
 def process_edit_form(request, instance, fields_mapping):
     if request.method == 'POST':
         for field in fields_mapping:
-            setattr(instance, field, request.POST[field])
+            value = request.POST.get(field)
+            if value is not None:
+                setattr(instance, field, value)
         instance.save()
         return True
     return False
@@ -78,11 +80,12 @@ def process_edit_form(request, instance, fields_mapping):
 def process_supplement(request, instance):
     input_dict = request.POST.dict()
     supplement = copy.deepcopy(instance.supplement_dict)
-    for category, images in instance.supplement_dict.items():
-        for i in range(len(images)):
-            supplement[category][i]['source'] = input_dict['source-' + images[i]['source']]
-            if input_dict['label-' + images[i]['source']]:
-                supplement[category][i]['label'] = input_dict['label-' + images[i]['source']]
+    if supplement:
+        for category, images in instance.supplement_dict.items():
+            for i in range(len(images)):
+                supplement[category][i]['source'] = input_dict['source-' + images[i]['source']]
+                if input_dict['label-' + images[i]['source']]:
+                    supplement[category][i]['label'] = input_dict['label-' + images[i]['source']]
     return supplement
 
 
