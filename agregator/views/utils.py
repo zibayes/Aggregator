@@ -6,6 +6,17 @@ from django.shortcuts import render
 import pandas as pd
 from openpyxl.reader.excel import load_workbook
 from openpyxl.styles import Alignment, DEFAULT_FONT, Font
+from django.core.validators import EmailValidator
+from django.core.exceptions import ValidationError
+
+
+def validate_email(email):
+    validator = EmailValidator()
+    try:
+        validator(email)
+        return True
+    except ValidationError:
+        return False
 
 
 def upload_entity_view(request, tasks_id, entity_type, entity_form, save_func, process_func, error_handler, page):
@@ -111,3 +122,20 @@ def get_scan_task(task_name):
         is_processing = True
 
     return is_processing, scan_task_id, active_scan_task
+
+
+def get_user_tasks(user_id, file_types, upload_source=False):
+    user_tasks = list(UserTasks.objects.filter(user_id=user_id, files_type__in=file_types))
+    '''
+    for i in range(len(user_tasks)):
+        user_tasks[i].upload_source = json.loads(user_tasks[i].upload_source) if not isinstance(
+            user_tasks[i].upload_source, dict) else user_tasks[i].upload_source
+    '''
+    if upload_source:
+        user_tasks = [x for x in user_tasks if x.upload_source_dict['source'] != 'Пользовательский файл']
+    else:
+        user_tasks = [x for x in user_tasks if x.upload_source_dict['source'] == 'Пользовательский файл']
+    user_tasks = [x.task_id for x in user_tasks]
+    user_tasks = list(TaskResult.objects.filter(task_id__in=user_tasks).order_by('-date_created'))
+    tasks_id = [x.task_id for x in user_tasks]
+    return tasks_id

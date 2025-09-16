@@ -3,13 +3,12 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.test import Client
 from django.core.files.uploadedfile import SimpleUploadedFile
-from agregator.models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, \
-    ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, UserTasks, User
+from agregator.models import Act, User
 from django_celery_results.models import TaskResult
 from unittest.mock import patch, MagicMock
 import pandas as pd
 from agregator.processing.coordinates_extraction import process_coords_from_edit_page
-from agregator.views_utils import generate_excel_report
+from agregator.views.utils import generate_excel_report
 from rest_framework.test import APIClient
 
 

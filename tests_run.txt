@@ -1,3 +1,5 @@
+docker exec -it df452122997b2d9f15a40137f607f088744f997b2e9070b5775e214176a21646 /bin/sh
+
 # Запуск всех тестов моделей
 pytest agregator/tests/test_models.py -v
 

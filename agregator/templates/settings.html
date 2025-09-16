@@ -3,77 +3,80 @@
 {% block title %}Профиль{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="/profile/">Профиль пользователя {{ user.username }}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Редактирование
-    </li>
+<li class="breadcrumb-item"><a href="/profile/">Профиль пользователя {{ user.username }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Редактирование
+</li>
 {% endblock %}
 
 {% block content %}
-    <div class="container mt-5">
-        <h2>Редактирование профиля</h2>
-        <form method="post" enctype="multipart/form-data" class="mt-4">
-            {% csrf_token %}
-            <div class="form-group">
-                <img src="{{ user.avatar.url }}" class="rounded-circle" alt="User Avatar"
-                     style="width: 150px; height: 150px; object-fit: cover;">
-                <input type="file" class="form-control-file" id="avatar" name="avatar" accept=".jpg, .png, .pdf">
-                <small class="form-text text-muted">Загрузите новый аватар (оставьте пустым для сохранения без
-                    изменений).</small>
-                <br>
-                <small class="form-text text-muted">
-                    Допустимые расширения: .jpg, .png, .pdf.<br> Максимальный размер файла: 5 МБ.
-                </small>
-            </div>
-            <div class="form-group">
-                <label for="first_name">Имя</label>
-                <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}"
-                       required>
-            </div>
-            <div class="form-group">
-                <label for="last_name">Фамилия</label>
-                <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}"
-                       required>
-            </div>
-            <div class="form-group">
-                <label for="username">Имя пользователя</label>
-                <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}"
-                       required>
-            </div>
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
-            </div>
-            <div class="form-group">
-                <label for="password">Пароль (оставьте пустым для сохранения без изменений)</label>
-                <input type="password" class="form-control" id="password" name="password">
-            </div>
-            <button type="submit" class="btn btn-success">Сохранить изменения</button>
-        </form>
+<div class="container mt-5">
+    <h2>Редактирование профиля</h2>
+    <form method="post" enctype="multipart/form-data" class="mt-4">
+        {% csrf_token %}
+        <div class="form-group">
+            <img src="{{ user.avatar.url }}" class="rounded-circle" alt="User Avatar"
+                 style="width: 150px; height: 150px; object-fit: cover;">
+            <input type="file" class="form-control-file" id="avatar" name="avatar" accept=".jpg, .png, .pdf">
+            <small class="form-text text-muted">Загрузите новый аватар (оставьте пустым для сохранения без
+                изменений).</small>
+            <br>
+            <small class="form-text text-muted">
+                Допустимые расширения: .jpg, .png, .pdf.<br> Максимальный размер файла: 5 МБ.
+            </small>
+        </div>
+        {% if error %}
+        <p class="error-log" style="color:red;">{{ error }}</p>
+        {% endif %}
+        <div class="form-group" style="margin-bottom:5px;">
+            <label for="first_name">Имя</label>
+            <input type="text" class="form-control" id="first_name" name="first_name" value="{{ user.first_name }}"
+                   required>
+        </div>
+        <div class="form-group" style="margin-bottom:5px;">
+            <label for="last_name">Фамилия</label>
+            <input type="text" class="form-control" id="last_name" name="last_name" value="{{ user.last_name }}"
+                   required>
+        </div>
+        <div class="form-group" style="margin-bottom:5px;">
+            <label for="username">Имя пользователя</label>
+            <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}"
+                   required>
+        </div>
+        <div class="form-group" style="margin-bottom:5px;">
+            <label for="email">Email</label>
+            <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+        </div>
+        <div class="form-group" style="margin-bottom:10px;">
+            <label for="password">Пароль (оставьте пустым для сохранения без изменений)</label>
+            <input type="password" class="form-control" id="password" name="password">
+        </div>
+        <button type="submit" class="btn btn-success">Сохранить изменения</button>
+    </form>
 
-        <script>
-            document.getElementById('uploadForm').addEventListener('submit', function (event) {
-                const fileInput = document.getElementById('avatar');
-                const file = fileInput.files[0];
+    <script>
+        document.getElementById('uploadForm').addEventListener('submit', function (event) {
+            const fileInput = document.getElementById('avatar');
+            const file = fileInput.files[0];
 
-                // Проверка на наличие файла
-                if (file) {
-                    // Проверка размера файла (5 МБ)
-                    const maxSize = 5 * 1024 * 1024; // 5 МБ
-                    if (file.size > maxSize) {
-                        alert('Размер файла превышает максимальный размер 5 МБ.');
-                        event.preventDefault(); // Отменяем отправку формы
-                        return;
-                    }
-
-                    // Проверка расширения файла
-                    const allowedExtensions = /(\.jpg|\.png|\.pdf)$/i;
-                    if (!allowedExtensions.exec(file.name)) {
-                        alert('Недопустимое расширение файла. Допустимые расширения: .jpg, .png, .pdf.');
-                        event.preventDefault(); // Отменяем отправку формы
-                        return;
-                    }
+            // Проверка на наличие файла
+            if (file) {
+                // Проверка размера файла (5 МБ)
+                const maxSize = 5 * 1024 * 1024; // 5 МБ
+                if (file.size > maxSize) {
+                    alert('Размер файла превышает максимальный размер 5 МБ.');
+                    event.preventDefault(); // Отменяем отправку формы
+                    return;
                 }
-            });
-        </script>
-    </div>
+
+                // Проверка расширения файла
+                const allowedExtensions = /(\.jpg|\.png|\.pdf)$/i;
+                if (!allowedExtensions.exec(file.name)) {
+                    alert('Недопустимое расширение файла. Допустимые расширения: .jpg, .png, .pdf.');
+                    event.preventDefault(); // Отменяем отправку формы
+                    return;
+                }
+            }
+        });
+    </script>
+</div>
 {% endblock %}

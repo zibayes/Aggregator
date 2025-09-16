@@ -17,6 +17,7 @@ from celery import shared_task
 from docx import Document
 from pytesseract import Output
 
+import agregator.views.auth
 from agregator.processing.files_saving import load_raw_account_cards
 from agregator.hash import calculate_file_hash
 from agregator.models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
@@ -160,15 +161,15 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
             elif i == 3 and len(table) == 1:
                 current_account_card.address = table[0][0]
             elif i == 4 and len(table) == 2:
-                current_account_card.object_type = table[table[1].index('+')][0]
+                current_account_card.object_type = table[agregator.views_new.auth.index('+')][0]
             elif i == 5 and len(table) == 2:
-                current_account_card.general_classification = table[table[1].index('+')][0]
+                current_account_card.general_classification = table[agregator.views_new.auth.index('+')][0]
             elif i == 6 and len(table) == 2:
                 current_account_card.description = table[0][0]
             elif i == 7 and len(table) == 9:
                 for row in table:
                     if '+' in row:
-                        current_account_card.usage = row[row.index('+') - 1]
+                        current_account_card.usage = row[agregator.views_new.auth.index('+') - 1]
                         break
             elif i == 8 and len(table) == 1:
                 current_account_card.discovery_info = table[0][0]
