@@ -314,6 +314,68 @@ class TestSettings:
         assert response.status_code == 200
         assert 'Такой email уже занят' in content
 
+    def test_settings_invalid_email(self, client, test_user):
+        """Тест невалидного email в настройках"""
+        client.login(username='testuser', password='testpass123')
+
+        response = client.post(reverse('settings'), {
+            'first_name': 'Test',
+            'last_name': 'User',
+            'username': 'testuser',
+            'email': 'invalid-email',  # Невалидный email
+            'password': ''
+        })
+
+        assert response.status_code == 200
+        content = response.content.decode('utf-8')
+        assert 'Некорректный email' in content
+
+    def test_settings_duplicate_email(self, client, test_user):
+        """Тест занятого email в настройках"""
+        # Создаем второго пользователя с email
+        User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='testpass123'
+        )
+
+        client.login(username='testuser', password='testpass123')
+
+        response = client.post(reverse('settings'), {
+            'first_name': 'Test',
+            'last_name': 'User',
+            'username': 'testuser',
+            'email': 'other@example.com',  # Email уже занят другим пользователем
+            'password': ''
+        })
+
+        assert response.status_code == 200
+        content = response.content.decode('utf-8')
+        assert 'Такой email уже занят' in content
+
+    def test_settings_duplicate_username(self, client, test_user):
+        """Тест занятого username в настройках"""
+        # Создаем второго пользователя
+        User.objects.create_user(
+            username='otheruser',
+            email='other@example.com',
+            password='testpass123'
+        )
+
+        client.login(username='testuser', password='testpass123')
+
+        response = client.post(reverse('settings'), {
+            'first_name': 'Test',
+            'last_name': 'User',
+            'username': 'otheruser',  # Username уже занят
+            'email': 'test@example.com',
+            'password': ''
+        })
+
+        assert response.status_code == 200
+        content = response.content.decode('utf-8')
+        assert 'Такое имя пользователя уже занято' in content
+
 
 # Тесты для index и users
 @pytest.mark.django_db
@@ -402,3 +464,68 @@ class TestAuthIntegration:
         client1.get(reverse('logout'))
         assert client1.get(reverse('profile')).status_code == 302  # Редирект
         assert client2.get(reverse('profile')).status_code == 200  # Все еще работает
+
+
+# Тесты безопасности
+@pytest.mark.django_db
+class TestSecurity:
+    """Тесты безопасности (CSRF/XSS/SQL-injection)"""
+
+    def test_csrf_protection(self, client, test_user):
+        """Тест что формы защищены CSRF"""
+        response = client.get(reverse('register'))
+        assert 'csrfmiddlewaretoken' in response.content.decode('utf-8')
+
+        response = client.get(reverse('login'))
+        assert 'csrfmiddlewaretoken' in response.content.decode('utf-8')
+
+        client.login(username='testuser', password='testpass123')
+        response = client.get(reverse('settings'))
+        content = response.content.decode('utf-8')
+        assert 'csrfmiddlewaretoken' in content
+        assert response.status_code == 200
+
+    def test_xss_protection(self, client, test_user):
+        """Тест что HTML/JS не исполняется в полях"""
+        client.login(username='testuser', password='testpass123')
+
+        response = client.post(reverse('settings'), {
+            'first_name': '<script>alert("xss")</script>',
+            'last_name': 'User',
+            'username': 'testuser',
+            'email': 'test@example.com',
+            'password': ''
+        })
+
+        assert response.status_code == 302
+        test_user.refresh_from_db()
+        # Проверяем что скрипт не исполнился, а сохранился как текст
+        assert test_user.first_name == '<script>alert("xss")</script>'
+
+    def test_sql_injection_protection(self, client):
+        """Тест что SQL инъекции не проходят"""
+        # Пытаемся зарегистрироваться с SQL инъекцией в username
+        response = client.post(reverse('register'), {
+            'username': "admin'; DROP TABLE users; --",
+            'password1': 'password123',
+            'password2': 'password123',
+            'email': 'test@example.com'
+        })
+
+        # Должна быть ошибка валидации, а не выполнение SQL
+        assert response.status_code == 200
+        assert 'Неверные учетные данные' in response.content.decode('utf-8')
+
+    def test_csrf_register_login(self, client):
+        """Тест CSRF для register и login"""
+        response = client.get(reverse('register'))
+        assert 'csrfmiddlewaretoken' in response.content.decode('utf-8')
+
+        response = client.get(reverse('login'))
+        assert 'csrfmiddlewaretoken' in response.content.decode('utf-8')
+
+    def test_csrf_settings_authenticated(self, client, test_user):
+        """Тест CSRF для settings (требует авторизации)"""
+        client.login(username='testuser', password='testpass123')
+        response = client.get(reverse('settings'))
+        assert 'csrfmiddlewaretoken' in response.content.decode('utf-8')

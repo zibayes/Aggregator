@@ -161,8 +161,10 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 
-uploaded_files/*
+uploaded_files/**
+!uploaded_files/regions_polygons/
 !uploaded_files/regions_polygons/**
+!uploaded_files/avatars/
 !uploaded_files/avatars/default.png
 !uploaded_files/avatars/neuro-net_ava.jpg
 chroma/
