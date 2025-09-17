@@ -193,7 +193,7 @@ def tech_reports_register(request):
     return view
 
 
-def archaeological_heritage_sites(request):
+def archaeological_heritage_sites_register(request):
     is_processing, scan_task_id, active_scan_task = get_scan_task(
         'agregator.processing.external_sources.process_oan_list')
 
@@ -207,7 +207,7 @@ def archaeological_heritage_sites(request):
                    'active_scan_task': active_scan_task})
 
 
-def identified_archaeological_heritage_sites(request):
+def identified_archaeological_heritage_sites_register(request):
     is_processing, scan_task_id, active_scan_task = get_scan_task(
         'agregator.processing.external_sources.process_voan_list')
 

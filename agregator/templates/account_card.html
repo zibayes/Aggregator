@@ -100,17 +100,17 @@
 {% block document_sections %}
 {% if account_card.name %}
 <h2 id="name">Наименование объекта</h2>
-<p>{{ account_card.name|safe }}</p>
+<p>{{ account_card.name|escape|linebreaksbr }}</p>
 {% endif %}
 
 {% if account_card.creation_time %}
 <h2 id="creation_time">Время создания</h2>
-<p>{{ account_card.creation_time|safe }}</p>
+<p>{{ account_card.creation_time|escape|linebreaksbr }}</p>
 {% endif %}
 
 {% if account_card.address %}
 <h2 id="address">Адрес</h2>
-<p>{{ account_card.address|safe }}</p>
+<p>{{ account_card.address|escape|linebreaksbr }}</p>
 
 {% if account_card.supplement_dict and account_card.supplement_dict.address %}
 {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
@@ -128,17 +128,17 @@
 
 {% if account_card.object_type %}
 <h2 id="object_type">Вид объекта</h2>
-<p>{{ account_card.object_type|safe }}</p>
+<p>{{ account_card.object_type|escape|linebreaksbr }}</p>
 {% endif %}
 
 {% if account_card.general_classification %}
 <h2 id="general_classification">Общая видовая принадлежность</h2>
-<p>{{ account_card.general_classification|safe }}</p>
+<p>{{ account_card.general_classification|escape|linebreaksbr }}</p>
 {% endif %}
 
 {% if account_card.description %}
 <h2 id="description">Описание</h2>
-<p>{{ account_card.description|safe }}</p>
+<p>{{ account_card.description|escape|linebreaksbr }}</p>
 
 {% if account_card.supplement_dict and account_card.supplement_dict.description %}
 {% with truncated_path=account_card.source|cut:'.pdf'|cut:'.docx'|cut:'.doc'|add:'/' %}
@@ -156,22 +156,22 @@
 
 {% if account_card.usage %}
 <h2 id="usage">Использование</h2>
-<p>{{ account_card.usage|safe }}</p>
+<p>{{ account_card.usage|escape|linebreaksbr }}</p>
 {% endif %}
 
 {% if account_card.discovery_info %}
 <h2 id="discovery_info">Сведения о выявлении</h2>
-<p>{{ account_card.discovery_info|safe }}</p>
+<p>{{ account_card.discovery_info|escape|linebreaksbr }}</p>
 {% endif %}
 
 {% if account_card.compiler %}
 <h2 id="compiler">Составитель учетной карты</h2>
-<p>{{ account_card.compiler|safe }}</p>
+<p>{{ account_card.compiler|escape|linebreaksbr }}</p>
 {% endif %}
 
 {% if account_card.compile_date %}
 <h2 id="compile_date">Дата составления учетной карты</h2>
-<p>{{ account_card.compile_date|safe }}</p>
+<p>{{ account_card.compile_date|escape|linebreaksbr }}</p>
 {% endif %}
 
 {% load static %}

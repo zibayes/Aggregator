@@ -358,7 +358,7 @@ class OpenLists(models.Model):
     works = models.TextField()
     start_date = models.TextField()
     end_date = models.TextField()
-    source = models.FileField(upload_to='Открытые листы/')
+    source = models.FileField(upload_to='Открытые листы/', max_length=255)
 
     def __str__(self):
         return f"Open list {self.id}"

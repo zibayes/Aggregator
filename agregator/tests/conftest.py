@@ -76,7 +76,9 @@ def test_act(db, test_user):
     return Act.objects.create(
         user=test_user,
         year='2023',
-        name_number='test-123'
+        name_number='Test Act',
+        type='ГИКЭ',
+        place='Test Location'
     )
 
 
@@ -85,7 +87,20 @@ def test_scientific_report(db, test_user):
     from agregator.models import ScientificReport
     return ScientificReport.objects.create(
         user=test_user,
-        name='Test Report'
+        name='Test Scientific Report',
+        organization='Test Org',
+        author='Test Author'
+    )
+
+
+@pytest.fixture
+def test_tech_report(db, test_user):
+    from agregator.models import TechReport
+    return TechReport.objects.create(
+        user=test_user,
+        name='Test Tech Report',
+        organization='Test Org',
+        author='Test Author'
     )
 
 
@@ -94,17 +109,45 @@ def test_open_list(db, test_user):
     from agregator.models import OpenLists
     return OpenLists.objects.create(
         user=test_user,
-        number='TEST-001'
+        number='TEST-001',
+        holder='Test Holder',
+        object='Test Object'
     )
 
 
 @pytest.fixture
-def test_account_card(db, test_user):
-    from agregator.models import ObjectAccountCard
-    return ObjectAccountCard.objects.create(
-        user=test_user,
-        name='Test Account Card'
+def test_archaeological_heritage_site(db):
+    from agregator.models import ArchaeologicalHeritageSite
+    return ArchaeologicalHeritageSite.objects.create(
+        doc_name='Test OAN',
+        district='Test District',
+        register_num='TEST-OAN-001'
     )
+
+
+@pytest.fixture
+def test_identified_heritage_site(db):
+    from agregator.models import IdentifiedArchaeologicalHeritageSite
+    return IdentifiedArchaeologicalHeritageSite.objects.create(
+        name='Test VOAN',
+        address='Test Address',
+        obj_info='Test Info'
+    )
+
+
+@pytest.fixture
+def test_account_card(db, test_user, test_identified_heritage_site):
+    from agregator.models import ObjectAccountCard
+    card = ObjectAccountCard.objects.create(
+        user=test_user,
+        name='Test Account Card',
+        creation_time='Test Period',
+        address='Test Address'
+    )
+    # Связываем с heritage site
+    test_identified_heritage_site.account_card = card
+    test_identified_heritage_site.save()
+    return card
 
 
 @pytest.fixture

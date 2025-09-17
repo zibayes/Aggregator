@@ -7,179 +7,192 @@
 {% block reprocess_url %}{% url 'doc_reprocess' report.id %}{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="/acts_register/">Реестр актов</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Акт: {{ report.expert }}
-        от {{ report.finish_date }}
-    </li>
+<li class="breadcrumb-item"><a href="/acts_register/">Реестр актов</a></li>
+<li class="breadcrumb-item active" aria-current="page">Акт: {{ report.expert }}
+    от {{ report.finish_date }}
+</li>
 {% endblock %}
 
 {% block report_sources %}
-    {% for source in report.source_dict %}
-        <a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px;"
-           href="/{{ source.path }}">
-            Исходник: {{ source.origin_filename }}
-        </a>
-        <br>
-        <br>
-    {% endfor %}
+{% for source in report.source_dict %}
+<a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px;"
+   href="/{{ source.path }}">
+    Исходник: {{ source.origin_filename }}
+</a>
+<br>
+<br>
+{% endfor %}
 {% endblock %}
 
 {% block report_actions %}
-    {% if report.user.id == user.id or user.is_superuser %}
-        <a href="/acts_edit/{{ report.id }}">
-            <button type="button" class="btn btn-primary edit-button"
-                    style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
-                Редактировать
-            </button>
-        </a>
-        <button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_report"
-                data-bs-toggle="modal">
-            Удалить
-        </button>
-        <br>
-        <br>
-        <button type="button" class="btn btn-primary reprocess-button" data-bs-target="#reprocess"
-                data-bs-toggle="modal">
-            Повторная обработка документа
-        </button>
-    {% endif %}
+{% if report.user.id == user.id or user.is_superuser %}
+<a href="/acts_edit/{{ report.id }}">
+    <button type="button" class="btn btn-primary edit-button"
+            style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+        Редактировать
+    </button>
+</a>
+<button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_report"
+        data-bs-toggle="modal">
+    Удалить
+</button>
+<br>
+<br>
+<button type="button" class="btn btn-primary reprocess-button" data-bs-target="#reprocess"
+        data-bs-toggle="modal">
+    Повторная обработка документа
+</button>
+{% endif %}
 {% endblock %}
 
 {% block report_modals %}
-    {{ block.super }}
-    <!-- Модальное окно повторной обработки (дополнение к наследуемым модалкам) -->
-    <div class="modal fade" id="reprocess" tabindex="-1">
-        <div class="modal-dialog">
-            <form method="POST" action="{% url 'doc_reprocess' report.id %}" class="mt-3">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Повторная обработка документа</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">Выберите раздеы документа для повторной обработки:<br>
-                        <label><input type="checkbox" name="select_text" checked> Текст</label><br>
-                        <label><input type="checkbox" name="select_image" checked>
-                            Изображения</label><br>
-                        <label><input type="checkbox" name="select_coord" checked>
-                            Координаты</label><br>
-                    </div>
-                    <div class="modal-footer">
-                        {% csrf_token %}
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                            Отмена
-                        </button>
-                        <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">
-                            Начать обработку
-                        </button>
-                    </div>
+{{ block.super }}
+<!-- Модальное окно повторной обработки (дополнение к наследуемым модалкам) -->
+<div class="modal fade" id="reprocess" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" action="{% url 'doc_reprocess' report.id %}" class="mt-3">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Повторная обработка документа</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
                 </div>
-            </form>
-        </div>
+                <div class="modal-body">Выберите раздеы документа для повторной обработки:<br>
+                    <label><input type="checkbox" name="select_text" checked> Текст</label><br>
+                    <label><input type="checkbox" name="select_image" checked>
+                        Изображения</label><br>
+                    <label><input type="checkbox" name="select_coord" checked>
+                        Координаты</label><br>
+                </div>
+                <div class="modal-footer">
+                    {% csrf_token %}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        Отмена
+                    </button>
+                    <button type="submit" class="btn btn-primary" data-bs-dismiss="modal">
+                        Начать обработку
+                    </button>
+                </div>
+            </div>
+        </form>
     </div>
+</div>
 {% endblock %}
 
 {% block report_contents %}
-    <ul>
-        <li><a href="#act">Акт</a></li>
-        {% if report.start_date %}
-            <li><a href="#start_date">Дата начала</a></li>{% endif %}
-        {% if report.end_date %}
-            <li><a href="#end_date">Дата окончания</a></li>{% endif %}
-        {% if report.exp_place %}
-            <li><a href="#exp_place">Место провидения</a></li>{% endif %}
-        {% if report.exp_customer %}
-            <li><a href="#exp_customer">Заказчик</a></li>{% endif %}
-        {% if report.exp_expert %}
-            <li><a href="#exp_expert">Эксперт</a></li>{% endif %}
-        {% if report.relationship %}
-            <li><a href="#relationship">Отношение</a></li>{% endif %}
-        {% if report.goal %}
-            <li><a href="#goal">Цель</a></li>{% endif %}
-        {% if report.object %}
-            <li><a href="#object">Объект</a></li>{% endif %}
-        {% if report.docs %}
-            <li><a href="#docs">Документы</a></li>{% endif %}
-        {% if report.exp_info %}
-            <li><a href="#exp_info">Информация</a></li>{% endif %}
-        {% if report.exp_facts %}
-            <li><a href="#exp_facts">Факты</a></li>{% endif %}
-        {% if report.literature %}
-            <li><a href="#literature">Литература</a></li>{% endif %}
-        {% if report.exp_conclusion %}
-            <li><a href="#exp_conclusion">Заключение</a></li>{% endif %}
-        {% if report.supplement_dict %}
-            {% include 'includes/supplement_contents.html' %}
-        {% endif %}
-    </ul>
+<ul>
+    <li><a href="#act">Акт</a></li>
+    {% if report.start_date %}
+    <li><a href="#start_date">Дата начала</a></li>
+    {% endif %}
+    {% if report.end_date %}
+    <li><a href="#end_date">Дата окончания</a></li>
+    {% endif %}
+    {% if report.exp_place %}
+    <li><a href="#exp_place">Место провидения</a></li>
+    {% endif %}
+    {% if report.exp_customer %}
+    <li><a href="#exp_customer">Заказчик</a></li>
+    {% endif %}
+    {% if report.exp_expert %}
+    <li><a href="#exp_expert">Эксперт</a></li>
+    {% endif %}
+    {% if report.relationship %}
+    <li><a href="#relationship">Отношение</a></li>
+    {% endif %}
+    {% if report.goal %}
+    <li><a href="#goal">Цель</a></li>
+    {% endif %}
+    {% if report.object %}
+    <li><a href="#object">Объект</a></li>
+    {% endif %}
+    {% if report.docs %}
+    <li><a href="#docs">Документы</a></li>
+    {% endif %}
+    {% if report.exp_info %}
+    <li><a href="#exp_info">Информация</a></li>
+    {% endif %}
+    {% if report.exp_facts %}
+    <li><a href="#exp_facts">Факты</a></li>
+    {% endif %}
+    {% if report.literature %}
+    <li><a href="#literature">Литература</a></li>
+    {% endif %}
+    {% if report.exp_conclusion %}
+    <li><a href="#exp_conclusion">Заключение</a></li>
+    {% endif %}
+    {% if report.supplement_dict %}
+    {% include 'includes/supplement_contents.html' %}
+    {% endif %}
+</ul>
 {% endblock %}
 
 {% block report_sections %}
-    <h2 id="act">Акт</h2>
-    <p>{{ report.act|default:report.name_number|safe }}</p>
+<h2 id="act">Акт</h2>
+<p>{{ report.act|default:report.name_number|escape|linebreaksbr }}</p>
 
-    {% if report.start_date %}
-        <h2 id="start_date">Дата начала</h2>
-        <p>{{ report.start_date|safe }}</p>
-    {% endif %}
+{% if report.start_date %}
+<h2 id="start_date">Дата начала</h2>
+<p>{{ report.start_date|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.end_date %}
-        <h2 id="end_date">Дата окончания</h2>
-        <p>{{ report.end_date|safe }}</p>
-    {% endif %}
+{% if report.end_date %}
+<h2 id="end_date">Дата окончания</h2>
+<p>{{ report.end_date|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.exp_place %}
-        <h2 id="exp_place">Место провидения</h2>
-        <p>{{ report.exp_place|safe }}</p>
-    {% endif %}
+{% if report.exp_place %}
+<h2 id="exp_place">Место провидения</h2>
+<p>{{ report.exp_place|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.exp_customer %}
-        <h2 id="exp_customer">Заказчик</h2>
-        <p>{{ report.exp_customer|safe }}</p>
-    {% endif %}
+{% if report.exp_customer %}
+<h2 id="exp_customer">Заказчик</h2>
+<p>{{ report.exp_customer|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.exp_expert %}
-        <h2 id="exp_expert">Эксперт</h2>
-        <p>{{ report.exp_expert|safe }}</p>
-    {% endif %}
+{% if report.exp_expert %}
+<h2 id="exp_expert">Эксперт</h2>
+<p>{{ report.exp_expert|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.relationship %}
-        <h2 id="relationship">Отношение</h2>
-        <p>{{ report.relationship|safe }}</p>
-    {% endif %}
+{% if report.relationship %}
+<h2 id="relationship">Отношение</h2>
+<p>{{ report.relationship|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.goal %}
-        <h2 id="goal">Цель</h2>
-        <p>{{ report.goal|safe }}</p>
-    {% endif %}
+{% if report.goal %}
+<h2 id="goal">Цель</h2>
+<p>{{ report.goal|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.object %}
-        <h2 id="object">Объект</h2>
-        <p>{{ report.object|safe }}</p>
-    {% endif %}
+{% if report.object %}
+<h2 id="object">Объект</h2>
+<p>{{ report.object|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.docs %}
-        <h2 id="docs">Документы</h2>
-        <p>{{ report.docs|safe }}</p>
-    {% endif %}
+{% if report.docs %}
+<h2 id="docs">Документы</h2>
+<p>{{ report.docs|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.exp_info %}
-        <h2 id="exp_info">Информация</h2>
-        <p>{{ report.exp_info|safe }}</p>
-    {% endif %}
+{% if report.exp_info %}
+<h2 id="exp_info">Информация</h2>
+<p>{{ report.exp_info|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.exp_facts %}
-        <h2 id="exp_facts">Факты</h2>
-        <p>{{ report.exp_facts|safe }}</p>
-    {% endif %}
+{% if report.exp_facts %}
+<h2 id="exp_facts">Факты</h2>
+<p>{{ report.exp_facts|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.literature %}
-        <h2 id="literature">Литература</h2>
-        <p>{{ report.literature|safe }}</p>
-    {% endif %}
+{% if report.literature %}
+<h2 id="literature">Литература</h2>
+<p>{{ report.literature|escape|linebreaksbr }}</p>
+{% endif %}
 
-    {% if report.exp_conclusion %}
-        <h2 id="exp_conclusion">Заключение</h2>
-        <p>{{ report.exp_conclusion|safe }}</p>
-    {% endif %}
+{% if report.exp_conclusion %}
+<h2 id="exp_conclusion">Заключение</h2>
+<p>{{ report.exp_conclusion|escape|linebreaksbr }}</p>
+{% endif %}
 {% endblock %}

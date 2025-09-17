@@ -5,52 +5,52 @@
 {% block simple_form_header %}объекта археологического наследия{% endblock %}
 {% block delete_object_name %}объект археологического наследия{% endblock %}
 {% block delete_object_url %}
-    {% url 'archaeological_heritage_sites_delete' archaeological_heritage_site.id %}{% endblock %}
+{% url 'archaeological_heritage_sites_delete' archaeological_heritage_site.id %}{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="/archaeological_heritage_sites/">Перечень объектов археологического
-        наследия</a></li>
-    <li class="breadcrumb-item"><a href="/archaeological_heritage_sites/{{ archaeological_heritage_site.id }}">Объект
-        археологического
-        наследия {{ archaeological_heritage_site.doc_name }}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Редактирование
-    </li>
+<li class="breadcrumb-item"><a href="/archaeological_heritage_sites_register/">Перечень объектов археологического
+    наследия</a></li>
+<li class="breadcrumb-item"><a href="/archaeological_heritage_sites/{{ archaeological_heritage_site.id }}">Объект
+    археологического
+    наследия {{ archaeological_heritage_site.doc_name }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Редактирование
+</li>
 {% endblock %}
 
 {% block form_fields %}
-    <div class="mb-3">
-        <label for="doc_name" class="form-label">Наименование объекта</label>
-        <input type="text" class="form-control" id="doc_name" name="doc_name"
-               value="{{ archaeological_heritage_site.doc_name }}" required>
-    </div>
+<div class="mb-3">
+    <label for="doc_name" class="form-label">Наименование объекта</label>
+    <input type="text" class="form-control" id="doc_name" name="doc_name"
+           value="{{ archaeological_heritage_site.doc_name }}" required>
+</div>
 
-    <div class="mb-3">
-        <label for="district" class="form-label">Район местонахождения</label>
-        <input type="text" class="form-control" id="district" name="district"
-               value="{{ archaeological_heritage_site.district }}" required>
-    </div>
+<div class="mb-3">
+    <label for="district" class="form-label">Район местонахождения</label>
+    <input type="text" class="form-control" id="district" name="district"
+           value="{{ archaeological_heritage_site.district }}" required>
+</div>
 
-    <div class="mb-3">
-        <label for="document" class="form-label">Документ о постановке на охрану</label>
-        <input type="text" class="form-control" id="document" name="document"
-               value="{{ archaeological_heritage_site.document }}">
-    </div>
+<div class="mb-3">
+    <label for="document" class="form-label">Документ о постановке на охрану</label>
+    <input type="text" class="form-control" id="document" name="document"
+           value="{{ archaeological_heritage_site.document }}">
+</div>
 
-    <div class="mb-3">
-        <label for="register_num" class="form-label">Регистрационный номер</label>
-        <input type="text" class="form-control" id="register_num" name="register_num"
-               value="{{ archaeological_heritage_site.register_num }}">
-    </div>
+<div class="mb-3">
+    <label for="register_num" class="form-label">Регистрационный номер</label>
+    <input type="text" class="form-control" id="register_num" name="register_num"
+           value="{{ archaeological_heritage_site.register_num }}">
+</div>
 
-    <div class="mb-3">
-        <label for="is_excluded" class="form-label">Исключен из списка</label>
-        <select class="form-select" id="is_excluded" name="is_excluded">
-            <option value="False" {% if not archaeological_heritage_site.is_excluded %}selected{% endif %}>
-                Нет
-            </option>
-            <option value="True" {% if archaeological_heritage_site.is_excluded %}selected{% endif %}>
-                Да
-            </option>
-        </select>
-    </div>
+<div class="mb-3">
+    <label for="is_excluded" class="form-label">Исключен из списка</label>
+    <select class="form-select" id="is_excluded" name="is_excluded">
+        <option value="False" {% if not archaeological_heritage_site.is_excluded %}selected{% endif %}>
+            Нет
+        </option>
+        <option value="True" {% if archaeological_heritage_site.is_excluded %}selected{% endif %}>
+            Да
+        </option>
+    </select>
+</div>
 {% endblock %}

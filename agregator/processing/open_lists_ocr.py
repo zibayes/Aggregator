@@ -624,18 +624,16 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
 
         image_filename = pdf_path[:pdf_path.rfind(".")]
         image_filename = image_filename + ".png"
-        if not os.path.isfile(image_filename):
-            pix = page.get_pixmap(dpi=300)
-            pil_img = Image.open(io.BytesIO(pix.tobytes("png")))
-            ratio = (pil_img.width / 596 + pil_img.height / 842) / 2
-            print(pil_img.width, pil_img.height)
-            print(ratio)
-            if ratio > 2.1:
-                new_ratio = 2.08
-                pil_img = pil_img.resize(
-                    (int(pil_img.width / ratio * new_ratio), int(pil_img.height / ratio * new_ratio)),
-                    Image.LANCZOS)
-            # pil_img.save(image_filename, format='PNG', optimize=True)
+        pix = page.get_pixmap(dpi=300)
+        pil_img = Image.open(io.BytesIO(pix.tobytes("png")))
+        ratio = (pil_img.width / 596 + pil_img.height / 842) / 2
+        print(pil_img.width, pil_img.height)
+        print(ratio)
+        if ratio > 2.1:
+            new_ratio = 2.08
+            pil_img = pil_img.resize(
+                (int(pil_img.width / ratio * new_ratio), int(pil_img.height / ratio * new_ratio)),
+                Image.LANCZOS)
 
         list_data = {'Номер листа': '', 'Держатель': '', 'Объект': '', 'Работы': '', 'Начало срока': '',
                      'Конец срока': '', 'Тип работ': ''}
