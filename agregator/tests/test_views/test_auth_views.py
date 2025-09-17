@@ -346,24 +346,26 @@ class TestAuthIntegration:
     def test_full_auth_flow(self, client):
         """Полный тест потока с учетом твоего поведения"""
         # 1. Регистрация (возвращает 302)
+        initial_count = User.objects.count()
         register_response = client.post(reverse('register'), {
             'username': 'integrationuser',
-            'password1': 'integrationuser123!',
-            'password2': 'integrationuser123!',
-            'email': 'integration@gmail.com'
+            'password1': 'TestPass123!',
+            'password2': 'TestPass123!',
+            'email': 'integration@example.com'
         })
-        if register_response.status_code != 302:
-            print("Регистрация не удалась, ответ сервера:")
-            print(register_response.content.decode('utf-8'))
+
+        # Проверяем что пользователь создался, независимо от статуса
+        assert User.objects.count() == initial_count + 1
+        assert User.objects.filter(username='integrationuser').exists()
+
         assert register_response.status_code == 302
 
         # 2. Логин
         login_response = client.post(reverse('login'), {
             'username': 'integrationuser',
-            'password': 'integrationuser123!'
+            'password': 'TestPass123!'
         })
         content = login_response.content.decode('utf-8')
-        print(content)
         assert login_response.status_code == 302  # Редирект на профиль
 
         # 3. Профиль (требует логина)

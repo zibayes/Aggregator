@@ -19,19 +19,11 @@ def user_register(request):
     if request.method == 'POST':
         form = UserRegisterForm(request.POST)
         if form.is_valid():
-            username = form.cleaned_data['username']
-            email = form.cleaned_data['email']
-            if User.objects.filter(username=username).exists():
-                return render(request, 'register.html', {'error': f'Такое имя пользователя уже занято: {username}'})
-            if not validate_email(email):
-                return render(request, 'register.html', {'error': 'Некорректный email'})
-            if User.objects.filter(email=email).exists():
-                return render(request, 'register.html', {'error': f'Такой email уже занят: {email}'})
             user = form.save()
             login(request, user)
             return redirect('profile')
         else:
-            return render(request, 'register.html', {'error': 'Неверные учетные данные'})
+            return render(request, 'register.html', {'form': form, 'error': 'Неверные учетные данные'})
     else:
         form = UserRegisterForm()
     return render(request, 'register.html', {'form': form})

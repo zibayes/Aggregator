@@ -2,6 +2,7 @@ from pathlib import Path
 
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
+from django.dispatch import receiver
 
 
 class AgregatorConfig(AppConfig):
@@ -13,20 +14,17 @@ class AgregatorConfig(AppConfig):
 
     def ready(self):
         print("AgregatorConfig.ready() вызван")
-        # Подключаем сигнал
-        post_migrate.connect(self.load_geojson_data)
-        post_migrate.connect(self.create_links_for_existing)
-
         # Подключаем сигналы для автоматического создания ссылок
         self.connect_model_signals()
-
         # Создаем папки при запуске
         self.create_folders()
 
-    def load_geojson_data(self, **kwargs):
-        print("Сигнал post_migrate получен")
-        from .processing.coordinates_extraction import save_geojson_polygons_to_db
-        save_geojson_polygons_to_db()
+    @receiver(post_migrate)
+    def load_geojson_data(sender, **kwargs):
+        if sender.name == 'agregator':
+            print("Сигнал post_migrate получен")
+            from .processing.coordinates_extraction import save_geojson_polygons_to_db
+            save_geojson_polygons_to_db()
 
     def connect_model_signals(self):
         """Подключаем сигналы для моделей"""
@@ -46,11 +44,12 @@ class AgregatorConfig(AppConfig):
 
         print("Сигналы для автоматических ссылок подключены")
 
-    def create_links_for_existing(self, **kwargs):
-        """Создает ссылки для существующих объектов после миграций"""
-        print("Создание ссылок для существующих объектов...")
-        from agregator.processing.links import create_links_for_all_existing
-        create_links_for_all_existing()
+    @receiver(post_migrate)
+    def create_links_for_existing(sender, **kwargs):
+        if sender.name == 'agregator':
+            print("Создание ссылок для существующих объектов...")
+            from agregator.processing.links import create_links_for_all_existing
+            create_links_for_all_existing()
 
     def create_folders(self):
         """Создание системных папок"""
