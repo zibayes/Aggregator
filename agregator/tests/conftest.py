@@ -2,6 +2,7 @@ import pytest
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
+from django_celery_results.models import TaskResult
 
 User = get_user_model()
 
@@ -37,6 +38,16 @@ def test_user_2(db):
         username='otheruser',
         password='otherpass123',
         email='other@example.com'
+    )
+
+
+@pytest.fixture
+def admin_user(db):
+    return User.objects.create_user(
+        username='admin',
+        password='adminpass123',
+        email='admin@example.com',
+        is_superuser=True
     )
 
 
@@ -94,3 +105,55 @@ def test_account_card(db, test_user):
         user=test_user,
         name='Test Account Card'
     )
+
+
+@pytest.fixture
+def test_tasks(db, test_user):
+    """Создает тестовые задачи для пользователя"""
+    from agregator.models import UserTasks
+
+    tasks = []
+    for i, task_type in enumerate(
+            ['act', 'scientific_report', 'tech_report', 'open_list', 'account_card', 'commercial_offer', 'geo_object']):
+        task = UserTasks.objects.create(
+            user=test_user,
+            task_id=f'test_task_{i}',
+            files_type=task_type,
+            upload_source={'source': 'Пользовательский файл'}
+        )
+        tasks.append(task)
+
+    # Создаем TaskResult для этих задач
+    for task in tasks:
+        TaskResult.objects.create(
+            task_id=task.task_id,
+            status='SUCCESS',
+            result='{"message": "success"}'
+        )
+
+    return tasks
+
+
+@pytest.fixture
+def admin_tasks(db, admin_user):
+    """Создает тестовые задачи для админа (external source)"""
+    from agregator.models import UserTasks
+
+    tasks = []
+    for i, task_type in enumerate(['act', 'scientific_report', 'tech_report', 'open_list']):
+        task = UserTasks.objects.create(
+            user=admin_user,
+            task_id=f'admin_task_{i}',
+            files_type=task_type,
+            upload_source={'source': 'external'}
+        )
+        tasks.append(task)
+
+    for task in tasks:
+        TaskResult.objects.create(
+            task_id=task.task_id,
+            status='SUCCESS',
+            result='{"message": "success"}'
+        )
+
+    return tasks
