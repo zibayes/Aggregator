@@ -43,11 +43,10 @@ def test_user_2(db):
 
 @pytest.fixture
 def admin_user(db):
-    return User.objects.create_user(
+    return User.objects.create_superuser(
         username='admin',
         password='adminpass123',
-        email='admin@example.com',
-        is_superuser=True
+        email='admin@example.com'
     )
 
 
@@ -119,6 +118,7 @@ def test_open_list(db, test_user):
 def test_archaeological_heritage_site(db):
     from agregator.models import ArchaeologicalHeritageSite
     return ArchaeologicalHeritageSite.objects.create(
+        user=admin_user,
         doc_name='Test OAN',
         district='Test District',
         register_num='TEST-OAN-001'
@@ -148,6 +148,24 @@ def test_account_card(db, test_user, test_identified_heritage_site):
     test_identified_heritage_site.account_card = card
     test_identified_heritage_site.save()
     return card
+
+
+@pytest.fixture
+def test_commercial_offer(test_user):
+    from agregator.models import CommercialOffers
+    return CommercialOffers.objects.create(
+        user=test_user,
+        origin_filename='Test Commercial Offer'
+    )
+
+
+@pytest.fixture
+def test_geo_object(test_user):
+    from agregator.models import GeoObject
+    return GeoObject.objects.create(
+        user=test_user,
+        origin_filename='Test Geo Object'
+    )
 
 
 @pytest.fixture
