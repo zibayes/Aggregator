@@ -7,42 +7,44 @@
 {% block delete_object_url %}{% url 'open_lists_delete' open_list.id %}{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="/open_lists_register/">Реестр открытых листов</a></li>
-    <li class="breadcrumb-item"><a href="/open_lists/{{ open_list.id }}">Открытый
-        лист {{ open_list.number }}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Редактирование
-    </li>
+<li class="breadcrumb-item"><a href="/open_lists_register/">Реестр открытых листов</a></li>
+<li class="breadcrumb-item"><a href="/open_lists/{{ open_list.id }}">Открытый
+    лист {{ open_list.number }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Редактирование
+</li>
 {% endblock %}
 
 {% block form_fields %}
-    <div class="mb-3">
-        <label for="number" class="form-label">Номер</label>
-        <input type="text" class="form-control" id="number" name="number" value="{{ open_list.number }}" required>
-    </div>
+{% include 'includes/django_messages.html' %}
 
-    <div class="mb-3">
-        <label for="holder" class="form-label">Держатель</label>
-        <input type="text" class="form-control" id="holder" name="holder" value="{{ open_list.holder }}" required>
-    </div>
+<div class="mb-3">
+    <label for="number" class="form-label">Номер</label>
+    <input type="text" class="form-control" id="number" name="number" value="{{ open_list.number }}" required>
+</div>
 
-    <div class="mb-3">
-        <label for="object" class="form-label">Объект</label>
-        <textarea class="form-control" id="object" name="object" rows="4">{{ open_list.object }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="holder" class="form-label">Держатель</label>
+    <input type="text" class="form-control" id="holder" name="holder" value="{{ open_list.holder }}" required>
+</div>
 
-    <div class="mb-3">
-        <label for="works" class="form-label">Работы</label>
-        <textarea class="form-control" id="works" name="works" rows="4">{{ open_list.works }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="object" class="form-label">Объект</label>
+    <textarea class="form-control" id="object" name="object" rows="4">{{ open_list.object }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="start_date" class="form-label">Дата начала</label>
-        <input type="text" class="form-control" id="start_date" name="start_date"
-               value="{{ open_list.start_date }}">
-    </div>
+<div class="mb-3">
+    <label for="works" class="form-label">Работы</label>
+    <textarea class="form-control" id="works" name="works" rows="4">{{ open_list.works }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="end_date" class="form-label">Дата окончания</label>
-        <input type="text" class="form-control" id="end_date" name="end_date" value="{{ open_list.end_date }}">
-    </div>
+<div class="mb-3">
+    <label for="start_date" class="form-label">Дата начала</label>
+    <input type="text" class="form-control" id="start_date" name="start_date"
+           value="{{ open_list.start_date }}">
+</div>
+
+<div class="mb-3">
+    <label for="end_date" class="form-label">Дата окончания</label>
+    <input type="text" class="form-control" id="end_date" name="end_date" value="{{ open_list.end_date }}">
+</div>
 {% endblock %}

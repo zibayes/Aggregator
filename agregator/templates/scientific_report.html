@@ -15,6 +15,7 @@
 {% endblock %}
 
 {% block report_sources %}
+{% include 'includes/django_messages.html' %}
 {% for source in report.source_dict %}
 <a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
    href="/{{ source.path }}">

@@ -45,9 +45,13 @@ def acts_edit(request, pk):
             'conclusion',
             'border_objects'
         ]
-        process_edit_form(request, act, fields)
-        act.coordinates = process_coords_from_edit_page(request, act)
-        act.supplement = process_supplement(request, act)
+        try:
+            process_edit_form(request, act, fields)
+            act.coordinates = process_coords_from_edit_page(request, act)
+            act.supplement = process_supplement(request, act)
+        except Exception as e:
+            messages.error(request, f'Ошибка при обновлении: {str(e)}')
+            return render(request, 'act_edit.html', {'report': act})
 
         act.save()
         messages.success(request, 'Акт успешно обновлен.')
@@ -83,9 +87,13 @@ def scientific_reports_edit(request, pk):
             'results',
             'conclusion'
         ]
-        process_edit_form(request, report, fields)
-        report.coordinates = process_coords_from_edit_page(request, report)
-        report.supplement = process_supplement(request, report)
+        try:
+            process_edit_form(request, report, fields)
+            report.coordinates = process_coords_from_edit_page(request, report)
+            report.supplement = process_supplement(request, report)
+        except Exception as e:
+            messages.error(request, f'Ошибка при обновлении: {str(e)}')
+            return render(request, 'scientific_report_edit.html', {'report': report})
 
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
@@ -121,9 +129,13 @@ def tech_reports_edit(request, pk):
             'results',
             'conclusion'
         ]
-        process_edit_form(request, report, fields)
-        report.coordinates = process_coords_from_edit_page(request, report)
-        report.supplement = process_supplement(request, report)
+        try:
+            process_edit_form(request, report, fields)
+            report.coordinates = process_coords_from_edit_page(request, report)
+            report.supplement = process_supplement(request, report)
+        except Exception as e:
+            messages.error(request, f'Ошибка при обновлении: {str(e)}')
+            return render(request, 'tech_report_edit.html', {'report': report})
 
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
@@ -153,7 +165,13 @@ def open_lists_edit(request, pk):
             'start_date',
             'end_date'
         ]
-        process_edit_form(request, open_list, fields)
+
+        try:
+            process_edit_form(request, open_list, fields)
+        except Exception as e:
+            messages.error(request, f'Ошибка при обновлении: {str(e)}')
+            return render(request, 'open_list_edit.html', {'open_list': open_list})
+
         open_list.save()
         messages.success(request, 'Открытый лист успешно обновлен.')
         return redirect(f'/open_lists/{open_list.id}')
@@ -181,7 +199,13 @@ def archaeological_heritage_sites_edit(request, pk):
             'register_num',
             'is_excluded'
         ]
-        process_edit_form(request, oan, fields)
+
+        try:
+            process_edit_form(request, oan, fields)
+        except Exception as e:
+            messages.error(request, f'Ошибка при обновлении: {str(e)}')
+            return render(request, 'archaeological_heritage_site_edit.html', {'archaeological_heritage_site': oan})
+
         messages.success(request, 'Памятник успешно обновлен.')
         return redirect(f'/archaeological_heritage_sites/{oan.id}')
 
@@ -200,8 +224,15 @@ def identified_archaeological_heritage_sites_edit(request, pk):
             'document',
             'is_excluded'
         ]
-        process_edit_form(request, voan, fields)
-        messages.success(request, 'Отчёт успешно обновлен.')
+
+        try:
+            process_edit_form(request, voan, fields)
+        except Exception as e:
+            messages.error(request, f'Ошибка при обновлении: {str(e)}')
+            return render(request, 'identified_archaeological_heritage_site_edit.html',
+                          {'identified_archaeological_heritage_site': voan})
+
+        messages.success(request, 'Памятник успешно обновлен.')
         return redirect(f'/identified_archaeological_heritage_sites/{voan.id}')
 
     return render(request, 'identified_archaeological_heritage_site_edit.html',
@@ -213,7 +244,7 @@ def identified_archaeological_heritage_sites_edit(request, pk):
 def archaeological_heritage_sites_delete(request, pk):
     oan = get_object_or_404(ArchaeologicalHeritageSite, id=pk)
     oan.delete()
-    return redirect(f'archaeological_heritage_sites')
+    return redirect(f'archaeological_heritage_sites_register')
 
 
 @login_required
@@ -221,7 +252,7 @@ def archaeological_heritage_sites_delete(request, pk):
 def identified_archaeological_heritage_sites_delete(request, pk):
     voan = get_object_or_404(IdentifiedArchaeologicalHeritageSite, id=pk)
     voan.delete()
-    return redirect(f'identified_archaeological_heritage_sites')
+    return redirect(f'identified_archaeological_heritage_sites_register')
 
 
 @login_required
@@ -239,9 +270,13 @@ def account_cards_edit(request, pk):
             'usage',
             'discovery_info'
         ]
-        process_edit_form(request, account_card, fields)
-        account_card.supplement = process_supplement(request, account_card)
-        account_card.coordinates = process_coords_from_edit_page(request, account_card)
+        try:
+            process_edit_form(request, account_card, fields)
+            account_card.supplement = process_supplement(request, account_card)
+            account_card.coordinates = process_coords_from_edit_page(request, account_card)
+        except Exception as e:
+            messages.error(request, f'Ошибка при обновлении: {str(e)}')
+            return render(request, 'account_card_edit.html', {'account_card': account_card})
 
         account_card.save()
         messages.success(request, 'Учётная карта успешно обновлена.')
@@ -264,7 +299,14 @@ def commercial_offers_edit(request, pk):
     commercial_offer = get_object_or_404(CommercialOffers, id=pk)
     commercial_offer.coordinates = commercial_offer.coordinates_dict
     if request.method == 'POST':
-        commercial_offer.coordinates = process_coords_from_edit_page(request, commercial_offer)
+
+        try:
+            commercial_offer.coordinates = process_coords_from_edit_page(request, commercial_offer)
+        except Exception as e:
+            messages.error(request, f'Ошибка при обновлении: {str(e)}')
+            return render(request, 'commercial_offer_edit.html',
+                          {'commercial_offer': commercial_offer})
+
         commercial_offer.save()
         messages.success(request, 'Коммерческое предложение успешно обновлено.')
         return redirect(f'/commercial_offers_edit/{commercial_offer.id}')
@@ -287,7 +329,14 @@ def geo_objects_edit(request, pk):
     geo_object = get_object_or_404(GeoObject, id=pk)
     geo_object.coordinates = geo_object.coordinates_dict
     if request.method == 'POST':
-        geo_object.coordinates = process_coords_from_edit_page(request, geo_object)
+
+        try:
+            geo_object.coordinates = process_coords_from_edit_page(request, geo_object)
+        except Exception as e:
+            messages.error(request, f'Ошибка при обновлении: {str(e)}')
+            return render(request, 'geo_object_edit.html',
+                          {'geo_object': geo_object})
+
         geo_object.save()
         messages.success(request, 'Коммерческое предложение успешно обновлено.')
         return redirect(f'/geo_objects_edit/{geo_object.id}')

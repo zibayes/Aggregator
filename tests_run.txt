@@ -17,11 +17,15 @@ pytest --cov=agregator.models --cov-report=html
 
 pytest agregator/tests/test_views/test_auth_views.py --cov=agregator.views.auth --cov-report=term-missing -v
 
+pytest agregator/tests/test_views/test_api_views.py --cov=agregator.views.api_views --cov-report=term-missing -v
+
+pytest agregator/tests/test_views/test_detail_views.py --cov=agregator.views.detail_views --cov-report=term-missing -v
+
+pytest agregator/tests/test_views/test_edit_views.py --cov=agregator.views.edit_views --cov-report=term-missing -v
+
 pytest agregator/tests/test_views/test_crud_views.py --cov=agregator.views --cov-report=term-missing -v
 
 pytest agregator/tests/test_views/test_file_views.py --cov=agregator.views --cov-report=term-missing -v
-
-pytest agregator/tests/test_views/test_api_views.py --cov=agregator.views --cov-report=term-missing -v
 
 pytest agregator/tests/test_views/test_deconstructor_views.py --cov=agregator.views --cov-report=term-missing -v
 

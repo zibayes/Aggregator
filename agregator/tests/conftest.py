@@ -118,7 +118,6 @@ def test_open_list(db, test_user):
 def test_archaeological_heritage_site(db):
     from agregator.models import ArchaeologicalHeritageSite
     return ArchaeologicalHeritageSite.objects.create(
-        user=admin_user,
         doc_name='Test OAN',
         district='Test District',
         register_num='TEST-OAN-001'

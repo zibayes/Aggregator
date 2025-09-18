@@ -18,6 +18,8 @@
 {% endblock %}
 
 {% block form_fields %}
+{% include 'includes/django_messages.html' %}
+
 <div class="mb-3">
     <label for="doc_name" class="form-label">Наименование объекта</label>
     <input type="text" class="form-control" id="doc_name" name="doc_name"

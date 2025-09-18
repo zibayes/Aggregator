@@ -5,61 +5,62 @@
 {% block delete_url %}{% url 'open_lists_delete' open_list.id %}{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="/open_lists_register/">Реестр открытых листов</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Открытый
-        лист {{ open_list.number }}
-    </li>
+<li class="breadcrumb-item"><a href="/open_lists_register/">Реестр открытых листов</a></li>
+<li class="breadcrumb-item active" aria-current="page">Открытый
+    лист {{ open_list.number }}
+</li>
 {% endblock %}
 
 {% block document_sources %}
-    <a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px; margin-top: 15px;"
-       href="/uploaded_files/{{ open_list.source }}">
-        Исходник: {{ open_list.origin_filename }}
-    </a>
+{% include 'includes/django_messages.html' %}
+<a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px; margin-top: 15px;"
+   href="/uploaded_files/{{ open_list.source }}">
+    Исходник: {{ open_list.origin_filename }}
+</a>
 {% endblock %}
 
 {% block document_actions %}
-    {% if open_list.user.id == user.id or user.is_superuser %}
-        <a href="/open_lists_edit/{{ open_list.id }}">
-            <button type="button" class="btn btn-primary edit-button"
-                    style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
-                Редактировать
-            </button>
-        </a>
-        <button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_document"
-                data-bs-toggle="modal">
-            Удалить
-        </button>
-    {% endif %}
+{% if open_list.user.id == user.id or user.is_superuser %}
+<a href="/open_lists_edit/{{ open_list.id }}">
+    <button type="button" class="btn btn-primary edit-button"
+            style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
+        Редактировать
+    </button>
+</a>
+<button type="button" class="btn btn-danger delete-button" data-bs-target="#delete_document"
+        data-bs-toggle="modal">
+    Удалить
+</button>
+{% endif %}
 {% endblock %}
 
 {% block document_contents %}
-    <ul>
-        <li><a href="#number">Номер</a></li>
-        <li><a href="#holder">Держатель</a></li>
-        <li><a href="#object">Объект</a></li>
-        <li><a href="#works">Работы</a></li>
-        <li><a href="#start_date">Дата начала</a></li>
-        <li><a href="#end_date">Дата окончания</a></li>
-    </ul>
+<ul>
+    <li><a href="#number">Номер</a></li>
+    <li><a href="#holder">Держатель</a></li>
+    <li><a href="#object">Объект</a></li>
+    <li><a href="#works">Работы</a></li>
+    <li><a href="#start_date">Дата начала</a></li>
+    <li><a href="#end_date">Дата окончания</a></li>
+</ul>
 {% endblock %}
 
 {% block document_sections %}
-    <h2 id="number">Номер</h2>
-    <p>{{ open_list.number }}</p>
+<h2 id="number">Номер</h2>
+<p>{{ open_list.number }}</p>
 
-    <h2 id="holder">Держатель</h2>
-    <p>{{ open_list.holder }}</p>
+<h2 id="holder">Держатель</h2>
+<p>{{ open_list.holder }}</p>
 
-    <h2 id="object">Объект</h2>
-    <p>{{ open_list.object }}</p>
+<h2 id="object">Объект</h2>
+<p>{{ open_list.object }}</p>
 
-    <h2 id="works">Работы</h2>
-    <p>{{ open_list.works }}</p>
+<h2 id="works">Работы</h2>
+<p>{{ open_list.works }}</p>
 
-    <h2 id="start_date">Дата начала</h2>
-    <p>{{ open_list.start_date }}</p>
+<h2 id="start_date">Дата начала</h2>
+<p>{{ open_list.start_date }}</p>
 
-    <h2 id="end_date">Дата окончания</h2>
-    <p>{{ open_list.end_date }}</p>
+<h2 id="end_date">Дата окончания</h2>
+<p>{{ open_list.end_date }}</p>
 {% endblock %}

@@ -11,6 +11,7 @@
 {% endblock %}
 
 {% block document_sources %}
+{% include 'includes/django_messages.html' %}
 {% if account_card.upload_source_dict %}
 <a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px;"
    href="/{{ account_card.source }}">

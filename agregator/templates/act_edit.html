@@ -6,150 +6,152 @@
 {% block delete_url %}{% url 'acts_delete' report.id %}{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="/acts_register/">Реестр актов</a></li>
-    <li class="breadcrumb-item"><a href="/acts/{{ report.id }}">Акт: {{ report.expert }}
-        от {{ report.finish_date }}</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Редактирование
-    </li>
+<li class="breadcrumb-item"><a href="/acts_register/">Реестр актов</a></li>
+<li class="breadcrumb-item"><a href="/acts/{{ report.id }}">Акт: {{ report.expert }}
+    от {{ report.finish_date }}</a></li>
+<li class="breadcrumb-item active" aria-current="page">Редактирование
+</li>
 {% endblock %}
 
 {% block document_fields %}
-    <div class="mb-3">
-        <label for="year" class="form-label">Год</label>
-        <input type="text" class="form-control" id="year" name="year" value="{{ report.year }}" required>
-    </div>
+{% include 'includes/django_messages.html' %}
 
-    <div class="mb-3">
-        <label for="finish_date" class="form-label">Дата окончания проведения ГИКЭ</label>
-        <input type="text" class="form-control" id="finish_date" name="finish_date"
-               value="{{ report.finish_date }}" required>
-    </div>
+<div class="mb-3">
+    <label for="year" class="form-label">Год</label>
+    <input type="text" class="form-control" id="year" name="year" value="{{ report.year }}" required>
+</div>
 
-    <div class="mb-3">
-        <label for="type" class="form-label">Вид ГИКЭ</label>
-        <input type="text" class="form-control" id="type" name="type" value="{{ report.type }}" required>
-    </div>
+<div class="mb-3">
+    <label for="finish_date" class="form-label">Дата окончания проведения ГИКЭ</label>
+    <input type="text" class="form-control" id="finish_date" name="finish_date"
+           value="{{ report.finish_date }}" required>
+</div>
 
-    <div class="mb-3">
-        <label for="name_number" class="form-label">Номер (если имеется) и наименование Акта ГИКЭ</label>
-        <input type="text" class="form-control" id="name_number" name="name_number"
-               value="{{ report.name_number }}">
-    </div>
+<div class="mb-3">
+    <label for="type" class="form-label">Вид ГИКЭ</label>
+    <input type="text" class="form-control" id="type" name="type" value="{{ report.type }}" required>
+</div>
 
-    <div class="mb-3">
-        <label for="place" class="form-label">Место проведения экспертизы</label>
-        <input type="text" class="form-control" id="place" name="place" value="{{ report.place }}">
-    </div>
+<div class="mb-3">
+    <label for="name_number" class="form-label">Номер (если имеется) и наименование Акта ГИКЭ</label>
+    <input type="text" class="form-control" id="name_number" name="name_number"
+           value="{{ report.name_number }}">
+</div>
 
-    <div class="mb-3">
-        <label for="customer" class="form-label">Заказчик работ</label>
-        <input type="text" class="form-control" id="customer" name="customer" value="{{ report.customer }}">
-    </div>
+<div class="mb-3">
+    <label for="place" class="form-label">Место проведения экспертизы</label>
+    <input type="text" class="form-control" id="place" name="place" value="{{ report.place }}">
+</div>
 
-    <div class="mb-3">
-        <label for="area" class="form-label">Площадь, протяжённость и/или др. параметры объекта</label>
-        <input type="text" class="form-control" id="area" name="area" value="{{ report.area }}">
-    </div>
+<div class="mb-3">
+    <label for="customer" class="form-label">Заказчик работ</label>
+    <input type="text" class="form-control" id="customer" name="customer" value="{{ report.customer }}">
+</div>
 
-    <div class="mb-3">
-        <label for="expert" class="form-label">Эксперт</label>
-        <input type="text" class="form-control" id="expert" name="expert" value="{{ report.expert }}">
-    </div>
+<div class="mb-3">
+    <label for="area" class="form-label">Площадь, протяжённость и/или др. параметры объекта</label>
+    <input type="text" class="form-control" id="area" name="area" value="{{ report.area }}">
+</div>
 
-    <div class="mb-3">
-        <label for="executioner" class="form-label">Исполнитель полевых работ</label>
-        <input type="text" class="form-control" id="executioner" name="executioner"
-               value="{{ report.executioner }}">
-    </div>
+<div class="mb-3">
+    <label for="expert" class="form-label">Эксперт</label>
+    <input type="text" class="form-control" id="expert" name="expert" value="{{ report.expert }}">
+</div>
 
-    <div class="mb-3">
-        <label for="open_list" class="form-label">ОЛ</label>
-        <input type="text" class="form-control" id="open_list" name="open_list" value="{{ report.open_list }}">
-    </div>
+<div class="mb-3">
+    <label for="executioner" class="form-label">Исполнитель полевых работ</label>
+    <input type="text" class="form-control" id="executioner" name="executioner"
+           value="{{ report.executioner }}">
+</div>
 
-    <div class="mb-3">
-        <label for="conclusion" class="form-label">Заключение. Выявленные объекты.</label>
-        <textarea class="form-control" id="conclusion" name="conclusion">{{ report.conclusion }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="open_list" class="form-label">ОЛ</label>
+    <input type="text" class="form-control" id="open_list" name="open_list" value="{{ report.open_list }}">
+</div>
 
-    <div class="mb-3">
-        <label for="border_objects" class="form-label">Объекты расположенные в непосредственной близости. Для
-            границ</label>
-        <textarea class="form-control" id="border_objects"
-                  name="border_objects">{{ report.border_objects }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="conclusion" class="form-label">Заключение. Выявленные объекты.</label>
+    <textarea class="form-control" id="conclusion" name="conclusion">{{ report.conclusion }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="act" class="form-label">Акт</label>
-        <textarea class="form-control" id="act" name="act" rows="3">{{ report.act }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="border_objects" class="form-label">Объекты расположенные в непосредственной близости. Для
+        границ</label>
+    <textarea class="form-control" id="border_objects"
+              name="border_objects">{{ report.border_objects }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="start_date" class="form-label">Дата начала</label>
-        <input type="text" class="form-control" id="start_date" name="start_date" value="{{ report.start_date }}">
-    </div>
+<div class="mb-3">
+    <label for="act" class="form-label">Акт</label>
+    <textarea class="form-control" id="act" name="act" rows="3">{{ report.act }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="end_date" class="form-label">Дата завершения</label>
-        <input type="text" class="form-control" id="end_date" name="end_date" value="{{ report.end_date }}">
-    </div>
+<div class="mb-3">
+    <label for="start_date" class="form-label">Дата начала</label>
+    <input type="text" class="form-control" id="start_date" name="start_date" value="{{ report.start_date }}">
+</div>
 
-    <div class="mb-3">
-        <label for="exp_place" class="form-label">Место экспертизы</label>
-        <input type="text" class="form-control" id="exp_place" name="exp_place" value="{{ report.exp_place }}">
-    </div>
+<div class="mb-3">
+    <label for="end_date" class="form-label">Дата завершения</label>
+    <input type="text" class="form-control" id="end_date" name="end_date" value="{{ report.end_date }}">
+</div>
 
-    <div class="mb-3">
-        <label for="exp_customer" class="form-label">Заказчик экспертизы</label>
-        <input type="text" class="form-control" id="exp_customer" name="exp_customer"
-               value="{{ report.exp_customer }}">
-    </div>
+<div class="mb-3">
+    <label for="exp_place" class="form-label">Место экспертизы</label>
+    <input type="text" class="form-control" id="exp_place" name="exp_place" value="{{ report.exp_place }}">
+</div>
 
-    <div class="mb-3">
-        <label for="exp_expert" class="form-label">Эксперт</label>
-        <input type="text" class="form-control" id="exp_expert" name="exp_expert" value="{{ report.exp_expert }}">
-    </div>
+<div class="mb-3">
+    <label for="exp_customer" class="form-label">Заказчик экспертизы</label>
+    <input type="text" class="form-control" id="exp_customer" name="exp_customer"
+           value="{{ report.exp_customer }}">
+</div>
 
-    <div class="mb-3">
-        <label for="relationship" class="form-label">Взаимоотношения</label>
-        <textarea class="form-control" id="relationship" name="relationship"
-                  rows="3">{{ report.relationship }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="exp_expert" class="form-label">Эксперт</label>
+    <input type="text" class="form-control" id="exp_expert" name="exp_expert" value="{{ report.exp_expert }}">
+</div>
 
-    <div class="mb-3">
-        <label for="goal" class="form-label">Цель</label>
-        <textarea class="form-control" id="goal" name="goal" rows="3">{{ report.goal }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="relationship" class="form-label">Взаимоотношения</label>
+    <textarea class="form-control" id="relationship" name="relationship"
+              rows="3">{{ report.relationship }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="object" class="form-label">Объект</label>
-        <textarea class="form-control" id="object" name="object" rows="3">{{ report.object }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="goal" class="form-label">Цель</label>
+    <textarea class="form-control" id="goal" name="goal" rows="3">{{ report.goal }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="docs" class="form-label">Документы</label>
-        <textarea class="form-control" id="docs" name="docs" rows="3">{{ report.docs }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="object" class="form-label">Объект</label>
+    <textarea class="form-control" id="object" name="object" rows="3">{{ report.object }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="exp_info" class="form-label">Информация об экспертизе</label>
-        <textarea class="form-control" id="exp_info" name="exp_info" rows="3">{{ report.exp_info }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="docs" class="form-label">Документы</label>
+    <textarea class="form-control" id="docs" name="docs" rows="3">{{ report.docs }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="exp_facts" class="form-label">Факты</label>
-        <textarea class="form-control" id="exp_facts" name="exp_facts" rows="3">{{ report.exp_facts }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="exp_info" class="form-label">Информация об экспертизе</label>
+    <textarea class="form-control" id="exp_info" name="exp_info" rows="3">{{ report.exp_info }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="literature" class="form-label">Литература</label>
-        <textarea class="form-control" id="literature" name="literature"
-                  rows="3">{{ report.literature }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="exp_facts" class="form-label">Факты</label>
+    <textarea class="form-control" id="exp_facts" name="exp_facts" rows="3">{{ report.exp_facts }}</textarea>
+</div>
 
-    <div class="mb-3">
-        <label for="exp_conclusion" class="form-label">Заключение экспертизы</label>
-        <textarea class="form-control" id="exp_conclusion" name="exp_conclusion"
-                  rows="3">{{ report.exp_conclusion }}</textarea>
-    </div>
+<div class="mb-3">
+    <label for="literature" class="form-label">Литература</label>
+    <textarea class="form-control" id="literature" name="literature"
+              rows="3">{{ report.literature }}</textarea>
+</div>
+
+<div class="mb-3">
+    <label for="exp_conclusion" class="form-label">Заключение экспертизы</label>
+    <textarea class="form-control" id="exp_conclusion" name="exp_conclusion"
+              rows="3">{{ report.exp_conclusion }}</textarea>
+</div>
 {% endblock %}

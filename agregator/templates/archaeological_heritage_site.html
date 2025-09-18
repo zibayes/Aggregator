@@ -15,6 +15,7 @@
 {% endblock %}
 
 {% block heritage_links %}
+{% include 'includes/django_messages.html' %}
 {% if archaeological_heritage_site.account_card_id %}
 <a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px; margin-bottom:8px;"
    href="/account_cards/{{ archaeological_heritage_site.account_card_id }}">

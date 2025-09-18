@@ -5,18 +5,19 @@
 {% block delete_geo_url %}{% url 'geo_objects_delete' geo_object.id %}{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item"><a href="/geo_objects_register/">Реестр географических объектов</a></li>
-    <li class="breadcrumb-item active" aria-current="page">Редактирование {{ geo_object.origin_filename }}
-    </li>
+<li class="breadcrumb-item"><a href="/geo_objects_register/">Реестр географических объектов</a></li>
+<li class="breadcrumb-item active" aria-current="page">Редактирование {{ geo_object.origin_filename }}
+</li>
 {% endblock %}
 
 {% block coordinate_sections %}
-    {% include 'includes/coordinates_content.html' with object=geo_object %}
+{% include 'includes/django_messages.html' %}
+{% include 'includes/coordinates_content.html' with object=geo_object %}
 {% endblock %}
 
 {% block modal_dialog %}
-    {{ block.super }}
-    <script>
-        // Наследуем скрипты из базового шаблона
-    </script>
+{{ block.super }}
+<script>
+    // Наследуем скрипты из базового шаблона
+</script>
 {% endblock %}
