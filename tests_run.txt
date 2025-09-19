@@ -23,6 +23,8 @@ pytest agregator/tests/test_views/test_detail_views.py --cov=agregator.views.det
 
 pytest agregator/tests/test_views/test_edit_views.py --cov=agregator.views.edit_views --cov-report=term-missing -v
 
+pytest agregator/tests/test_views/test_file_processing.py --cov=agregator.views.file_processing --cov-report=term-missing -v
+
 pytest agregator/tests/test_views/test_crud_views.py --cov=agregator.views --cov-report=term-missing -v
 
 pytest agregator/tests/test_views/test_file_views.py --cov=agregator.views --cov-report=term-missing -v

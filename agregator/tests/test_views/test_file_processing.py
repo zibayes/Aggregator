@@ -934,3 +934,208 @@ class TestFileProcessingSecurity:
 
         # Должен обработать без ошибок безопасности
         assert response.status_code in [200, 302]
+
+
+@pytest.mark.django_db
+class TestFileProcessingAdditionalCoverage:
+    """Дополнительные тесты для покрытия оставшихся строк"""
+
+    def test_deconstructor_acts_button(self, client, test_user):
+        """Тест нажатия кнопки 'acts' в deconstructor (строки 44-45)"""
+        client.login(username='testuser', password='testpass123')
+
+        response = client.post(reverse('deconstructor'), {'acts': 'true'})
+
+        assert response.status_code == 200
+        assert 'form' in response.context
+
+    def test_deconstructor_superuser_public_storage(self, client, admin_user):
+        """Тест строки 56: суперпользователь выбирает публичное хранилище"""
+        client.login(username='admin', password='adminpass123')
+
+        files = [SimpleUploadedFile("test.pdf", b"content", "application/pdf")]
+
+        with patch('agregator.views.file_processing.raw_reports_save') as mock_save, \
+                patch('agregator.views.file_processing.process_acts') as mock_process:
+            mock_save.return_value = [1]
+            mock_task = MagicMock()
+            mock_task.task_id = 'test-task-id'
+            mock_process.apply_async.return_value = mock_task
+
+            response = client.post(
+                reverse('deconstructor'),
+                {
+                    'file_type': 'act',
+                    'upload_type': 'fully',
+                    'storage_type': 'public',  # Это вызовет строку 56
+                    'select_text': 'on',
+                    'files': files
+                },
+                format='multipart'
+            )
+
+            assert response.status_code == 200
+            # Проверяем что raw_reports_save вызвана с is_public=True
+            mock_save.assert_called_once()
+            args, kwargs = mock_save.call_args
+            assert args[4] is True  # is_public должен быть True
+
+    @patch('agregator.views.file_processing.AsyncResult')
+    def test_check_external_scan_progress_db_exceptions(self, mock_async_result, client, test_user):
+        """Тест строк 200-205: исключения при работе с базой данных"""
+        client.login(username='testuser', password='testpass123')
+
+        # Мокаем AsyncResult чтобы вызвать исключение при обращении к state
+        mock_task = MagicMock()
+
+        # Создаем свойство state, которое вызывает исключение
+        def state_side_effect():
+            raise Exception("AsyncResult error")
+
+        type(mock_task).state = property(state_side_effect)
+        mock_async_result.return_value = mock_task
+
+        task_id = 'test-task-id'
+
+        # 1. Тест TaskResult.DoesNotExist (строка 201-202)
+        response = client.get(reverse('check_external_scan_progress', kwargs={'task_id': task_id}))
+        assert response.status_code == 200
+        data = json.loads(response.content)
+        assert data['state'] == 'PENDING'
+
+        # 2. Тест другого исключения базы данных (строки 203-204)
+        with patch('agregator.views.file_processing.TaskResult.objects.get') as mock_get:
+            mock_get.side_effect = Exception("Database connection error")
+
+            response = client.get(reverse('check_external_scan_progress', kwargs={'task_id': task_id}))
+            assert response.status_code == 200
+            data = json.loads(response.content)
+            assert data['state'] == 'UNKNOWN'
+
+    def test_deconstructor_fully_upload_text_file(self, client, test_user):
+        """Тест покрывает строки 69-72: загрузка файла с 'текст' в имени"""
+        client.login(username='testuser', password='testpass123')
+
+        text_file = SimpleUploadedFile(
+            "отчет_текст.pdf",
+            b"file_content",
+            "application/pdf"
+        )
+
+        with patch('agregator.views.file_processing.raw_reports_save') as mock_save, \
+                patch('agregator.views.file_processing.process_acts') as mock_process:
+            mock_save.return_value = [1]
+            mock_task = MagicMock()
+            mock_task.task_id = 'test-task-id'
+            mock_process.apply_async.return_value = mock_task
+
+            response = client.post(
+                reverse('deconstructor'),
+                {
+                    'file_type': 'act',
+                    'upload_type': 'fully',
+                    'select_text': 'on',
+                    'files': [text_file]
+                },
+                format='multipart'
+            )
+
+            assert response.status_code == 200
+            mock_save.assert_called_once()
+
+    def test_deconstructor_mixed_upload_supplement_file(self, client, test_user):
+        """Тест покрывает строки 82-89: загрузка файла с 'приложение' в имени"""
+        client.login(username='testuser', password='testpass123')
+
+        supplement_file = SimpleUploadedFile(
+            "приложение_док1.pdf",
+            b"file_content",
+            "application/pdf"
+        )
+
+        with patch('agregator.views.file_processing.raw_reports_save') as mock_save, \
+                patch('agregator.views.file_processing.process_acts') as mock_process:
+            mock_save.return_value = [1]
+            mock_task = MagicMock()
+            mock_task.task_id = 'test-task-id'
+            mock_process.apply_async.return_value = mock_task
+
+            response = client.post(
+                reverse('deconstructor'),
+                {
+                    'file_type': 'act',
+                    'upload_type': 'mixed',
+                    'select_text': 'on',
+                    'files': [supplement_file]
+                },
+                format='multipart'
+            )
+
+            assert response.status_code == 200
+            mock_save.assert_called_once()
+
+    def test_deconstructor_mixed_upload_existing_group(self, client, test_user):
+        """Тест покрывает строки 91-94: добавление файла в существующую группу"""
+        client.login(username='testuser', password='testpass123')
+
+        file1 = SimpleUploadedFile("группа_приложение.pdf", b"content1", "application/pdf")
+        file2 = SimpleUploadedFile("группа_текст.pdf", b"content2", "application/pdf")
+
+        with patch('agregator.views.file_processing.raw_reports_save') as mock_save, \
+                patch('agregator.views.file_processing.process_acts') as mock_process:
+            mock_save.return_value = [1]
+            mock_task = MagicMock()
+            mock_task.task_id = 'test-task-id'
+            mock_process.apply_async.return_value = mock_task
+
+            response = client.post(
+                reverse('deconstructor'),
+                {
+                    'file_type': 'act',
+                    'upload_type': 'mixed',
+                    'select_text': 'on',
+                    'files': [file1, file2]
+                },
+                format='multipart'
+            )
+
+            assert response.status_code == 200
+            mock_save.assert_called_once()
+
+    def test_deconstructor_invalid_form(self, client, test_user):
+        """Тест покрывает строки 44-45: невалидная форма"""
+        client.login(username='testuser', password='testpass123')
+
+        response = client.post(
+            reverse('deconstructor'),
+            {'acts': 'true'}
+        )
+
+        assert response.status_code == 200
+        assert 'form' in response.context
+
+    def test_doc_reprocess_invalid_report_type_referer(self, client, test_user, test_act):
+        """Тест покрывает строку 301: неверный тип отчета в doc_reprocess через реферер"""
+        client.login(username='testuser', password='testpass123')
+
+        # Тестируем случай, когда в реферере нет ни act, ни scientific, ни tech
+        response = client.post(
+            reverse('doc_reprocess', kwargs={'pk': test_act.id}),
+            {'select_text': 'on'},
+            HTTP_REFERER='http://testserver/unknown_type/1/'
+        )
+
+        assert response.status_code == 404
+        assert "Некорректный тип отчёта" in response.content.decode()
+
+    def test_doc_reprocess_get_method(self, client, test_user, test_act):
+        """Тест покрывает строку 309: GET-запрос к doc_reprocess"""
+        client.login(username='testuser', password='testpass123')
+
+        response = client.get(
+            reverse('doc_reprocess', kwargs={'pk': test_act.id})
+        )
+
+        assert response.status_code == 200
+        data = json.loads(response.content)
+        assert data['response'] == 'invalid method'
