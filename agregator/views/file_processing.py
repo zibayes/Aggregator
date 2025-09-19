@@ -1,4 +1,5 @@
 import re
+import json
 
 import pandas as pd
 import simplekml
@@ -99,22 +100,27 @@ def deconstructor(request):
                 if 'select_coord' in request.POST:
                     select_coord = True
 
-                if file_type == 'act':
-                    acts_ids = raw_reports_save(file_groups, uploaded_files, Act, user.id, is_public)
-                    task = process_acts.apply_async((acts_ids, user.id, select_text, select_image, select_coord),
-                                                    link_error=error_handler_acts.s())
-                elif file_type == 'scientific_report':
-                    scientific_reports_ids = raw_reports_save(file_groups, uploaded_files, ScientificReport,
-                                                              user.id, is_public)
-                    task = process_scientific_reports.apply_async(
-                        (scientific_reports_ids, user.id, select_text, select_image, select_coord),
-                        link_error=error_handler_scientific_reports.s())
-                elif file_type == 'tech_report':
-                    tech_reports_ids = raw_reports_save(file_groups, uploaded_files, TechReport,
-                                                        user.id, is_public)
-                    task = process_tech_reports.apply_async(
-                        (tech_reports_ids, user.id, select_text, select_image, select_coord),
-                        link_error=error_handler_tech_reports.s())
+                try:
+                    if file_type == 'act':
+                        acts_ids = raw_reports_save(file_groups, uploaded_files, Act, user.id, is_public)
+                        task = process_acts.apply_async((acts_ids, user.id, select_text, select_image, select_coord),
+                                                        link_error=error_handler_acts.s())
+                    elif file_type == 'scientific_report':
+                        scientific_reports_ids = raw_reports_save(file_groups, uploaded_files, ScientificReport,
+                                                                  user.id, is_public)
+                        task = process_scientific_reports.apply_async(
+                            (scientific_reports_ids, user.id, select_text, select_image, select_coord),
+                            link_error=error_handler_scientific_reports.s())
+                    elif file_type == 'tech_report':
+                        tech_reports_ids = raw_reports_save(file_groups, uploaded_files, TechReport,
+                                                            user.id, is_public)
+                        task = process_tech_reports.apply_async(
+                            (tech_reports_ids, user.id, select_text, select_image, select_coord),
+                            link_error=error_handler_tech_reports.s())
+                except Exception as e:
+                    form.add_error(None, f"Ошибка при сохранении файлов: {str(e)}")
+                    return render(request, 'deconstructor.html', {'form': form, 'tasks_id': tasks_id})
+
                 tasks_id = [task.task_id] + tasks_id
                 user_task = UserTasks(user_id=user.id, task_id=task.task_id, files_type=file_type,
                                       upload_source={'source': 'Пользовательский файл'})
@@ -183,18 +189,21 @@ def check_external_scan_progress(request, task_id):
         # Безопасное получение состояния
         try:
             state = task.state
+            result = task.result if hasattr(task, 'result') else None
+            info = task.info if hasattr(task, 'info') else None
         except Exception as e:
             # Если возникает ошибка при получении состояния, пробуем через БД напрямую
             try:
                 db_task = TaskResult.objects.get(task_id=task_id)
                 state = db_task.status
-                result = db_task.result
+                result = json.loads(db_task.result) if db_task.result else None
             except TaskResult.DoesNotExist:
                 state = 'PENDING'
                 result = None
             except Exception as db_error:
                 state = 'UNKNOWN'
                 result = f"Database error: {db_error}"
+            info = None
 
         # Формируем ответ в зависимости от состояния
         if state == 'PENDING':
@@ -205,25 +214,17 @@ def check_external_scan_progress(request, task_id):
         elif state == 'PROGRESS':
             response = {
                 'state': state,
-                'meta': task.result
+                'meta': result
             }
         elif state == 'SUCCESS':
-            # Безопасно получаем результат
-            try:
-                result = task.result
-            except:
-                result = "Задача завершена"
-
             response = {
                 'state': state,
                 'result': result
             }
         else:
             # Для других состояний (FAILURE, REVOKED, RETRY)
-            response = {
-                'state': state,
-                'message': str(task.info) if hasattr(task, 'info') else f"Состояние: {state}"
-            }
+            message = str(info) if info else f"Состояние: {state}"
+            response = {'state': state, 'message': message}
 
     except Exception as e:
         # Если все совсем сломалось
@@ -311,10 +312,8 @@ def doc_reprocess(request, pk):
 @login_required
 # @owner_or_admin_required(UserTasks)
 def download_delete(request, task_id):
-    user_task = get_object_or_404(UserTasks, task_id=task_id)
-    user_task.delete()
-    task = get_object_or_404(TaskResult, task_id=task_id)
-    task.delete()
+    UserTasks.objects.filter(task_id=task_id).delete()
+    TaskResult.objects.filter(task_id=task_id).delete()
     return JsonResponse({'response': 'deleted'})
 
 

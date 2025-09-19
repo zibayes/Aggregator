@@ -1,4 +1,5 @@
 import copy
+import logging
 
 from agregator.models import UserTasks
 from django_celery_results.models import TaskResult
@@ -109,19 +110,22 @@ def create_model_dataframe(model, fields_mapping):
 
 
 def get_scan_task(task_name):
-    is_processing = False
-    scan_task_id = None
-
-    active_scan_task = TaskResult.objects.filter(
-        task_name=task_name
-    ).exclude(
-        status__in=['SUCCESS', 'FAILURE', 'REVOKED']  # Исключаем точно завершенные
-    ).order_by('-date_created').first()
-    if active_scan_task:
-        scan_task_id = active_scan_task.task_id
-        is_processing = True
-
-    return is_processing, scan_task_id, active_scan_task
+    try:
+        active_scan_task = TaskResult.objects.filter(
+            task_name=task_name
+        ).exclude(
+            status__in=['SUCCESS', 'FAILURE', 'REVOKED']  # Исключаем точно завершенные
+        ).order_by('-date_created').first()
+        if active_scan_task:
+            scan_task_id = active_scan_task.task_id
+            is_processing = True
+            return is_processing, scan_task_id, active_scan_task
+        else:
+            is_processing = False
+            return is_processing, None, None
+    except Exception as e:
+        logging.error(f'Ошибка при получении статуса задачи: {e}')
+        return False, None, None
 
 
 def get_user_tasks(user_id, file_types, upload_source=False):
