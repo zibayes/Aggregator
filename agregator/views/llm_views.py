@@ -33,23 +33,34 @@ def gpt_chat(request):
 @login_required
 def create_gpt_chat(request):
     if request.method == 'POST':
-        body_unicode = request.body.decode('utf-8')
-        body_data = json.loads(body_unicode)
-        chat = Chat(user_id=request.user.id, name=body_data['name'])
-        chat.save()
-        return JsonResponse({'chat_id': chat.id})
+        try:
+            body_unicode = request.body.decode('utf-8')
+            body_data = json.loads(body_unicode)
+            chat = Chat(user_id=request.user.id, name=body_data['name'][:255])  # Ограничение длины
+            chat.save()
+            return JsonResponse({'chat_id': chat.id})
+        except json.JSONDecodeError:
+            return HttpResponse("Невалидный JSON", status=400)
     return HttpResponse("Метод не поддерживается", status=405)
 
 
 @login_required
 def edit_gpt_chat(request):
     if request.method == 'POST':
-        body_unicode = request.body.decode('utf-8')
-        body_data = json.loads(body_unicode)
-        chat = get_object_or_404(Chat, id=body_data['chat_id'])
-        chat.name = body_data['name']
-        chat.save()
-        return JsonResponse({'result': 'success'})
+        try:
+            body_unicode = request.body.decode('utf-8')
+            body_data = json.loads(body_unicode)
+            chat = get_object_or_404(Chat, id=body_data['chat_id'])
+
+            # Проверка владельца чата
+            if chat.user_id != request.user.id:
+                return HttpResponse("Доступ запрещен", status=403)
+
+            chat.name = body_data['name'][:255]  # Ограничение длины
+            chat.save()
+            return JsonResponse({'result': 'success'})
+        except json.JSONDecodeError:
+            return HttpResponse("Невалидный JSON", status=400)
     return HttpResponse("Метод не поддерживается", status=405)
 
 
@@ -68,41 +79,61 @@ def delete_gpt_chat(request):
 @login_required
 def ask_gpt(request):
     if request.method == 'POST':
-        body_unicode = request.body.decode('utf-8')
-        body_data = json.loads(body_unicode)
-        msg = body_data['messages'][1]['content']
-        message_user = Message(chat_id=body_data['messages'][1]['chat_id'], sender='user', content=msg)
-        message_user.save()
-        answer = ask_question_with_context(msg)
-        print(answer)
-        message_ai = Message(chat_id=body_data['messages'][1]['chat_id'], sender='ai', content=answer)
-        message_ai.save()
-        return JsonResponse({'choices': [{'message': {'content': answer, 'message_id': message_ai.id}}]})
+        try:
+            body_unicode = request.body.decode('utf-8')
+            body_data = json.loads(body_unicode)
+            msg = body_data['messages'][1]['content']
+            message_user = Message(chat_id=body_data['messages'][1]['chat_id'], sender='user', content=msg)
+            message_user.save()
+
+            answer = ask_question_with_context(msg)
+
+            message_ai = Message(chat_id=body_data['messages'][1]['chat_id'], sender='ai', content=answer)
+            message_ai.save()
+            return JsonResponse({'choices': [{'message': {'content': answer, 'message_id': message_ai.id}}]})
+        except json.JSONDecodeError:
+            return HttpResponse("Невалидный JSON", status=400)
     return HttpResponse("Метод не поддерживается", status=405)
 
 
 @login_required
 def edit_chat_message(request):
     if request.method == 'POST':
-        body_unicode = request.body.decode('utf-8')
-        body_data = json.loads(body_unicode)
-        message = get_object_or_404(Message, id=body_data['message_id'])
-        message.content = body_data['content']
-        message.save()
-        return JsonResponse({'result': 'success'})
+        try:
+            body_unicode = request.body.decode('utf-8')
+            body_data = json.loads(body_unicode)
+            message = get_object_or_404(Message, id=body_data['message_id'])
+            message.content = body_data['content']
+            message.save()
+            return JsonResponse({'result': 'success'})
+        except json.JSONDecodeError:
+            return HttpResponse("Невалидный JSON", status=400)
     return HttpResponse("Метод не поддерживается", status=405)
 
 
 @login_required
 def delete_chat_message(request):
     if request.method == 'POST':
-        body_unicode = request.body.decode('utf-8')
-        body_data = json.loads(body_unicode)
-        chat_id = int(body_data['chat_id'])
-        message = get_object_or_404(Message, chat_id=chat_id).order_by('-sent_at').first()
-        if message.sender == 'ai':
-            message.delete()
-            message = Message.objects.filter(chat_id=chat_id, sender='user').order_by('-sent_at').first()
-        message.delete()
-        return JsonResponse({'result': 'success'})
+        try:
+            body_unicode = request.body.decode('utf-8')
+            body_data = json.loads(body_unicode)
+            chat_id = int(body_data['chat_id'])
+
+            # Получаем последнее сообщение
+            message = Message.objects.filter(chat_id=chat_id).order_by('-sent_at').first()
+            if not message:
+                return HttpResponse("Сообщение не найдено", status=404)
+
+            if message.sender == 'ai':
+                message.delete()
+                # Удаляем соответствующее пользовательское сообщение
+                user_message = Message.objects.filter(chat_id=chat_id, sender='user').order_by('-sent_at').first()
+                if user_message:
+                    user_message.delete()
+            else:
+                message.delete()
+
+            return JsonResponse({'result': 'success'})
+        except json.JSONDecodeError:
+            return HttpResponse("Невалидный JSON", status=400)
     return HttpResponse("Метод не поддерживается", status=405)
