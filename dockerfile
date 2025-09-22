@@ -8,6 +8,9 @@ RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
     apt-get update && \
     apt-get install -y --no-install-recommends --fix-missing \
+        postgresql-client \
+        redis-tools \
+        netcat-openbsd \
 	    p7zip-full \
 	    unar \
         build-essential \
@@ -70,6 +73,13 @@ RUN mkdir -p /var/log && chmod -R 777 /var/log
 
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 CMD ["/usr/bin/supervisord"]
+
+# Копируем и настраиваем entrypoint
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+
+# ENTRYPOINT перед CMD: Запустит entrypoint, который exec'нет CMD (supervisord)
+ENTRYPOINT ["/app/entrypoint.sh"]
 
 # CMD ["bash", "-c", "CMD ["bash", "-c", "python manage.py runserver 0.0.0.0:8000 & sleep 30 && celery -A archeology worker --loglevel=info & wait"]"]
 

@@ -1,25 +1,38 @@
 services:
   app:
     build: .
-    command: /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
     volumes:
       - .:/app
       - ./supervisord_logs:/var/log
+      - app_init:/app/init
     ports:
       - "8000:8000"
     depends_on:
-      - redis
-      - db
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
     environment:
       DEBUG: "1"
       DB_HOST: db
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: postgres
       REDIS_HOST: redis
       CELERY_BROKER_URL: "redis://redis:6379/0"
+      DJANGO_SETTINGS_MODULE: "archeology.settings"
 
   redis:
     image: redis:alpine
     ports:
       - "6379:6379"
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   db:
     image: postgres:17
@@ -36,6 +49,11 @@ services:
       - ./postgresql.conf:/etc/postgresql/postgresql.conf
       - ./pg_hba.conf:/etc/postgresql/pg_hba.conf
       - ./init-db.sh:/docker-entrypoint-initdb.d/init-config.sh
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   backup:
     image: postgres:17-alpine
@@ -57,7 +75,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: postgres
-      
+
   kodexplorer:
     build:
       context: .
@@ -76,7 +94,7 @@ services:
     environment:
       - TZ=Asia/Krasnoyarsk
     user: root
-    
+
   collabora:
     image: collabora/code:latest
     container_name: collabora
@@ -96,3 +114,4 @@ services:
 
 volumes:
   postgres_data:
+  app_init:
