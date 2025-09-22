@@ -1,4 +1,4 @@
-docker exec -it df452122997b2d9f15a40137f607f088744f997b2e9070b5775e214176a21646 /bin/sh
+docker exec -it 8b21d556a9a9ede66508bba0d97c07c787827fa17c46eb87e3f03764e84b4f16 /bin/sh
 
 # Запуск всех тестов моделей
 pytest agregator/tests/test_models.py -v
@@ -28,5 +28,7 @@ pytest agregator/tests/test_views/test_file_processing.py --cov=agregator.views.
 pytest agregator/tests/test_views/test_llm_views.py --cov=agregator.views.llm_views --cov-report=term-missing -v
 
 pytest agregator/tests/test_views/test_map.py --cov=agregator.views.map --cov-report=term-missing -v
+
+pytest agregator/tests/test_views/test_registers.py --cov=agregator.views.registers --cov-report=term-missing -v
 
 pytest agregator/tests/test_views/ --cov=agregator.views --cov-report=term-missing -v
