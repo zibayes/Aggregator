@@ -723,7 +723,7 @@ def _download_file(href, title, current_lists):
     """Скачивание файла"""
     file_name = href[href.rfind('/') + 1:]
     file_encoded = file_name.replace(' ', '%20')
-    path_to_download = f'uploaded_files/Памятники/{file_encoded}'
+    path_to_download = f'uploaded_files/Памятники/{file_name}'
 
     # Формирование URL для скачивания
     base_href = href[:href.rfind('/')]

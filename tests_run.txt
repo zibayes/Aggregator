@@ -25,12 +25,8 @@ pytest agregator/tests/test_views/test_edit_views.py --cov=agregator.views.edit_
 
 pytest agregator/tests/test_views/test_file_processing.py --cov=agregator.views.file_processing --cov-report=term-missing -v
 
-pytest agregator/tests/test_views/test_crud_views.py --cov=agregator.views --cov-report=term-missing -v
+pytest agregator/tests/test_views/test_llm_views.py --cov=agregator.views.llm_views --cov-report=term-missing -v
 
-pytest agregator/tests/test_views/test_file_views.py --cov=agregator.views --cov-report=term-missing -v
-
-pytest agregator/tests/test_views/test_deconstructor_views.py --cov=agregator.views --cov-report=term-missing -v
-
-pytest agregator/tests/test_views/test_report_views.py -v
+pytest agregator/tests/test_views/test_map.py --cov=agregator.views.map --cov-report=term-missing -v
 
 pytest agregator/tests/test_views/ --cov=agregator.views --cov-report=term-missing -v
