@@ -10,6 +10,8 @@ from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
 from django_celery_results.models import TaskResult
+from agregator.models import CommercialOffers, GeoObject
+import traceback
 
 User = get_user_model()
 
@@ -427,45 +429,6 @@ class TestRegistersViews:
             response = client.get(reverse('download_commercial_offer_report', args=[1]))
             assert response.status_code == 302
 
-    @patch('agregator.views.registers.convert_to_wgs84')
-    def test_download_commercial_offer_report_different_coordinate_systems(self, mock_convert, client, test_user):
-        """Тест обработки разных систем координат (строки 305-307)"""
-        client.force_login(test_user)
-        mock_convert.return_value = (55.0, 37.0)
-
-        commercial_offer = MagicMock()
-        commercial_offer.id = 1
-        commercial_offer.coordinates_dict = {
-            'poly1': {
-                'coordinate_system': 'epsg:3857',  # Не wgs84
-                'point1': [55.0, 37.0]
-            }
-        }
-
-        account_card = MagicMock()
-        account_card.coordinates_dict = {
-            'poly2': {
-                'coordinate_system': 'epsg:4326',  # Не wgs84
-                'point1': [55.2, 37.2]
-            }
-        }
-
-        with patch('agregator.views.registers.get_object_or_404') as mock_get_object, \
-                patch('agregator.views.registers.ObjectAccountCard.objects.all') as mock_account_cards, \
-                patch('agregator.views.registers.GeoObject.objects.filter') as mock_geo_objects, \
-                patch('agregator.views.registers.pd.DataFrame') as mock_dataframe, \
-                patch('agregator.views.registers.generate_excel_report') as mock_generate_report:
-            mock_get_object.return_value = commercial_offer
-            mock_account_cards.return_value = [account_card]
-            mock_geo_objects.return_value = []
-            mock_df_instance = MagicMock()
-            mock_dataframe.return_value = mock_df_instance
-
-            response = client.get(reverse('download_commercial_offer_report', args=[1]))
-            assert response.status_code == 302
-            # Проверяем что convert_to_wgs84 был вызван
-            assert mock_convert.called
-
     def test_download_commercial_offer_report_geo_object_processing(self, client, test_user):
         """Тест обработки GeoObject (строки 334-384)"""
         client.force_login(test_user)
@@ -595,148 +558,101 @@ class TestRegistersViews:
             response = client.get(reverse('download_commercial_offer_report', args=[1]))
             assert response.status_code == 302
 
+    @pytest.mark.django_db
     @patch('agregator.views.registers.get_object_or_404')
-    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
-    @patch('agregator.views.registers.GeoObject.objects.filter')
-    @patch('agregator.views.registers.pd.DataFrame')
     @patch('agregator.views.registers.generate_excel_report')
-    def test_download_commercial_offer_report_geo_object_full_processing(
-            self, mock_generate_report, mock_dataframe, mock_geo_filter,
-            mock_account_cards, mock_get_object, client, test_user
-    ):
-        """Полный тест обработки GeoObject с покрытием всех строк 334-384"""
+    def test_download_commercial_offer_report(self, mock_generate_report, mock_get_object, client, test_user):
         client.force_login(test_user)
 
-        # Мокаем commercial_offer
         commercial_offer = MagicMock()
         commercial_offer.id = 1
+        commercial_offer.name = "Test Commercial Offer"
         commercial_offer.coordinates_dict = {
-            'poly1': {
+            'polyA': {
                 'coordinate_system': 'wgs84',
-                'pointA': [55.0, 37.0],
-                'pointB': [55.1, 37.1],
-                'pointC': [55.2, 37.2]
+                'pointA': [55.05, 37.05],
+                'pointB': [55.06, 37.06]
             }
         }
         mock_get_object.return_value = commercial_offer
 
-        # Мокаем GeoObject с различными типами точек
-        geo_object = MagicMock()
-        geo_object.type = 'heritage'
-        geo_object.coordinates_dict = {
-            'poly_geo': {
-                'coordinate_system': 'wgs84',
-                'monument_point1': [55.3, 37.3],  # Одиночная точка
-                'monument_point2': [55.4, 37.4],  # Еще одна точка
-            }
-        }
-
-        # Мокаем пустые account_cards и geo_objects с нашим объектом
-        mock_account_cards.return_value = []
-        mock_geo_filter.return_value = [geo_object]
-
-        # Мокаем DataFrame для сбора результатов
-        mock_df_instance = MagicMock()
-        mock_dataframe.return_value = mock_df_instance
-        mock_df_instance._append.return_value = mock_df_instance
-
-        # Мокаем геометрические функции чтобы избежать реальных вычислений
-        with patch('agregator.views.registers.Polygon') as mock_polygon, \
+        with patch('agregator.views.registers.ObjectAccountCard.objects.all') as mock_account_cards_all, \
+                patch('agregator.views.registers.GeoObject.objects.filter') as mock_geo_objects_filter, \
+                patch('agregator.views.registers.Polygon') as mock_polygon, \
                 patch('agregator.views.registers.LineString') as mock_linestring, \
                 patch('agregator.views.registers.Point') as mock_point, \
                 patch('agregator.views.registers.nearest_points') as mock_nearest, \
                 patch('agregator.views.registers.Geod') as mock_geod:
-            # Настраиваем моки для возврата корректных объектов
-            mock_polygon_instance = MagicMock()
-            mock_polygon.return_value = mock_polygon_instance
+            # Моки геометрических объектов
+            mock_polygon.return_value = MagicMock()
+            mock_linestring.return_value = MagicMock()
+            mock_point.return_value = MagicMock()
 
-            mock_point_instance = MagicMock()
-            mock_point.return_value = mock_point_instance
-
-            mock_linestring_instance = MagicMock()
-            mock_linestring.return_value = mock_linestring_instance
-
-            # Моки для nearest_points
+            # Мок nearest_points
             mock_point1 = MagicMock()
-            mock_point1.x = 55.0
-            mock_point1.y = 37.0
+            mock_point1.x = 37.0
+            mock_point1.y = 55.0
             mock_point2 = MagicMock()
-            mock_point2.x = 55.3
-            mock_point2.y = 37.3
+            mock_point2.x = 37.3
+            mock_point2.y = 55.3
             mock_nearest.return_value = (mock_point1, mock_point2)
 
-            # Мок для Geod
-            mock_geod_instance = MagicMock()
-            mock_geod.return_value = mock_geod_instance
-            mock_geod_instance.inv.return_value = (0, 0, 1000)  # distance = 1000 meters
-
-            # Вызываем view
-            response = client.get(reverse('download_commercial_offer_report', args=[1]))
-
-            # Проверяем редирект на файл (успешное выполнение)
-            assert response.status_code == 302
-            assert 'uploaded_files/Коммерческие предложения' in response.url
-            assert '.xlsx' in response.url
-
-    @patch('agregator.views.registers.get_object_or_404')
-    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
-    @patch('agregator.views.registers.GeoObject.objects.filter')
-    @patch('agregator.views.registers.convert_to_wgs84')
-    def test_download_commercial_offer_report_geo_object_different_coord_systems(
-            self, mock_convert, mock_geo_filter, mock_account_cards,
-            mock_get_object, client, test_user
-    ):
-        """Тест GeoObject с разными системами координат"""
-        client.force_login(test_user)
-
-        commercial_offer = MagicMock()
-        commercial_offer.id = 1
-        commercial_offer.coordinates_dict = {
-            'poly1': {
-                'coordinate_system': 'epsg:3857',  # Другая система
-                'pointA': [55.0, 37.0]
-            }
-        }
-        mock_get_object.return_value = commercial_offer
-
-        geo_object = MagicMock()
-        geo_object.type = 'heritage'
-        geo_object.coordinates_dict = {
-            'poly_geo': {
-                'coordinate_system': 'epsg:4326',  # Другая система
-                'monument_point': [55.3, 37.3]
-            }
-        }
-
-        mock_account_cards.return_value = []
-        mock_geo_filter.return_value = [geo_object]
-        mock_convert.return_value = (55.0, 37.0)  # Мок преобразования координат
-
-        with patch('agregator.views.registers.pd.DataFrame') as mock_dataframe, \
-                patch('agregator.views.registers.generate_excel_report') as mock_generate_report, \
-                patch('agregator.views.registers.Polygon') as mock_polygon, \
-                patch('agregator.views.registers.nearest_points') as mock_nearest, \
-                patch('agregator.views.registers.Geod') as mock_geod:
-            mock_df_instance = MagicMock()
-            mock_dataframe.return_value = mock_df_instance
-
-            # Моки для геометрических операций
-            mock_polygon_instance = MagicMock()
-            mock_polygon.return_value = mock_polygon_instance
-
-            mock_point1 = MagicMock()
-            mock_point2 = MagicMock()
-            mock_nearest.return_value = (mock_point1, mock_point2)
-
+            # Мок Geod
             mock_geod_instance = MagicMock()
             mock_geod.return_value = mock_geod_instance
             mock_geod_instance.inv.return_value = (0, 0, 1000)
 
-            response = client.get(reverse('download_commercial_offer_report', args=[1]))
+            mock_account_card = MagicMock()
+            mock_account_card.coordinates_dict = {
+                'poly1': {
+                    'coordinate_system': 'wgs84',
+                    'point1': [55.0, 37.0],
+                    'point2': [55.1, 37.1]
+                }
+            }
 
-            assert response.status_code == 302
-            # Проверяем что convert_to_wgs84 вызывался для разных систем
-            assert mock_convert.called
+            mock_geo_object = MagicMock()
+            # Устанавливаем класс GeoObject для правильного определения типа
+            from agregator.models import GeoObject
+            mock_geo_object.__class__ = GeoObject
+            mock_geo_object.type = 'heritage'
+            mock_geo_object.coordinates_dict = {
+                'poly2': {
+                    'coordinate_system': 'wgs84',
+                    'pointA': [55.2, 37.2],
+                    'pointB': [55.3, 37.3]
+                }
+            }
+
+            mock_account_cards_all.return_value = [mock_account_card]
+            mock_geo_objects_filter.return_value = [mock_geo_object]
+
+            # Мокаем pd.DataFrame чтобы возвращать реальные DataFrame
+            with patch('agregator.views.registers.pd.DataFrame') as mock_dataframe:
+                # Создаем реальный DataFrame для тестирования
+                real_df = pd.DataFrame({
+                    'Памятник': ['Test Monument'],
+                    'Дистанция до памятника (км)': [1.5]
+                })
+                mock_dataframe.return_value = real_df
+
+                # Или если нужно разное поведение для разных вызовов:
+                def dataframe_side_effect(*args, **kwargs):
+                    if args and isinstance(args[0], list) and args[0]:
+                        # Если передают список с данными - возвращаем реальный DataFrame
+                        return pd.DataFrame(*args, **kwargs)
+                    # Для остальных случаев возвращаем мок
+                    return real_df
+
+                mock_dataframe.side_effect = dataframe_side_effect
+
+                response = client.get(reverse('download_commercial_offer_report', args=[commercial_offer.id]))
+
+                assert response.status_code == 302
+                decoded_url = unquote(response.url)
+                assert 'uploaded_files/Коммерческие предложения' in decoded_url
+                assert '.xlsx' in decoded_url
+                mock_generate_report.assert_called_once()
 
     @patch('agregator.views.registers.get_object_or_404')
     @patch('agregator.views.registers.ObjectAccountCard.objects.all')
@@ -975,3 +891,596 @@ class TestRegistersViews:
             response = client.get(reverse('download_commercial_offer_report', args=[1]))
 
             assert response.status_code == 302
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_no_account_cards(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        """Тест когда нет account_cards - должен быть редирект"""
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 1
+        mock_get_object.return_value = commercial_offer
+
+        mock_account_cards.return_value = []  # Пустой список
+        mock_geo_filter.return_value = []
+
+        response = client.get(reverse('download_commercial_offer_report', args=[1]))
+
+        assert response.status_code == 302
+        assert response.url == reverse('commercial_offers_register')
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_empty_coordinates(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        """Тест с пустыми координатами - исправленная версия"""
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 1
+        commercial_offer.coordinates_dict = {}  # Пустые координаты
+        mock_get_object.return_value = commercial_offer
+
+        account_card = MagicMock()
+        account_card.coordinates_dict = {}  # Пустые координаты
+        account_card.name = "Test Account"
+
+        mock_account_cards.return_value = [account_card]
+        mock_geo_filter.return_value = []
+
+        # Не нужно мокать геометрические объекты, так как код не дойдет до них
+        response = client.get(reverse('download_commercial_offer_report', args=[1]))
+
+        # Должен быть редирект из-за пустого df_existing
+        assert response.status_code == 302
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_none_coordinate_system(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        """Тест с coordinate_system = 'None'"""
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 1
+        commercial_offer.coordinates_dict = {
+            'poly1': {'coordinate_system': 'None', 'pointA': [1, 1]}
+        }
+        mock_get_object.return_value = commercial_offer
+
+        account_card = MagicMock()
+        account_card.coordinates_dict = {
+            'poly2': {'coordinate_system': 'None', 'pointB': [2, 2]}
+        }
+        account_card.name = "Test Account"
+
+        mock_account_cards.return_value = [account_card]
+        mock_geo_filter.return_value = []
+
+        response = client.get(reverse('download_commercial_offer_report', args=[1]))
+
+        assert response.status_code == 302
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_polygon_creation(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        """Тест создания Polygon (более 2 точек)"""
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 1
+        commercial_offer.coordinates_dict = {
+            'poly1': {
+                'coordinate_system': 'wgs84',
+                'pointA': [55.0, 37.0],
+                'pointB': [55.1, 37.1],
+                'pointC': [55.2, 37.2]  # 3 точки = Polygon
+            }
+        }
+        mock_get_object.return_value = commercial_offer
+
+        account_card = MagicMock()
+        account_card.coordinates_dict = {
+            'poly2': {
+                'coordinate_system': 'wgs84',
+                'pointA': [55.3, 37.3],
+                'pointB': [55.4, 37.4],
+                'pointC': [55.5, 37.5]
+            }
+        }
+        account_card.name = "Test Account"
+
+        mock_account_cards.return_value = [account_card]
+        mock_geo_filter.return_value = []
+
+        with patch('agregator.views.registers.Polygon') as mock_polygon, \
+                patch('agregator.views.registers.nearest_points') as mock_nearest, \
+                patch('agregator.views.registers.Geod') as mock_geod, \
+                patch('agregator.views.registers.pd.DataFrame') as mock_df, \
+                patch('agregator.views.registers.generate_excel_report'):
+            mock_polygon_instance = MagicMock()
+            mock_polygon.return_value = mock_polygon_instance
+
+            mock_point1 = MagicMock()
+            mock_point2 = MagicMock()
+            mock_nearest.return_value = (mock_point1, mock_point2)
+
+            mock_geod_instance = MagicMock()
+            mock_geod.return_value = mock_geod_instance
+            mock_geod_instance.inv.return_value = (0, 0, 1000)
+
+            mock_df_instance = MagicMock()
+            mock_df.return_value = mock_df_instance
+
+            response = client.get(reverse('download_commercial_offer_report', args=[1]))
+
+            assert mock_polygon.called
+            assert response.status_code == 302
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_nearest_points_none(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        """Тест когда nearest_points возвращает None"""
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 1
+        commercial_offer.coordinates_dict = {
+            'poly1': {'coordinate_system': 'wgs84', 'pointA': [55.0, 37.0]}
+        }
+        mock_get_object.return_value = commercial_offer
+
+        account_card = MagicMock()
+        account_card.coordinates_dict = {
+            'poly2': {'coordinate_system': 'wgs84', 'pointA': [55.3, 37.3]}
+        }
+        account_card.name = "Test Account"
+
+        mock_account_cards.return_value = [account_card]
+        mock_geo_filter.return_value = []
+
+        with patch('agregator.views.registers.Point') as mock_point, \
+                patch('agregator.views.registers.nearest_points') as mock_nearest:
+            mock_point_instance = MagicMock()
+            mock_point.return_value = mock_point_instance
+
+            # nearest_points возвращает None для одной из точек
+            mock_nearest.return_value = (None, MagicMock())
+
+            response = client.get(reverse('download_commercial_offer_report', args=[1]))
+
+            # Должен продолжить выполнение без ошибок
+            assert response.status_code == 302
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_successful_flow(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        """Тест успешного выполнения всего потока"""
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 1
+        commercial_offer.coordinates_dict = {
+            'poly1': {
+                'coordinate_system': 'wgs84',
+                'pointA': [55.0, 37.0],
+                'pointB': [55.1, 37.1]
+            }
+        }
+        mock_get_object.return_value = commercial_offer
+
+        account_card = MagicMock()
+        account_card.coordinates_dict = {
+            'poly2': {
+                'coordinate_system': 'wgs84',
+                'pointA': [55.3, 37.3],
+                'pointB': [55.4, 37.4]
+            }
+        }
+        account_card.name = "Test Account"
+
+        geo_object = MagicMock()
+        geo_object.type = 'heritage'
+        geo_object.coordinates_dict = {
+            'heritage_point': {
+                'coordinate_system': 'wgs84',
+                'single_point': [55.5, 37.5]
+            }
+        }
+
+        mock_account_cards.return_value = [account_card]
+        mock_geo_filter.return_value = [geo_object]
+
+        with patch('agregator.views.registers.LineString') as mock_linestring, \
+                patch('agregator.views.registers.Point') as mock_point, \
+                patch('agregator.views.registers.nearest_points') as mock_nearest, \
+                patch('agregator.views.registers.Geod') as mock_geod, \
+                patch('agregator.views.registers.pd.DataFrame') as mock_df, \
+                patch('agregator.views.registers.generate_excel_report') as mock_generate:
+            mock_linestring_instance = MagicMock()
+            mock_linestring.return_value = mock_linestring_instance
+
+            mock_point_instance = MagicMock()
+            mock_point.return_value = mock_point_instance
+
+            mock_point1 = MagicMock()
+            mock_point2 = MagicMock()
+            mock_nearest.return_value = (mock_point1, mock_point2)
+
+            mock_geod_instance = MagicMock()
+            mock_geod.return_value = mock_geod_instance
+            mock_geod_instance.inv.return_value = (0, 0, 1500)  # 1.5 km
+
+            mock_df_instance = MagicMock()
+            mock_df.return_value = mock_df_instance
+
+            response = client.get(reverse('download_commercial_offer_report', args=[1]))
+
+            assert response.status_code == 302
+            mock_generate.assert_called_once()
+
+        @patch('agregator.views.registers.convert_to_wgs84')
+        def test_download_commercial_offer_report_different_coordinate_systems(self, mock_convert, client, test_user):
+            """Тест обработки разных систем координат (строки 305-307)"""
+            client.force_login(test_user)
+            mock_convert.return_value = (55.0, 37.0)
+
+            commercial_offer = MagicMock()
+            commercial_offer.id = 1
+            commercial_offer.coordinates_dict = {
+                'poly1': {
+                    'coordinate_system': 'epsg:3857',  # Не wgs84
+                    'point1': [55.0, 37.0]
+                }
+            }
+
+            account_card = MagicMock()
+            account_card.coordinates_dict = {
+                'poly2': {
+                    'coordinate_system': 'epsg:4326',  # Не wgs84
+                    'point1': [55.2, 37.2]
+                }
+            }
+
+            with patch('agregator.views.registers.get_object_or_404') as mock_get_object, \
+                    patch('agregator.views.registers.ObjectAccountCard.objects.all') as mock_account_cards, \
+                    patch('agregator.views.registers.GeoObject.objects.filter') as mock_geo_objects, \
+                    patch('agregator.views.registers.pd.DataFrame') as mock_dataframe, \
+                    patch('agregator.views.registers.generate_excel_report') as mock_generate_report:
+                mock_get_object.return_value = commercial_offer
+                mock_account_cards.return_value = [account_card]
+                mock_geo_objects.return_value = []
+                mock_df_instance = MagicMock()
+                mock_dataframe.return_value = mock_df_instance
+
+                response = client.get(reverse('download_commercial_offer_report', args=[1]))
+                assert response.status_code == 302
+                # Проверяем что convert_to_wgs84 был вызван
+                assert mock_convert.called
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_exception_handling(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        """Тест обработки исключений - исправленная версия"""
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 1
+        commercial_offer.coordinates_dict = {
+            'poly1': {
+                'coordinate_system': 'wgs84',
+                'pointA': [1.0, 1.0],  # Используем float вместо int
+                'pointB': [2.0, 2.0]  # Добавляем вторую точку для LineString
+            }
+        }
+        mock_get_object.return_value = commercial_offer
+
+        account_card = MagicMock()
+        account_card.coordinates_dict = {
+            'poly2': {
+                'coordinate_system': 'wgs84',
+                'pointA': [3.0, 3.0],
+                'pointB': [4.0, 4.0]
+            }
+        }
+        account_card.name = "Test Account"
+
+        mock_account_cards.return_value = [account_card]
+        mock_geo_filter.return_value = []
+
+        with patch('agregator.views.registers.LineString') as mock_linestring, \
+                patch('agregator.views.registers.logger') as mock_logger, \
+                patch('agregator.views.registers.generate_excel_report') as mock_generate_report, \
+                patch('agregator.views.registers.pd.DataFrame') as mock_dataframe:
+            # Заставляем LineString выбросить исключение
+            mock_linestring.side_effect = Exception("Test error")
+
+            # Мокаем DataFrame чтобы избежать создания файла
+            mock_df_instance = MagicMock()
+            mock_dataframe.return_value = mock_df_instance
+
+            response = client.get(reverse('download_commercial_offer_report', args=[1]))
+
+            # Проверяем что исключение обработано и возвращена ошибка 404
+            assert response.status_code == 404
+            assert "Ошибка обработки GeoObject" in response.content.decode()
+            mock_logger.error.assert_called()
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_geo_object_exception(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        """Тест исключения при обработке обычного account card (более простой вариант)"""
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 1
+        commercial_offer.coordinates_dict = {
+            'poly1': {
+                'coordinate_system': 'wgs84',
+                'pointA': [1.0, 1.0],
+                'pointB': [2.0, 2.0]
+            }
+        }
+        mock_get_object.return_value = commercial_offer
+
+        account_card = MagicMock()
+        account_card.coordinates_dict = {
+            'poly2': {
+                'coordinate_system': 'wgs84',
+                'pointA': [3.0, 3.0],
+                'pointB': [4.0, 4.0]
+            }
+        }
+        account_card.name = "Test Account"
+
+        mock_account_cards.return_value = [account_card]
+        mock_geo_filter.return_value = []
+
+        with patch('agregator.views.registers.LineString') as mock_linestring, \
+                patch('agregator.views.registers.logger') as mock_logger, \
+                patch('agregator.views.registers.generate_excel_report') as mock_generate_report:
+            mock_linestring.side_effect = Exception("Test error")
+
+            response = client.get(reverse('download_commercial_offer_report', args=[1]))
+
+            assert response.status_code == 404
+            assert "Ошибка обработки GeoObject" in response.content.decode()
+            mock_logger.error.assert_called()
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_different_coordinate_systems(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        """Тест с разными координатными системами - исправленная версия"""
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 1
+        commercial_offer.coordinates_dict = {
+            'poly1': {
+                'coordinate_system': 'epsg:4326',
+                'pointA': [55.0, 37.0],
+                'pointB': [55.1, 37.1]
+            }
+        }
+        mock_get_object.return_value = commercial_offer
+
+        account_card = MagicMock()
+        account_card.coordinates_dict = {
+            'poly2': {
+                'coordinate_system': 'epsg:3857',
+                'pointA': [55.3, 37.3],
+                'pointB': [55.4, 37.4]
+            }
+        }
+        account_card.name = "Test Account"
+
+        mock_account_cards.return_value = [account_card]
+        mock_geo_filter.return_value = []
+
+        with patch('agregator.views.registers.convert_to_wgs84') as mock_convert, \
+                patch('agregator.views.registers.LineString') as mock_linestring, \
+                patch('agregator.views.registers.nearest_points') as mock_nearest, \
+                patch('agregator.views.registers.Geod') as mock_geod, \
+                patch('agregator.views.registers.pd.DataFrame') as mock_dataframe, \
+                patch('agregator.views.registers.generate_excel_report') as mock_generate_report:
+            # Исправляем возвращаемое значение convert_to_wgs84
+            mock_convert.return_value = (55.0, 37.0)  # Кортеж, а не список
+
+            mock_linestring_instance = MagicMock()
+            mock_linestring.return_value = mock_linestring_instance
+
+            mock_point1 = MagicMock()
+            mock_point1.x = 55.0
+            mock_point1.y = 37.0
+            mock_point2 = MagicMock()
+            mock_point2.x = 55.3
+            mock_point2.y = 37.3
+            mock_nearest.return_value = (mock_point1, mock_point2)
+
+            mock_geod_instance = MagicMock()
+            mock_geod.return_value = mock_geod_instance
+            mock_geod_instance.inv.return_value = (0, 0, 1000)  # 1 km
+
+            # Мокаем DataFrame и его методы
+            mock_df_instance = MagicMock()
+            mock_dataframe.return_value = mock_df_instance
+            mock_df_instance._append.return_value = mock_df_instance
+
+            response = client.get(reverse('download_commercial_offer_report', args=[1]))
+
+            assert mock_convert.called
+            assert response.status_code == 302
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_successful_flow_with_geo_objects(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        """Тест успешного выполнения с GeoObject - исправленная версия"""
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 1
+        commercial_offer.coordinates_dict = {
+            'poly1': {
+                'coordinate_system': 'wgs84',
+                'pointA': [55.0, 37.0],
+                'pointB': [55.1, 37.1]
+            }
+        }
+        mock_get_object.return_value = commercial_offer
+
+        account_card = MagicMock()
+        account_card.coordinates_dict = {
+            'poly2': {
+                'coordinate_system': 'wgs84',
+                'pointA': [55.3, 37.3],
+                'pointB': [55.4, 37.4]
+            }
+        }
+        account_card.name = "Account Card"
+
+        # Создаем GeoObject с правильной структурой
+        geo_object = MagicMock()
+        geo_object.type = 'heritage'
+        type(geo_object).coordinates_dict = MagicMock(return_value={
+            'heritage_site': {
+                'coordinate_system': 'wgs84',
+                'point1': [2.0, 2.0]  # Одиночная точка
+            }
+        })
+
+        mock_account_cards.return_value = [account_card]
+        mock_geo_filter.return_value = [geo_object]
+
+        with patch('agregator.views.registers.LineString') as mock_linestring, \
+                patch('agregator.views.registers.Point') as mock_point, \
+                patch('agregator.views.registers.nearest_points') as mock_nearest, \
+                patch('agregator.views.registers.Geod') as mock_geod, \
+                patch('agregator.views.registers.pd.DataFrame') as mock_dataframe, \
+                patch('agregator.views.registers.generate_excel_report') as mock_generate_report, \
+                patch('os.makedirs') as mock_makedirs:  # Мокаем создание директорий
+
+            # Настраиваем моки для геометрических объектов
+            mock_linestring_instance = MagicMock()
+            mock_linestring.return_value = mock_linestring_instance
+
+            mock_point_instance = MagicMock()
+            mock_point.return_value = mock_point_instance
+
+            mock_point1 = MagicMock()
+            mock_point1.x = 55.0
+            mock_point1.y = 37.0
+            mock_point2 = MagicMock()
+            mock_point2.x = 55.3
+            mock_point2.y = 37.3
+            mock_nearest.return_value = (mock_point1, mock_point2)
+
+            mock_geod_instance = MagicMock()
+            mock_geod.return_value = mock_geod_instance
+            mock_geod_instance.inv.return_value = (0, 0, 1500)  # 1.5 km
+
+            # Мокаем DataFrame
+            mock_df_new = MagicMock()
+            mock_df_existing = MagicMock()
+            mock_dataframe.side_effect = [mock_df_new, mock_df_existing]
+            mock_df_new._append.return_value = mock_df_existing
+
+            response = client.get(reverse('download_commercial_offer_report', args=[1]))
+
+            assert response.status_code == 302
+            mock_generate_report.assert_called_once()
+
+    @patch('agregator.views.registers.get_object_or_404')
+    @patch('agregator.views.registers.ObjectAccountCard.objects.all')
+    @patch('agregator.views.registers.GeoObject.objects.filter')
+    def test_download_commercial_offer_report_geoobject_branch_coverage(
+            self, mock_geo_filter, mock_account_cards, mock_get_object, client, test_user
+    ):
+        client.force_login(test_user)
+
+        commercial_offer = MagicMock()
+        commercial_offer.id = 999
+        commercial_offer.coordinates_dict = {
+            'poly1': {
+                'coordinate_system': 'epsg:32637',
+                'P': [100000, 200000]
+            }
+        }
+        mock_get_object.return_value = commercial_offer
+        mock_account_cards.return_value = [MagicMock()]
+
+        geo_obj = MagicMock()
+        geo_obj.coordinates_dict = {
+            'site1': {
+                'coordinate_system': 'epsg:32637',
+                'monument': [300000, 400000]
+            }
+        }
+        mock_geo_filter.return_value = [geo_obj]
+
+        with patch('agregator.views.registers.isinstance') as mock_isinstance, \
+                patch('agregator.views.registers.convert_to_wgs84') as mock_convert, \
+                patch('agregator.views.registers.Point') as mock_point, \
+                patch('agregator.views.registers.LineString') as mock_linestring, \
+                patch('agregator.views.registers.nearest_points') as mock_nearest, \
+                patch('agregator.views.registers.Geod') as mock_geod, \
+                patch('agregator.views.registers.pd.DataFrame') as mock_dataframe, \
+                patch('agregator.views.registers.generate_excel_report'), \
+                patch('os.makedirs'):
+            mock_isinstance.side_effect = lambda obj, cls: obj is geo_obj
+
+            mock_convert.return_value = (55.75, 37.62)
+            mock_linestring.return_value = MagicMock()
+            mock_point.return_value = MagicMock()
+            mock_p1 = MagicMock(x=37.62, y=55.75)
+            mock_p2 = MagicMock(x=37.63, y=55.76)
+            mock_nearest.return_value = (mock_p1, mock_p2)
+            mock_geod_instance = MagicMock()
+            mock_geod.return_value = mock_geod_instance
+            mock_geod_instance.inv.return_value = (0, 0, 2000.0)
+
+            created_dataframes = []
+
+            def dataframe_side_effect(data, **kw):
+                df_mock = MagicMock()
+                df_mock.__getitem__ = lambda key: data[key]
+                created_dataframes.append(data)
+                return df_mock
+
+            mock_dataframe.side_effect = dataframe_side_effect
+
+            response = client.get(reverse('download_commercial_offer_report', args=[999]))
+
+            assert response.status_code == 302
+            assert mock_convert.call_count == 2
+            assert len(created_dataframes) == 2
+            for df in created_dataframes:
+                assert abs(df['Дистанция до памятника (км)'] - 2.0) < 0.01

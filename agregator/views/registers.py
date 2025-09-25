@@ -1,6 +1,8 @@
 import json
 import os
 from urllib.parse import quote
+import logging
+import traceback
 
 import pandas as pd
 import simplekml
@@ -24,6 +26,8 @@ from agregator.models import Act, OpenLists, ScientificReport, TechReport, Archa
 from agregator.processing.external_sources import process_oan_list, process_voan_list
 from agregator.processing.geo_utils import convert_to_wgs84
 from agregator.views import get_register_view, create_model_dataframe, generate_excel_report, get_scan_task
+
+logger = logging.getLogger(__name__)
 
 
 def acts_register(request):
@@ -289,54 +293,10 @@ def download_commercial_offer_report(request, pk):
         min_distance = None
         if hasattr(account_card, 'coordinates_dict') and account_card.coordinates_dict and hasattr(commercial_offer,
                                                                                                    'coordinates_dict') and commercial_offer.coordinates_dict:
-            if type(account_card) != GeoObject:
-                for ac_polygon in account_card.coordinates_dict.values():
-                    if 'coordinate_system' not in ac_polygon.keys() or ac_polygon['coordinate_system'] == 'None':
-                        continue
-                    for co_polygon in commercial_offer.coordinates_dict.values():
-                        if 'coordinate_system' not in co_polygon.keys() or co_polygon['coordinate_system'] == 'None':
-                            continue
-                        polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
-                                    key not in ('coordinate_system', 'area')]
-                        polygon2 = [[float(value[0]), float(value[1])] for key, value in ac_polygon.items() if
-                                    key not in ('coordinate_system', 'area')]
-
-                        if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
-                            polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in
-                                        polygon1]
-                            polygon2 = [[convert_to_wgs84(x[0], x[1], ac_polygon['coordinate_system'])] for x in
-                                        polygon2]
-
-                        if len(polygon1) > 2:
-                            polygon1 = Polygon(polygon1)
-                        elif len(polygon1) == 2:
-                            polygon1 = LineString(polygon1)
-                        elif len(polygon1) == 1:
-                            polygon1 = Point(polygon1)
-
-                        if len(polygon2) > 2:
-                            polygon2 = Polygon(polygon2)
-                        elif len(polygon2) == 2:
-                            polygon2 = LineString(polygon2)
-                        elif len(polygon2) == 1:
-                            polygon2 = Point(polygon2)
-
-                        point1, point2 = nearest_points(polygon1, polygon2)
-                        geod = Geod(ellps="WGS84")
-                        # print(str(polygon1) + ' HERE ' + str(polygon2))
-                        # print(str(point1) + ' HERE ' + str(point2))
-                        if not point1 or not point2:
-                            continue
-                        az12, az21, distance = geod.inv(point1.y, point1.x, point2.y, point2.x)
-                        if min_distance is None or min_distance > distance:
-                            min_distance = distance
-            else:
-                for ac_polygon in account_card.coordinates_dict.values():
-                    for point_name, coords in ac_polygon.items():
-                        print(str(counter) + '/' + str(len(ac_polygon.items())))
-                        counter += 1
-                        if 'coordinate_system' not in ac_polygon.keys() or ac_polygon[
-                            'coordinate_system'] == 'None' or point_name == 'coordinate_system':
+            if not isinstance(account_card, GeoObject):
+                try:
+                    for ac_polygon in account_card.coordinates_dict.values():
+                        if 'coordinate_system' not in ac_polygon.keys() or ac_polygon['coordinate_system'] == 'None':
                             continue
                         for co_polygon in commercial_offer.coordinates_dict.values():
                             if 'coordinate_system' not in co_polygon.keys() or co_polygon[
@@ -344,7 +304,8 @@ def download_commercial_offer_report(request, pk):
                                 continue
                             polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
                                         key not in ('coordinate_system', 'area')]
-                            polygon2 = [[float(value) for value in coords]]
+                            polygon2 = [[float(value[0]), float(value[1])] for key, value in ac_polygon.items() if
+                                        key not in ('coordinate_system', 'area')]
 
                             if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
                                 polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in
@@ -375,13 +336,67 @@ def download_commercial_offer_report(request, pk):
                             az12, az21, distance = geod.inv(point1.y, point1.x, point2.y, point2.x)
                             if min_distance is None or min_distance > distance:
                                 min_distance = distance
-                        table_columns_info['Памятник'] = point_name
-                        table_columns_info['Дистанция до памятника (км)'] = distance / 1000
-                        df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
-                        if df_existing is None:
-                            df_existing = df_new
-                        else:
-                            df_existing = df_existing._append(df_new, ignore_index=True)
+                except Exception as e:
+                    logger.error(f"Ошибка обработки GeoObject: {e}")
+                    traceback.print_exc()
+                    return HttpResponse(f"Ошибка обработки GeoObject: {e}", status=404)
+            else:  # строка 344
+                try:
+                    for ac_polygon in account_card.coordinates_dict.values():
+                        for point_name, coords in ac_polygon.items():
+                            print(str(counter) + '/' + str(len(ac_polygon.items())))
+                            counter += 1
+                            if 'coordinate_system' not in ac_polygon.keys() or ac_polygon[
+                                'coordinate_system'] == 'None' or point_name == 'coordinate_system':
+                                continue
+                            for co_polygon in commercial_offer.coordinates_dict.values():
+                                if 'coordinate_system' not in co_polygon.keys() or co_polygon[
+                                    'coordinate_system'] == 'None':
+                                    continue
+                                polygon1 = [[float(value[0]), float(value[1])] for key, value in co_polygon.items() if
+                                            key not in ('coordinate_system', 'area')]
+                                polygon2 = [[float(value) for value in coords]]
+
+                                if not (co_polygon['coordinate_system'] == ac_polygon['coordinate_system'] == 'wgs84'):
+                                    polygon1 = [[convert_to_wgs84(x[0], x[1], co_polygon['coordinate_system'])] for x in
+                                                polygon1]
+                                    polygon2 = [[convert_to_wgs84(x[0], x[1], ac_polygon['coordinate_system'])] for x in
+                                                polygon2]
+
+                                if len(polygon1) > 2:
+                                    polygon1 = Polygon(polygon1)
+                                elif len(polygon1) == 2:
+                                    polygon1 = LineString(polygon1)
+                                elif len(polygon1) == 1:
+                                    polygon1 = Point(polygon1)
+
+                                if len(polygon2) > 2:
+                                    polygon2 = Polygon(polygon2)
+                                elif len(polygon2) == 2:
+                                    polygon2 = LineString(polygon2)
+                                elif len(polygon2) == 1:
+                                    polygon2 = Point(polygon2)
+
+                                point1, point2 = nearest_points(polygon1, polygon2)
+                                geod = Geod(ellps="WGS84")
+                                # print(str(polygon1) + ' HERE ' + str(polygon2))
+                                # print(str(point1) + ' HERE ' + str(point2))
+                                if not point1 or not point2:
+                                    continue
+                                az12, az21, distance = geod.inv(point1.y, point1.x, point2.y, point2.x)
+                                if min_distance is None or min_distance > distance:
+                                    min_distance = distance
+                            table_columns_info['Памятник'] = point_name
+                            table_columns_info['Дистанция до памятника (км)'] = distance / 1000
+                            df_new = pd.DataFrame(table_columns_info, columns=table_columns_info.keys(), index=[0])
+                            if df_existing is None:
+                                df_existing = df_new
+                            else:
+                                df_existing = df_existing._append(df_new, ignore_index=True)
+                except Exception as e:
+                    logger.error(f"Ошибка обработки GeoObject: {e}")
+                    traceback.print_exc()
+                    return HttpResponse(f"Ошибка обработки GeoObject: {e}", status=404)
 
         if min_distance is not None and type(account_card) != GeoObject:
             table_columns_info['Памятник'] = account_card.name

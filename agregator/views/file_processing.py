@@ -275,7 +275,7 @@ def doc_reprocess(request, pk):
             else:
                 return HttpResponse("Некорректный тип отчёта", status=404)
         else:
-            return HttpResponse("Тип отчёта неопределён", status=404)
+            return HttpResponse("Тип отчёта не определён", status=404)
         user = request.user
         tasks_id = get_user_tasks(user.id, ('act', 'scientific_report', 'tech_report'))
         form = UploadReportsForm()
