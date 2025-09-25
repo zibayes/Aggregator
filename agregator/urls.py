@@ -137,15 +137,52 @@ urlpatterns = [
 
     path('api/', include(router.urls)),
     path('api-auth/', include('rest_framework.urls', namespace='rest_framework')),
+
     path('api/users/', views.UserList.as_view(), name='user-list'),
     path('api/users/<int:pk>/', views.UserDetail.as_view(), name='user-detail'),
+
     path('api/acts/', views.ActList.as_view(), name='act-list'),
     path('api/acts/<int:pk>/', views.ActDetail.as_view(), name='act-detail'),
+
     path('api/scientific_reports/', views.ScientificReportList.as_view(), name='scientificreport-list'),
     path('api/scientific_reports/<int:pk>/', views.ScientificReportDetail.as_view(),
          name='scientificreport-detail'),
+
     path('api/tech_reports/', views.TechReportList.as_view(), name='techreport-list'),
     path('api/tech_reports/<int:pk>/', views.TechReportDetail.as_view(), name='techreport-detail'),
+
+    path('api/open_lists/', views.OpenListsList.as_view(), name='openlists-list'),
+    path('api/open_lists/<int:pk>/', views.OpenListsDetail.as_view(), name='openlists-detail'),
+
+    path('api/archaeological_heritage_sites/', views.ArchaeologicalHeritageSiteList.as_view(),
+         name='archaeologicalheritagesite-list'),
+    path('api/archaeological_heritage_sites/<int:pk>/', views.ArchaeologicalHeritageSiteDetail.as_view(),
+         name='archaeologicalheritagesite-detail'),
+
+    path('api/identified_archaeological_heritage_sites/', views.IdentifiedArchaeologicalHeritageSiteList.as_view(),
+         name='identifiedarchaeologicalheritagesite-list'),
+    path('api/identified_archaeological_heritage_sites/<int:pk>/',
+         views.IdentifiedArchaeologicalHeritageSiteDetail.as_view(),
+         name='identifiedarchaeologicalheritagesite-detail'),
+
+    path('api/object_account_cards/', views.ObjectAccountCardList.as_view(), name='objectaccountcard-list'),
+    path('api/object_account_cards/<int:pk>/', views.ObjectAccountCardDetail.as_view(),
+         name='objectaccountcard-detail'),
+
+    path('api/commercial_offers/', views.CommercialOffersList.as_view(), name='commercialoffers-list'),
+    path('api/commercial_offers/<int:pk>/', views.CommercialOffersDetail.as_view(), name='commercialoffers-detail'),
+
+    path('api/geo_objects/', views.GeoObjectList.as_view(), name='geoobject-list'),
+    path('api/geo_objects/<int:pk>/', views.GeoObjectDetail.as_view(), name='geoobject-detail'),
+
+    path('api/geojson_data/', views.GeojsonDataList.as_view(), name='geojsondata-list'),
+    path('api/geojson_data/<int:pk>/', views.GeojsonDataDetail.as_view(), name='geojsondata-detail'),
+
+    path('api/chats/', views.ChatList.as_view(), name='chat-list'),
+    path('api/chats/<int:pk>/', views.ChatDetail.as_view(), name='chat-detail'),
+
+    path('api/messages/', views.MessageList.as_view(), name='message-list'),
+    path('api/messages/<int:pk>/', views.MessageDetail.as_view(), name='message-detail'),
 
     path('wopi/files/<path:file_id>/contents', wopi_views.wopi_contents, name='wopi_contents'),
     path('wopi/files/<path:file_id>', wopi_views.wopi_endpoint, name='wopi_endpoint'),

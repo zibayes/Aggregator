@@ -31,4 +31,6 @@ pytest agregator/tests/test_views/test_map.py --cov=agregator.views.map --cov-re
 
 pytest agregator/tests/test_views/test_registers.py --cov=agregator.views.registers --cov-report=term-missing -v
 
+pytest agregator/tests/test_views/test_serializers.py --cov=agregator.views.serializers --cov-report=term-missing -v
+
 pytest agregator/tests/test_views/ --cov=agregator.views --cov-report=term-missing -v
