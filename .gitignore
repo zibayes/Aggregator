@@ -181,3 +181,9 @@ app_mount/
 
 wal_archive/
 backups/
+
+nginx/cache/
+nginx/logs/
+
+tiles/raster/
+tiles/vector/

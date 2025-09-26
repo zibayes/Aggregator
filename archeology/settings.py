@@ -72,10 +72,18 @@ FILEBROWSER_ACTIONS = [
 AUTH_USER_MODEL = 'agregator.User'
 DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB
 
+MAPS_CONFIG = {
+    'RASTER_TILES_URL': os.getenv('RASTER_TILES_URL', 'http://localhost:80/raster/{z}/{x}/{y}.png'),
+    'VECTOR_TILES_URL': os.getenv('VECTOR_TILES_URL', 'http://localhost:80/vector/{z}/{x}/{y}.pbf'),
+    'TILESERVER_BASE_URL': os.getenv('MAPS_BASE_URL', 'http://localhost:80'),
+}
+
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:4200",  # URL Angular
     "http://127.0.0.1:9980",  # URL Collabora
     "http://localhost:9980",  # URL Collabora
+    "http://host.docker.internal:3000",
+    "http://172.17.0.1:3000",
 ]
 
 REST_FRAMEWORK = {

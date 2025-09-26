@@ -225,6 +225,15 @@ var baseLayers = {
         maxZoom: maxZoom,
         attribution: 'ArcGIS.Streets'
     }),
+
+    'My Raster Tiles': L.tileLayer('http://localhost:8090/raster/ThunderforestOSM/{z}/{x}/{y}.png', {
+        attribution: 'Мои растровые тайлы',
+        maxZoom: 15,
+        minZoom: 7,
+        errorTileUrl: '',
+        crossOrigin: true,
+        tms: true
+    }),
 };
 
 var additionalLayers = {

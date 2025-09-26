@@ -1,6 +1,6 @@
 let groupCheckbox;
 // Инициализация карты
-var map = L.map('map').setView([55.7558, 37.6173], 8);  // , {crs: L.CRS.EPSG3395}
+var map = L.map('map').setView([56.01528, 92.89325], 10);  // , {crs: L.CRS.EPSG3395}
 var maxZoom = 20;
 var zoomControl = map.zoomControl;
 var current_icon;
