@@ -12,8 +12,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
-      nginx-proxy: 
-        condition: service_started
     environment:
       DEBUG: "1"
       DB_HOST: db
@@ -28,6 +26,12 @@ services:
       MAPS_BASE_URL: "http://nginx-proxy"
       RASTER_TILES_URL: "http://nginx-proxy/raster/{z}/{x}/{y}.png"
       VECTOR_TILES_URL: "http://nginx-proxy/vector/{z}/{x}/{y}.pbf"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
       
   nginx-proxy:
     image: nginx:alpine
@@ -39,7 +43,10 @@ services:
       - ./nginx/logs:/var/log/nginx
       - ./nginx/cache:/var/cache/nginx
     depends_on:
-      - tileserver-gl
+      app:
+        condition: service_healthy
+      tileserver-gl:
+        condition: service_started
 
   tileserver-gl:
     image: maptiler/tileserver-gl

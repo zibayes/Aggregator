@@ -62,3 +62,7 @@ def get_user_tasks_geo_objects(request):
     user = request.user
     tasks_id = get_user_tasks(user.id, ('geo_object',))
     return JsonResponse({'tasks_id': tasks_id})
+
+
+def health_check(request):
+    return JsonResponse({"status": "ok"})

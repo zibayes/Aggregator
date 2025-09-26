@@ -9,6 +9,7 @@ from django.views.decorators.http import require_http_methods
 router = DefaultRouter()
 
 urlpatterns = [
+    path('health/', views.health_check, name='health'),
     path('', views.auth.index, name='index'),
     path('deconstructor/', views.file_processing.deconstructor, name='deconstructor'),
     path('external_sources/', views.file_processing.external_sources, name='external_sources'),
