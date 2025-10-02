@@ -29,9 +29,10 @@ services:
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      timeout: 20s 
+      retries: 5   
+      start_period: 120s
+    restart: unless-stopped
       
   nginx-proxy:
     image: nginx:alpine
@@ -47,6 +48,7 @@ services:
         condition: service_healthy
       tileserver-gl:
         condition: service_started
+    restart: unless-stopped
 
   tileserver-gl:
     image: maptiler/tileserver-gl
@@ -54,6 +56,7 @@ services:
       - ./tiles/vector:/data 
     environment:
       - NODE_ENV=production
+    restart: unless-stopped
 
   redis:
     image: redis:alpine
@@ -63,7 +66,8 @@ services:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+    restart: unless-stopped
 
   db:
     image: postgres:17
@@ -84,7 +88,8 @@ services:
       test: [ "CMD-SHELL", "pg_isready -U postgres" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+    restart: unless-stopped
 
   backup:
     image: postgres:17-alpine
@@ -93,6 +98,7 @@ services:
     volumes:
       - ./backups:/backups
       - ./backup_scripts:/scripts
+      - postgres_data_test:/var/lib/postgresql/data-test
     restart: unless-stopped
     entrypoint: /bin/sh
     command: -c "
@@ -145,4 +151,5 @@ services:
 
 volumes:
   postgres_data:
+  postgres_data_test:
   app_init:

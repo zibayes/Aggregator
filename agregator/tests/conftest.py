@@ -2,7 +2,12 @@ import pytest
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.contrib.auth import get_user_model
+import tempfile
+from django.utils import timezone
+from datetime import timedelta
 from django_celery_results.models import TaskResult
+import jwt
+import os
 
 User = get_user_model()
 
@@ -217,3 +222,57 @@ def admin_tasks(db, admin_user):
         )
 
     return tasks
+
+
+@pytest.fixture
+def wopi_test_file():
+    """Создает тестовый файл для WOPI"""
+    with tempfile.NamedTemporaryFile(delete=False, suffix='.txt') as f:
+        f.write(b'Test file content for WOPI')
+        return f.name
+
+
+@pytest.fixture
+def wopi_token(test_user, wopi_test_file):
+    """Генерирует валидный WOPI токен для конкретного тестового файла"""
+    from agregator.wopi.views import generate_wopi_token
+    file_id = os.path.basename(wopi_test_file)
+    return generate_wopi_token(
+        user_id=test_user.id,
+        username=test_user.username,
+        file_path=file_id,
+        can_write=True
+    )
+
+
+@pytest.fixture
+def wopi_token_readonly(test_user):
+    """Генерирует WOPI токен только для чтения"""
+    from agregator.wopi.views import generate_wopi_token
+    return generate_wopi_token(
+        user_id=test_user.id,
+        username=test_user.username,
+        file_path='test_file.txt',
+        can_write=False
+    )
+
+
+@pytest.fixture
+def wopi_token_expired(test_user):
+    """Генерирует просроченный WOPI токен"""
+    from agregator.wopi.views import WOPI_ACCESS_SECRET
+    payload = {
+        'user_id': test_user.id,
+        'username': test_user.username,
+        'file_path': 'test_file.txt',
+        'can_write': True,
+        'exp': timezone.now() - timedelta(hours=1),
+        'ttl': 3600
+    }
+    return jwt.encode(payload, WOPI_ACCESS_SECRET, algorithm='HS256')
+
+
+@pytest.fixture
+def wopi_invalid_token():
+    """Генерирует невалидный токен"""
+    return 'invalid.token.here'

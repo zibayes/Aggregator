@@ -7,10 +7,11 @@ from django.utils.crypto import constant_time_compare
 from django.views.decorators.http import require_http_methods
 import jwt
 import datetime
-from urllib.parse import unquote, quote, urlparse, parse_qs
+from urllib.parse import unquote, quote, unquote_plus, urlparse, parse_qs
 import logging
 from archeology.settings import BASE_URL
 import time
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def generate_wopi_token(user_id, username, file_path, can_write=True):
         'username': username,
         'file_path': file_path,
         'can_write': can_write,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=1),  # Токен на 1 час
+        'exp': datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1),
         'ttl': 3600
     }
     return jwt.encode(payload, WOPI_ACCESS_SECRET, algorithm='HS256')
@@ -58,25 +59,31 @@ def get_safe_path(file_id):
     - Защита от path traversal (../)
     """
     logger.debug(f"RAW file_id: '{file_id}'")
-
-    # Декодируем URL
+    # Декодируем URL стандартным способом
     decoded = unquote(file_id)
     clean_path = decoded.strip().lstrip('/')
     logger.debug(f"AFTER DECODING: '{clean_path}'")
 
-    abs_path = os.path.abspath(os.path.join(WOPI_FILE_ROOT, clean_path))
-    root_path = os.path.abspath(WOPI_FILE_ROOT)
+    # Проверяем несколько вариантов имен файлов
+    path_variants = [
+        clean_path,  # стандартное декодирование
+        clean_path.replace('+', ' ')  # заменяем плюсы на пробелы
+    ]
 
-    # Защита от path traversal
-    if not abs_path.startswith(root_path + os.sep):
-        logger.debug(f"BLOCKED PATH TRAVERSAL: {abs_path}")
-        return None
+    for path in path_variants:
+        abs_path = os.path.abspath(os.path.join(WOPI_FILE_ROOT, path))
+        root_path = os.path.abspath(WOPI_FILE_ROOT)
 
-    if os.path.exists(abs_path):
-        logger.debug(f"FOUND MATCHING PATH: {abs_path}")
-        return abs_path
+        # Защита от path traversal
+        if not abs_path.startswith(root_path + os.sep):
+            logger.debug(f"BLOCKED PATH TRAVERSAL: {abs_path}")
+            continue
 
-    logger.error(f"FILE NOT FOUND. TRIED VARIANTS: {clean_path}")
+        if os.path.exists(abs_path):
+            logger.debug(f"FOUND MATCHING PATH: {abs_path}")
+            return abs_path
+
+    logger.error(f"FILE NOT FOUND. TRIED VARIANTS: {', '.join(path_variants)}")
     return None
 
 
@@ -130,7 +137,7 @@ def wopi_endpoint(request, file_id):
         return HttpResponse("Invalid token", status=401)
 
     # Проверка времени жизни токена
-    if datetime.datetime.utcnow() > datetime.datetime.fromtimestamp(token_data['exp']):
+    if timezone.now() > datetime.datetime.fromtimestamp(token_data['exp'], tz=datetime.timezone.utc):
         return HttpResponse("Token expired", status=401)
 
     # Определяем, какой именно запрос пришёл
