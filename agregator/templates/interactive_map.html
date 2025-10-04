@@ -47,6 +47,7 @@
     <script src="{% static 'js/dom-to-image.min.js' %}"></script>
     <script src="{% static 'js/FileSaver.min.js' %}"></script>
     <script src="{% static 'js/turf.min.js' %}"></script>
+    <script src="{% static 'js/Leaflet.VectorGrid.bundled.js' %}"></script>
 
     <link rel="stylesheet" href="{% static 'css/interactive_map.css' %}"/>
 
@@ -101,6 +102,7 @@
                     </optgroup>
                     <optgroup label="Локальные слои">
                         <option value="My Raster Tiles">Мои растровые тайлы</option>
+                        <option value="My Vector Tiles">Мои векторные тайлы</option>
                     </optgroup>
                 </select>
             </div>
@@ -113,6 +115,9 @@
                         <option value="Cadastre quarter">Кадастровые кварталы</option>
                         <option value="Cadastre district">Кадастровые районы</option>
                         <option value="Cadastre county">Кадастровые округа</option>
+                    </optgroup>
+                    <optgroup label="Векторные слои">
+                        <option value="Height Contours">Контуры высот</option>
                     </optgroup>
                 </select>
             </div>

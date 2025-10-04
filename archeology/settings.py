@@ -74,7 +74,7 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 100 * 1024 * 1024  # 100 MB
 
 MAPS_CONFIG = {
     'RASTER_TILES_URL': os.getenv('RASTER_TILES_URL', 'http://localhost:80/raster/{z}/{x}/{y}.png'),
-    'VECTOR_TILES_URL': os.getenv('VECTOR_TILES_URL', 'http://localhost:80/vector/{z}/{x}/{y}.pbf'),
+    'VECTOR_TILES_URL': os.getenv('VECTOR_TILES_URL', 'http://localhost:80/vector/australia_oceania/{z}/{x}/{y}.pbf'),
     'TILESERVER_BASE_URL': os.getenv('MAPS_BASE_URL', 'http://localhost:80'),
 }
 

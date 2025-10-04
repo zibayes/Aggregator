@@ -234,6 +234,46 @@ var baseLayers = {
         crossOrigin: true,
         tms: true
     }),
+
+    'My Vector Tiles': L.vectorGrid.protobuf('http://localhost:8090/vector/data/maptiler-contours/{z}/{x}/{y}.pbf', {
+        vectorTileLayerStyles: {
+            'contour': {
+                // Стилизация по значимости линий (атрибут nth_line)
+                style: function(feature) {
+                    var nth_line = feature.properties.nth_line;
+                    if (nth_line === 10) {
+                        return {
+                            weight: 2.5,
+                            color: '#000000',
+                            opacity: 1
+                        };
+                    } else if (nth_line === 5) {
+                        return {
+                            weight: 2,
+                            color: '#666666',
+                            opacity: 0.8
+                        };
+                    } else if (nth_line === 2) {
+                        return {
+                            weight: 1.5,
+                            color: '#999999',
+                            opacity: 0.7
+                        };
+                    } else {
+                        return {
+                            weight: 1,
+                            color: '#cccccc',
+                            opacity: 0.5
+                        };
+                    }
+                }
+            }
+        },
+        interactive: true,
+        minZoom: 9,  // Важно! Минимальный зум 9, как указано в метаданных
+        maxZoom: 14, // Максимальный зум 14
+        attribution: '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
+    }),
 };
 
 var additionalLayers = {
@@ -268,6 +308,29 @@ var additionalLayers = {
         transparent: true,
         attribution: '<a href="https://nspd.gov.ru" target="_blank">НСПД</a> contributors'
     }),
+
+    'Height Contours': L.vectorGrid.protobuf('http://localhost:8090/vector/data/maptiler-contours/{z}/{x}/{y}.pbf', {
+        vectorTileLayerStyles: {
+            'contour': {
+                style: function(feature) {
+                    var nth_line = feature.properties.nth_line;
+                    if (nth_line === 10) {
+                        return {weight: 2.5, color: '#000000', opacity: 1};
+                    } else if (nth_line === 5) {
+                        return {weight: 2, color: '#666666', opacity: 0.8};
+                    } else if (nth_line === 2) {
+                        return {weight: 1.5, color: '#999999', opacity: 0.7};
+                    } else {
+                        return {weight: 1, color: '#cccccc', opacity: 0.5};
+                    }
+                }
+            }
+        },
+        interactive: true,
+        minZoom: 9,
+        maxZoom: 14,
+        attribution: '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
+    })
 }
 
 baseLayers["OpenStreetMap"].addTo(map);
