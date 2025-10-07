@@ -14,6 +14,7 @@ class AgregatorConfig(AppConfig):
 
     def ready(self):
         print("AgregatorConfig.ready() вызван")
+        import agregator.signals
         # Подключаем сигналы для автоматического создания ссылок
         self.connect_model_signals()
         # Создаем папки при запуске

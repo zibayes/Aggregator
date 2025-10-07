@@ -48,7 +48,7 @@ download_lock = threading.Lock()
 ORDER_TEXT_PATTERN = re.compile(r'\D+?(?= от )', re.IGNORECASE | re.MULTILINE)
 ORDER_NUMBER_PATTERN = re.compile(r'№\s+\d+-*\d*', re.IGNORECASE | re.MULTILINE)
 ORDER_DATE_PATTERN = re.compile(r'\d{2}\.\d{2}\.\d{4}', re.IGNORECASE | re.MULTILINE)
-AKT_GIKE_PATTERN = re.compile(r'акт\s+гикэ', re.IGNORECASE | re.MULTILINE)
+AKT_GIKE_PATTERN = re.compile(r'акт|гикэ', re.IGNORECASE | re.MULTILINE)  # r'акт\s+гикэ'
 
 ACTS_QUERY_EXCLUDE = [
     'архитектурно-художественного',
@@ -900,7 +900,8 @@ def external_orders_download(query: str, output_path: str, document_source: List
                     url = f"https://ookn.ru{href}"
 
                     path_to_download = os.path.join(output_path, file)
-                    if os.path.exists(path_to_download):
+                    if os.path.exists(path_to_download) and path_to_download not in [source['path'] for source in
+                                                                                     document_source]:
                         document_source.append({'path': path_to_download})
                         continue
                     download_tasks.append((url, path_to_download))
@@ -916,9 +917,10 @@ def external_orders_download(query: str, output_path: str, document_source: List
                     try:
                         if future.result():
                             with download_lock:
-                                document_source.append({'path': path})
-                                document_cache[cache_key] = copy.deepcopy(document_source)
-                                downloaded_counter += 1
+                                if path not in [source['path'] for source in document_source]:
+                                    document_source.append({'path': path})
+                                    document_cache[cache_key] = copy.deepcopy(document_source)
+                                    downloaded_counter += 1
                     except Exception as e:
                         logger.debug(f"Ошибка при скачивании {url}: {e}")
 
