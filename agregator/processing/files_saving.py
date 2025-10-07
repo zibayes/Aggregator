@@ -4,6 +4,7 @@ import os
 import platform
 import subprocess
 from pathlib import Path
+import shutil
 
 import PIL
 import fitz
@@ -97,6 +98,9 @@ def _convert_with_word(input_path, output_path, output_format):
 
 def _convert_with_libreoffice(input_path, output_path, output_format):
     """Конвертация через LibreOffice (кроссплатформенный)"""
+    if shutil.which('libreoffice') is None:
+        raise RuntimeError("LibreOffice не установлен в системе")
+
     output_dir = str(output_path.parent)
 
     # Форматы LibreOffice

@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e  # Exit on error
 
+SERVICE_TYPE=${SERVICE_TYPE:-"app"}
+
 # Принудительно set правильный settings (override yml/env)
 export DJANGO_SETTINGS_MODULE="archeology.settings"  # Точно, из ls archeology/settings.py
 POSTGRES_HOST="${DB_HOST:-${POSTGRES_HOST:-db}}"
@@ -70,6 +72,11 @@ do_django_init() {
     echo "python manage.py migrate"
     python manage.py migrate || { echo "Migrate failed!"; exit 1; }
     echo "Migrate OK."
+	
+	# Collecting static files
+	echo "Collecting static files..."
+	python manage.py collectstatic --noinput
+	echo "Static files collected!"
 
     # Superuser
     echo "Creating superuser..."
@@ -92,7 +99,7 @@ else:
 }
 
 # Main
-if [ ! -f /app/init/.django_init_done ]; then
+if [ "$SERVICE_TYPE" = "app" ] && [ ! -f /app/init/.django_init_done ]; then
     echo "No flag — full init."
     wait_for_redis
     wait_for_db
@@ -101,5 +108,14 @@ else
     echo "Flag exists — skip init."
 fi
 
-echo "=== Supervisord start ==="
-exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
+# === Запуск приложения ===
+if [ "$SERVICE_TYPE" = "app" ]; then
+    echo "=== Запуск веб-приложения (Gunicorn) ==="
+    exec gunicorn archeology.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 300
+elif [ "$SERVICE_TYPE" = "celery" ]; then
+    echo "=== Запуск Celery worker ==="
+    exec celery -A archeology worker --loglevel=info --concurrency=4
+else
+    echo "ERROR: Неизвестный тип сервиса: $SERVICE_TYPE"
+    exit 1
+fi

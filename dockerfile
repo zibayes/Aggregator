@@ -11,8 +11,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
         postgresql-client \
         redis-tools \
         netcat-openbsd \
-	    p7zip-full \
-	    unar \
+        p7zip-full \
+        unar \
         build-essential \
         wget \
         supervisor \
@@ -31,7 +31,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
         tk \
         libreoffice \
         libglib2.0-0 \
-		tzdata && \
+        tzdata && \
     rm -rf /var/lib/apt/lists/*
 
 # Устанавливаем временную зону на Красноярск
@@ -49,6 +49,9 @@ COPY --from=system-deps /usr/include/ /usr/include/
 COPY --from=system-deps /usr/bin/tesseract /usr/bin/
 COPY --from=system-deps /usr/share/tesseract-ocr /usr/share/tesseract-ocr
 COPY --from=system-deps /usr/lib/libtesseract.so* /usr/lib/
+COPY --from=system-deps /usr/bin/libreoffice /usr/bin/
+COPY --from=system-deps /usr/lib/libreoffice /usr/lib/libreoffice
+COPY --from=system-deps /usr/share/libreoffice /usr/share/libreoffice
 
 WORKDIR /app
 
@@ -61,28 +64,20 @@ RUN --mount=type=cache,target=/root/.cache/pip \
     pip install scipy --no-build-isolation && \
     pip install -r requirements.txt
 
-RUN pip install celery redis
-RUN apt-get update && apt-get install -y --no-install-recommends --fix-missing supervisor libreoffice
+# Установка дополнительных зависимостей
+RUN pip install celery redis gunicorn
 
-WORKDIR /app
-# COPY . .
+# Копируем приложение
+COPY . .
+
+# Настройка логов
+RUN mkdir -p /var/log && chmod -R 777 /var/log
+
+# Убираем supervisord
+# COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
 EXPOSE 8000
 
-RUN mkdir -p /var/log && chmod -R 777 /var/log
-
-COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-CMD ["/usr/bin/supervisord"]
-
-# Копируем и настраиваем entrypoint
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
-
-# ENTRYPOINT перед CMD: Запустит entrypoint, который exec'нет CMD (supervisord)
 ENTRYPOINT ["/app/entrypoint.sh"]
-
-# CMD ["bash", "-c", "CMD ["bash", "-c", "python manage.py runserver 0.0.0.0:8000 & sleep 30 && celery -A archeology worker --loglevel=info & wait"]"]
-
-# COPY entrypoint.sh /app/entrypoint.sh
-# RUN chmod +x /app/entrypoint.sh
-# CMD ["/app/entrypoint.sh"]
