@@ -3,3 +3,4 @@ FROM kodcloud/kodexplorer:latest
 # Устанавливаем LibreOffice
 RUN apk update && apk add --no-cache libreoffice libreoffice-lang-ru openjdk8-jre
 RUN chmod -R 777 /var/www/html
+RUN chown -R nginx:nginx /var/www/html/data

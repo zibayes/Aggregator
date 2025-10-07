@@ -179,6 +179,8 @@ wheelhouse/
 supervisord_logs/
 app_mount/
 
+kodexplorer_data/data/
+
 wal_archive/
 backups/
 

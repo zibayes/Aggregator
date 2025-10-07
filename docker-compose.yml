@@ -3,6 +3,7 @@ services:
     build: .
     volumes:
       - .:/app
+      - ./kodexplorer_data/data:/kodexplorer_data/data
       - ./supervisord_logs:/var/log
       - app_init:/app/init
     ports:
@@ -156,8 +157,9 @@ services:
     ports:
       - "8080:80"
     volumes:
+      # - ./kodexplorer_config:/var/www/html/data/User/admin/home/config
+      - ./kodexplorer_data/data:/var/www/html/data
       - ./uploaded_files:/var/www/html/data/uploaded_files
-      - ./kodexplorer_config:/var/www/html/data/User/admin/home/config
       - type: bind
         source: ./kodexplorer_data/officeLive
         target: /var/www/html/plugins/officeLive

@@ -13,6 +13,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from agregator.forms import UserRegisterForm
 from agregator.models import User
 from agregator.views.utils import validate_email
+from agregator.kodexplorer_users_sync import update_kod_user
 
 
 def user_register(request):
@@ -80,6 +81,10 @@ def settings(request):
         if password:
             user.set_password(password)  # Хешируйте новый пароль
             update_session_auth_hash(request, user)  # Убедитесь, что сеанс остается активным
+            update_kod_user(
+                request.user.username,
+                password
+            )
         user.save()
         messages.success(request, 'Профиль успешно обновлен.')
         return redirect('profile')  # Перенаправление на страницу профиля

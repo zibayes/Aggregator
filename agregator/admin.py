@@ -5,8 +5,27 @@ from .models import (
     ObjectAccountCard, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite,
     CommercialOffers, GeoObject, GeojsonData, Chat, Message
 )
+from agregator.kodexplorer_users_sync import update_kod_user, delete_kod_user
 
-admin.site.register(User, UserAdmin)
+
+class CustomUserAdmin(UserAdmin):
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        # Принудительная синхронизация при ЛЮБОМ сохранении
+        print(f"🔧 АДМИНКА: Сохранение пользователя {obj.username}")
+        update_kod_user(obj)
+
+    def delete_model(self, request, obj):
+        print(f"🔧 АДМИНКА: Удаление пользователя {obj.username}")
+        delete_kod_user(obj.username)
+        super().delete_model(request, obj)
+
+
+try:
+    admin.site.unregister(User)
+except admin.sites.NotRegistered:
+    pass
+admin.site.register(User, CustomUserAdmin)
 
 
 @admin.register(UserTasks)
