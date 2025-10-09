@@ -29,8 +29,6 @@ RUN --mount=type=cache,target=/var/cache/apt \
         tesseract-ocr-rus \
         tesseract-ocr-eng \
         tk \
-        libreoffice \
-        libglib2.0-0 \
         tzdata && \
     rm -rf /var/lib/apt/lists/*
 
@@ -49,11 +47,14 @@ COPY --from=system-deps /usr/include/ /usr/include/
 COPY --from=system-deps /usr/bin/tesseract /usr/bin/
 COPY --from=system-deps /usr/share/tesseract-ocr /usr/share/tesseract-ocr
 COPY --from=system-deps /usr/lib/libtesseract.so* /usr/lib/
-COPY --from=system-deps /usr/bin/libreoffice /usr/bin/
-COPY --from=system-deps /usr/lib/libreoffice /usr/lib/libreoffice
-COPY --from=system-deps /usr/share/libreoffice /usr/share/libreoffice
 
 WORKDIR /app
+
+# Установка Libreoffice
+RUN --mount=type=cache,target=/var/cache/apt \
+    --mount=type=cache,target=/var/lib/apt/lists \
+    apt-get update && \
+    apt-get install -y --no-install-recommends libreoffice libglib2.0-0
 
 # Установка Python-зависимостей
 COPY requirements.txt .
@@ -68,7 +69,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 RUN pip install celery redis gunicorn
 
 # Копируем приложение
-COPY . .
+# COPY . .
 
 # Настройка логов
 RUN mkdir -p /var/log && chmod -R 777 /var/log

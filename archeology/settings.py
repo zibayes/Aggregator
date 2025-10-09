@@ -207,7 +207,7 @@ STATICFILES_DIRS = [
     BASE_DIR / "static",
     # BASE_DIR / "staticfiles",
 ]
-# STATIC_ROOT = BASE_DIR / "staticfiles"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 CELERY_BROKER_URL = REDIS_URL  # 'redis://redis:6379/0' / 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']

@@ -26,13 +26,13 @@ ls -la /app/init/ 2>/dev/null || echo "Init dir empty/new"
 # Wait Redis
 wait_for_redis() {
     echo "=== Wait Redis ==="
-    for i in {1..10}; do
+    for i in {1..20}; do
         echo "Redis try $i"
         if timeout 5 redis-cli -h "$REDIS_HOST" -p "$REDIS_PORT" ping 2>&1 | grep -q "PONG"; then
             echo "Redis OK!"
             return 0
         fi
-        sleep 2
+        sleep 5
     done
     echo "Redis ERROR!"
     exit 1
@@ -74,9 +74,9 @@ do_django_init() {
     echo "Migrate OK."
 	
 	# Collecting static files
-	echo "Collecting static files..."
-	python manage.py collectstatic --noinput
-	echo "Static files collected!"
+	# echo "Collecting static files..."
+	# python manage.py collectstatic --noinput
+	# echo "Static files collected!"
 
     # Superuser
     echo "Creating superuser..."

@@ -1,38 +1,73 @@
+# ==================== ОБЯЗАТЕЛЬНЫЕ ИСКЛЮЧЕНИЯ ====================
+# Системные файлы
 .git
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Виртуальные окружения
 .venv
-__pycache__
+venv/
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
+
+# Базы данных
 *.db
 *.sqlite3
+
+# Логи и временные файлы
 *.log
-.env
-*.egg-info
-*.mp4
-*.zip
-*.tar
-*.log
-*.pdf
-*.doc
-*.docx
-*.xls
-*.xlsx
 *.tmp
 /tmp
 /dev
 /data
 
+# Ваши данные - КРИТИЧЕСКИ ВАЖНО!
+data/                  # Ваши датасеты
+backups/               # Резервные копии
+wal_archive/           # WAL-архив PostgreSQL
+kodexplorer_data/      # Данные Kodexplorer
+uploaded_files/        # Загруженные файлы
+nginx/                 # Логи и конфиги Nginx
+tiles/                 # Тайлы карт
+supervisord_logs/      # Логи Supervisor
+staticfiles/           # Статические файлы Django
+app_mount/             # Ваш mount-пункт
+
+# Сборочные артефакты
+*.egg-info
+*.mp4
+*.zip
+*.tar
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.env
 .docker-cache/
 wheelhouse/
-# uploaded_files/
-venv/
-staticfiles/
-supervisord_logs/
-app_mount/
 
-wal_archive/
-backups/
+# Docker-файлы (чтобы не мешали сборке)
+Dockerfile*
+docker-compose*
 
-# *.jpg
-# *.png
+# ==================== ДОПОЛНИТЕЛЬНЫЕ РЕКОМЕНДАЦИИ ====================
+# Если используете front-end:
+# node_modules/
+# package-lock.json
+
+# Если используете Jupyter:
+# *.ipynb
+# .ipynb_checkpoints/
+
+# ==================== ЧТО НЕ ИСКЛЮЧАЕМ (ВАЖНО!) ====================
+# Оставляем:
+# - requirements.txt (нужен для сборки)
+# - Dockerfile (нужен для сборки)
+# - entrypoint.sh (нужен для запуска)
+# - manage.py (нужен для Django)
+# - settings/ (нужен для Django)
