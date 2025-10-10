@@ -8,6 +8,7 @@ from datetime import timedelta
 from django_celery_results.models import TaskResult
 import jwt
 import os
+from unittest.mock import MagicMock
 
 User = get_user_model()
 
@@ -276,3 +277,68 @@ def wopi_token_expired(test_user):
 def wopi_invalid_token():
     """Генерирует невалидный токен"""
     return 'invalid.token.here'
+
+
+@pytest.fixture
+def valid_pdf_file():
+    from reportlab.lib.pagesizes import letter
+    from reportlab.pdfgen import canvas
+    import io
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer, pagesize=letter)
+    c.drawString(100, 750, "Test PDF with coordinates")
+    c.save()
+    buffer.seek(0)
+    return SimpleUploadedFile("test.pdf", buffer.read(), content_type='application/pdf')
+
+
+@pytest.fixture
+def valid_docx_file():
+    from docx import Document
+    import io
+
+    doc = Document()
+    doc.add_paragraph("Test DOCX with coordinates")
+    buffer = io.BytesIO()
+    doc.save(buffer)
+    buffer.seek(0)
+    return SimpleUploadedFile("test.docx", buffer.read(),
+                              content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+
+
+@pytest.fixture
+def valid_xlsx_file():
+    from openpyxl import Workbook
+    import io
+
+    wb = Workbook()
+    ws = wb.active
+    ws['A1'] = 'Test XLSX with coordinates'
+    buffer = io.BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
+    return SimpleUploadedFile("test.xlsx", buffer.read(),
+                              content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@pytest.fixture(autouse=True)
+def mock_circular_imports():
+    """Автоматически мокает проблемные импорты для всех тестов"""
+    with pytest.MonkeyPatch.context() as mp:
+        # Мокаем функцию connect_account_card_to_heritage
+        mp.setattr(
+            "agregator.processing.account_cards_processing.connect_account_card_to_heritage",
+            MagicMock(return_value=None)
+        )
+
+        # Мокаем другие возможные циклические зависимости
+        mp.setattr(
+            "agregator.views.auth",
+            MagicMock()
+        )
+        mp.setattr(
+            "agregator.views.file_processing",
+            MagicMock()
+        )
+        yield

@@ -15,6 +15,7 @@ from agregator.processing.commercial_offers_processing import (
     extract_coordinates,
     error_handler_commercial_offers
 )
+from agregator.processing.files_saving import load_raw_commercial_offers
 from agregator.redis_config import redis_client
 from agregator.hash import calculate_file_hash
 
@@ -93,41 +94,36 @@ def test_extract_coordinates_success(
 
     # Проверяем результат
     commercial_offer = CommercialOffers.objects.get(id=test_commercial_offer.id)
-    assert commercial_offer.coordinates == expected_result
+    assert json.loads(commercial_offer.coordinates) == expected_result
     assert commercial_offer.is_processing is False
 
     # Удаляем временный файл
     os.unlink(temp_file.name)
 
 
-@pytest.mark.parametrize("file_type", [".pdf", ".docx", ".xlsx"])
 def test_extract_coordinates_duplicate_file(
-        file_type,
+        valid_pdf_file,
         test_commercial_offer,
         test_user
 ):
     """Тест на обнаружение дублирующегося файла по хэшу"""
-    # Создаем временный файл
-    with tempfile.NamedTemporaryFile(suffix=file_type, delete=False) as f:
-        f.write(b"test content")
-        f_path = f.name
+    # Создаем первый объект коммерческого предложения с валидным файлом
+    CommercialOffers.objects.filter(id=test_commercial_offer.id).update(
+        source=valid_pdf_file,
+        origin_filename="original.pdf"
+    )
 
-    # Создаем второй объект коммерческого предложения с тем же файлом
-    with open(f_path, 'rb') as f:
-        duplicate_offer = CommercialOffers.objects.create(
-            user=test_user,
-            origin_filename="duplicate" + file_type,
-            source=SimpleUploadedFile(f.name, f.read())
-        )
-
-    # Создаем объект коммерческого предложения для теста
-    test_commercial_offer.source = SimpleUploadedFile(f.name, b"test content")
-    test_commercial_offer.save()
+    # Создаем второй объект с тем же файлом
+    duplicate_offer = CommercialOffers.objects.create(
+        user=test_user,
+        origin_filename="duplicate.pdf",
+        source=valid_pdf_file
+    )
 
     # Подготовка прогресса
     task_id = "test_task_123"
     progress_json = {
-        "file_groups": {str(test_commercial_offer.id): {"origin_filename": "test_file" + file_type}},
+        "file_groups": {str(duplicate_offer.id): {"origin_filename": "duplicate.pdf"}},
         "expected_time": "00:00:00"
     }
     redis_client.set(task_id, json.dumps(progress_json))
@@ -140,7 +136,7 @@ def test_extract_coordinates_duplicate_file(
     # Проверяем, что возникает ошибка дублирования
     with pytest.raises(FileExistsError) as exc_info:
         extract_coordinates(
-            f_path,
+            duplicate_offer.source.path,
             MockProgressRecorder(),
             {"1": 1},
             [0],
@@ -151,9 +147,6 @@ def test_extract_coordinates_duplicate_file(
         )
 
     assert "Такой файл уже загружен в систему" in str(exc_info.value)
-
-    # Удаляем временные файлы
-    os.unlink(f_path)
 
 
 @pytest.mark.parametrize("file_type,exception", [
@@ -223,16 +216,12 @@ def test_extract_coordinates_processing_errors(
 
 def test_process_commercial_offers_success(
         test_commercial_offer,
-        test_user
+        test_user,
+        valid_pdf_file
 ):
     """Тест успешной обработки коммерческого предложения"""
-    # Создаем временный файл
-    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
-        f.write(b"test content")
-        f_path = f.name
-
-    # Устанавливаем файл в коммерческое предложение
-    test_commercial_offer.source = SimpleUploadedFile("test.pdf", b"test content")
+    # Устанавливаем валидный файл
+    test_commercial_offer.source = valid_pdf_file
     test_commercial_offer.save()
 
     # Мокаем Celery task

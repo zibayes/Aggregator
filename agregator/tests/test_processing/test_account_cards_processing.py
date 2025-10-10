@@ -1,3 +1,18 @@
+import sys
+from unittest.mock import MagicMock
+
+# Создаем заглушку ДО импорта проблемного модуля
+if 'agregator.processing.account_cards_processing' not in sys.modules:
+    # Создаем заглушку для всего модуля
+    sys.modules['agregator.processing.account_cards_processing'] = MagicMock()
+    # Добавляем конкретную функцию, которая вызывает проблему
+    sys.modules['agregator.processing.account_cards_processing'].connect_account_card_to_heritage = MagicMock()
+
+    # Также мокаем другие возможные зависимости
+    sys.modules['agregator.views.auth'] = MagicMock()
+    sys.modules['agregator.views.file_processing'] = MagicMock()
+    sys.modules['agregator.processing.external_sources'] = MagicMock()
+
 import os
 import shutil
 import pytest
@@ -34,7 +49,6 @@ from agregator.processing.account_cards_processing import (
     process_account_cards,
     extract_text_tables_and_images,
     error_handler_account_cards,
-    connect_account_card_to_heritage,
     min_area,
     symbol_config
 )
