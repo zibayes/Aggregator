@@ -130,93 +130,6 @@ L.tileLayer.yandex = function () {
     return new L.TileLayer.Yandex();
 };
 
-// Получаем границы карты из .map файла
-function getBoundsFromMapFile(mapContent) {
-    const points = [];
-    const lines = mapContent.split('\n');
-
-    lines.forEach(line => {
-        if (line.startsWith('Point')) {
-            const parts = line.split(',');
-            const lat = parseFloat(parts[4]);
-            const lng = parseFloat(parts[5]);
-            if (!isNaN(lat) && !isNaN(lng)) {
-                points.push([lat, lng]);
-            }
-        }
-    });
-
-    // Возвращаем прямоугольные границы
-    if (points.length >= 4) {
-        return [
-            [points[0][0], points[0][1]], // Северо-запад
-            [points[5][0], points[5][1]]  // Юго-восток
-        ];
-    }
-    return [
-        [56.000013, 91.494055],
-        [54.611398, 94.350500]
-    ];
-}
-
-// Функция для загрузки .map файла и создания imageOverlay
-function createOziLayer(fragment) {
-    return fetch(`http://localhost:8090/ozi/${fragment}/${fragment}.map`)
-        .then(response => response.text())
-        .then(mapContent => {
-            const bounds = getBoundsFromMapFile(mapContent);
-            return L.imageOverlay(
-                `http://localhost:8090/ozi/${fragment}/${fragment}.jpg`,
-                bounds,
-                {
-                    attribution: `Карта ${fragment}`,
-                    opacity: 1,
-                    interactive: true
-                }
-            );
-        })
-        .catch(error => {
-            console.error(`Ошибка загрузки карты ${fragment}:`, error);
-            // Возвращаем слой с дефолтными границами
-            return L.imageOverlay(
-                `http://localhost:8090/ozi/${fragment}/${fragment}.jpg`,
-                [
-                    [56.000013, 91.494055],
-                    [54.611398, 94.350500]
-                ],
-                {
-                    attribution: `Карта ${fragment} (ошибка привязки)`,
-                    opacity: 1,
-                    interactive: true
-                }
-            );
-        });
-}
-
-const OZI_BOUNDS_WGS84 = [
-    [54.611398, 88.637609],
-    [56.000013, 91.494055]
-];
-
-const oziMapFragments = [
-    'N-46_1-1', 'N-46_1-2', 'N-46_1-3',
-    'N-46_2-1', 'N-46_2-2', 'N-46_2-3',
-    'N-46_3-1', 'N-46_3-2', 'N-46_3-3'
-];
-
-const oziMapLayers = oziMapFragments.map(fragment => {
-    return L.tileLayer(
-        'http://localhost:8090/ozi/{fragment}/tiles/{z}/{x}/{y}.png'
-            .replace('{fragment}', fragment),
-        {
-            noWrap: true,          // Запрещаем дублирование
-            OZI_BOUNDS_WGS84,
-            tms: false
-        });
-});
-
-const combinedOziMap = L.layerGroup(oziMapLayers);
-
 var baseLayers = {
     'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '<a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a> contributors'
@@ -362,7 +275,20 @@ var baseLayers = {
         attribution: '<a href="https://www.maptiler.com/copyright/" target="_blank">&copy; MapTiler</a> <a href="https://www.openstreetmap.org/copyright" target="_blank">&copy; OpenStreetMap contributors</a>'
     }),
 
-    'Ozi Explorer': combinedOziMap,
+    '250m': L.layerGroup([
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            noWrap: false,
+            opacity: 1.0,
+            attribution: '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }),
+        L.tileLayer('http://localhost:8090/raster/250m/{z}/{x}/{y}.png', {
+            noWrap: true,
+            tms: false,
+            opacity: 1,
+            maxZoom: 11
+        })
+    ]),
 };
 
 var additionalLayers = {

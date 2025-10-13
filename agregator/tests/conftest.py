@@ -320,25 +320,3 @@ def valid_xlsx_file():
     buffer.seek(0)
     return SimpleUploadedFile("test.xlsx", buffer.read(),
                               content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-
-
-@pytest.fixture(autouse=True)
-def mock_circular_imports():
-    """Автоматически мокает проблемные импорты для всех тестов"""
-    with pytest.MonkeyPatch.context() as mp:
-        # Мокаем функцию connect_account_card_to_heritage
-        mp.setattr(
-            "agregator.processing.account_cards_processing.connect_account_card_to_heritage",
-            MagicMock(return_value=None)
-        )
-
-        # Мокаем другие возможные циклические зависимости
-        mp.setattr(
-            "agregator.views.auth",
-            MagicMock()
-        )
-        mp.setattr(
-            "agregator.views.file_processing",
-            MagicMock()
-        )
-        yield
