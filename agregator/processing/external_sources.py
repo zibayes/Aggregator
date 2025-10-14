@@ -30,6 +30,8 @@ from agregator.processing.acts_processing import process_acts, error_handler_act
 from .files_saving import raw_reports_save
 from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
 from agregator.processing.utils import clean_path_component
+from agregator.processing.external_acts_download_report import generate_download_report, generate_interrupted_report, \
+    generate_final_report, generate_intermediate_report, handle_interrupts
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +61,8 @@ ACTS_QUERY_EXCLUDE = [
 
 
 @shared_task(bind=True)
-def external_sources_processing(self, start_date, end_date, select_text, select_image, select_coord):
+@handle_interrupts
+def external_sources_processing(self, task_state, start_date, end_date, select_text, select_image, select_coord):
     self.update_state(
         state='PROGRESS',
         meta={
@@ -78,6 +81,8 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
 
     # Определяем игнорирование SSL с использованием сессии
     ignore_ssl = False
+    ssl_session = None
+
     try:
         response = session.get("https://ookn.ru/experts/", timeout=30)
         response.raise_for_status()
@@ -112,6 +117,8 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
                 except (ValueError, IndexError):
                     logger.warning(f"Не удалось распарсить количество страниц: {total_pages_href}")
 
+    task_state.update(total_pages=total_pages)
+
     # Используем правильную сессию в зависимости от SSL
     current_session = ssl_session if ignore_ssl else session
 
@@ -125,6 +132,7 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
                 'message': f'Обработка страницы {page} из {total_pages}'
             }
         )
+        task_state.update(processed_pages=page)
 
         logger.info(f"Обработка страницы {page}")
 
@@ -141,18 +149,46 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
         soup = BeautifulSoup(response.text, features="html.parser")
         page_files = []
 
-        future_to_file = {}
         # Обрабатываем элементы страницы
         for item in soup.find_all('p', class_='news-item'):
+            # Получаем заголовок
+            title_elem = item.find('b')
+            title = title_elem.get_text(strip=True) if title_elem else 'Без названия'
+
+            # Получаем подзаголовок (весь текст после <b> до <small>)
+            full_text = item.get_text()
+            small_elem = item.find('small')
+            small_text = small_elem.get_text() if small_elem else ''
+
+            # Извлекаем подзаголовок
+            subtitle = full_text.replace(title, '').replace(small_text, '').strip()
+            # Убираем лишние пробелы и переносы
+            import re
+            subtitle = re.sub(r'\s+', ' ', subtitle)
+
+            file_info = {
+                'page': page,
+                'title': title,
+                'subtitle': subtitle,
+                'filename': '',
+                'url': '',
+                'status': 'в обработке',
+                'reason': ''
+            }
+
             try:
                 # Проверка исключений
                 if any(query in item.text for query in ACTS_QUERY_EXCLUDE):
+                    file_info.update({'status': 'пропущен', 'reason': 'Исключение по фильтру'})
+                    task_state.add_file_info(file_info)
                     continue
 
                 # Проверка даты
                 if start_date and end_date:
                     match = ORDER_DATE_PATTERN.search(item.text)
                     if not match:
+                        file_info.update({'status': 'пропущен', 'reason': 'Не подходит по дате (дата не найдена)'})
+                        task_state.add_file_info(file_info)
                         continue
 
                     date_str = match.group(0)
@@ -160,23 +196,38 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
                         day, month, year = map(int, date_str.split('.'))
                         current_date = [year, month, day]
                         if not (start_date <= current_date <= end_date):
+                            file_info.update({'status': 'пропущен', 'reason': 'Не подходит по дате'})
+                            task_state.add_file_info(file_info)
                             continue
                     except (ValueError, IndexError):
+                        file_info.update({'status': 'пропущен', 'reason': 'Ошибка парсинга даты'})
+                        task_state.add_file_info(file_info)
                         continue
 
                 # Поиск ссылки
                 link = item.find('a', href=True)
                 if not link or '/upload/iblock/' not in link['href']:
+                    file_info.update({'status': 'пропущен', 'reason': 'Не найдена подходящая ссылка'})
+                    task_state.add_file_info(file_info)
                     continue
 
-                if not ('акт' in link['href'].lower() or 'гикэ' in link['href'].lower()):
+                if not ('акт' in link['href'].lower() or 'гикэ' in link['href'].lower()) and not (
+                        'акт' in item.text.lower() or 'гикэ' in item.text.lower()):
+                    file_info.update({'status': 'пропущен', 'reason': 'Не является актом ГИКЭ'})
+                    task_state.add_file_info(file_info)
                     continue
 
                 file = link['href'][link['href'].rfind('/') + 1:]
 
                 # Пропускаем уже скачанные или ненужные файлы
-                if (file in downloaded_files or
-                        file.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff'))):
+                if file in downloaded_files:
+                    file_info.update({'status': 'пропущен', 'reason': 'Файл уже скачан'})
+                    task_state.add_file_info(file_info)
+                    continue
+                if file.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff')):
+                    file_info.update(
+                        {'status': 'пропущен', 'reason': 'У файла неподходящий формат: .sig/.png/.jpg/.bmp/.tiff'})
+                    task_state.add_file_info(file_info)
                     continue
 
                 # Формируем URL
@@ -187,35 +238,75 @@ def external_sources_processing(self, start_date, end_date, select_text, select_
                     ')')
                 url = f"https://ookn.ru{url}"
 
+                # Обновляем информацию о файле
+                file_info.update({
+                    'filename': file,
+                    'url': url,
+                    'status': 'в очереди на скачивание',
+                    'reason': 'Добавлен в очередь скачивания'
+                })
+                task_state.add_file_info(file_info)
+
                 # Добавление файла в очередь
                 path_to_download = f'uploaded_files/Акты ГИКЭ/{file}'
                 page_files.append((path_to_download, url, file))
 
             except Exception as e:
                 logger.error(f"Ошибка при обработке элемента: {e}")
+                file_info.update({'status': 'ошибка', 'reason': f'Ошибка обработки: {str(e)}'})
+                task_state.add_file_info(file_info)
                 continue
 
+        generate_intermediate_report(task_state.get_data())
+
         # Параллельное скачивание файлов с одной страницы
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            future_to_file = {
-                executor.submit(download_file, url, path): (path, url, file)
-                for path, url, file in page_files
-            }
+        if page_files:
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                future_to_file = {
+                    executor.submit(download_file, url, path): (path, url, file)
+                    for path, url, file in page_files
+                }
 
-            page_files = []
-            for future in as_completed(future_to_file):
-                path, url, file = future_to_file[future]
-                if future.result():
-                    page_files.append((path, url, file))
+                downloaded_page_files = []
+                for future in as_completed(future_to_file):
+                    path, url, file = future_to_file[future]
+                    try:
+                        result = future.result()
+                        if result:
+                            downloaded_page_files.append((path, url, file))
+                            # Обновляем статус в task_state
+                            for info in task_state.data['files_info']:
+                                if info.get('filename') == file and info.get('page') == page:
+                                    info.update({'status': 'скачан', 'reason': 'Успешно скачан'})
+                                    break
+                        else:
+                            # Обновляем статус на ошибку
+                            for info in task_state.data['files_info']:
+                                if info.get('filename') == file and info.get('page') == page:
+                                    info.update({'status': 'ошибка', 'reason': 'Ошибка при скачивании'})
+                                    break
+                    except Exception as e:
+                        logger.error(f"Ошибка при скачивании файла: {e}")
+                        # Обновляем статус на ошибку
+                        for info in task_state.data['files_info']:
+                            if info.get('filename') == file and info.get('page') == page:
+                                info.update({'status': 'ошибка', 'reason': f'Ошибка скачивания: {str(e)}'})
+                                break
 
-        # Обрабатываем скачанные файлы
-        process_downloaded_files(page_files, admin, select_text, select_image, select_coord)
+                # Обрабатываем скачанные файлы
+                if downloaded_page_files:
+                    processed_acts = process_downloaded_files(downloaded_page_files, admin, select_text, select_image,
+                                                              select_coord)
+                    for info in task_state.data['files_info']:
+                        if info.get('filename') in processed_acts and processed_acts[info['filename']]:
+                            info['act_id'] = processed_acts[info['filename']]
 
     return {
-        'current': page,
+        'current': total_pages,
         'total': total_pages,
         'type': 'page_progress',
-        'message': 'Сканирование всех страниц завершено.'
+        'message': 'Сканирование всех страниц завершено.',
+        'report_data': task_state.get_data()
     }
 
 
@@ -238,6 +329,7 @@ def get_downloaded_files_cache(admin_id):
 
 def process_downloaded_files(files_data, admin, select_text, select_image, select_coord):
     """Обрабатывает скачанные файлы с использованием ThreadPoolExecutor для архивов"""
+    processed_acts = {}
     for path_to_download, url, original_filename in files_data:
         try:
             archive_files = []
@@ -289,6 +381,10 @@ def process_downloaded_files(files_data, admin, select_text, select_image, selec
                 files_to_save = [convert_file_to_uploaded_file(path_to_download)]
             upload_source = {'source': 'ООКН', 'link': url}
             acts_ids = raw_reports_save(file_groups, files_to_save, Act, admin.id, True, upload_source)
+            if acts_ids and len(acts_ids) > 0:
+                processed_acts[original_filename] = acts_ids[0]
+            else:
+                processed_acts[original_filename] = None
             if folder is not None:
                 shutil.rmtree(folder)
             os.remove(path_to_download)
@@ -301,7 +397,10 @@ def process_downloaded_files(files_data, admin, select_text, select_image, selec
 
         except Exception as e:
             logger.error(f"Ошибка при обработке файла {path_to_download}: {e}")
+            processed_acts[original_filename] = None
             continue
+
+    return processed_acts
 
 
 def find_pdf_files(root, files):

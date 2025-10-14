@@ -286,7 +286,7 @@ var baseLayers = {
             noWrap: true,
             tms: false,
             opacity: 1,
-            maxZoom: 11
+            maxZoom: 14
         })
     ]),
 };

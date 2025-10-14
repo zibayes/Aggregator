@@ -36,8 +36,8 @@ class FilePreviewMiddleware(MiddlewareMixin):
     def serve_preview(self, request, file_path, filename):
         ext = Path(filename).suffix.lower()
 
-        # Для PDF - показываем в браузере
-        if ext == '.pdf':
+        # Для PDF и HTML - показываем в браузере
+        if ext in ['.pdf', '.html']:
             return None
 
         # Для изображений
@@ -45,7 +45,7 @@ class FilePreviewMiddleware(MiddlewareMixin):
             return None
 
         # Для текстовых файлов
-        elif ext in ['.txt', '.csv', '.log', '.xml', '.html', '.htm', '.css', '.js', '.py']:
+        elif ext in ['.txt', '.csv', '.log', '.xml', '.htm', '.css', '.js', '.py']:
             return self._serve_office(file_path, filename, request)
 
         # Для офисных документов

@@ -17,7 +17,6 @@ from celery import shared_task
 from docx import Document
 from pytesseract import Output
 
-import agregator.views.auth
 from agregator.processing.files_saving import load_raw_account_cards
 from agregator.hash import calculate_file_hash
 from agregator.models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite

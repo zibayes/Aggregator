@@ -1,3 +1,4 @@
+import os.path
 import re
 import json
 
@@ -174,9 +175,31 @@ def external_sources(request):
     except User.DoesNotExist:
         admin = request.user
     tasks_id = get_user_tasks(admin.id, ('act', 'scientific_report', 'tech_report', 'open_list'), True)
+
+    base_path = 'uploaded_files/Акты ГИКЭ/'
+    report_files = [
+        'download_report.html',
+        'final_report.html',
+        'interrupted_report.html',
+        'intermediate_report.html',
+    ]
+    download_report = final_report = interrupted_report = intermediate_report = False
+    for report_file in report_files:
+        if os.path.isfile(base_path + report_file):
+            if report_file == 'download_report.html':
+                download_report = True
+            elif report_file == 'final_report.html':
+                final_report = True
+            elif report_file == 'interrupted_report.html':
+                interrupted_report = True
+            elif report_file == 'intermediate_report.html':
+                intermediate_report = True
+
     return render(request, 'external_sources.html',
                   {'is_processing': is_processing, 'tasks_id': tasks_id, 'scan_task_id': scan_task_id,
-                   'active_scan_task': active_scan_task})
+                   'active_scan_task': active_scan_task, 'download_report': download_report,
+                   'final_report': final_report, 'interrupted_report': interrupted_report,
+                   'intermediate_report': intermediate_report})
 
 
 @login_required
