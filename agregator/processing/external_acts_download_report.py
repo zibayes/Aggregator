@@ -11,21 +11,12 @@ from archeology.settings import BASE_URL
 
 
 def generate_download_report(all_files_info: List[Dict], report_path: str = None, additional_header: str = ""):
-    """Генерирует HTML-отчет о скачанных файлах с улучшенной пагинацией"""
+    """Генерирует HTML-отчет о скачанных файлах с ГЛОБАЛЬНОЙ фильтрацией и поиском"""
     if report_path is None:
         report_path = 'uploaded_files/Акты ГИКЭ/download_report.html'
 
     # Создаем директорию если нужно
     os.makedirs(os.path.dirname(report_path), exist_ok=True)
-
-    # Сохраняем исходный порядок файлов (как на сайте)
-    # Группируем по страницам и сохраняем порядок внутри страницы
-    pages = {}
-    for file_info in all_files_info:
-        page = file_info['page']
-        if page not in pages:
-            pages[page] = []
-        pages[page].append(file_info)
 
     # Подсчет статистики для фильтров
     total_files = len(all_files_info)
@@ -34,7 +25,7 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
     queued_count = len([f for f in all_files_info if f['status'] == 'в очереди на скачивание'])
     error_count = len([f for f in all_files_info if f['status'] == 'ошибка'])
 
-    # Генерируем HTML с улучшенной пагинацией
+    # Генерируем HTML с ГЛОБАЛЬНОЙ фильтрацией
     html_content = f"""
     <!DOCTYPE html>
     <html lang="ru">
@@ -43,6 +34,7 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Отчет о скачанных файлах - {datetime.now().strftime('%d.%m.%Y %H:%M')}</title>
         <style>
+            /* Все существующие стили остаются без изменений */
             .warning-banner {{
                 background: #fff3cd;
                 border: 1px solid #ffeaa7;
@@ -284,6 +276,12 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
             .file-page.active {{
                 display: block;
             }}
+            .no-results {{
+                text-align: center;
+                padding: 40px;
+                color: #666;
+                font-style: italic;
+            }}
             @media (max-width: 768px) {{
                 .file-header {{
                     flex-direction: column;
@@ -315,7 +313,7 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
                 • Дата отчета: {datetime.now().strftime('%d.%m.%Y %H:%M')}
             </div>
 
-            <input type="text" id="searchInput" class="search-box" placeholder="🔍 Поиск по названию файла...">
+            <input type="text" id="searchInput" class="search-box" placeholder="🔍 Поиск по названию файла, подзаголовку или описанию...">
 
             <div class="filter-buttons">
                 <button class="filter-btn active" data-filter="all">Все ({total_files})</button>
@@ -333,62 +331,55 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
             <div id="filesContainer">
     """
 
-    # Добавляем файлы постранично в исходном порядке
-    for page_num in sorted(pages.keys()):
-        page_files = pages[page_num]
-        html_content += f'<div class="file-page" id="page-{page_num}">'
-        html_content += f'<div class="section-title">📄 Страница {page_num} ({len(page_files)} файлов)</div>'
+    # Добавляем файлы в исходном порядке (без группировки по страницам)
+    for index, file_info in enumerate(all_files_info):
+        # Определяем класс и текст статуса
+        status_class = 'skipped'
+        status_text = '⏭ ПРОПУЩЕН'
 
-        for file_info in page_files:
-            # Определяем класс и текст статуса
-            status_class = 'skipped'
-            status_text = '⏭ ПРОПУЩЕН'
+        if file_info['status'] == 'скачан':
+            status_class = 'downloaded'
+            status_text = '✓ СКАЧАН'
+        elif file_info['status'] == 'в очереди на скачивание':
+            status_class = 'queued'
+            status_text = '⏳ В ОЧЕРЕДИ'
+        elif file_info['status'] == 'ошибка':
+            status_class = 'error'
+            status_text = '❌ ОШИБКА'
 
-            if file_info['status'] == 'скачан':
-                status_class = 'downloaded'
-                status_text = '✓ СКАЧАН'
-            elif file_info['status'] == 'в очереди на скачивание':
-                status_class = 'queued'
-                status_text = '⏳ В ОЧЕРЕДИ'
-            elif file_info['status'] == 'ошибка':
-                status_class = 'error'
-                status_text = '❌ ОШИБКА'
+        # Обрезаем длинные URL
+        url_display = file_info['url']
+        if len(url_display) > 80:
+            url_display = url_display[:80] + '...'
 
-            # Обрезаем длинные URL
-            url_display = file_info['url']
-            if len(url_display) > 80:
-                url_display = url_display[:80] + '...'
+        # Формируем ссылку на акт в системе, если есть act_id
+        act_link = ""
+        if file_info.get('act_id'):
+            act_link = f'<br><strong>Акт в системе:</strong> <a href="{BASE_URL}/acts/{file_info["act_id"]}/" class="act-link" target="_blank">📄 Просмотр акта</a>'
 
-            # Формируем ссылку на акт в системе, если есть act_id
-            act_link = ""
-            if file_info.get('act_id'):
-                act_link = f'<br><strong>Акт в системе:</strong> <a href="{BASE_URL}/acts/{file_info["act_id"]}/" class="act-link" target="_blank">📄 Просмотр акта</a>'
+        # Формируем заголовок с подзаголовком
+        title_html = f"<div class='file-title'>{file_info['title']}</div>"
+        if file_info.get('subtitle'):
+            title_html += f"<div class='file-subtitle'>{file_info['subtitle']}</div>"
 
-            # Формируем заголовок с подзаголовком
-            title_html = f"<div class='file-title'>{file_info['title']}</div>"
-            if file_info.get('subtitle'):
-                title_html += f"<div class='file-subtitle'>{file_info['subtitle']}</div>"
-
-            html_content += f"""
-            <div class="file-item {status_class}" data-status="{file_info['status']}" data-page="{page_num}">
-                <div class="file-header">
-                    <div style="flex: 1;">
-                        {title_html}
-                    </div>
-                    <div class="file-status status-{status_class}">{status_text}</div>
+        html_content += f"""
+        <div class="file-item {status_class}" data-status="{file_info['status']}" data-page="{file_info['page']}" data-index="{index}">
+            <div class="file-header">
+                <div style="flex: 1;">
+                    {title_html}
                 </div>
-                <div class="file-details">
-                    <strong>Файл:</strong> {file_info['filename'] or '—'}<br>
-                    <strong>Ссылка:</strong> <a href="{file_info['url']}" class="file-link" target="_blank">
-                        <span class="url-truncated" title="{file_info['url']}">{url_display}</span>
-                    </a><br>
-                    <strong>Причина:</strong> {file_info.get('reason', '—')}
-                    {act_link}
-                </div>
+                <div class="file-status status-{status_class}">{status_text}</div>
             </div>
-            """
-
-        html_content += '</div>'
+            <div class="file-details">
+                <strong>Файл:</strong> {file_info['filename'] or '—'}<br>
+                <strong>Ссылка:</strong> <a href="{file_info['url']}" class="file-link" target="_blank">
+                    <span class="url-truncated" title="{file_info['url']}">{url_display}</span>
+                </a><br>
+                <strong>Причина:</strong> {file_info.get('reason', '—')}
+                {act_link}
+            </div>
+        </div>
+        """
 
     html_content += """
             </div>
@@ -404,6 +395,7 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
             let currentPage = 1;
             let currentFilter = 'all';
             let currentSearch = '';
+            const itemsPerPage = 30; // Количество элементов на странице
 
             // Инициализация
             function init() {
@@ -413,16 +405,29 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
                 setupSearch();
             }
 
-            // Настройка пагинации для обеих панелей
+            // Получить все видимые элементы после применения фильтров
+            function getVisibleItems() {
+                const allItems = Array.from(document.querySelectorAll('.file-item'));
+                return allItems.filter(item => {
+                    const matchesFilter = currentFilter === 'all' || item.dataset.status === currentFilter;
+                    const matchesSearch = itemMatchesSearch(item);
+                    return matchesFilter && matchesSearch;
+                });
+            }
+
+            // Настройка пагинации
             function setupPagination() {
-                const pages = document.querySelectorAll('.file-page');
+                const visibleItems = getVisibleItems();
+                const totalPages = Math.ceil(visibleItems.length / itemsPerPage);
                 const paginationTop = document.getElementById('paginationTop');
                 const paginationBottom = document.getElementById('paginationBottom');
 
+                // Очищаем пагинацию
                 paginationTop.innerHTML = '';
                 paginationBottom.innerHTML = '';
 
-                for (let i = 1; i <= pages.length; i++) {
+                // Создаем кнопки пагинации
+                for (let i = 1; i <= totalPages; i++) {
                     // Верхняя пагинация
                     const btnTop = document.createElement('button');
                     btnTop.className = 'page-btn';
@@ -437,30 +442,42 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
                     btnBottom.onclick = () => showPage(i);
                     paginationBottom.appendChild(btnBottom);
                 }
+
+                // Обновляем активные кнопки
+                updatePaginationButtons();
             }
 
             // Показать страницу
             function showPage(pageNum) {
                 currentPage = pageNum;
+                const visibleItems = getVisibleItems();
+                const totalPages = Math.ceil(visibleItems.length / itemsPerPage);
 
-                // Обновляем активные кнопки в обеих пагинациях
+                // Скрываем все элементы
+                document.querySelectorAll('.file-item').forEach(item => {
+                    item.style.display = 'none';
+                });
+
+                // Показываем элементы для текущей страницы
+                const startIndex = (pageNum - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+
+                visibleItems.slice(startIndex, endIndex).forEach(item => {
+                    item.style.display = 'block';
+                });
+
+                // Обновляем пагинацию
+                updatePaginationButtons();
+
+                // Показываем/скрываем сообщение "Ничего не найдено"
+                showNoResultsMessage(visibleItems.length === 0);
+            }
+
+            // Обновить активные кнопки пагинации
+            function updatePaginationButtons() {
                 document.querySelectorAll('.page-btn').forEach((btn, index) => {
-                    btn.classList.toggle('active', index + 1 === pageNum);
+                    btn.classList.toggle('active', index + 1 === currentPage);
                 });
-
-                // Скрываем все страницы
-                document.querySelectorAll('.file-page').forEach(page => {
-                    page.style.display = 'none';
-                });
-
-                // Показываем только активную страницу
-                const activePage = document.getElementById(`page-${pageNum}`);
-                if (activePage) {
-                    activePage.style.display = 'block';
-                }
-
-                // Применяем фильтры к текущей странице
-                applyFiltersToCurrentPage();
             }
 
             // Настройка фильтров
@@ -474,6 +491,7 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
                         this.classList.add('active');
 
                         currentFilter = this.dataset.filter;
+                        currentPage = 1;
                         applyFiltersAndPagination();
                     });
                 });
@@ -484,96 +502,15 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
                 const searchInput = document.getElementById('searchInput');
                 searchInput.addEventListener('input', function() {
                     currentSearch = this.value.toLowerCase();
+                    currentPage = 1;
                     applyFiltersAndPagination();
                 });
             }
 
             // Применить фильтры и пагинацию
             function applyFiltersAndPagination() {
-                // Показываем пагинацию ВСЕГДА - НЕ СКРЫВАЕМ!
-                // document.getElementById('paginationTop').style.display = 'flex';
-                // document.getElementById('paginationBottom').style.display = 'flex';
-            
-                // Определяем, нужно ли использовать пагинацию
-                const usePagination = currentFilter === 'all' && currentSearch === '';
-            
-                if (usePagination) {
-                    // Режим с пагинацией - показываем только текущую страницу
-                    showPage(currentPage);
-                } else {
-                    // Режим без пагинации - показываем все подходящие элементы
-                    // НО ПАГИНАЦИЮ НЕ СКРЫВАЕМ - ОНА ОСТАЕТСЯ ВИДИМОЙ!
-                    applyFiltersToAllItems();
-                    showAllFilteredItems();
-                }
-            }
-
-            // Применить фильтры только к текущей странице (для режима "Все")
-            function applyFiltersToCurrentPage() {
-                const currentPageItems = document.querySelectorAll(`#page-${currentPage} .file-item`);
-
-                let hasVisibleItems = false;
-                currentPageItems.forEach(item => {
-                    const matches = itemMatchesFilter(item) && itemMatchesSearch(item);
-                    item.style.display = matches ? 'block' : 'none';
-                    if (matches) hasVisibleItems = true;
-                });
-
-                // Если на текущей странице нет элементов, переключаем на следующую страницу с элементами
-                if (!hasVisibleItems && currentFilter !== 'all') {
-                    findAndShowFirstVisiblePage();
-                }
-            }
-
-            // Применить фильтры ко всем элементам (для других фильтров и поиска)
-            function applyFiltersToAllItems() {
-                const allItems = document.querySelectorAll('.file-item');
-                let hasVisibleItems = false;
-
-                allItems.forEach(item => {
-                    const matches = itemMatchesFilter(item) && itemMatchesSearch(item);
-                    if (matches) {
-                        item.style.display = 'block';
-                        hasVisibleItems = true;
-                    } else {
-                        item.style.display = 'none';
-                    }
-                });
-
-                // Показываем/скрываем сообщение "Ничего не найдено"
-                showNoResultsMessage(hasVisibleItems);
-            }
-
-            // Показать все отфильтрованные элементы (без пагинации)
-            function showAllFilteredItems() {
-                // В этом режиме показываем все страницы, но скрываем пустые
-                document.querySelectorAll('.file-page').forEach(page => {
-                    const hasVisibleItems = page.querySelector('.file-item[style="display: block"]') !== null;
-                    // page.style.display = hasVisibleItems ? 'block' : 'none';
-                });
-            
-                // НЕ СКРЫВАЕМ ПАГИНАЦИЮ! ОСТАВЛЯЕМ ЕЁ ВИДИМОЙ!
-                // document.getElementById('paginationTop').style.display = 'none';
-                // document.getElementById('paginationBottom').style.display = 'none';
-            }
-
-            // Найти и показать первую страницу с видимыми элементами
-            function findAndShowFirstVisiblePage() {
-                const pages = document.querySelectorAll('.file-page');
-                for (let i = 1; i <= pages.length; i++) {
-                    const page = document.getElementById(`page-${i}`);
-                    const hasVisibleItems = page.querySelector('.file-item[style="display: block"]') !== null;
-                    if (hasVisibleItems) {
-                        showPage(i);
-                        break;
-                    }
-                }
-            }
-
-            // Проверить соответствие элемента фильтру
-            function itemMatchesFilter(item) {
-                if (currentFilter === 'all') return true;
-                return item.dataset.status === currentFilter;
+                setupPagination();
+                showPage(currentPage);
             }
 
             // Проверить соответствие элемента поисковому запросу
@@ -591,17 +528,16 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
             }
 
             // Показать/скрыть сообщение "Ничего не найдено"
-            function showNoResultsMessage(hasVisibleItems) {
+            function showNoResultsMessage(show) {
                 let noResults = document.getElementById('no-results');
 
-                if (!hasVisibleItems) {
-                    if (!noResults) {
-                        noResults = document.createElement('div');
-                        noResults.id = 'no-results';
-                        noResults.innerHTML = '<div style="text-align: center; padding: 40px; color: #666;">Ничего не найдено</div>';
-                        document.getElementById('filesContainer').appendChild(noResults);
-                    }
-                } else if (noResults) {
+                if (show && !noResults) {
+                    noResults = document.createElement('div');
+                    noResults.id = 'no-results';
+                    noResults.className = 'no-results';
+                    noResults.textContent = 'Ничего не найдено';
+                    document.getElementById('filesContainer').appendChild(noResults);
+                } else if (!show && noResults) {
                     noResults.remove();
                 }
             }

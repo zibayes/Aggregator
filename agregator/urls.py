@@ -4,6 +4,7 @@ from agregator import views
 from rest_framework.routers import DefaultRouter
 from agregator.wopi import views as wopi_views
 from agregator.wopi.views import kodexplorer_proxy
+from agregator.views import datatable_views
 from django.views.decorators.http import require_http_methods
 
 router = DefaultRouter()
@@ -185,7 +186,16 @@ urlpatterns = [
     path('api/messages/', views.MessageList.as_view(), name='message-list'),
     path('api/messages/<int:pk>/', views.MessageDetail.as_view(), name='message-detail'),
 
+    # WOPI API endpoints
     path('wopi/files/<path:file_id>/contents', wopi_views.wopi_contents, name='wopi_contents'),
     path('wopi/files/<path:file_id>', wopi_views.wopi_endpoint, name='wopi_endpoint'),
     path('kodexplorer-proxy/', kodexplorer_proxy, name='kodexplorer_proxy'),
+
+    # DataTables API endpoints
+    path('api/acts_datatable/', datatable_views.acts_datatable, name='acts_datatable'),
+    path('api/scientific_reports_datatable/', datatable_views.scientific_reports_datatable,
+         name='scientific_reports_datatable'),
+    # path('api/tech_reports_datatable/', datatable_views.tech_reports_datatable, name='tech_reports_datatable'),
+    # path('api/account_cards_datatable/', datatable_views.account_cards_datatable, name='account_cards_datatable'),
+    # path('api/open_lists_datatable/', datatable_views.open_lists_datatable, name='open_lists_datatable'),
 ]

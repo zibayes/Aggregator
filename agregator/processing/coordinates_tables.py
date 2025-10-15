@@ -568,13 +568,17 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
     calculate_polygons_area(coordinates)
 
     pits_coordinates = re.findall(
-        r'Шурф\s+№\s+\d+\**[\s\S]+?Координаты\s+шурфа\s+в\s+системе\s+WGS-\d+:*\s+[NSEW]\s*?\d+°\d+\'\d+[\.,]\d+";*\s+[NSEW]\s*?\d+°\d+\'\d+[\.,]\d+"',
+        r'Шурф\s[№\s]*\d+[\s\S]+?[\s\S]+?[NS]\s*\d+°\d+\'\d+[\.,]*\d+",*\s+[EW]\s*\d+°\d+\'\d+[\.,]*\d+"',
         text, re.IGNORECASE)
+    pits_coordinates.extend(re.findall(
+        r'Шурф\s[№\s]*\d+[\s\S]+?[\s\S]+?[NS]\s*\d+°\d+\'\d+[\.,]*\d+",*\s+[EW]\s*\d+°\d+\'\d+[\.,]*\d+"',
+        text, re.IGNORECASE))
+    # Шурф\s+№\s+\d+\**[\s\S]+?Координаты\s+шурфа\s+в\s+системе\s+WGS-\d+:*\s+[NSEW]\s*?\d+°\d+\'\d+[\.,]\d+";*\s+[NSEW]\s*?\d+°\d+\'\d+[\.,]\d+"
     # r'([NS])(\d{1,2})°(\d{1,2})\'(\d{1,2}\.\d{1,2})"\s+([EW])(\d{1,3})°(\d{1,2})\'(\d{1,2}\.\d{1,2})"'
     for coord in pits_coordinates:
-        pit_number = re.search(r'Шурф\s+№\s+\d+\**', coord, re.IGNORECASE).group(0)
-        lat = dms_to_decimal(re.search(r'[NS]\s*?\d+°\d+\'\d+[\.,]\d+"', coord, re.IGNORECASE).group(0))
-        lon = dms_to_decimal(re.search(r'[EW]\s*?\d+°\d+\'\d+[\.,]\d+"', coord, re.IGNORECASE).group(0))
+        pit_number = re.search(r'Шурф\s+[№\s]*\d+\**', coord, re.IGNORECASE).group(0)
+        lat = dms_to_decimal(re.search(r'[NS]\s*?\d+°\d+\'\d+[\.,]*\d+"', coord, re.IGNORECASE).group(0))
+        lon = dms_to_decimal(re.search(r'[EW]\s*?\d+°\d+\'\d+[\.,]*\d+"', coord, re.IGNORECASE).group(0))
         if 'Шурфы' not in coordinates:
             coordinates['Шурфы'] = {'coordinate_system': 'wgs84'}
         coordinates['Шурфы'][pit_number] = [lat, lon]
