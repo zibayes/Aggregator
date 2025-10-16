@@ -777,6 +777,8 @@ def extract_tables_from_pdf(pdf_path):
 
 def fill_dataframe_from_pdf(target_cell, df, dfs, multiple_coord_sys, coordinate_systems, current_area, legend_length,
                             append=False):
+    if target_cell is None:
+        return
     if legend_length >= 3:
         if target_cell.column - legend_length > 0:
             start_col = max(0, target_cell.column - legend_length - 1)
