@@ -78,6 +78,7 @@ def download_all_coordinates(request):
             kml = simplekml.Kml()
             catalog_style = simplekml.Style()
             catalog_style.iconstyle.color = simplekml.Color.blue
+            catalog_style.polystyle.color = simplekml.Color.blue
             photos_style = simplekml.Style()
             photos_style.iconstyle.color = simplekml.Color.green
             pits_style = simplekml.Style()
@@ -97,6 +98,24 @@ def download_all_coordinates(request):
                             current_style = catalog_style
                             catalog_group = report_folder.newfolder(name=group)
                             current_group = catalog_group
+                            # Собираем все координаты из point в один список
+                            polygon_coords = []  # Список для координат полигона
+                            for point_name, coords in point.items():
+                                if isinstance(coords, list) and len(coords) == 2:  # Проверяем, что это [lat, lon]
+                                    polygon_coords.append(coords)  # Добавляем в список
+                                else:
+                                    print(f"Пропущен некорректный элемент для {point_name}: {coords}")
+
+                            if polygon_coords:  # Если есть координаты, создаём полигон
+                                polygon = current_group.newpolygon(
+                                    name="Полигон")  # Один полигон для всей группы
+                                outer_boundary = polygon.outerboundaryis
+                                outer_coords = [(c[1], c[0], 0) for c in
+                                                polygon_coords]  # Преобразуем: [lat, lon] -> [lon, lat, 0]
+                                outer_boundary.coords = outer_coords  # Устанавливаем координаты
+                                polygon.style = current_style  # Применяем стиль
+                            else:
+                                print(f"Для группы '{group}' нет валидных координат для полигона")
                         elif 'Шурфы' in group:
                             current_style = pits_style
                             pits_group = report_folder.newfolder(name=group)
