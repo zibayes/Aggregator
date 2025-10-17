@@ -83,8 +83,79 @@ class DataTableServerSide:
 
     def apply_custom_search(self, queryset, custom_search):
         """Применяет кастомные фильтры"""
+        print(f"=== APPLY CUSTOM SEARCH DEBUG ===", file=sys.stderr)
+        print(f"Initial queryset count: {queryset.count()}", file=sys.stderr)
+        print(f"Custom search params: {custom_search}", file=sys.stderr)
+
         if not custom_search:
+            print("No custom search params, returning original queryset", file=sys.stderr)
             return queryset
+
+        # ФИЛЬТРАЦИЯ ПО ХРАНИЛИЩУ - ВАЖНО!
+        storage_type = custom_search.get('storage_type')
+        print(f"STORAGE TYPE: {storage_type}", file=sys.stderr)
+
+        if storage_type == 'private':
+            print("🔒 PRIVATE STORAGE: Filtering for current user only", file=sys.stderr)
+            if hasattr(self.request, 'user') and self.request.user.is_authenticated:
+                print(f"User: {self.request.user}, ID: {self.request.user.id}", file=sys.stderr)
+                # Для моделей с прямым полем user (акты)
+                if hasattr(queryset.model, 'user'):
+                    print(f"Model has 'user' field, filtering by user={self.request.user}", file=sys.stderr)
+                    queryset = queryset.filter(user=self.request.user)
+                    print(f"After user filter: {queryset.count()} records", file=sys.stderr)
+                # Для моделей с account_card -> user (археологические памятники)
+                elif hasattr(queryset.model, 'account_card'):
+                    print(f"Model has 'account_card' field, filtering by account_card__user={self.request.user}",
+                          file=sys.stderr)
+                    queryset = queryset.filter(account_card__user=self.request.user)
+                    print(f"After account_card user filter: {queryset.count()} records", file=sys.stderr)
+                else:
+                    print("❌ Model doesn't have 'user' or 'account_card' field - CANNOT FILTER BY USER",
+                          file=sys.stderr)
+            else:
+                print("❌ User is not authenticated - CANNOT FILTER BY USER", file=sys.stderr)
+        elif storage_type == 'public':
+            print("🔓 PUBLIC STORAGE: Showing all public records", file=sys.stderr)
+            # Для публичного хранилища не применяем фильтрацию по пользователю
+            # Показываем все записи
+            print("No user filter applied for public storage", file=sys.stderr)
+        else:
+            print(f"❓ UNKNOWN STORAGE TYPE: {storage_type}", file=sys.stderr)
+
+        print(f"Queryset count after storage filter: {queryset.count()}", file=sys.stderr)
+
+        # Фильтры по актам
+        if custom_search.get('year'):
+            queryset = queryset.filter(year__icontains=custom_search['year'])
+        if custom_search.get('finish_date'):
+            queryset = queryset.filter(finish_date__icontains=custom_search['finish_date'])
+        if custom_search.get('type'):
+            queryset = queryset.filter(type__icontains=custom_search['type'])
+        if custom_search.get('name_number'):
+            queryset = queryset.filter(name_number__icontains=custom_search['name_number'])
+        if custom_search.get('place'):
+            queryset = queryset.filter(place__icontains=custom_search['place'])
+        if custom_search.get('customer'):
+            queryset = queryset.filter(customer__icontains=custom_search['customer'])
+        if custom_search.get('area'):
+            queryset = queryset.filter(area__icontains=custom_search['area'])
+        if custom_search.get('expert'):
+            queryset = queryset.filter(expert__icontains=custom_search['expert'])
+        if custom_search.get('executioner'):
+            queryset = queryset.filter(executioner__icontains=custom_search['executioner'])
+        if custom_search.get('open_list'):
+            queryset = queryset.filter(open_list__icontains=custom_search['open_list'])
+        if custom_search.get('conclusion'):
+            queryset = queryset.filter(conclusion__icontains=custom_search['conclusion'])
+        if custom_search.get('border_objects'):
+            queryset = queryset.filter(border_objects__icontains=custom_search['border_objects'])
+        if custom_search.get('owner'):
+            queryset = queryset.filter(user__username__icontains=custom_search['owner'])
+        if custom_search.get('source'):
+            queryset = queryset.filter(upload_source__icontains=custom_search['source'])
+        if custom_search.get('date_uploaded'):
+            queryset = queryset.filter(date_uploaded__icontains=custom_search['date_uploaded'])
 
         # Применяем текстовые фильтры
         if custom_search.get('doc_name'):
@@ -142,7 +213,7 @@ class DataTableServerSide:
             queryset = queryset.filter(is_excluded=False)
             print(f"DEBUG: After show_excluded filter: {queryset.count()} records", file=sys.stderr)
 
-        print(f"DEBUG: After custom search: {queryset.count()} records")
+        print(f"=== FINAL QUERYSET COUNT: {queryset.count()} ===", file=sys.stderr)
         return queryset
 
     def apply_ordering(self, queryset, order_column_index, order_direction):

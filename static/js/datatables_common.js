@@ -156,6 +156,7 @@ function setupDataTable(tableConfig) {
 
     setupColumnToggles(table);
 
+    console.log("DataTable setup completed, returning instance:", table);
     return table;
 }
 
@@ -197,6 +198,8 @@ function confirmDelete() {
         deleteUrl = `/archaeological_heritage_sites_delete/${currentDeleteData.id}/`;
     } else if (currentDeleteData.type === 'delete_identified_site') {
         deleteUrl = `/identified_archaeological_heritage_sites_delete/${currentDeleteData.id}/`;
+    } else if (currentDeleteData.type === 'delete_act') {
+        deleteUrl = `/acts_delete/${currentDeleteData.id}/`;
     } else {
         console.error('Unknown delete type:', currentDeleteData.type);
         return;
@@ -206,6 +209,9 @@ function confirmDelete() {
     form.action = deleteUrl;
     form.submit();
 }
+
+// Глобальная переменная для DataTable
+let dataTableInstance = null;
 
 // Универсальная конфигурация DataTable
 function setupHeritageDataTable(config) {
@@ -218,7 +224,10 @@ function setupHeritageDataTable(config) {
                     'X-CSRFToken': getCookie('csrftoken')
                 },
                 "data": function (d) {
-                    d.custom_search = JSON.stringify(config.getFilters());
+                    // Добавляем параметр хранилища в фильтры
+                    const filters = config.getFilters();
+                    filters.storage_type = getStorageType();
+                    d.custom_search = JSON.stringify(filters);
                 },
                 "dataSrc": "data",
                 "error": function (xhr, error, thrown) {
@@ -231,6 +240,56 @@ function setupHeritageDataTable(config) {
             "filterConfigs": config.filterConfigs
         };
 
-        setupDataTable(tableConfig);
+        // Инициализируем DataTable и сохраняем ссылку
+        dataTableInstance = setupDataTable(tableConfig);
+    });
+}
+
+// Функции для работы с хранилищем
+function getStorageType() {
+    const storageSwitch = document.getElementById('storageSwitch');
+    return storageSwitch && storageSwitch.checked ? 'private' : 'public';
+}
+
+function updateStorageLabel() {
+    const storageSwitch = document.getElementById('storageSwitch');
+    const storageLabel = document.getElementById('storageLabel');
+    if (storageSwitch && storageLabel) {
+        const isPrivate = storageSwitch.checked;
+        storageLabel.textContent = isPrivate ? "Частное хранилище" : "Публичное хранилище";
+    }
+}
+
+function reloadDataTable() {
+    if (dataTableInstance) {
+        dataTableInstance.ajax.reload();
+    } else {
+        console.warn('DataTable not initialized yet');
+    }
+}
+
+// Функция для обновления видимости фильтров (только для статических таблиц)
+function updateFilterVisibility() {
+    if (window.usesAjax) return;
+
+    let columnToggles = document.querySelectorAll('.column-toggle');
+    let filterForm = document.getElementById('filterForm');
+
+    columnToggles.forEach(toggle => {
+        let columnIndex = toggle.getAttribute('data-column');
+        let columns_count = parseInt(toggle.closest('[data-columns-count]').dataset.columnsCount);
+
+        if (columnIndex >= filterForm.children.length) {
+            return;
+        }
+
+        let filterContainer = filterForm.children[columnIndex];
+        if (filterContainer && filterContainer.style) {
+            if (toggle.checked) {
+                filterContainer.style.display = '';
+            } else {
+                filterContainer.style.display = 'none';
+            }
+        }
     });
 }

@@ -193,12 +193,15 @@ urlpatterns = [
 
     # DataTables API endpoints
     path('api/archaeological_heritage_sites_datatable/',
-         datatable_views.universal_heritage_sites_datatable,
-         {'site_type': 'archaeological'},
+         datatable_views.universal_datatable,
+         {'register_type': 'archaeological'},
          name='archaeological_heritage_sites_datatable'),
-
     path('api/identified_archaeological_heritage_sites_datatable/',
-         datatable_views.universal_heritage_sites_datatable,
-         {'site_type': 'identified'},
+         datatable_views.universal_datatable,
+         {'register_type': 'identified'},
          name='identified_archaeological_heritage_sites_datatable'),
+    path('api/acts_datatable/',
+         datatable_views.universal_datatable,
+         {'register_type': 'acts'},
+         name='acts_datatable'),
 ]

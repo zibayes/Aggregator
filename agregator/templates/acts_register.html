@@ -3,237 +3,216 @@
 {% block title %}Реестр актов{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item active" aria-current="page">Реестр актов</li>
+<li class="breadcrumb-item active" aria-current="page">Реестр актов</li>
 {% endblock %}
 
 {% block column_toggles %}
-    <div data-columns-count="18">
-        <label><input type="checkbox" class="column-toggle" data-column="0" checked> Год</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="1" checked> Дата окончания проведения
-            ГИКЭ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="2" checked> Вид ГИКЭ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="3" checked> Номер и наименование Акта
-            ГИКЭ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="4" checked> Место проведения экспертизы</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="5" checked> Заказчик работ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="6" checked> Площадь, параметры</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="7" checked> Эксперт</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="8" checked> Исполнитель</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="9" checked> ОЛ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="10" checked> Заключение</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="11" checked> Объекты вблизи</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="12" checked> Владелец документа</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="13" checked> Источник</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="14" checked> Дата загрузки</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="15" checked> Формализованный
-            документ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="16" checked> Исходный документ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="17" checked> Редактирование</label><br>
-    </div>
+<div data-columns-count="18">
+    <label><input type="checkbox" class="column-toggle" data-column="0" checked> Год</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="1" checked> Дата окончания проведения
+        ГИКЭ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="2" checked> Вид ГИКЭ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="3" checked> Номер и наименование Акта
+        ГИКЭ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="4" checked> Место проведения экспертизы</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="5" checked> Заказчик работ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="6" checked> Площадь, параметры</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="7" checked> Эксперт</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Исполнитель</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="9" checked> ОЛ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="10" checked> Заключение</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="11" checked> Объекты вблизи</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="12" checked> Владелец документа</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="13" checked> Источник</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="14" checked> Дата загрузки</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="15" checked> Формализованный
+        документ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="16" checked> Исходный документ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="17" checked> Редактирование</label><br>
+</div>
 {% endblock %}
 
 {% block filter_form %}
-    <div class="mb-3" id="filterYearContainer">
-        <label for="filterYear" class="form-label">Год</label>
-        <input type="text" class="form-control" id="filterYear" placeholder="Введите год">
-    </div>
-    <div class="mb-3" id="filterFinishDateContainer">
-        <label for="filterFinishDate" class="form-label">Дата окончания</label>
-        <input type="text" class="form-control" id="filterFinishDate" placeholder="Введите дату окончания">
-    </div>
-    <div class="mb-3" id="filterTypeContainer">
-        <label for="filterType" class="form-label">Вид ГИКЭ</label>
-        <input type="text" class="form-control" id="filterType" placeholder="Введите вид ГИКЭ">
-    </div>
-    <div class="mb-3" id="filterNameNumberContainer">
-        <label for="filterNameNumber" class="form-label">Номер и наименование</label>
-        <input type="text" class="form-control" id="filterNameNumber" placeholder="Введите номер и наименование">
-    </div>
-    <div class="mb-3" id="filterPlaceContainer">
-        <label for="filterPlace" class="form-label">Место проведения</label>
-        <input type="text" class="form-control" id="filterPlace" placeholder="Введите место проведения">
-    </div>
-    <div class="mb-3" id="filterCustomerContainer">
-        <label for="filterCustomer" class="form-label">Заказчик</label>
-        <input type="text" class="form-control" id="filterCustomer" placeholder="Введите заказчика">
-    </div>
-    <div class="mb-3" id="filterAreaContainer">
-        <label for="filterArea" class="form-label">Площадь</label>
-        <input type="text" class="form-control" id="filterArea" placeholder="Введите площадь">
-    </div>
-    <div class="mb-3" id="filterExpertContainer">
-        <label for="filterExpert" class="form-label">Эксперт</label>
-        <input type="text" class="form-control" id="filterExpert" placeholder="Введите эксперта">
-    </div>
-    <div class="mb-3" id="filterExecutionerContainer">
-        <label for="filterExecutioner" class="form-label">Исполнитель</label>
-        <input type="text" class="form-control" id="filterExecutioner" placeholder="Введите исполнителя">
-    </div>
-    <div class="mb-3" id="filterOpenListContainer">
-        <label for="filterOpenList" class="form-label">ОЛ</label>
-        <input type="text" class="form-control" id="filterOpenList" placeholder="Введите ОЛ">
-    </div>
-    <div class="mb-3" id="filterConclusionContainer">
-        <label for="filterConclusion" class="form-label">Заключение</label>
-        <input type="text" class="form-control" id="filterConclusion" placeholder="Введите заключение">
-    </div>
-    <div class="mb-3" id="filterBorderObjectsContainer">
-        <label for="filterBorderObjects" class="form-label">Границы объектов</label>
-        <input type="text" class="form-control" id="filterBorderObjects" placeholder="Введите границы объектов">
-    </div>
-    <div class="mb-3" id="filterOwnerContainer">
-        <label for="filterOwner" class="form-label">Владелец документа</label>
-        <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
-    </div>
-    <div class="mb-3" id="filterSourceContainer">
-        <label for="filterSource" class="form-label">Источник</label>
-        <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
-    </div>
-    <div class="mb-3" id="filterDateUploadedContainer">
-        <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
-        <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
-    </div>
+<div class="mb-3" id="filterYearContainer">
+    <label for="filterYear" class="form-label">Год</label>
+    <input type="text" class="form-control" id="filterYear" placeholder="Введите год">
+</div>
+<div class="mb-3" id="filterFinishDateContainer">
+    <label for="filterFinishDate" class="form-label">Дата окончания</label>
+    <input type="text" class="form-control" id="filterFinishDate" placeholder="Введите дату окончания">
+</div>
+<div class="mb-3" id="filterTypeContainer">
+    <label for="filterType" class="form-label">Вид ГИКЭ</label>
+    <input type="text" class="form-control" id="filterType" placeholder="Введите вид ГИКЭ">
+</div>
+<div class="mb-3" id="filterNameNumberContainer">
+    <label for="filterNameNumber" class="form-label">Номер и наименование</label>
+    <input type="text" class="form-control" id="filterNameNumber" placeholder="Введите номер и наименование">
+</div>
+<div class="mb-3" id="filterPlaceContainer">
+    <label for="filterPlace" class="form-label">Место проведения</label>
+    <input type="text" class="form-control" id="filterPlace" placeholder="Введите место проведения">
+</div>
+<div class="mb-3" id="filterCustomerContainer">
+    <label for="filterCustomer" class="form-label">Заказчик</label>
+    <input type="text" class="form-control" id="filterCustomer" placeholder="Введите заказчика">
+</div>
+<div class="mb-3" id="filterAreaContainer">
+    <label for="filterArea" class="form-label">Площадь</label>
+    <input type="text" class="form-control" id="filterArea" placeholder="Введите площадь">
+</div>
+<div class="mb-3" id="filterExpertContainer">
+    <label for="filterExpert" class="form-label">Эксперт</label>
+    <input type="text" class="form-control" id="filterExpert" placeholder="Введите эксперта">
+</div>
+<div class="mb-3" id="filterExecutionerContainer">
+    <label for="filterExecutioner" class="form-label">Исполнитель</label>
+    <input type="text" class="form-control" id="filterExecutioner" placeholder="Введите исполнителя">
+</div>
+<div class="mb-3" id="filterOpenListContainer">
+    <label for="filterOpenList" class="form-label">ОЛ</label>
+    <input type="text" class="form-control" id="filterOpenList" placeholder="Введите ОЛ">
+</div>
+<div class="mb-3" id="filterConclusionContainer">
+    <label for="filterConclusion" class="form-label">Заключение</label>
+    <input type="text" class="form-control" id="filterConclusion" placeholder="Введите заключение">
+</div>
+<div class="mb-3" id="filterBorderObjectsContainer">
+    <label for="filterBorderObjects" class="form-label">Границы объектов</label>
+    <input type="text" class="form-control" id="filterBorderObjects" placeholder="Введите границы объектов">
+</div>
+<div class="mb-3" id="filterOwnerContainer">
+    <label for="filterOwner" class="form-label">Владелец документа</label>
+    <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
+</div>
+<div class="mb-3" id="filterSourceContainer">
+    <label for="filterSource" class="form-label">Источник</label>
+    <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
+</div>
+<div class="mb-3" id="filterDateUploadedContainer">
+    <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+    <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
+</div>
 {% endblock %}
 
 {% block download_link %}
-    <a href="/acts_register_download/">Скачать реестр в формате .xlsx</a>
+<a href="/acts_register_download/">Скачать реестр в формате .xlsx</a>
 {% endblock %}
 
 {% block table_headers %}
-    <th>Год</th>
-    <th>Дата окончания проведения ГИКЭ</th>
-    <th>Вид ГИКЭ</th>
-    <th>Номер (если имеется) и наименование Акта ГИКЭ</th>
-    <th>Место проведения экспертизы</th>
-    <th>Заказчик работ (*если не указан, то заказчик экспертизы)</th>
-    <th>Площадь, протяжённость и/или др. параметры объекта</th>
-    <th>Эксперт (физ. или юр.лицо)</th>
-    <th>Исполнитель полевых работ (юр. лицо)</th>
-    <th>ОЛ</th>
-    <th>Заключение. Выявленные объекты.</th>
-    <th>Объекты расположенные в непосредственной близости. Для границ</th>
-    <th>Владелец документа</th>
-    <th>Источник</th>
-    <th>Дата загрузки</th>
-    <th>Формализованный документ</th>
-    <th>Исходный документ</th>
-    <th>Редактирование</th>
+<th>Год</th>
+<th>Дата окончания проведения ГИКЭ</th>
+<th>Вид ГИКЭ</th>
+<th>Номер (если имеется) и наименование Акта ГИКЭ</th>
+<th>Место проведения экспертизы</th>
+<th>Заказчик работ (*если не указан, то заказчик экспертизы)</th>
+<th>Площадь, протяжённость и/или др. параметры объекта</th>
+<th>Эксперт (физ. или юр.лицо)</th>
+<th>Исполнитель полевых работ (юр. лицо)</th>
+<th>ОЛ</th>
+<th>Заключение. Выявленные объекты.</th>
+<th>Объекты расположенные в непосредственной близости. Для границ</th>
+<th>Владелец документа</th>
+<th>Источник</th>
+<th>Дата загрузки</th>
+<th>Формализованный документ</th>
+<th>Исходный документ</th>
+<th>Редактирование</th>
 {% endblock %}
 
 {% block table_body %}
-    {% for act in acts %}
-        <tr data-act-id="{{ act.id }}"
-            data-user-id="{{ act.user.id }}"
-            data-year="{{ act.year }}"
-            data-finish-date="{{ act.finish_date }}"
-            data-type="{{ act.type }}"
-            data-name-number="{{ act.name_number }}"
-            data-place="{{ act.place }}"
-            data-customer="{{ act.customer }}"
-            data-area="{{ act.area }}"
-            data-expert="{{ act.expert }}"
-            data-executioner="{{ act.executioner }}"
-            data-open-list="{{ act.open_list }}"
-            data-conclusion="{{ act.conclusion }}"
-            data-border-objects="{{ act.border_objects }}"
-            data-owner="{{ act.user.username }}"
-            data-source="{{ act.upload_source }}"
-            data-date-uploaded="{{ act.date_uploaded }}"
-            data-is-public="{{ act.is_public }}">
-            <td>{{ act.year }}</td>
-            <td>{{ act.finish_date }}</td>
-            <td>{{ act.type }}</td>
-            <td>{{ act.name_number }}</td>
-            <td>{{ act.place }}</td>
-            <td>{{ act.customer }}</td>
-            <td>{{ act.area }}</td>
-            <td>{{ act.expert }}</td>
-            <td>{{ act.executioner }}</td>
-            <td>{{ act.open_list }}</td>
-            <td>{{ act.conclusion }}</td>
-            <td>{{ act.border_objects }}</td>
-            <td>
-                <a href="/users/{{ act.user.id }}">
-                    <img src="{{ act.user.avatar.url }}" class="rounded-circle" height="25" width="25"
-                         loading="lazy" style="object-fit: cover;" alt=""/>
-                    {{ act.user.username }}
-                </a>
-            </td>
-            <td>
-                <a{% if act.upload_source_dict.link %}
-                    href="{{ act.upload_source_dict.link }}" {% endif %}>{{ act.upload_source_dict.source }}</a>
-            </td>
-            <td>{{ act.date_uploaded }}</td>
-            <td>
-                {% include 'includes/buttons/view_button.html' with object_type='act' object=act %}
-            </td>
-            <td>
-                {% for source in act.source_dict %}
-                    <a href="/{{ source.path }}">{{ source.origin_filename }}</a>
-                    <br><br>
-                {% endfor %}
-            </td>
-            {% include 'includes/buttons/action_buttons.html' with object_type='act' object=act %}
-        </tr>
-    {% endfor %}
+<div id="debug-info" style="display: none;">
+    <p>URL API: {% url 'acts_datatable' %}</p>
+    <p>User: {{ user.username }}</p>
+    <p>Authenticated: {{ user.is_authenticated }}</p>
+</div>
+<!-- Данные будут загружаться через AJAX -->
 {% endblock %}
 
 {% block modal_dialogs %}
-    {% for act in acts %}
-        {% include 'includes/modal_delete.html' with object_type='act' object_name='акт' object=act %}
-    {% endfor %}
+<!-- Единое модальное окно для удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Удаление акта</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Вы уверены, что хотите удалить акт "<span id="deleteObjectName"></span>"?
+                <form id="deleteForm" method="post" style="display: none;">
+                    {% csrf_token %}
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
-{% block filter_script %}
-    const yearFilter = document.getElementById('filterYear').value.toLowerCase();
-    const finishDateFilter = document.getElementById('filterFinishDate').value.toLowerCase();
-    const typeFilter = document.getElementById('filterType').value.toLowerCase();
-    const nameNumberFilter = document.getElementById('filterNameNumber').value.toLowerCase();
-    const placeFilter = document.getElementById('filterPlace').value.toLowerCase();
-    const customerFilter = document.getElementById('filterCustomer').value.toLowerCase();
-    const areaFilter = document.getElementById('filterArea').value.toLowerCase();
-    const expertFilter = document.getElementById('filterExpert').value.toLowerCase();
-    const executionerFilter = document.getElementById('filterExecutioner').value.toLowerCase();
-    const openListFilter = document.getElementById('filterOpenList').value.toLowerCase();
-    const conclusionFilter = document.getElementById('filterConclusion').value.toLowerCase();
-    const borderObjectsFilter = document.getElementById('filterBorderObjects').value.toLowerCase();
-    const ownerFilter = document.getElementById('filterOwner').value.toLowerCase();
-    const sourceFilter = document.getElementById('filterSource').value.toLowerCase();
-    const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
-{% endblock %}
+{% block datatables_ajax %}
+<script>
+    // Помечаем что используем AJAX
+    window.usesAjax = true;
+</script>
 
-{% block filter_logic %}
-    const yearText = row.dataset.year ? row.dataset.year.toLowerCase() : '';
-    const finishDateText = row.dataset.finishDate ? row.dataset.finishDate.toLowerCase() : '';
-    const typeText = row.dataset.type ? row.dataset.type.toLowerCase() : '';
-    const nameNumberText = row.dataset.nameNumber ? row.dataset.nameNumber.toLowerCase() : '';
-    const placeText = row.dataset.place ? row.dataset.place.toLowerCase() : '';
-    const customerText = row.dataset.customer ? row.dataset.customer.toLowerCase() : '';
-    const areaText = row.dataset.area ? row.dataset.area.toLowerCase() : '';
-    const expertText = row.dataset.expert ? row.dataset.expert.toLowerCase() : '';
-    const executionerText = row.dataset.executioner ? row.dataset.executioner.toLowerCase() : '';
-    const openListText = row.dataset.openList ? row.dataset.openList.toLowerCase() : '';
-    const conclusionText = row.dataset.conclusion ? row.dataset.conclusion.toLowerCase() : '';
-    const borderObjectsText = row.dataset.borderObjects ? row.dataset.borderObjects.toLowerCase() : '';
-    const ownerText = row.dataset.owner ? row.dataset.owner.toLowerCase() : '';
-    const sourceText = row.dataset.source ? row.dataset.source.toLowerCase() : '';
-    const dateUploadedText = row.dataset.dateUploaded ? row.dataset.dateUploaded.toLowerCase() : '';
-{% endblock %}
+<script>
+    // Конфигурация для актов
+    const actsConfig = {
+        url: "{% url 'acts_datatable' %}",
+        getFilters: function() {
+            return {
+                year: $('#filterYear').val(),
+                finish_date: $('#filterFinishDate').val(),
+                type: $('#filterType').val(),
+                name_number: $('#filterNameNumber').val(),
+                place: $('#filterPlace').val(),
+                customer: $('#filterCustomer').val(),
+                area: $('#filterArea').val(),
+                expert: $('#filterExpert').val(),
+                executioner: $('#filterExecutioner').val(),
+                open_list: $('#filterOpenList').val(),
+                conclusion: $('#filterConclusion').val(),
+                border_objects: $('#filterBorderObjects').val(),
+                owner: $('#filterOwner').val(),
+                source: $('#filterSource').val(),
+                date_uploaded: $('#filterDateUploaded').val()
+            };
+        },
+        columns: [
+            { "data": 0, "name": "year", "orderable": true, "searchable": true },
+            { "data": 1, "name": "finish_date", "orderable": true, "searchable": true },
+            { "data": 2, "name": "type", "orderable": true, "searchable": true },
+            { "data": 3, "name": "name_number", "orderable": true, "searchable": true },
+            { "data": 4, "name": "place", "orderable": true, "searchable": true },
+            { "data": 5, "name": "customer", "orderable": true, "searchable": true },
+            { "data": 6, "name": "area", "orderable": true, "searchable": true },
+            { "data": 7, "name": "expert", "orderable": true, "searchable": true },
+            { "data": 8, "name": "executioner", "orderable": true, "searchable": true },
+            { "data": 9, "name": "open_list", "orderable": true, "searchable": true },
+            { "data": 10, "name": "conclusion", "orderable": true, "searchable": true },
+            { "data": 11, "name": "border_objects", "orderable": true, "searchable": true },
+            { "data": 12, "name": "owner", "orderable": true, "searchable": true },
+            { "data": 13, "name": "source", "orderable": true, "searchable": true },
+            { "data": 14, "name": "date_uploaded", "orderable": true, "searchable": true },
+            { "data": 15, "name": "formalized_document", "orderable": false, "searchable": false },
+            { "data": 16, "name": "original_document", "orderable": false, "searchable": false },
+            { "data": 17, "name": "actions", "orderable": false, "searchable": false }
+        ],
+        filterConfigs: {
+            "textFilters": [
+                '#filterYear', '#filterFinishDate', '#filterType', '#filterNameNumber',
+                '#filterPlace', '#filterCustomer', '#filterArea', '#filterExpert',
+                '#filterExecutioner', '#filterOpenList', '#filterConclusion', '#filterBorderObjects',
+                '#filterOwner', '#filterSource', '#filterDateUploaded'
+            ],
+            "changeFilters": []
+        }
+    };
 
-{% block filter_conditions %}
-    (yearFilter === '' || yearText.includes(yearFilter)) &&
-    (finishDateFilter === '' || finishDateText.includes(finishDateFilter)) &&
-    (typeFilter === '' || typeText.includes(typeFilter)) &&
-    (nameNumberFilter === '' || nameNumberText.includes(nameNumberFilter)) &&
-    (placeFilter === '' || placeText.includes(placeFilter)) &&
-    (customerFilter === '' || customerText.includes(customerFilter)) &&
-    (areaFilter === '' || areaText.includes(areaFilter)) &&
-    (expertFilter === '' || expertText.includes(expertFilter)) &&
-    (executionerFilter === '' || executionerText.includes(executionerFilter)) &&
-    (openListFilter === '' || openListText.includes(openListFilter)) &&
-    (conclusionFilter === '' || conclusionText.includes(conclusionFilter)) &&
-    (borderObjectsFilter === '' || borderObjectsText.includes(borderObjectsFilter)) &&
-    (ownerFilter === '' || ownerText.includes(ownerFilter)) &&
-    (sourceFilter === '' || sourceText.includes(sourceFilter)) &&
-    (dateUploadedFilter === '' || dateUploadedText.includes(dateUploadedFilter))
+    setupHeritageDataTable(actsConfig);
+</script>
 {% endblock %}
