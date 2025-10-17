@@ -1,6 +1,76 @@
 {% extends 'bases/base.html' %}
 
 {% block content %}
+
+{% load static %}
+<script src="{% static 'js/datatables_common.js' %}"></script>
+{% block datatables_ajax %}{% endblock %}
+
+
+<script>
+    // Универсальная функция для модального окна удаления
+let currentDeleteData = null;
+
+function openDeleteModal(objectId, objectName, modalType) {
+    currentDeleteData = {
+        id: objectId,
+        name: objectName,
+        type: modalType
+    };
+
+    document.getElementById('deleteObjectName').textContent = objectName;
+
+    const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+}
+
+function confirmDelete() {
+    if (!currentDeleteData) return;
+
+    let deleteUrl;
+    if (currentDeleteData.type === 'delete_archaeological_heritage_site') {
+        deleteUrl = `/archaeological_heritage_sites_delete/${currentDeleteData.id}/`;
+    } else if (currentDeleteData.type === 'delete_identified_site') {
+        deleteUrl = `/identified_archaeological_heritage_sites_delete/${currentDeleteData.id}/`;
+    } else {
+        console.error('Unknown delete type:', currentDeleteData.type);
+        return;
+    }
+
+    const form = document.getElementById('deleteForm');
+    form.action = deleteUrl;
+    form.submit();
+}
+
+// Универсальная конфигурация DataTable
+function setupHeritageDataTable(config) {
+    $(document).ready(function() {
+        const tableConfig = {
+            "ajax": {
+                "url": config.url,
+                "type": "POST",
+                "headers": {
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                "data": function (d) {
+                    d.custom_search = JSON.stringify(config.getFilters());
+                },
+                "dataSrc": "data",
+                "error": function (xhr, error, thrown) {
+                    console.log("DataTables AJAX error:", error);
+                    console.log("XHR status:", xhr.status);
+                    console.log("XHR response:", xhr.responseText);
+                }
+            },
+            "columns": config.columns,
+            "filterConfigs": config.filterConfigs
+        };
+
+        setupDataTable(tableConfig);
+    });
+}
+</script>
+
 <br>
 <h2 align="center">{{ title }}</h2>
 <br>
@@ -218,3 +288,4 @@
         ];
     {% endblock %}
 </script>
+

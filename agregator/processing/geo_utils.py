@@ -1,5 +1,7 @@
 import math
 import re
+import traceback
+
 from pyproj import Proj, transform
 
 from agregator.processing.utils import str_is_float
@@ -105,6 +107,8 @@ def determine_regional_msk(coords):
     2. Затем проверяем МСК-24 (более крупные зоны)
     3. Если не попали - расчёт проводится в WGS-84
     """
+    if len(coords) != 2:
+        return "wgs84"
 
     latitude, longitude = coords
 
@@ -185,7 +189,7 @@ def wgs84_polygon_area(coords):
     for i in range(n):
         if len(coords[i]) != 2:
             continue
-        elif None in coords[i]:
+        elif None in coords[i] or None in coords[(i + 1) % n] or len(coords[i]) == 0 or len(coords[(i + 1) % n]) == 0:
             continue
 
         lat1, lon1 = coords[i]
@@ -241,21 +245,26 @@ def msk_polygon_area(coords, coordinates_system):
 
 def calculate_polygons_area(coordinates: dict):
     for key in coordinates.keys():
-        if any([catalog_type in key.lower() for catalog_type in ('каталог', 'участок')]) and 'coordinate_system' in \
-                coordinates[key] and coordinates[key][
-            'coordinate_system'] == 'wgs84':
-            if sum(1 for elem in coordinates[key] if elem not in {'coordinate_system', 'area'}) > 2:
-                coordinates_extracted = [[float(coord) for coord in value if str_is_float(coord)] for key, value in
-                                         list(coordinates[key].items()) if key not in ('coordinate_system', 'area')]
-                coordinates_system = [determine_regional_msk(elem) for elem in coordinates_extracted]
-                print('all area coordinates_system: ' + str(coordinates_system))
-                coordinates_system = coordinates_system[0] if all(
-                    [coordinates_system[i] == coordinates_system[i + 1] for i in
-                     range(len(coordinates_system) - 1)]) and coordinates_system[0] else 'wgs84'
-                print('area coordinates_system: ' + coordinates_system)
-                if coordinates_system == 'wgs84':
-                    coordinates[key]['area'] = wgs84_polygon_area(coordinates_extracted)
-                else:
-                    coordinates[key]['area'] = msk_polygon_area(coordinates_extracted, coordinates_system)
-            elif 'area' in coordinates[key]:
-                del coordinates[key]['area']
+        try:
+            if any([catalog_type in key.lower() for catalog_type in ('каталог', 'участок')]) and 'coordinate_system' in \
+                    coordinates[key] and coordinates[key][
+                'coordinate_system'] == 'wgs84':
+                if sum(1 for elem in coordinates[key] if elem not in {'coordinate_system', 'area'}) > 2:
+                    coordinates_extracted = [[float(coord) for coord in value if str_is_float(coord)] for key, value in
+                                             list(coordinates[key].items()) if key not in ('coordinate_system', 'area')]
+                    coordinates_system = [determine_regional_msk(elem) for elem in coordinates_extracted]
+                    print('all area coordinates_system: ' + str(coordinates_system))
+                    coordinates_system = coordinates_system[0] if all(
+                        [coordinates_system[i] == coordinates_system[i + 1] for i in
+                         range(len(coordinates_system) - 1)]) and coordinates_system[0] else 'wgs84'
+                    print('area coordinates_system: ' + coordinates_system)
+                    if coordinates_system == 'wgs84':
+                        coordinates[key]['area'] = wgs84_polygon_area(coordinates_extracted)
+                    else:
+                        coordinates[key]['area'] = msk_polygon_area(coordinates_extracted, coordinates_system)
+                elif 'area' in coordinates[key]:
+                    del coordinates[key]['area']
+        except Exception as e:
+            print(f'Ошибка при обработке координат: {e}')
+            traceback.print_exc()
+            continue

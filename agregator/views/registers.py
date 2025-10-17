@@ -205,9 +205,8 @@ def archaeological_heritage_sites_register(request):
         scan_task = process_oan_list.delay()
         scan_task_id = scan_task.id
         is_processing = True
-    oan = ArchaeologicalHeritageSite.objects.all()
     return render(request, 'archaeological_heritage_site_register.html',
-                  {'oan': oan, 'is_processing': is_processing, 'scan_task_id': scan_task_id,
+                  {'is_processing': is_processing, 'scan_task_id': scan_task_id,
                    'active_scan_task': active_scan_task})
 
 
@@ -219,10 +218,12 @@ def identified_archaeological_heritage_sites_register(request):
         scan_task = process_voan_list.delay()
         scan_task_id = scan_task.id
         is_processing = True
-    voan = IdentifiedArchaeologicalHeritageSite.objects.all()
-    return render(request, 'identified_archaeological_heritage_site_register.html',
-                  {'voan': voan, 'is_processing': is_processing, 'scan_task_id': scan_task_id,
-                   'active_scan_task': active_scan_task})
+
+    return render(request, 'identified_archaeological_heritage_site_register.html', {
+        'is_processing': is_processing,
+        'scan_task_id': scan_task_id,
+        'active_scan_task': active_scan_task
+    })
 
 
 def account_cards_register_download(request):

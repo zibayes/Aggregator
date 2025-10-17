@@ -192,10 +192,13 @@ urlpatterns = [
     path('kodexplorer-proxy/', kodexplorer_proxy, name='kodexplorer_proxy'),
 
     # DataTables API endpoints
-    path('api/acts_datatable/', datatable_views.acts_datatable, name='acts_datatable'),
-    path('api/scientific_reports_datatable/', datatable_views.scientific_reports_datatable,
-         name='scientific_reports_datatable'),
-    # path('api/tech_reports_datatable/', datatable_views.tech_reports_datatable, name='tech_reports_datatable'),
-    # path('api/account_cards_datatable/', datatable_views.account_cards_datatable, name='account_cards_datatable'),
-    # path('api/open_lists_datatable/', datatable_views.open_lists_datatable, name='open_lists_datatable'),
+    path('api/archaeological_heritage_sites_datatable/',
+         datatable_views.universal_heritage_sites_datatable,
+         {'site_type': 'archaeological'},
+         name='archaeological_heritage_sites_datatable'),
+
+    path('api/identified_archaeological_heritage_sites_datatable/',
+         datatable_views.universal_heritage_sites_datatable,
+         {'site_type': 'identified'},
+         name='identified_archaeological_heritage_sites_datatable'),
 ]
