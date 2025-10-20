@@ -17,6 +17,22 @@ from .wopi.views import generate_wopi_token
 
 class FilePreviewMiddleware(MiddlewareMixin):
     def process_request(self, request):
+        # ИСКЛЮЧАЕМ URL-ы детальных страниц из обработки
+        excluded_paths = [
+            '/tech_reports/',
+            '/scientific_reports/',
+            '/acts/',
+            '/open_lists/',
+            '/account_cards/',
+            '/archaeological_heritage_sites/',
+            '/identified_archaeological_heritage_sites/',
+        ]
+
+        # Если путь начинается с исключенного префикса - пропускаем
+        for excluded_path in excluded_paths:
+            if request.path.startswith(excluded_path):
+                return None
+
         # Проверяем, что запрос идет к медиафайлам
         if request.path.startswith(settings.MEDIA_URL):
             # Если запрошено скачивание - пропускаем

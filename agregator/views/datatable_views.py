@@ -106,7 +106,7 @@ def universal_datatable(request, register_type):
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
                 ],
                 'name_field': 'name',
-                'edit_url': 'edit_scientific_report',
+                'edit_url': 'scientific_reports_edit',
                 'view_url': 'scientific_reports',
                 'delete_modal_id': 'delete_scientific_report'
             },
@@ -116,6 +116,7 @@ def universal_datatable(request, register_type):
                     {'field': 'name', 'searchable': True, 'orderable': True},
                     {'field': 'organization', 'searchable': True, 'orderable': True},
                     {'field': 'author', 'searchable': True, 'orderable': True},
+                    {'field': 'open_list', 'searchable': True, 'orderable': True},
                     {'field': 'writing_date', 'searchable': True, 'orderable': True},
                     {'field': 'user__username', 'searchable': True, 'orderable': True},
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
@@ -125,7 +126,77 @@ def universal_datatable(request, register_type):
                 'edit_url': 'tech_reports_edit',
                 'view_url': 'tech_reports',
                 'delete_modal_id': 'delete_tech_report'
-            }
+            },
+            'open_lists': {
+                'model': 'OpenLists',
+                'columns': [
+                    {'field': 'number', 'searchable': True, 'orderable': True},
+                    {'field': 'holder', 'searchable': True, 'orderable': True},
+                    {'field': 'object', 'searchable': True, 'orderable': True},
+                    {'field': 'works', 'searchable': True, 'orderable': True},
+                    {'field': 'start_date', 'searchable': True, 'orderable': True},
+                    {'field': 'end_date', 'searchable': True, 'orderable': True},
+                    {'field': 'user__username', 'searchable': True, 'orderable': True},
+                    {'field': 'upload_source', 'searchable': True, 'orderable': True},
+                    {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
+                ],
+                'name_field': 'number',
+                'edit_url': 'open_lists_edit',
+                'view_url': 'open_lists',
+                'delete_modal_id': 'delete_open_list'
+            },
+            'account_cards': {
+                'model': 'ObjectAccountCard',
+                'columns': [
+                    {'field': 'name', 'searchable': True, 'orderable': True},
+                    {'field': 'creation_time', 'searchable': True, 'orderable': True},
+                    {'field': 'address', 'searchable': True, 'orderable': True},
+                    {'field': 'object_type', 'searchable': True, 'orderable': True},
+                    {'field': 'general_classification', 'searchable': True, 'orderable': True},
+                    {'field': 'description', 'searchable': True, 'orderable': True},
+                    {'field': 'usage', 'searchable': True, 'orderable': True},
+                    {'field': 'discovery_info', 'searchable': True, 'orderable': True},
+                    {'field': 'compiler', 'searchable': True, 'orderable': True},
+                    {'field': 'compile_date', 'searchable': True, 'orderable': True},
+                    {'field': 'user__username', 'searchable': True, 'orderable': True},
+                    {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
+                    {'field': 'upload_source', 'searchable': True, 'orderable': True},
+                ],
+                'name_field': 'name',
+                'edit_url': 'account_cards_edit',
+                'view_url': 'account_cards',
+                'delete_modal_id': 'delete_account_card'
+            },
+            'commercial_offers': {
+                'model': 'CommercialOffers',
+                'columns': [
+                    {'field': 'origin_filename', 'searchable': True, 'orderable': True},
+                    {'field': 'upload_source', 'searchable': True, 'orderable': True},
+                    {'field': 'user__username', 'searchable': True, 'orderable': True},
+                    {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
+                    {'field': 'id', 'searchable': False, 'orderable': False},  # Для колонки "Координаты"
+                    {'field': 'id', 'searchable': False, 'orderable': False},  # Для колонки "Редактирование"
+                ],
+                'name_field': 'origin_filename',
+                'edit_url': 'commercial_offers_edit',
+                'view_url': 'map/commercial_offer',
+                'delete_modal_id': 'delete_commercial_offer'
+            },
+            'geo_objects': {
+                'model': 'GeoObject',
+                'columns': [
+                    {'field': 'origin_filename', 'searchable': True, 'orderable': True},
+                    {'field': 'upload_source', 'searchable': True, 'orderable': True},
+                    {'field': 'user__username', 'searchable': True, 'orderable': True},
+                    {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
+                    {'field': 'id', 'searchable': False, 'orderable': False},  # Для колонки "Координаты"
+                    {'field': 'id', 'searchable': False, 'orderable': False},  # Для колонки "Редактирование"
+                ],
+                'name_field': 'origin_filename',
+                'edit_url': 'geo_objects_edit',
+                'view_url': 'map/geo_object',
+                'delete_modal_id': 'delete_geo_object'
+            },
         }
 
         if register_type not in CONFIG:
@@ -163,6 +234,16 @@ def universal_datatable(request, register_type):
                     return format_act_data(obj, config)
                 elif register_type == 'scientific_reports':
                     return format_scientific_report_data(obj, config)
+                elif register_type == 'tech_reports':
+                    return format_tech_report_data(obj, config)
+                elif register_type == 'open_lists':
+                    return format_open_list_data(obj, config)
+                elif register_type == 'account_cards':
+                    return format_account_card_data(obj, config)
+                elif register_type == 'commercial_offers':
+                    return format_commercial_offer_data(obj, config)
+                elif register_type == 'geo_objects':
+                    return format_geo_object_data(obj, config)
                 else:
                     return []
             except Exception as e:
@@ -523,6 +604,7 @@ def format_tech_report_data(tech_report, config):
 
     organization = tech_report.organization or ''
     author = tech_report.author or ''
+    open_list = tech_report.open_list or ''
     writing_date = tech_report.writing_date if tech_report.writing_date else ''
 
     # Владелец документа
@@ -550,7 +632,7 @@ def format_tech_report_data(tech_report, config):
 
     # Формализованный документ
     formalized_doc_cell = f'''
-    <a href="/tech_reports/{tech_report.id}/">
+    <a href="/{config["view_url"]}/{tech_report.id}/">
         <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
             Просмотр отчёта
         </button>
@@ -581,6 +663,7 @@ def format_tech_report_data(tech_report, config):
         name_cell,
         organization,
         author,
+        open_list,
         writing_date,
         owner_cell,
         source_cell,
@@ -594,3 +677,305 @@ def format_tech_report_data(tech_report, config):
 @csrf_exempt
 def tech_reports_datatable(request):
     return universal_datatable(request, 'tech_reports')
+
+
+def format_open_list_data(open_list, config):
+    """Форматирование данных для открытых листов"""
+
+    # Основные данные
+    number_cell = open_list.number or ''
+    if hasattr(open_list, 'id'):
+        number_cell = f'<a href="/open_lists/{open_list.id}/" target="_blank">{open_list.number}</a>'
+
+    holder = open_list.holder or ''
+    object_text = open_list.object or ''
+    works = open_list.works or ''
+    start_date = open_list.start_date if open_list.start_date else ''
+    end_date = open_list.end_date if open_list.end_date else ''
+
+    # Владелец документа
+    owner_cell = ''
+    if open_list.user:
+        avatar_url = open_list.user.avatar.url if open_list.user.avatar else '/static/images/default-avatar.png'
+        owner_cell = f'''
+        <a href="/users/{open_list.user.id}" target="_blank">
+            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+            {open_list.user.username}
+        </a>
+        '''
+
+    # Источник
+    source_cell = ''
+    if hasattr(open_list, 'upload_source_dict'):
+        source_dict = open_list.upload_source_dict
+        if source_dict and source_dict.get('link'):
+            source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
+        elif source_dict:
+            source_cell = source_dict.get('source', '')
+
+    # Дата загрузки
+    date_uploaded = open_list.date_uploaded.strftime('%Y-%m-%d %H:%M') if open_list.date_uploaded else ''
+
+    # Формализованный документ
+    formalized_doc_cell = f'''
+    <a href="/open_lists/{open_list.id}/">
+        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
+            Просмотр открытого листа
+        </button>
+    </a>
+    '''
+
+    # Исходный документ
+    original_doc_cell = ''
+    if hasattr(open_list, 'source_dict') and open_list.source_dict:
+        for source in open_list.source_dict:
+            if source.get('path'):
+                original_doc_cell += f'<a href="/{source["path"]}" target="_blank">{source.get("origin_filename", "Документ")}</a><br>'
+
+    # Кнопки действий
+    actions_cell = f'''
+    <td>
+        <a href="/open_lists_edit/{open_list.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+            Редактировать
+        </a>
+        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                onclick="openDeleteModal({open_list.id}, '{open_list.number.replace("'", "\\'") if open_list.number else "Открытый лист".replace("'", "\\'")}', 'delete_open_list')">
+            Удалить
+        </button>
+    </td>
+    '''
+
+    return [
+        number_cell,
+        holder,
+        object_text,
+        works,
+        start_date,
+        end_date,
+        owner_cell,
+        source_cell,
+        date_uploaded,
+        formalized_doc_cell,
+        original_doc_cell,
+        actions_cell
+    ]
+
+
+@csrf_exempt
+def open_lists_datatable(request):
+    return universal_datatable(request, 'open_lists')
+
+
+def format_account_card_data(account_card, config):
+    """Форматирование данных для учётных карт"""
+
+    # Основные данные
+    name_cell = account_card.name or ''
+    if hasattr(account_card, 'id'):
+        name_cell = f'<a href="/account_cards/{account_card.id}/" target="_blank">{account_card.name}</a>'
+
+    creation_time = account_card.creation_time if account_card.creation_time else ''
+    address = account_card.address or ''
+    object_type = account_card.object_type or ''
+    general_classification = account_card.general_classification or ''
+    description = account_card.description or ''
+    usage = account_card.usage or ''
+    discovery_info = account_card.discovery_info or ''
+    compiler = account_card.compiler or ''
+    compile_date = account_card.compile_date if account_card.compile_date else ''
+
+    # Владелец документа
+    owner_cell = ''
+    if account_card.user:
+        avatar_url = account_card.user.avatar.url if account_card.user.avatar else '/static/images/default-avatar.png'
+        owner_cell = f'''
+        <a href="/users/{account_card.user.id}" target="_blank">
+            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+            {account_card.user.username}
+        </a>
+        '''
+
+    # Дата загрузки
+    date_uploaded = account_card.date_uploaded.strftime('%Y-%m-%d %H:%M') if account_card.date_uploaded else ''
+
+    # Источник
+    source_cell = ''
+    if hasattr(account_card, 'upload_source_dict'):
+        source_dict = account_card.upload_source_dict
+        if source_dict and source_dict.get('link'):
+            source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
+        elif source_dict:
+            source_cell = source_dict.get('source', '')
+
+    # Формализованный документ
+    formalized_doc_cell = f'''
+    <a href="/account_cards/{account_card.id}/">
+        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
+            Просмотр учётной карты
+        </button>
+    </a>
+    '''
+
+    # Исходный документ
+    original_doc_cell = ''
+    if hasattr(account_card, 'source_dict') and account_card.source_dict:
+        for source in account_card.source_dict:
+            if source.get('path'):
+                original_doc_cell += f'<a href="/{source["path"]}" target="_blank">{source.get("origin_filename", "Документ")}</a><br>'
+
+    # Кнопки действий
+    actions_cell = f'''
+    <td>
+        <a href="/account_cards_edit/{account_card.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+            Редактировать
+        </a>
+        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                onclick="openDeleteModal({account_card.id}, '{account_card.name.replace("'", "\\'") if account_card.name else "Учётная карта".replace("'", "\\'")}', 'delete_account_card')">
+            Удалить
+        </button>
+    </td>
+    '''
+
+    return [
+        name_cell,
+        creation_time,
+        address,
+        object_type,
+        general_classification,
+        description,
+        usage,
+        discovery_info,
+        compiler,
+        compile_date,
+        owner_cell,
+        date_uploaded,
+        source_cell,
+        formalized_doc_cell,
+        original_doc_cell,
+        actions_cell
+    ]
+
+
+@csrf_exempt
+def account_cards_datatable(request):
+    return universal_datatable(request, 'account_cards')
+
+
+def format_commercial_offer_data(commercial_offer, config):
+    """Форматирование данных для коммерческих предложений"""
+
+    # Исходный документ
+    origin_filename = commercial_offer.origin_filename or ''
+    source_path = commercial_offer.source
+    first_cell = f'<a href="/{source_path}">{origin_filename}</a>' if source_path else origin_filename
+
+    # Источник
+    source_cell = ''
+    if hasattr(commercial_offer, 'upload_source_dict'):
+        source_dict = commercial_offer.upload_source_dict
+        source_cell = source_dict.get('source', '') if source_dict else ''
+
+    # Владелец документа
+    owner_cell = ''
+    if commercial_offer.user:
+        avatar_url = commercial_offer.user.avatar.url if commercial_offer.user.avatar else '/static/images/default-avatar.png'
+        owner_cell = f'''
+        <a href="/users/{commercial_offer.user.id}" target="_blank">
+            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+            {commercial_offer.user.username}
+        </a>
+        '''
+
+    # Дата загрузки
+    date_uploaded = commercial_offer.date_uploaded.strftime('%Y-%m-%d %H:%M') if commercial_offer.date_uploaded else ''
+
+    # Координаты (кнопка просмотра)
+    coordinates_cell = f'''
+    <a href="/{config["view_url"]}/{commercial_offer.id}/">
+        <button type="button" class="btn btn-primary" style="border-radius: 12px;">
+            Просмотр
+        </button>
+    </a>
+    '''
+
+    # Кнопки действий
+    actions_cell = f'''
+    <td>
+        <a href="/{config["edit_url"]}/{commercial_offer.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+            Редактировать
+        </a>
+        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                onclick="openDeleteModal({commercial_offer.id}, '{origin_filename.replace("'", "\\'")}', '{config["delete_modal_id"]}')">
+            Удалить
+        </button>
+    </td>
+    '''
+
+    return [
+        first_cell,
+        source_cell,
+        owner_cell,
+        date_uploaded,
+        coordinates_cell,
+        actions_cell
+    ]
+
+
+def format_geo_object_data(geo_object, config):
+    """Форматирование данных для географических объектов"""
+
+    # Исходный документ
+    origin_filename = geo_object.origin_filename or ''
+    source_path = geo_object.source
+    first_cell = f'<a href="/{source_path}">{origin_filename}</a>' if source_path else origin_filename
+
+    # Источник
+    source_cell = ''
+    if hasattr(geo_object, 'upload_source_dict'):
+        source_dict = geo_object.upload_source_dict
+        source_cell = source_dict.get('source', '') if source_dict else ''
+
+    # Владелец документа
+    owner_cell = ''
+    if geo_object.user:
+        avatar_url = geo_object.user.avatar.url if geo_object.user.avatar else '/static/images/default-avatar.png'
+        owner_cell = f'''
+        <a href="/users/{geo_object.user.id}" target="_blank">
+            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+            {geo_object.user.username}
+        </a>
+        '''
+
+    # Дата загрузки
+    date_uploaded = geo_object.date_uploaded.strftime('%Y-%m-%d %H:%M') if geo_object.date_uploaded else ''
+
+    # Координаты (кнопка просмотра)
+    coordinates_cell = f'''
+    <a href="/{config["view_url"]}/{geo_object.id}/">
+        <button type="button" class="btn btn-primary" style="border-radius: 12px;">
+            Просмотр
+        </button>
+    </a>
+    '''
+
+    # Кнопки действий
+    actions_cell = f'''
+    <td>
+        <a href="/{config["edit_url"]}/{geo_object.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+            Редактировать
+        </a>
+        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                onclick="openDeleteModal({geo_object.id}, '{origin_filename.replace("'", "\\'")}', '{config["delete_modal_id"]}')">
+            Удалить
+        </button>
+    </td>
+    '''
+
+    return [
+        first_cell,
+        source_cell,
+        owner_cell,
+        date_uploaded,
+        coordinates_cell,
+        actions_cell
+    ]

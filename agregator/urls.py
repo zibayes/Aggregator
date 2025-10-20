@@ -209,4 +209,12 @@ urlpatterns = [
          name='scientific_reports_datatable'),
     path('api/tech_reports_datatable/', datatable_views.universal_datatable, {'register_type': 'tech_reports'},
          name='tech_reports_datatable'),
+    path('api/open_lists_datatable/', datatable_views.universal_datatable,
+         {'register_type': 'open_lists'}, name='open_lists_datatable'),
+    path('api/account_cards_datatable/', datatable_views.universal_datatable,
+         {'register_type': 'account_cards'}, name='account_cards_datatable'),
+    path('api/commercial_offers_datatable/', datatable_views.universal_datatable,
+         {'register_type': 'commercial_offers'}, name='commercial_offers_datatable'),
+    path('api/geo_objects_datatable/', datatable_views.universal_datatable,
+         {'register_type': 'geo_objects'}, name='geo_objects_datatable'),
 ]

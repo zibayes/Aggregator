@@ -120,6 +120,42 @@ class DataTableServerSide:
 
         print(f"Queryset count after storage filter: {queryset.count()}", file=sys.stderr)
 
+        # ФИЛЬТРЫ ДЛЯ УЧЁТНЫХ КАРТ
+        if custom_search.get('name'):
+            queryset = queryset.filter(name__icontains=custom_search['name'])
+        if custom_search.get('creation_time'):
+            queryset = queryset.filter(creation_time__icontains=custom_search['creation_time'])
+        if custom_search.get('address'):
+            queryset = queryset.filter(address__icontains=custom_search['address'])
+        if custom_search.get('object_type'):
+            queryset = queryset.filter(object_type__icontains=custom_search['object_type'])
+        if custom_search.get('general_classification'):
+            queryset = queryset.filter(general_classification__icontains=custom_search['general_classification'])
+        if custom_search.get('description'):
+            queryset = queryset.filter(description__icontains=custom_search['description'])
+        if custom_search.get('usage'):
+            queryset = queryset.filter(usage__icontains=custom_search['usage'])
+        if custom_search.get('discovery_info'):
+            queryset = queryset.filter(discovery_info__icontains=custom_search['discovery_info'])
+        if custom_search.get('compiler'):
+            queryset = queryset.filter(compiler__icontains=custom_search['compiler'])
+        if custom_search.get('compile_date'):
+            queryset = queryset.filter(compile_date__icontains=custom_search['compile_date'])
+
+        # Фильтры для открытых листов
+        if custom_search.get('number'):
+            queryset = queryset.filter(number__icontains=custom_search['number'])
+        if custom_search.get('holder'):
+            queryset = queryset.filter(holder__icontains=custom_search['holder'])
+        if custom_search.get('object'):
+            queryset = queryset.filter(object__icontains=custom_search['object'])
+        if custom_search.get('works'):
+            queryset = queryset.filter(works__icontains=custom_search['works'])
+        if custom_search.get('start_date'):
+            queryset = queryset.filter(start_date__icontains=custom_search['start_date'])
+        if custom_search.get('end_date'):
+            queryset = queryset.filter(end_date__icontains=custom_search['end_date'])
+
         # Фильтры для научных отчетов
         if custom_search.get('name'):
             queryset = queryset.filter(name__icontains=custom_search['name'])

@@ -3,169 +3,159 @@
 {% block title %}Реестр открытых листов{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item active" aria-current="page">Реестр открытых листов</li>
+<li class="breadcrumb-item active" aria-current="page">Реестр открытых листов</li>
 {% endblock %}
 
 {% block column_toggles %}
-    <div data-columns-count="12">
-        <label><input type="checkbox" class="column-toggle" data-column="0" checked> Номер листа</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="1" checked> Держатель</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="2" checked> Объект</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="3" checked> Работы</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="4" checked> Начало срока</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="5" checked> Конец срока</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="6" checked> Владелец документа</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="7" checked> Источник</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="8" checked> Дата загрузки</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="9" checked> Формализованный
-            документ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="10" checked> Исходный документ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="11" checked> Редактирование</label><br>
-    </div>
+<div data-columns-count="12">
+    <label><input type="checkbox" class="column-toggle" data-column="0" checked> Номер листа</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="1" checked> Держатель</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="2" checked> Объект</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="3" checked> Работы</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="4" checked> Начало срока</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="5" checked> Конец срока</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="6" checked> Владелец документа</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="7" checked> Источник</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Дата загрузки</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="9" checked> Формализованный документ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="10" checked> Исходный документ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="11" checked> Редактирование</label><br>
+</div>
 {% endblock %}
 
 {% block filter_form %}
-    <div class="mb-3" id="filterNumberContainer">
-        <label for="filterNumber" class="form-label">Номер листа</label>
-        <input type="text" class="form-control" id="filterNumber" placeholder="Введите номер листа">
-    </div>
-    <div class="mb-3" id="filterHolderContainer">
-        <label for="filterHolder" class="form-label">Держатель</label>
-        <input type="text" class="form-control" id="filterHolder" placeholder="Введите держателя">
-    </div>
-    <div class="mb-3" id="filterObjectContainer">
-        <label for="filterObject" class="form-label">Объект</label>
-        <input type="text" class="form-control" id="filterObject" placeholder="Введите объект">
-    </div>
-    <div class="mb-3" id="filterWorksContainer">
-        <label for="filterWorks" class="form-label">Работы</label>
-        <input type="text" class="form-control" id="filterWorks" placeholder="Введите работы">
-    </div>
-    <div class="mb-3" id="filterStartDateContainer">
-        <label for="filterStartDate" class="form-label">Начало срока</label>
-        <input type="text" class="form-control" id="filterStartDate" placeholder="Введите начало срока">
-    </div>
-    <div class="mb-3" id="filterEndDateContainer">
-        <label for="filterEndDate" class="form-label">Конец срока</label>
-        <input type="text" class="form-control" id="filterEndDate" placeholder="Введите конец срока">
-    </div>
-    <div class="mb-3" id="filterOwnerContainer">
-        <label for="filterOwner" class="form-label">Владелец документа</label>
-        <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
-    </div>
-    <div class="mb-3" id="filterSourceContainer">
-        <label for="filterSource" class="form-label">Источник</label>
-        <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
-    </div>
-    <div class="mb-3" id="filterDateUploadedContainer">
-        <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
-        <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
-    </div>
+<div class="mb-3" id="filterNumberContainer">
+    <label for="filterNumber" class="form-label">Номер листа</label>
+    <input type="text" class="form-control" id="filterNumber" placeholder="Введите номер листа">
+</div>
+<div class="mb-3" id="filterHolderContainer">
+    <label for="filterHolder" class="form-label">Держатель</label>
+    <input type="text" class="form-control" id="filterHolder" placeholder="Введите держателя">
+</div>
+<div class="mb-3" id="filterObjectContainer">
+    <label for="filterObject" class="form-label">Объект</label>
+    <input type="text" class="form-control" id="filterObject" placeholder="Введите объект">
+</div>
+<div class="mb-3" id="filterWorksContainer">
+    <label for="filterWorks" class="form-label">Работы</label>
+    <input type="text" class="form-control" id="filterWorks" placeholder="Введите работы">
+</div>
+<div class="mb-3" id="filterStartDateContainer">
+    <label for="filterStartDate" class="form-label">Начало срока</label>
+    <input type="text" class="form-control" id="filterStartDate" placeholder="Введите начало срока">
+</div>
+<div class="mb-3" id="filterEndDateContainer">
+    <label for="filterEndDate" class="form-label">Конец срока</label>
+    <input type="text" class="form-control" id="filterEndDate" placeholder="Введите конец срока">
+</div>
+<div class="mb-3" id="filterOwnerContainer">
+    <label for="filterOwner" class="form-label">Владелец документа</label>
+    <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
+</div>
+<div class="mb-3" id="filterSourceContainer">
+    <label for="filterSource" class="form-label">Источник</label>
+    <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
+</div>
+<div class="mb-3" id="filterDateUploadedContainer">
+    <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+    <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
+</div>
 {% endblock %}
 
 {% block download_link %}
-    <a href="/open_lists_register_download/">Скачать реестр в формате .xlsx</a>
+<a href="/open_lists_register_download/">Скачать реестр в формате .xlsx</a>
 {% endblock %}
 
 {% block table_headers %}
-    <th>Номер листа</th>
-    <th>Держатель</th>
-    <th>Объект</th>
-    <th>Работы</th>
-    <th>Начало срока</th>
-    <th>Конец срока</th>
-    <th>Владелец документа</th>
-    <th>Источник</th>
-    <th>Дата загрузки</th>
-    <th>Формализованный документ</th>
-    <th>Исходный документ</th>
-    <th>Редактирование</th>
+<th>Номер листа</th>
+<th>Держатель</th>
+<th>Объект</th>
+<th>Работы</th>
+<th>Начало срока</th>
+<th>Конец срока</th>
+<th>Владелец документа</th>
+<th>Источник</th>
+<th>Дата загрузки</th>
+<th>Формализованный документ</th>
+<th>Исходный документ</th>
+<th>Редактирование</th>
 {% endblock %}
 
 {% block table_body %}
-    {% for open_list in open_lists %}
-        <tr data-number="{{ open_list.number|default:'' }}"
-            data-act-id="{{ open_list.id }}"
-            data-user-id="{{ open_list.user.id }}"
-            data-holder="{{ open_list.holder|default:'' }}"
-            data-object="{{ open_list.object|default:'' }}"
-            data-works="{{ open_list.works|default:'' }}"
-            data-start_date="{{ open_list.start_date|default:'' }}"
-            data-end_date="{{ open_list.end_date|default:'' }}"
-            data-source="{{ open_list.upload_source_dict.source|default:'' }}"
-            data-date_uploaded="{{ open_list.date_uploaded|default:'' }}"
-            data-owner="{{ open_list.user.username|default:'' }}"
-            data-is-public="{{ open_list.is_public }}">
-            <td>{{ open_list.number }}</td>
-            <td>{{ open_list.holder }}</td>
-            <td>{{ open_list.object }}</td>
-            <td>{{ open_list.works }}</td>
-            <td>{{ open_list.start_date }}</td>
-            <td>{{ open_list.end_date }}</td>
-            <td>
-                <a href="/users/{{ open_list.user.id }}">
-                    <img src="{{ open_list.user.avatar.url }}" class="rounded-circle" height="25" width="25"
-                         loading="lazy" style="object-fit: cover;" alt=""/>
-                    {{ open_list.user.username }}
-                </a>
-            </td>
-            <td>
-                <a{% if open_list.upload_source_dict.link %} href="{{ open_list.upload_source_dict.link }}" {% endif %}>
-                    {{ open_list.upload_source_dict.source }}
-                </a>
-            </td>
-            <td>{{ open_list.date_uploaded }}</td>
-            <td>
-                {% include 'includes/buttons/view_button.html' with object_type='open_list' object=open_list %}
-            </td>
-            <td>
-                <a href="/uploaded_files/{{ open_list.source }}">
-                    {{ open_list.origin_filename }}
-                </a>
-            </td>
-            {% include 'includes/buttons/action_buttons.html' with object_type='open_list' object=open_list %}
-        </tr>
-    {% endfor %}
+<div id="debug-info" style="display: none;">
+    <p>URL API: {% url 'open_lists_datatable' %}</p>
+    <p>User: {{ user.username }}</p>
+    <p>Authenticated: {{ user.is_authenticated }}</p>
+</div>
+<!-- Данные будут загружаться через AJAX -->
 {% endblock %}
 
 {% block modal_dialogs %}
-    {% for open_list in open_lists %}
-        {% include 'includes/modal_delete.html' with object_type='open_list' object_name='открытый лист' object=open_list %}
-    {% endfor %}
+<!-- Единое модальное окно для удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Удаление открытого листа</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Вы уверены, что хотите удалить открытый лист "<span id="deleteObjectName"></span>"?
+                <form id="deleteForm" method="post" style="display: none;">
+                    {% csrf_token %}
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
-{% block filter_script %}
-    const numberFilter = document.getElementById('filterNumber').value.trim().toLowerCase();
-    const holderFilter = document.getElementById('filterHolder').value.trim().toLowerCase();
-    const objectFilter = document.getElementById('filterObject').value.trim().toLowerCase();
-    const worksFilter = document.getElementById('filterWorks').value.trim().toLowerCase();
-    const startDateFilter = document.getElementById('filterStartDate').value.trim().toLowerCase();
-    const endDateFilter = document.getElementById('filterEndDate').value.trim().toLowerCase();
-    const ownerFilter = document.getElementById('filterOwner').value.trim().toLowerCase();
-    const sourceFilter = document.getElementById('filterSource').value.trim().toLowerCase();
-    const dateUploadedFilter = document.getElementById('filterDateUploaded').value.trim().toLowerCase();
-{% endblock %}
+{% block datatables_ajax %}
+<script>
+    // Ждем полной загрузки DOM
+    document.addEventListener("DOMContentLoaded", function() {
+        window.usesAjax = true;
 
-{% block filter_logic %}
-    const numberText = row.dataset.number ? row.dataset.number.toLowerCase() : '';
-    const holderText = row.dataset.holder ? row.dataset.holder.toLowerCase() : '';
-    const objectText = row.dataset.object ? row.dataset.object.toLowerCase() : '';
-    const worksText = row.dataset.works ? row.dataset.works.toLowerCase() : '';
-    const startDateText = row.dataset.start_date ? row.dataset.start_date.toLowerCase() : '';
-    const endDateText = row.dataset.end_date ? row.dataset.end_date.toLowerCase() : '';
-    const ownerText = row.dataset.owner ? row.dataset.owner.toLowerCase() : '';
-    const sourceText = row.dataset.source ? row.dataset.source.toLowerCase() : '';
-    const dateUploadedText = row.dataset.date_uploaded ? row.dataset.date_uploaded.toLowerCase() : '';
-{% endblock %}
+        // Конфигурация для открытых листов
+        const openListsConfig = {
+            url: "{% url 'open_lists_datatable' %}",
+            getFilters: function() {
+                const filters = {
+                    number: $('#filterNumber').val(),
+                    holder: $('#filterHolder').val(),
+                    object: $('#filterObject').val(),
+                    works: $('#filterWorks').val(),
+                    start_date: $('#filterStartDate').val(),
+                    end_date: $('#filterEndDate').val(),
+                    owner: $('#filterOwner').val(),
+                    source: $('#filterSource').val(),
+                    date_uploaded: $('#filterDateUploaded').val()
+                };
+                console.log('Open Lists filters:', filters);
+                return filters;
+            },
+            columns: [
+                { "data": 0, "name": "number", "orderable": true, "searchable": true, "title": "Номер листа" },
+                { "data": 1, "name": "holder", "orderable": true, "searchable": true, "title": "Держатель" },
+                { "data": 2, "name": "object", "orderable": true, "searchable": true, "title": "Объект" },
+                { "data": 3, "name": "works", "orderable": true, "searchable": true, "title": "Работы" },
+                { "data": 4, "name": "start_date", "orderable": true, "searchable": true, "title": "Начало срока" },
+                { "data": 5, "name": "end_date", "orderable": true, "searchable": true, "title": "Конец срока" },
+                { "data": 6, "name": "owner", "orderable": true, "searchable": true, "title": "Владелец документа" },
+                { "data": 7, "name": "source", "orderable": true, "searchable": true, "title": "Источник" },
+                { "data": 8, "name": "date_uploaded", "orderable": true, "searchable": true, "title": "Дата загрузки" },
+                { "data": 9, "name": "formalized_document", "orderable": false, "searchable": false, "title": "Формализованный документ" },
+                { "data": 10, "name": "original_document", "orderable": false, "searchable": false, "title": "Исходный документ" },
+                { "data": 11, "name": "actions", "orderable": false, "searchable": false, "title": "Редактирование" }
+            ]
+        };
 
-{% block filter_conditions %}
-    (numberFilter === '' || numberText.includes(numberFilter)) &&
-    (holderFilter === '' || holderText.includes(holderFilter)) &&
-    (objectFilter === '' || objectText.includes(objectFilter)) &&
-    (worksFilter === '' || worksText.includes(worksFilter)) &&
-    (startDateFilter === '' || startDateText.includes(startDateFilter)) &&
-    (endDateFilter === '' || endDateText.includes(endDateFilter)) &&
-    (ownerFilter === '' || ownerText.includes(ownerFilter)) &&
-    (sourceFilter === '' || sourceText.includes(sourceFilter)) &&
-    (dateUploadedFilter === '' || dateUploadedText.includes(dateUploadedFilter))
+        // Инициализируем DataTable
+        setupHeritageDataTable(openListsConfig);
+    });
+</script>
 {% endblock %}

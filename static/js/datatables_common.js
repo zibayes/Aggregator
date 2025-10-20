@@ -200,6 +200,18 @@ function confirmDelete() {
         deleteUrl = `/identified_archaeological_heritage_sites_delete/${currentDeleteData.id}/`;
     } else if (currentDeleteData.type === 'delete_act') {
         deleteUrl = `/acts_delete/${currentDeleteData.id}/`;
+    } else if (currentDeleteData.type === 'delete_scientific_report') {
+        deleteUrl = `/scientific_reports_delete/${currentDeleteData.id}/`;
+    } else if (currentDeleteData.type === 'delete_tech_report') {
+        deleteUrl = `/tech_reports_delete/${currentDeleteData.id}/`;
+    } else if (currentDeleteData.type === 'delete_open_list') {
+        deleteUrl = `/open_lists_delete/${currentDeleteData.id}/`;
+    } else if (currentDeleteData.type === 'delete_account_card') {
+        deleteUrl = `/account_cards_delete/${currentDeleteData.id}/`;
+    } else if (currentDeleteData.type === 'delete_commercial_offer') {
+        deleteUrl = `/commercial_offers_delete/${currentDeleteData.id}/`;
+    } else if (currentDeleteData.type === 'delete_geo_object') {
+        deleteUrl = `/geo_objects_delete/${currentDeleteData.id}/`;
     } else {
         console.error('Unknown delete type:', currentDeleteData.type);
         return;

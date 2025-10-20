@@ -4,7 +4,6 @@ services:
     volumes:
       - .:/app
       - ./kodexplorer_data/data:/kodexplorer_data/data
-      - ./supervisord_logs:/var/log
       - app_init:/app/init
     ports:
       - "8000:8000"

@@ -3,92 +3,101 @@
 {% block title %}Реестр географических объектов{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item active" aria-current="page">Реестр географических объектов</li>
+<li class="breadcrumb-item active" aria-current="page">Реестр географических объектов</li>
 {% endblock %}
 
 {% block column_toggles %}
-    <div data-columns-count="6">
-        <label><input type="checkbox" class="column-toggle" data-column="0" checked> Исходный документ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="1" checked> Источник</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="2" checked> Владелец документа</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="3" checked> Дата загрузки</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="4" checked> Координаты</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="5" checked> Редактирование</label><br>
-    </div>
+<div data-columns-count="6">
+    <label><input type="checkbox" class="column-toggle" data-column="0" checked> Исходный документ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="1" checked> Источник</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="2" checked> Владелец документа</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="3" checked> Дата загрузки</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="4" checked> Координаты</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="5" checked> Редактирование</label><br>
+</div>
 {% endblock %}
 
 {% block filter_form %}
-    <div class="mb-3" id="filterOwnerContainer">
-        <label for="filterOwner" class="form-label">Владелец документа</label>
-        <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
-    </div>
-    <div class="mb-3" id="filterSourceContainer">
-        <label for="filterSource" class="form-label">Источник</label>
-        <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
-    </div>
-    <div class="mb-3" id="filterDateUploadedContainer">
-        <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
-        <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
-    </div>
+<div class="mb-3" id="filterOwnerContainer">
+    <label for="filterOwner" class="form-label">Владелец документа</label>
+    <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
+</div>
+<div class="mb-3" id="filterSourceContainer">
+    <label for="filterSource" class="form-label">Источник</label>
+    <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
+</div>
+<div class="mb-3" id="filterDateUploadedContainer">
+    <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+    <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
+</div>
 {% endblock %}
 
 {% block table_headers %}
-    <th>Исходный документ</th>
-    <th>Источник</th>
-    <th>Владелец документа</th>
-    <th>Дата загрузки</th>
-    <th>Координаты</th>
-    <th>Редактирование</th>
+<th>Исходный документ</th>
+<th>Источник</th>
+<th>Владелец документа</th>
+<th>Дата загрузки</th>
+<th>Координаты</th>
+<th>Редактирование</th>
 {% endblock %}
 
 {% block table_body %}
-    {% for geo_object in geo_objects %}
-        <tr data-id="{{ geo_object.id }}"
-            data-user-id="{{ geo_object.user.id }}"
-            data-owner="{{ geo_object.user.username|default:'' }}"
-            data-date_uploaded="{{ geo_object.date_uploaded|default:'' }}"
-            data-source="{{ geo_object.upload_source_dict.source|default:'' }}"
-            data-is-public="{{ geo_object.is_public }}">
-            <td>
-                <a href="/{{ geo_object.source }}">{{ geo_object.origin_filename }}</a>
-            </td>
-            <td>{{ geo_object.upload_source_dict.source }}</td>
-            <td>
-                <a href="/users/{{ geo_object.user.id }}">
-                    <img src="{{ geo_object.user.avatar.url }}" class="rounded-circle" height="25" width="25"
-                         loading="lazy" style="object-fit: cover;" alt=""/>
-                    {{ geo_object.user.username }}
-                </a>
-            </td>
-            <td>{{ geo_object.date_uploaded }}</td>
-            <td>
-                {% include 'includes/buttons/view_button.html' with object_type='geo_object' object=geo_object %}
-            </td>
-            {% include 'includes/buttons/action_buttons.html' with object_type='geo_object' object=geo_object %}
-        </tr>
-    {% endfor %}
+<!-- Данные будут загружаться через AJAX -->
 {% endblock %}
 
 {% block modal_dialogs %}
-    {% for geo_object in geo_objects %}
-        {% include 'includes/modal_delete.html' with object_type='geo_object' object_name='географический объект' object=geo_object %}
-    {% endfor %}
+<!-- Единое модальное окно для удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Удаление географического объекта</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Вы уверены, что хотите удалить географический объект "<span id="deleteObjectName"></span>"?
+                <form id="deleteForm" method="post" style="display: none;">
+                    {% csrf_token %}
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
-{% block filter_script %}
-    const ownerFilter = document.getElementById('filterOwner').value.trim().toLowerCase();
-    const sourceFilter = document.getElementById('filterSource').value.trim().toLowerCase();
-    const dateUploadedFilter = document.getElementById('filterDateUploaded').value.trim().toLowerCase();
-{% endblock %}
+{% block datatables_ajax %}
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        window.usesAjax = true;
 
-{% block filter_logic %}
-    const ownerText = row.dataset.owner ? row.dataset.owner.toLowerCase() : '';
-    const sourceText = row.dataset.source ? row.dataset.source.toLowerCase() : '';
-    const dateUploadedText = row.dataset.date_uploaded ? row.dataset.date_uploaded.toLowerCase() : '';
-{% endblock %}
+        // Конфигурация для географических объектов
+        const geoObjectsConfig = {
+            url: "{% url 'geo_objects_datatable' %}",
+            getFilters: function() {
+                const filters = {
+                    owner: $('#filterOwner').val(),
+                    source: $('#filterSource').val(),
+                    date_uploaded: $('#filterDateUploaded').val()
+                };
+                console.log('Geo Objects filters:', filters);
+                return filters;
+            },
+            columns: [
+                { "data": 0, "name": "origin_filename", "orderable": true, "searchable": true, "title": "Исходный документ" },
+                { "data": 1, "name": "source", "orderable": true, "searchable": true, "title": "Источник" },
+                { "data": 2, "name": "owner", "orderable": true, "searchable": true, "title": "Владелец документа" },
+                { "data": 3, "name": "date_uploaded", "orderable": true, "searchable": true, "title": "Дата загрузки" },
+                { "data": 4, "name": "coordinates", "orderable": false, "searchable": false, "title": "Координаты" },
+                { "data": 5, "name": "actions", "orderable": false, "searchable": false, "title": "Редактирование" }
+            ]
+        };
 
-{% block filter_conditions %}
-    (ownerFilter === '' || ownerText.includes(ownerFilter)) &&
-    (sourceFilter === '' || sourceText.includes(sourceFilter)) &&
-    (dateUploadedFilter === '' || dateUploadedText.includes(dateUploadedFilter))
+        // Инициализируем DataTable
+        setupHeritageDataTable(geoObjectsConfig);
+    });
+</script>
 {% endblock %}
