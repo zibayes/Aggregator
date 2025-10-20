@@ -95,35 +95,42 @@ class DataTableServerSide:
         storage_type = custom_search.get('storage_type')
         print(f"STORAGE TYPE: {storage_type}", file=sys.stderr)
 
-        if storage_type == 'private':
-            print("🔒 PRIVATE STORAGE: Filtering for current user only", file=sys.stderr)
-            if hasattr(self.request, 'user') and self.request.user.is_authenticated:
-                print(f"User: {self.request.user}, ID: {self.request.user.id}", file=sys.stderr)
-                # Для моделей с прямым полем user (акты)
-                if hasattr(queryset.model, 'user'):
-                    print(f"Model has 'user' field, filtering by user={self.request.user}", file=sys.stderr)
-                    queryset = queryset.filter(user=self.request.user)
-                    print(f"After user filter: {queryset.count()} records", file=sys.stderr)
-                # Для моделей с account_card -> user (археологические памятники)
-                elif hasattr(queryset.model, 'account_card'):
-                    print(f"Model has 'account_card' field, filtering by account_card__user={self.request.user}",
-                          file=sys.stderr)
-                    queryset = queryset.filter(account_card__user=self.request.user)
-                    print(f"After account_card user filter: {queryset.count()} records", file=sys.stderr)
+        if hasattr(queryset.model, 'is_public'):
+            if storage_type == 'private':
+                print("🔒 PRIVATE STORAGE: Filtering for current user only", file=sys.stderr)
+                if hasattr(self.request, 'user') and self.request.user.is_authenticated:
+                    print(f"User: {self.request.user}, ID: {self.request.user.id}", file=sys.stderr)
+                    # Для моделей с прямым полем user (акты)
+                    if hasattr(queryset.model, 'user'):
+                        print(f"Model has 'user' field, filtering by user={self.request.user}", file=sys.stderr)
+                        queryset = queryset.filter(user=self.request.user, is_public=False)
+                        print(f"After user filter: {queryset.count()} records", file=sys.stderr)
+                    else:
+                        print("❌ Model doesn't have 'user' or 'account_card' field - CANNOT FILTER BY USER",
+                              file=sys.stderr)
                 else:
-                    print("❌ Model doesn't have 'user' or 'account_card' field - CANNOT FILTER BY USER",
-                          file=sys.stderr)
+                    print("❌ User is not authenticated - CANNOT FILTER BY USER", file=sys.stderr)
+            elif storage_type == 'public':
+                print("🔓 PUBLIC STORAGE: Showing all public records", file=sys.stderr)
+                # Для публичного хранилища применяем фильтрацию по типу хранилища
+                queryset = queryset.filter(is_public=True)
+                print("No user filter applied for public storage", file=sys.stderr)
             else:
-                print("❌ User is not authenticated - CANNOT FILTER BY USER", file=sys.stderr)
-        elif storage_type == 'public':
-            print("🔓 PUBLIC STORAGE: Showing all public records", file=sys.stderr)
-            # Для публичного хранилища не применяем фильтрацию по пользователю
-            # Показываем все записи
-            print("No user filter applied for public storage", file=sys.stderr)
-        else:
-            print(f"❓ UNKNOWN STORAGE TYPE: {storage_type}", file=sys.stderr)
+                print(f"❓ UNKNOWN STORAGE TYPE: {storage_type}", file=sys.stderr)
 
         print(f"Queryset count after storage filter: {queryset.count()}", file=sys.stderr)
+
+        # Фильтры для научных отчетов
+        if custom_search.get('name'):
+            queryset = queryset.filter(name__icontains=custom_search['name'])
+        if custom_search.get('organization'):
+            queryset = queryset.filter(organization__icontains=custom_search['organization'])
+        if custom_search.get('author'):
+            queryset = queryset.filter(author__icontains=custom_search['author'])
+        if custom_search.get('writing_date'):
+            queryset = queryset.filter(writing_date__icontains=custom_search['writing_date'])
+        if custom_search.get('upload_source'):
+            queryset = queryset.filter(upload_source__icontains=custom_search['upload_source'])
 
         # Фильтры по актам
         if custom_search.get('year'):

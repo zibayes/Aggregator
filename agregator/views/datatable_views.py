@@ -92,6 +92,39 @@ def universal_datatable(request, register_type):
                 'edit_url': 'acts_edit',
                 'view_url': 'acts',
                 'delete_modal_id': 'delete_act'
+            },
+            'scientific_reports': {
+                'model': 'ScientificReport',
+                'columns': [
+                    {'field': 'name', 'searchable': True, 'orderable': True},
+                    {'field': 'organization', 'searchable': True, 'orderable': True},
+                    {'field': 'author', 'searchable': True, 'orderable': True},
+                    {'field': 'open_list', 'searchable': True, 'orderable': True},
+                    {'field': 'writing_date', 'searchable': True, 'orderable': True},
+                    {'field': 'user__username', 'searchable': True, 'orderable': True},
+                    {'field': 'upload_source', 'searchable': True, 'orderable': True},
+                    {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
+                ],
+                'name_field': 'name',
+                'edit_url': 'edit_scientific_report',
+                'view_url': 'scientific_reports',
+                'delete_modal_id': 'delete_scientific_report'
+            },
+            'tech_reports': {
+                'model': 'TechReport',
+                'columns': [
+                    {'field': 'name', 'searchable': True, 'orderable': True},
+                    {'field': 'organization', 'searchable': True, 'orderable': True},
+                    {'field': 'author', 'searchable': True, 'orderable': True},
+                    {'field': 'writing_date', 'searchable': True, 'orderable': True},
+                    {'field': 'user__username', 'searchable': True, 'orderable': True},
+                    {'field': 'upload_source', 'searchable': True, 'orderable': True},
+                    {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
+                ],
+                'name_field': 'name',
+                'edit_url': 'tech_reports_edit',
+                'view_url': 'tech_reports',
+                'delete_modal_id': 'delete_tech_report'
             }
         }
 
@@ -128,6 +161,8 @@ def universal_datatable(request, register_type):
                     return format_heritage_site_data(obj, register_type, config)
                 elif register_type == 'acts':
                     return format_act_data(obj, config)
+                elif register_type == 'scientific_reports':
+                    return format_scientific_report_data(obj, config)
                 else:
                     return []
             except Exception as e:
@@ -393,3 +428,169 @@ def identified_archaeological_heritage_sites_datatable(request):
 @csrf_exempt
 def acts_datatable(request):
     return universal_datatable(request, 'acts')
+
+
+def format_scientific_report_data(report, config):
+    """Форматирование данных для научных отчетов"""
+    # Основные данные
+    name = report.name or ''
+    name_cell = f'<a href="/{config["view_url"]}/{report.id}/" target="_blank">{name}</a>'
+
+    organization = report.organization or ''
+    author = report.author or ''
+    open_list = report.open_list or ''
+    writing_date = report.writing_date.strftime('%d.%m.%Y') if report.writing_date else ''
+
+    # Владелец документа
+    owner_cell = ''
+    if report.user:
+        avatar_url = report.user.avatar.url if report.user.avatar else '/static/images/default-avatar.png'
+        owner_cell = f'''
+        <a href="/users/{report.user.id}" target="_blank">
+            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+            {report.user.username}
+        </a>
+        '''
+
+    # Источник
+    source_cell = ''
+    if hasattr(report, 'upload_source_dict'):
+        source_dict = report.upload_source_dict
+        if source_dict and source_dict.get('link'):
+            source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
+        elif source_dict:
+            source_cell = source_dict.get('source', '')
+
+    # Дата загрузки
+    date_uploaded = report.date_uploaded.strftime('%Y-%m-%d %H:%M') if report.date_uploaded else ''
+
+    # Формализованный документ
+    formalized_doc_cell = f'''
+    <a href="/{config["view_url"]}/{report.id}/">
+        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
+            Просмотр отчёта
+        </button>
+    </a>
+    '''
+
+    # Исходный документ
+    original_doc_cell = ''
+    if hasattr(report, 'source_dict') and report.source_dict:
+        for source in report.source_dict:
+            if source.get('path'):
+                original_doc_cell += f'<a href="/{source["path"]}" target="_blank">{source.get("origin_filename", "Документ")}</a><br>'
+
+    # Кнопки действий
+    actions_cell = f'''
+    <td>
+        <a href="/{config["edit_url"]}/{report.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+            Редактировать
+        </a>
+        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                onclick="openDeleteModal({report.id}, '{name.replace("'", "\\'") if name else "Научный отчет".replace("'", "\\'")}', '{config["delete_modal_id"]}')">
+            Удалить
+        </button>
+    </td>
+    '''
+
+    return [
+        name_cell,
+        organization,
+        author,
+        open_list,
+        writing_date,
+        owner_cell,
+        source_cell,
+        date_uploaded,
+        formalized_doc_cell,
+        original_doc_cell,
+        actions_cell
+    ]
+
+
+@csrf_exempt
+def scientific_reports_datatable(request):
+    return universal_datatable(request, 'scientific_reports')
+
+
+def format_tech_report_data(tech_report, config):
+    """Форматирование данных для научно-технических отчётов"""
+
+    # Основные данные
+    name_cell = tech_report.name or ''
+    if hasattr(tech_report, 'id'):
+        name_cell = f'<a href="/tech_reports/{tech_report.id}/" target="_blank">{tech_report.name}</a>'
+
+    organization = tech_report.organization or ''
+    author = tech_report.author or ''
+    writing_date = tech_report.writing_date if tech_report.writing_date else ''
+
+    # Владелец документа
+    owner_cell = ''
+    if tech_report.user:
+        avatar_url = tech_report.user.avatar.url if tech_report.user.avatar else '/static/images/default-avatar.png'
+        owner_cell = f'''
+        <a href="/users/{tech_report.user.id}" target="_blank">
+            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+            {tech_report.user.username}
+        </a>
+        '''
+
+    # Источник
+    source_cell = ''
+    if hasattr(tech_report, 'upload_source_dict'):
+        source_dict = tech_report.upload_source_dict
+        if source_dict and source_dict.get('link'):
+            source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
+        elif source_dict:
+            source_cell = source_dict.get('source', '')
+
+    # Дата загрузки
+    date_uploaded = tech_report.date_uploaded.strftime('%Y-%m-%d %H:%M') if tech_report.date_uploaded else ''
+
+    # Формализованный документ
+    formalized_doc_cell = f'''
+    <a href="/tech_reports/{tech_report.id}/">
+        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
+            Просмотр отчёта
+        </button>
+    </a>
+    '''
+
+    # Исходный документ
+    original_doc_cell = ''
+    if hasattr(tech_report, 'source_dict') and tech_report.source_dict:
+        for source in tech_report.source_dict:
+            if source.get('path'):
+                original_doc_cell += f'<a href="/{source["path"]}" target="_blank">{source.get("origin_filename", "Документ")}</a><br>'
+
+    # Кнопки действий
+    actions_cell = f'''
+    <td>
+        <a href="/tech_reports_edit/{tech_report.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+            Редактировать
+        </a>
+        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                onclick="openDeleteModal({tech_report.id}, '{tech_report.name.replace("'", "\\'") if tech_report.name else "Отчёт".replace("'", "\\'")}', 'delete_tech_report')">
+            Удалить
+        </button>
+    </td>
+    '''
+
+    return [
+        name_cell,
+        organization,
+        author,
+        writing_date,
+        owner_cell,
+        source_cell,
+        date_uploaded,
+        formalized_doc_cell,
+        original_doc_cell,
+        actions_cell
+    ]
+
+
+@csrf_exempt
+def tech_reports_datatable(request):
+    return universal_datatable(request, 'tech_reports')

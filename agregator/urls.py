@@ -204,4 +204,9 @@ urlpatterns = [
          datatable_views.universal_datatable,
          {'register_type': 'acts'},
          name='acts_datatable'),
+    path('api/scientific_reports_datatable/', datatable_views.universal_datatable,
+         {'register_type': 'scientific_reports'},
+         name='scientific_reports_datatable'),
+    path('api/tech_reports_datatable/', datatable_views.universal_datatable, {'register_type': 'tech_reports'},
+         name='tech_reports_datatable'),
 ]

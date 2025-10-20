@@ -3,158 +3,155 @@
 {% block title %}Реестр научных отчётов{% endblock %}
 
 {% block breadcrumb %}
-    <li class="breadcrumb-item active" aria-current="page">Реестр научных отчётов</li>
+<li class="breadcrumb-item active" aria-current="page">Реестр научных отчётов</li>
 {% endblock %}
 
 {% block column_toggles %}
-    <div data-columns-count="11">
-        <label><input type="checkbox" class="column-toggle" data-column="0" checked> Название</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="1" checked> Организация</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="2" checked> Автор</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="3" checked> Открытый лист</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="4" checked> Дата написания</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="5" checked> Владелец документа</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="6" checked> Источник</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="7" checked> Дата загрузки</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="8" checked> Формализованный
-            документ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="9" checked> Исходный документ</label><br>
-        <label><input type="checkbox" class="column-toggle" data-column="10" checked> Редактирование</label><br>
-    </div>
+<div data-columns-count="11">
+    <label><input type="checkbox" class="column-toggle" data-column="0" checked> Название</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="1" checked> Организация</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="2" checked> Автор</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="3" checked> Открытый лист</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="4" checked> Дата написания</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="5" checked> Владелец документа</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="6" checked> Источник</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="7" checked> Дата загрузки</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Формализованный документ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="9" checked> Исходный документ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="10" checked> Редактирование</label><br>
+</div>
 {% endblock %}
 
 {% block filter_form %}
-    <div class="mb-3" id="filterNameContainer">
-        <label for="filterName" class="form-label">Название</label>
-        <input type="text" class="form-control" id="filterName" placeholder="Введите название">
-    </div>
-    <div class="mb-3" id="filterOrganizationContainer">
-        <label for="filterOrganization" class="form-label">Организация</label>
-        <input type="text" class="form-control" id="filterOrganization" placeholder="Введите организацию">
-    </div>
-    <div class="mb-3" id="filterAuthorContainer">
-        <label for="filterAuthor" class="form-label">Автор</label>
-        <input type="text" class="form-control" id="filterAuthor" placeholder="Введите автора">
-    </div>
-    <div class="mb-3" id="filterOpenListContainer">
-        <label for="filterOpenList" class="form-label">Открытый лист</label>
-        <input type="text" class="form-control" id="filterOpenList" placeholder="Введите открытый лист">
-    </div>
-    <div class="mb-3" id="filterWritingDateContainer">
-        <label for="filterWritingDate" class="form-label">Дата написания</label>
-        <input type="text" class="form-control" id="filterWritingDate" placeholder="Введите дату написания">
-    </div>
-    <div class="mb-3" id="filterOwnerContainer">
-        <label for="filterOwner" class="form-label">Владелец документа</label>
-        <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
-    </div>
-    <div class="mb-3" id="filterUploadSourceContainer">
-        <label for="filterUploadSource" class="form-label">Источник</label>
-        <input type="text" class="form-control" id="filterUploadSource" placeholder="Введите источник">
-    </div>
-    <div class="mb-3" id="filterDateUploadedContainer">
-        <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
-        <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
-    </div>
+<div class="mb-3" id="filterNameContainer">
+    <label for="filterName" class="form-label">Название</label>
+    <input type="text" class="form-control" id="filterName" placeholder="Введите название">
+</div>
+<div class="mb-3" id="filterOrganizationContainer">
+    <label for="filterOrganization" class="form-label">Организация</label>
+    <input type="text" class="form-control" id="filterOrganization" placeholder="Введите организацию">
+</div>
+<div class="mb-3" id="filterAuthorContainer">
+    <label for="filterAuthor" class="form-label">Автор</label>
+    <input type="text" class="form-control" id="filterAuthor" placeholder="Введите автора">
+</div>
+<div class="mb-3" id="filterOpenListContainer">
+    <label for="filterOpenList" class="form-label">Открытый лист</label>
+    <input type="text" class="form-control" id="filterOpenList" placeholder="Введите открытый лист">
+</div>
+<div class="mb-3" id="filterWritingDateContainer">
+    <label for="filterWritingDate" class="form-label">Дата написания</label>
+    <input type="text" class="form-control" id="filterWritingDate" placeholder="Введите дату написания">
+</div>
+<div class="mb-3" id="filterOwnerContainer">
+    <label for="filterOwner" class="form-label">Владелец документа</label>
+    <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
+</div>
+<div class="mb-3" id="filterUploadSourceContainer">
+    <label for="filterUploadSource" class="form-label">Источник</label>
+    <input type="text" class="form-control" id="filterUploadSource" placeholder="Введите источник">
+</div>
+<div class="mb-3" id="filterDateUploadedContainer">
+    <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+    <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
+</div>
 {% endblock %}
 
 {% block download_link %}
-    <a href="/scientific_reports_register_download/">Скачать реестр в формате .xlsx</a>
+<a href="/scientific_reports_register_download/">Скачать реестр в формате .xlsx</a>
 {% endblock %}
 
 {% block table_headers %}
-    <th>Название</th>
-    <th>Организация</th>
-    <th>Автор</th>
-    <th>Открытый лист</th>
-    <th>Дата написания</th>
-    <th>Владелец документа</th>
-    <th>Источник</th>
-    <th>Дата загрузки</th>
-    <th>Формализованный документ</th>
-    <th>Исходный документ</th>
-    <th>Редактирование</th>
+<th>Название</th>
+<th>Организация</th>
+<th>Автор</th>
+<th>Открытый лист</th>
+<th>Дата написания</th>
+<th>Владелец документа</th>
+<th>Источник</th>
+<th>Дата загрузки</th>
+<th>Формализованный документ</th>
+<th>Исходный документ</th>
+<th>Редактирование</th>
 {% endblock %}
 
 {% block table_body %}
-    {% for report in reports %}
-        <tr data-act-id="{{ report.id }}"
-            data-user-id="{{ report.user.id }}"
-            data-name="{{ report.name }}"
-            data-organization="{{ report.organization }}"
-            data-author="{{ report.author }}"
-            data-open-list="{{ report.open_list }}"
-            data-writing-date="{{ report.writing_date }}"
-            data-owner="{{ report.user.username }}"
-            data-upload-source="{{ report.upload_source_dict.source }}"
-            data-date-uploaded="{{ report.date_uploaded }}"
-            data-is-public="{{ report.is_public }}">
-            <td>{{ report.name }}</td>
-            <td>{{ report.organization }}</td>
-            <td>{{ report.author }}</td>
-            <td>{{ report.open_list }}</td>
-            <td>{{ report.writing_date }}</td>
-            <td>
-                <a href="/users/{{ report.user.id }}">
-                    <img src="{{ report.user.avatar.url }}" class="rounded-circle" height="25" width="25"
-                         loading="lazy" style="object-fit: cover;" alt=""/>
-                    {{ report.user.username }}
-                </a>
-            </td>
-            <td>
-                <a{% if report.upload_source_dict.link %} href="{{ report.upload_source_dict.link }}" {% endif %}>
-                    {{ report.upload_source_dict.source }}
-                </a>
-            </td>
-            <td>{{ report.date_uploaded }}</td>
-            <td>
-                {% include 'includes/buttons/view_button.html' with object_type='scientific_report' object=report %}
-            </td>
-            <td>
-                {% for source in report.source_dict %}
-                    <a href="/{{ source.path }}">{{ source.origin_filename }}</a><br><br>
-                {% endfor %}
-            </td>
-            {% include 'includes/buttons/action_buttons.html' with object_type='scientific_report' object=report %}
-        </tr>
-    {% endfor %}
+<div id="debug-info" style="display: none;">
+    <p>URL API: {% url 'scientific_reports_datatable' %}</p>
+    <p>User: {{ user.username }}</p>
+    <p>Authenticated: {{ user.is_authenticated }}</p>
+</div>
+<!-- Данные будут загружаться через AJAX -->
 {% endblock %}
 
 {% block modal_dialogs %}
-    {% for report in reports %}
-        {% include 'includes/modal_delete.html' with object_type='scientific_report' object_name='научный отчёт' object=report %}
-    {% endfor %}
+<!-- Единое модальное окно для удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Удаление научного отчёта</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                Вы уверены, что хотите удалить научный отчёт "<span id="deleteObjectName"></span>"?
+                <form id="deleteForm" method="post" style="display: none;">
+                    {% csrf_token %}
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
-{% block filter_script %}
-    const nameFilter = document.getElementById('filterName').value.toLowerCase();
-    const organizationFilter = document.getElementById('filterOrganization').value.toLowerCase();
-    const authorFilter = document.getElementById('filterAuthor').value.toLowerCase();
-    const openListFilter = document.getElementById('filterOpenList').value.toLowerCase();
-    const writingDateFilter = document.getElementById('filterWritingDate').value.toLowerCase();
-    const ownerFilter = document.getElementById('filterOwner').value.toLowerCase();
-    const uploadSourceFilter = document.getElementById('filterUploadSource').value.toLowerCase();
-    const dateUploadedFilter = document.getElementById('filterDateUploaded').value.toLowerCase();
-{% endblock %}
+{% block datatables_ajax %}
+<script>
+    // Помечаем что используем AJAX
+    window.usesAjax = true;
+</script>
 
-{% block filter_logic %}
-    const nameText = row.dataset.name ? row.dataset.name.toLowerCase() : '';
-    const organizationText = row.dataset.organization ? row.dataset.organization.toLowerCase() : '';
-    const authorText = row.dataset.author ? row.dataset.author.toLowerCase() : '';
-    const openListText = row.dataset.openList ? row.dataset.openList.toLowerCase() : '';
-    const writingDateText = row.dataset.writingDate ? row.dataset.writingDate.toLowerCase() : '';
-    const ownerText = row.dataset.owner ? row.dataset.owner.toLowerCase() : '';
-    const uploadSourceText = row.dataset.uploadSource ? row.dataset.uploadSource.toLowerCase() : '';
-    const dateUploadedText = row.dataset.dateUploaded ? row.dataset.dateUploaded.toLowerCase() : '';
-{% endblock %}
+<script>
+    // Конфигурация для научных отчетов
+    const scientificReportsConfig = {
+        url: "{% url 'scientific_reports_datatable' %}",
+        getFilters: function() {
+            return {
+                name: $('#filterName').val(),
+                organization: $('#filterOrganization').val(),
+                author: $('#filterAuthor').val(),
+                open_list: $('#filterOpenList').val(),
+                writing_date: $('#filterWritingDate').val(),
+                owner: $('#filterOwner').val(),
+                upload_source: $('#filterUploadSource').val(),
+                date_uploaded: $('#filterDateUploaded').val()
+            };
+        },
+        columns: [
+            { "data": 0, "name": "name", "orderable": true, "searchable": true },
+            { "data": 1, "name": "organization", "orderable": true, "searchable": true },
+            { "data": 2, "name": "author", "orderable": true, "searchable": true },
+            { "data": 3, "name": "open_list", "orderable": true, "searchable": true },
+            { "data": 4, "name": "writing_date", "orderable": true, "searchable": true },
+            { "data": 5, "name": "owner", "orderable": true, "searchable": true },
+            { "data": 6, "name": "upload_source", "orderable": true, "searchable": true },
+            { "data": 7, "name": "date_uploaded", "orderable": true, "searchable": true },
+            { "data": 8, "name": "formalized_document", "orderable": false, "searchable": false },
+            { "data": 9, "name": "original_document", "orderable": false, "searchable": false },
+            { "data": 10, "name": "actions", "orderable": false, "searchable": false }
+        ],
+        filterConfigs: {
+            "textFilters": [
+                '#filterName', '#filterOrganization', '#filterAuthor', '#filterOpenList',
+                '#filterWritingDate', '#filterOwner', '#filterUploadSource', '#filterDateUploaded'
+            ],
+            "changeFilters": []
+        }
+    };
 
-{% block filter_conditions %}
-    (nameFilter === '' || nameText.includes(nameFilter)) &&
-    (organizationFilter === '' || organizationText.includes(organizationFilter)) &&
-    (authorFilter === '' || authorText.includes(authorFilter)) &&
-    (openListFilter === '' || openListText.includes(openListFilter)) &&
-    (writingDateFilter === '' || writingDateText.includes(writingDateFilter)) &&
-    (ownerFilter === '' || ownerText.includes(ownerFilter)) &&
-    (uploadSourceFilter === '' || uploadSourceText.includes(uploadSourceFilter)) &&
-    (dateUploadedFilter === '' || dateUploadedText.includes(dateUploadedFilter))
+    setupHeritageDataTable(scientificReportsConfig);
+</script>
 {% endblock %}

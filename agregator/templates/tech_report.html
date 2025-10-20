@@ -1,190 +1,152 @@
-{% extends 'bases/report_base.html' %}
+{% extends 'bases/register_base.html' %}
 
-{% block report_title %}Научно-технический отчёт{% endblock %}
-{% block report_header %}Научно-технический отчёт: {{ report.author }} от {{ report.writing_date }}{% endblock %}
-{% block map_link %}/map/tech_report/{{ report.id }}{% endblock %}
-{% block report_delete_url %}{% url 'tech_reports_delete' report.id %}{% endblock %}
-{% block reprocess_url %}{% url 'doc_reprocess' report.id %}{% endblock %}
+{% block title %}Реестр научно-технических отчётов{% endblock %}
 
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/tech_reports_register/">Реестр научно-технических отчётов</a>
-</li>
-<li class="breadcrumb-item active" aria-current="page">Научно-технический отчёт: {{ report.author }}
-    от {{ report.writing_date }}
-</li>
+<li class="breadcrumb-item active" aria-current="page">Реестр научно-технических отчётов</li>
 {% endblock %}
 
-{% block report_sources %}
-{% include 'includes/django_messages.html' %}
-{% for source in report.source_dict %}
-<a class="btn btn-primary lang" style="border-radius: 12px; margin-right:10px;"
-   href="/{{ source.path }}">
-    Исходник: {{ source.origin_filename }}
-</a>
-<br><br>
-{% endfor %}
+{% block column_toggles %}
+<div data-columns-count="11">
+    <label><input type="checkbox" class="column-toggle" data-column="0" checked> Название</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="1" checked> Организация</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="2" checked> Автор</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="3" checked> Открытый лист</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="4" checked> Дата написания</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="5" checked> Владелец документа</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="6" checked> Источник</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="7" checked> Дата загрузки</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="8" checked> Формализованный документ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="9" checked> Исходный документ</label><br>
+    <label><input type="checkbox" class="column-toggle" data-column="10" checked> Редактирование</label><br>
+</div>
 {% endblock %}
 
-{% block report_actions %}
-{% if report.user.id == user.id or user.is_superuser %}
-<a href="/tech_reports_edit/{{ report.id }}">
-    <button type="button" class="btn btn-primary"
-            style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
-        Редактировать
-    </button>
-</a>
-<button type="button" class="btn btn-danger" data-bs-target="#delete_report" data-bs-toggle="modal">
-    Удалить
-</button>
-<br><br>
-<button type="button" class="btn btn-primary" data-bs-target="#reprocess" data-bs-toggle="modal">
-    Повторная обработка документа
-</button>
-{% endif %}
+{% block filter_form %}
+<div class="mb-3" id="filterNameContainer">
+    <label for="filterName" class="form-label">Название</label>
+    <input type="text" class="form-control" id="filterName" placeholder="Введите название">
+</div>
+<div class="mb-3" id="filterOrganizationContainer">
+    <label for="filterOrganization" class="form-label">Организация</label>
+    <input type="text" class="form-control" id="filterOrganization" placeholder="Введите организацию">
+</div>
+<div class="mb-3" id="filterAuthorContainer">
+    <label for="filterAuthor" class="form-label">Автор</label>
+    <input type="text" class="form-control" id="filterAuthor" placeholder="Введите автора">
+</div>
+<div class="mb-3" id="filterOpenListContainer">
+    <label for="filterOpenList" class="form-label">Открытый лист</label>
+    <input type="text" class="form-control" id="filterOpenList" placeholder="Введите открытый лист">
+</div>
+<div class="mb-3" id="filterWritingDateContainer">
+    <label for="filterWritingDate" class="form-label">Дата написания</label>
+    <input type="text" class="form-control" id="filterWritingDate" placeholder="Введите дату написания">
+</div>
+<div class="mb-3" id="filterOwnerContainer">
+    <label for="filterOwner" class="form-label">Владелец документа</label>
+    <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
+</div>
+<div class="mb-3" id="filterSourceContainer">
+    <label for="filterSource" class="form-label">Источник</label>
+    <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
+</div>
+<div class="mb-3" id="filterDateUploadedContainer">
+    <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
+    <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
+</div>
 {% endblock %}
 
-{% block report_modals %}
-{{ block.super }}
-<!-- Модальное окно повторной обработки -->
-<div class="modal fade" id="reprocess" tabindex="-1">
+{% block download_link %}
+<a href="/tech_reports_register_download/">Скачать реестр в формате .xlsx</a>
+{% endblock %}
+
+{% block table_headers %}
+<th>Название</th>
+<th>Организация</th>
+<th>Автор</th>
+<th>Открытый лист</th>
+<th>Дата написания</th>
+<th>Владелец документа</th>
+<th>Источник</th>
+<th>Дата загрузки</th>
+<th>Формализованный документ</th>
+<th>Исходный документ</th>
+<th>Редактирование</th>
+{% endblock %}
+
+{% block table_body %}
+<div id="debug-info" style="display: none;">
+    <p>URL API: {% url 'tech_reports_datatable' %}</p>
+    <p>User: {{ user.username }}</p>
+    <p>Authenticated: {{ user.is_authenticated }}</p>
+</div>
+<!-- Данные будут загружаться через AJAX -->
+{% endblock %}
+
+{% block modal_dialogs %}
+<!-- Единое модальное окно для удаления -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <form method="POST" action="{% url 'doc_reprocess' report.id %}" class="mt-3">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Повторная обработка документа</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    Выберите разделы для обработки:<br>
-                    <label><input type="checkbox" name="select_text" checked> Текст</label><br>
-                    <label><input type="checkbox" name="select_image" checked> Изображения</label><br>
-                    <label><input type="checkbox" name="select_coord" checked> Координаты</label>
-                </div>
-                <div class="modal-footer">
-                    {% csrf_token %}
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                    <button type="submit" class="btn btn-primary">Начать обработку</button>
-                </div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Удаление отчёта</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-        </form>
+            <div class="modal-body">
+                Вы уверены, что хотите удалить отчёт "<span id="deleteObjectName"></span>"?
+                <form id="deleteForm" method="post" style="display: none;">
+                    {% csrf_token %}
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">Удалить</button>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
 
-{% block report_contents %}
-<ul>
-    {% if report.name %}
-    <li><a href="#name">Название</a></li>
-    {% endif %}
-    {% if report.organization %}
-    <li><a href="#organization">Организация</a></li>
-    {% endif %}
-    {% if report.author %}
-    <li><a href="#author">Автор</a></li>
-    {% endif %}
-    {% if report.open_list %}
-    <li><a href="#open_list">Открытый лист</a></li>
-    {% endif %}
-    {% if report.writing_date %}
-    <li><a href="#writing_date">Дата написания</a></li>
-    {% endif %}
-    {% if report.introduction %}
-    <li><a href="#introduction">Введение</a></li>
-    {% endif %}
-    {% if report.contractors %}
-    <li><a href="#contractors">Исполнители</a></li>
-    {% endif %}
-    {% if report.place %}
-    <li><a href="#place">Место</a></li>
-    {% endif %}
-    {% if report.area_info %}
-    <li><a href="#area_info">Информация о местности</a></li>
-    {% endif %}
-    {% if report.research_history %}
-    <li><a href="#research_history">История исследования</a></li>
-    {% endif %}
-    {% if report.results %}
-    <li><a href="#results">Результаты</a></li>
-    {% endif %}
-    {% if report.conclusion %}
-    <li><a href="#conclusion">Заключение</a></li>
-    {% endif %}
-    {% for title, value in report.content_dict.items %}
-    {% if value %}
-    <li><a href="#{{ title }}">{{ title }}</a></li>
-    {% endif %}
-    {% endfor %}
-    {% if report.supplement_dict %}
-    {% include 'includes/supplement_contents.html' %}
-    {% endif %}
-</ul>
-{% endblock %}
+{% block datatables_ajax %}
+<script>
+    // Ждем полной загрузки DOM
+    document.addEventListener("DOMContentLoaded", function() {
+        window.usesAjax = true;
 
-{% block report_sections %}
-{% if report.name %}
-<h2 id="name">Название</h2>
-<p>{{ report.name|escape|linebreaksbr }}</p>
-{% endif %}
+        // Конфигурация для научно-технических отчётов
+        const techReportsConfig = {
+            url: "{% url 'tech_reports_datatable' %}",
+            getFilters: function() {
+                const filters = {
+                    name: $('#filterName').val(),
+                    organization: $('#filterOrganization').val(),
+                    author: $('#filterAuthor').val(),
+                    writing_date: $('#filterWritingDate').val(),
+                    owner: $('#filterOwner').val(),
+                    source: $('#filterSource').val(),
+                    date_uploaded: $('#filterDateUploaded').val()
+                };
+                console.log('Tech Reports filters:', filters);
+                return filters;
+            },
+            columns: [
+                { "data": 0, "name": "name", "orderable": true, "searchable": true },
+            { "data": 1, "name": "organization", "orderable": true, "searchable": true },
+            { "data": 2, "name": "author", "orderable": true, "searchable": true },
+            { "data": 3, "name": "open_list", "orderable": true, "searchable": true },
+            { "data": 4, "name": "writing_date", "orderable": true, "searchable": true },
+            { "data": 5, "name": "owner", "orderable": true, "searchable": true },
+            { "data": 6, "name": "upload_source", "orderable": true, "searchable": true },
+            { "data": 7, "name": "date_uploaded", "orderable": true, "searchable": true },
+            { "data": 8, "name": "formalized_document", "orderable": false, "searchable": false },
+            { "data": 9, "name": "original_document", "orderable": false, "searchable": false },
+            { "data": 10, "name": "actions", "orderable": false, "searchable": false }
+            ]
+        };
 
-{% if report.organization %}
-<h2 id="organization">Организация</h2>
-<p>{{ report.organization|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% if report.author %}
-<h2 id="author">Автор</h2>
-<p>{{ report.author|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% if report.open_list %}
-<h2 id="open_list">Открытый лист</h2>
-<p>{{ report.open_list|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% if report.writing_date %}
-<h2 id="writing_date">Дата написания</h2>
-<p>{{ report.writing_date|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% if report.introduction %}
-<h2 id="introduction">Введение</h2>
-<p>{{ report.introduction|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% if report.contractors %}
-<h2 id="contractors">Исполнители</h2>
-<p>{{ report.contractors|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% if report.place %}
-<h2 id="place">Место</h2>
-<p>{{ report.place|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% if report.area_info %}
-<h2 id="area_info">Информация о местности</h2>
-<p>{{ report.area_info|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% if report.research_history %}
-<h2 id="research_history">История исследования</h2>
-<p>{{ report.research_history|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% if report.results %}
-<h2 id="results">Результаты</h2>
-<p>{{ report.results|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% if report.conclusion %}
-<h2 id="conclusion">Заключение</h2>
-<p>{{ report.conclusion|escape|linebreaksbr }}</p>
-{% endif %}
-
-{% for title, content in report.content_dict.items %}
-{% if content %}
-<h2 id="{{ title }}">{{ title }}</h2>
-<p>{{ content|escape|linebreaksbr }}</p>
-{% endif %}
-{% endfor %}
+        // Инициализируем DataTable
+        setupHeritageDataTable(techReportsConfig);
+    });
+</script>
 {% endblock %}
