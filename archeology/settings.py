@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 import os
 import sys
+import logging
 from agregator.redis_config import REDIS_URL
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -191,8 +192,32 @@ LOGGING = {
             'level': 'DEBUG',
             'propagate': True,
         },
+        'celery': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'celery.task': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
+
+CELERY_LOG_LEVEL = 'INFO'
+
+# Если нужно более детальное логирование задач
+CELERY_TASK_LOG_FORMAT = "%(asctime)s - %(levelname)s - %(message)s"
+
+# Настройка логгера для Celery
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),  # Вывод в stdout
+    ]
+)
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators

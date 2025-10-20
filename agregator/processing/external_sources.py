@@ -62,7 +62,8 @@ ACTS_QUERY_EXCLUDE = [
 
 @shared_task(bind=True)
 @handle_interrupts
-def external_sources_processing(self, task_state, start_date, end_date, select_text, select_image, select_coord):
+def external_sources_processing(self, task_state, start_date, end_date, start_page, end_page, select_text, select_image,
+                                select_coord):
     self.update_state(
         state='PROGRESS',
         meta={
@@ -117,12 +118,20 @@ def external_sources_processing(self, task_state, start_date, end_date, select_t
                 except (ValueError, IndexError):
                     logger.warning(f"Не удалось распарсить количество страниц: {total_pages_href}")
 
+    if isinstance(end_page, int) and total_pages > end_page > 0:
+        total_pages = end_page
+
     task_state.update(total_pages=total_pages)
 
     # Используем правильную сессию в зависимости от SSL
     current_session = ssl_session if ignore_ssl else session
 
-    for page in range(1, total_pages + 1):
+    if start_page is None or (isinstance(end_page, int) and start_page <= 0):
+        start_page = 1
+
+    for page in range(start_page, total_pages + 1):
+        if end_page is not None and end_page < page:
+            break
         self.update_state(
             state='PROGRESS',
             meta={
@@ -300,6 +309,8 @@ def external_sources_processing(self, task_state, start_date, end_date, select_t
                     for info in task_state.data['files_info']:
                         if info.get('filename') in processed_acts and processed_acts[info['filename']]:
                             info['act_id'] = processed_acts[info['filename']]
+
+        generate_intermediate_report(task_state.get_data())
 
     return {
         'current': total_pages,

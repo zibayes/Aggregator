@@ -13,3 +13,11 @@ def str_is_float(string):
     except ValueError:
         return False
     return True
+
+
+def str_is_int(string):
+    try:
+        int(string)
+    except ValueError:
+        return False
+    return True

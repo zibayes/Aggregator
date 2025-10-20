@@ -59,7 +59,7 @@ services:
       REDIS_HOST: redis
       CELERY_BROKER_URL: "redis://redis:6379/0"
       DJANGO_SETTINGS_MODULE: "archeology.settings"
-    command: celery -A archeology worker --loglevel=info --concurrency=4
+    command: celery -A archeology worker --loglevel=info --concurrency=4 --logfile -
     restart: unless-stopped
     healthcheck:
       test: [ "CMD", "./celery_healthcheck.sh" ]

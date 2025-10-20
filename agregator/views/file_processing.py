@@ -33,6 +33,7 @@ from agregator.processing.external_sources import external_sources_processing
 from agregator.processing.account_cards_processing import process_account_cards, error_handler_account_cards
 from agregator.processing.commercial_offers_processing import process_commercial_offers, error_handler_commercial_offers
 from agregator.processing.geo_objects_processing import process_geo_objects, error_handler_geo_objects
+from agregator.processing.utils import str_is_int
 from agregator.views.utils import upload_entity_view, get_user_tasks
 
 
@@ -159,6 +160,23 @@ def external_sources(request):
             else:
                 end_date = None
 
+        start_page = end_page = None
+        if 'enablePageRange' in request.POST.keys() and (
+                'startPage' in request.POST.keys() or 'endPage' in request.POST.keys()):
+            start_page = request.POST['startPage']
+            end_page = request.POST['endPage']
+            if str_is_int(start_page):
+                start_page = int(start_page)
+            else:
+                start_page = None
+            if str_is_int(end_page):
+                end_page = int(end_page)
+            else:
+                end_page = None
+
+            if start_page and end_page and start_page > end_page:
+                start_page, end_page = end_page, start_page
+
         select_text = select_image = select_coord = False
         if 'select_text' in request.POST:
             select_text = True
@@ -167,7 +185,8 @@ def external_sources(request):
         if 'select_coord' in request.POST:
             select_coord = True
 
-        scan_task = external_sources_processing.delay(start_date, end_date, select_text, select_image, select_coord)
+        scan_task = external_sources_processing.delay(start_date, end_date, start_page, end_page, select_text,
+                                                      select_image, select_coord)
         scan_task_id = scan_task.id
         is_processing = True
     try:
