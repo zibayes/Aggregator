@@ -85,16 +85,18 @@
     {% if is_processing or download_report or final_report or interrupted_report or intermediate_report %}
     <p>Отчёты о последнем сканировании:</p>
     {% if download_report %}
-    <a href="/uploaded_files/Акты ГИКЭ/download_report.html">Общий отчёт</a><br>
+    <a href="/uploaded_files/Акты ГИКЭ/download_report.html?t={{ current_timestamp }}">Общий отчёт</a><br>
     {% endif %}
     {% if final_report %}
-    <a href="/uploaded_files/Акты ГИКЭ/final_report.html">Финальный отчёт</a><br>
+    <a href="/uploaded_files/Акты ГИКЭ/final_report.html?t={{ current_timestamp }}">Финальный отчёт</a><br>
     {% endif %}
     {% if interrupted_report %}
-    <a href="/uploaded_files/Акты ГИКЭ/interrupted_report.html">Отчёт на момент прерывания сканирования</a><br>
+    <a href="/uploaded_files/Акты ГИКЭ/interrupted_report.html?t={{ current_timestamp }}">Отчёт на момент прерывания
+        сканирования</a><br>
     {% endif %}
     {% if intermediate_report %}
-    <a href="/uploaded_files/Акты ГИКЭ/intermediate_report.html">Промежуточный отчёт</a><br>
+    <a href="/uploaded_files/Акты ГИКЭ/intermediate_report.html?t={{ current_timestamp }}">Промежуточный
+        отчёт</a><br><br>
     {% endif %}
     {% endif %}
 

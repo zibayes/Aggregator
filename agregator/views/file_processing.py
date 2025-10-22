@@ -1,6 +1,8 @@
 import os.path
 import re
 import json
+import logging
+from time import time
 
 import pandas as pd
 import simplekml
@@ -35,6 +37,8 @@ from agregator.processing.commercial_offers_processing import process_commercial
 from agregator.processing.geo_objects_processing import process_geo_objects, error_handler_geo_objects
 from agregator.processing.utils import str_is_int
 from agregator.views.utils import upload_entity_view, get_user_tasks
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -140,8 +144,24 @@ def deconstructor(request):
 def external_sources(request):
     is_processing, scan_task_id, active_scan_task = get_scan_task(
         'agregator.processing.external_sources.external_sources_processing')
+    base_path = 'uploaded_files/Акты ГИКЭ/'
+    report_files = [
+        'download_report.html',
+        'final_report.html',
+        'interrupted_report.html',
+        'intermediate_report.html',
+    ]
 
     if request.method == 'POST' and scan_task_id is None:
+        try:
+            for report_file in report_files:
+                report_path = os.path.join(base_path, report_file)
+                if os.path.exists(report_path):
+                    os.remove(report_path)
+                    logger.info(f"🗑️ Удален старый отчет: {report_file}")
+        except Exception as e:
+            logger.warning(f"⚠️ Не удалось очистить старые отчеты: {e}")
+
         start_date = end_date = None
         if 'enableDateRange' in request.POST.keys() and 'startDate' in request.POST.keys() and 'endDate' in request.POST.keys():
             start_date = request.POST['startDate']
@@ -195,30 +215,51 @@ def external_sources(request):
         admin = request.user
     tasks_id = get_user_tasks(admin.id, ('act', 'scientific_report', 'tech_report', 'open_list'), True)
 
-    base_path = 'uploaded_files/Акты ГИКЭ/'
-    report_files = [
-        'download_report.html',
-        'final_report.html',
-        'interrupted_report.html',
-        'intermediate_report.html',
-    ]
     download_report = final_report = interrupted_report = intermediate_report = False
     for report_file in report_files:
-        if os.path.isfile(base_path + report_file):
-            if report_file == 'download_report.html':
-                download_report = True
-            elif report_file == 'final_report.html':
-                final_report = True
-            elif report_file == 'interrupted_report.html':
-                interrupted_report = True
-            elif report_file == 'intermediate_report.html':
-                intermediate_report = True
+        report_path = os.path.join(base_path, report_file)
+        try:
+            if os.path.isfile(report_path):
+                # ПРОВЕРЯЕМ ДАТУ МОДИФИКАЦИИ ФАЙЛА С ОБРАБОТКОЙ ОШИБОК
+                try:
+                    file_mtime = os.path.getmtime(report_path)
+                    file_age = time() - file_mtime
+
+                    # ЕСЛИ ФАЙЛ СВЕЖИЙ (МЕНЕЕ 1 ЧАСА), ТО ПОКАЗЫВАЕМ ЕГО
+                    if file_age < 3600:  # 3600 секунд = 1 час
+                        if report_file == 'download_report.html':
+                            download_report = True
+                        elif report_file == 'final_report.html':
+                            final_report = True
+                        elif report_file == 'interrupted_report.html':
+                            interrupted_report = True
+                        elif report_file == 'intermediate_report.html':
+                            intermediate_report = True
+                        logger.info(f"📄 Актуальный отчет найден: {report_file}, возраст: {file_age:.0f} сек")
+                    else:
+                        logger.info(f"🗑️ Устаревший отчет (возраст {file_age:.0f} сек): {report_file}")
+                except (OSError, FileNotFoundError) as e:
+                    logger.warning(f"⚠️ Не удалось получить время модификации файла {report_path}: {e}")
+                    # Если не удалось получить время, всё равно показываем файл
+                    if report_file == 'download_report.html':
+                        download_report = True
+                    elif report_file == 'final_report.html':
+                        final_report = True
+                    elif report_file == 'interrupted_report.html':
+                        interrupted_report = True
+                    elif report_file == 'intermediate_report.html':
+                        intermediate_report = True
+        except Exception as e:
+            logger.error(f"❌ Ошибка при проверке файла {report_path}: {e}")
+            continue
+
+    current_timestamp = int(time())
 
     return render(request, 'external_sources.html',
                   {'is_processing': is_processing, 'tasks_id': tasks_id, 'scan_task_id': scan_task_id,
                    'active_scan_task': active_scan_task, 'download_report': download_report,
                    'final_report': final_report, 'interrupted_report': interrupted_report,
-                   'intermediate_report': intermediate_report})
+                   'intermediate_report': intermediate_report, 'current_timestamp': current_timestamp})
 
 
 @login_required

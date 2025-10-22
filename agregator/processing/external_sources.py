@@ -7,6 +7,7 @@ import urllib.request
 from pathlib import Path
 import time
 from time import sleep
+from datetime import datetime
 from typing import List
 from urllib.parse import quote
 
@@ -64,6 +65,9 @@ ACTS_QUERY_EXCLUDE = [
 @handle_interrupts
 def external_sources_processing(self, task_state, start_date, end_date, start_page, end_page, select_text, select_image,
                                 select_coord):
+    logger.info(
+        f"🎬 НАЧАЛО СКАНИРОВАНИЯ. Параметры: start_date={start_date}, end_date={end_date}, start_page={start_page}, end_page={end_page}")
+
     self.update_state(
         state='PROGRESS',
         meta={
@@ -118,32 +122,65 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                 except (ValueError, IndexError):
                     logger.warning(f"Не удалось распарсить количество страниц: {total_pages_href}")
 
-    if isinstance(end_page, int) and total_pages > end_page > 0:
-        total_pages = end_page
+    # КОРРЕКТНО ОБРАБАТЫВАЕМ ДИАПАЗОН СТРАНИЦ
+    if start_page is None or start_page <= 0:
+        start_page = 1
 
-    task_state.update(total_pages=total_pages)
+    if end_page is None or end_page <= 0:
+        end_page = total_pages
+    else:
+        end_page = min(end_page, total_pages)
+
+    if start_page > end_page:
+        start_page, end_page = end_page, start_page
+
+    logger.info(f"📄 ДИАПАЗОН СТРАНИЦ: {start_page}-{end_page} из {total_pages}")
 
     # Используем правильную сессию в зависимости от SSL
     current_session = ssl_session if ignore_ssl else session
 
-    if start_page is None or (isinstance(end_page, int) and start_page <= 0):
-        start_page = 1
+    # ОБНОВЛЯЕМ TASK_STATE С ПРАВИЛЬНЫМИ ПАРАМЕТРАМИ - ДОБАВЛЯЕМ ВСЕ ДАННЫЕ СРАЗУ
+    task_state.update(
+        total_pages=total_pages,
+        start_date=start_date,
+        end_date=end_date,
+        start_page=start_page,
+        end_page=end_page,
+        start_time=datetime.now().strftime('%d.%m.%Y %H:%M:%S')  # ОБНОВЛЯЕМ ВРЕМЯ ЗАПУСКА ТОЖЕ!
+    )
 
-    for page in range(start_page, total_pages + 1):
-        if end_page is not None and end_page < page:
-            break
+    # ГЕНЕРИРУЕМ ПЕРВЫЙ ПРОМЕЖУТОЧНЫЙ ОТЧЕТ СРАЗУ С АКТУАЛЬНЫМИ ДАННЫМИ
+    logger.info("🔄 ГЕНЕРАЦИЯ ПЕРВОГО ПРОМЕЖУТОЧНОГО ОТЧЕТА")
+    generate_intermediate_report(task_state.get_data())
+
+    # Обрабатываем только заданный диапазон страниц
+    actual_pages_to_process = end_page - start_page + 1
+    current_processed = 0
+
+    for page in range(start_page, end_page + 1):
+        current_processed += 1
+
+        # ОБНОВЛЯЕМ ВСЕ ДАННЫЕ СРАЗУ, А НЕ ПООЧЕРЕДНО
+        task_state.update(
+            processed_pages=current_processed,
+            total_pages=total_pages,  # ДУБЛИРУЕМ НА ВСЯКИЙ СЛУЧАЙ
+            start_date=start_date,
+            end_date=end_date,
+            start_page=start_page,
+            end_page=end_page
+        )
+
         self.update_state(
             state='PROGRESS',
             meta={
-                'current': page,
-                'total': total_pages,
+                'current': current_processed,
+                'total': actual_pages_to_process,
                 'type': 'page_progress',
-                'message': f'Обработка страницы {page} из {total_pages}'
+                'message': f'Обработка страницы {page} из {end_page} (всего страниц на сайте: {total_pages})'
             }
         )
-        task_state.update(processed_pages=page)
 
-        logger.info(f"Обработка страницы {page}")
+        logger.info(f"📖 ОБРАБОТКА СТРАНИЦЫ {page}")
 
         try:
             response = current_session.get(
@@ -266,6 +303,8 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                 task_state.add_file_info(file_info)
                 continue
 
+        # ГЕНЕРИРУЕМ ПРОМЕЖУТОЧНЫЙ ОТЧЕТ ПОСЛЕ КАЖДОЙ СТРАНИЦЫ
+        logger.info(f"🔄 ГЕНЕРАЦИЯ ПРОМЕЖУТОЧНОГО ОТЧЕТА ПОСЛЕ СТРАНИЦЫ {page}")
         generate_intermediate_report(task_state.get_data())
 
         # Параллельное скачивание файлов с одной страницы
@@ -310,13 +349,16 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                         if info.get('filename') in processed_acts and processed_acts[info['filename']]:
                             info['act_id'] = processed_acts[info['filename']]
 
+        # Снова генерируем промежуточный отчет после обработки файлов страницы
+        logger.info(f"🔄 ГЕНЕРАЦИЯ ПРОМЕЖУТОЧНОГО ОТЧЕТА ПОСЛЕ ОБРАБОТКИ ФАЙЛОВ СТРАНИЦЫ {page}")
         generate_intermediate_report(task_state.get_data())
 
+    logger.info("✅ СКАНИРОВАНИЕ ЗАВЕРШЕНО")
     return {
-        'current': total_pages,
-        'total': total_pages,
+        'current': actual_pages_to_process,
+        'total': actual_pages_to_process,
         'type': 'page_progress',
-        'message': 'Сканирование всех страниц завершено.',
+        'message': f'Сканирование завершено. Обработано страниц: {actual_pages_to_process} из {total_pages}',
         'report_data': task_state.get_data()
     }
 
@@ -341,7 +383,10 @@ def get_downloaded_files_cache(admin_id):
 def process_downloaded_files(files_data, admin, select_text, select_image, select_coord):
     """Обрабатывает скачанные файлы с использованием ThreadPoolExecutor для архивов"""
     processed_acts = {}
+    all_acts_ids = []
+    upload_source = {'source': 'ООКН', 'link': None}
     for path_to_download, url, original_filename in files_data:
+        upload_source['link'] = url
         try:
             archive_files = []
             folder = None
@@ -390,26 +435,27 @@ def process_downloaded_files(files_data, admin, select_text, select_image, selec
                         {'type': report_type, 'file': convert_file_to_uploaded_file(file)})
             else:
                 files_to_save = [convert_file_to_uploaded_file(path_to_download)]
-            upload_source = {'source': 'ООКН', 'link': url}
             acts_ids = raw_reports_save(file_groups, files_to_save, Act, admin.id, True, upload_source)
             if acts_ids and len(acts_ids) > 0:
                 processed_acts[original_filename] = acts_ids[0]
+                all_acts_ids.extend(acts_ids)
             else:
                 processed_acts[original_filename] = None
             if folder is not None:
                 shutil.rmtree(folder)
             os.remove(path_to_download)
-            task = process_acts.apply_async((acts_ids, admin.id, select_text, select_image, select_coord),
-                                            link_error=error_handler_acts.s())
-            user_task = UserTasks(user_id=admin.id, task_id=task.task_id, files_type='act',
-                                  upload_source=upload_source)
-            user_task.save()
-            break
 
         except Exception as e:
             logger.error(f"Ошибка при обработке файла {path_to_download}: {e}")
             processed_acts[original_filename] = None
             continue
+    if all_acts_ids:
+        task = process_acts.apply_async((all_acts_ids, admin.id, select_text, select_image, select_coord),
+                                        link_error=error_handler_acts.s())
+        # Создаем UserTasks для всей задачи (или для каждого, если нужно)
+        user_task = UserTasks(user_id=admin.id, task_id=task.task_id, files_type='act',
+                              upload_source=upload_source)
+        user_task.save()
 
     return processed_acts
 

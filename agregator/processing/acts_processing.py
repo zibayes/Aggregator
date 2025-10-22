@@ -6,6 +6,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
+import traceback
 
 import fitz  # PyMuPDF
 import pandas as pd
@@ -71,9 +72,16 @@ def get_gike_object_size(text_to_write: str, table_info: dict) -> None:
 
 @shared_task(bind=True)
 def process_acts(self, acts_ids, user_id, select_text, select_image, select_coord):
-    return process_documents(self, acts_ids, user_id, 'acts', model_class=Act, load_function=load_raw_reports,
-                             select_text=select_text, select_image=select_image, select_coord=select_coord,
-                             process_function=extract_text_and_images)
+    progress_json = None
+    try:
+        progress_json = process_documents(self, acts_ids, user_id, 'acts', model_class=Act,
+                                          load_function=load_raw_reports,
+                                          select_text=select_text, select_image=select_image, select_coord=select_coord,
+                                          process_function=extract_text_and_images)
+    except Exception as e:
+        print(f'Критическая ошибка при обработке актов {acts_ids}: {e}')
+        traceback.print_exc()
+    return progress_json
 
 
 def extract_text_and_images(file, progress_recorder, pages_count, total_processed,
