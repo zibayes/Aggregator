@@ -10,9 +10,12 @@ import PIL
 import fitz
 import pandas as pd
 from PIL import Image
+import logging
 
 from agregator.models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers, \
     GeoObject
+
+logger = logging.getLogger(__name__)
 
 SOURCE_CONTENT = []  # [{'type': 'text/images/all', 'path': 'path/to/file.pdf'}, {}, ...]
 
@@ -333,14 +336,32 @@ def save_report_source(report, file, path, report_directory, report_id, source_c
     else:
         report.upload_source = {'source': 'Пользовательский файл'}
 
-    if index:
-        # file.name = f'{report_id}_{report_directory}_{index}' + file.name[file.name.rfind('.'):]
-        source_content.append({'type': type, 'path': path + '/' + file.name, 'origin_filename': origin_name})
-    else:
-        # file.name = f'{report_id}_{report_directory}' + file.name[file.name.rfind('.'):]
-        source_content.append({'type': 'all', 'path': path + '/' + file.name, 'origin_filename': origin_name})
+    file_path = path + '/' + file.name
 
-    with open(path + '/' + file.name, 'wb+') as destination:
+    # Вычисляем хеш файла
+    try:
+        from agregator.hash import calculate_file_hash
+        file_hash = calculate_file_hash(file_path)
+    except Exception as e:
+        logger.error(f"Ошибка при вычислении хеша файла {file_path}: {e}")
+        file_hash = None
+
+    if index:
+        source_content.append({
+            'type': type,
+            'path': file_path,
+            'origin_filename': origin_name,
+            'file_hash': file_hash
+        })
+    else:
+        source_content.append({
+            'type': 'all',
+            'path': file_path,
+            'origin_filename': origin_name,
+            'file_hash': file_hash
+        })
+
+    with open(file_path, 'wb+') as destination:
         if upload_source:
             destination.write(file.read())
             file.close()

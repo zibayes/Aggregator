@@ -122,6 +122,10 @@ urlpatterns = [
     path('geo_objects_edit/<int:pk>/', views.geo_objects_edit, name='geo_objects_edit'),
     path('geo_objects_delete/<int:pk>/', views.geo_objects_delete, name='geo_objects_delete'),
 
+    path('batch/', views.batch_processing_dashboard, name='batch_processing'),
+    path('batch/scan/', views.scan_directory, name='batch_scan'),
+    path('batch/process/', views.process_batch_files, name='batch_process'),
+
     path('api/download_delete/<str:task_id>/', views.download_delete, name='download_delete'),
     path('api/get_user_tasks_reports/', views.get_user_tasks_reports,
          name='get_user_tasks_reports'),

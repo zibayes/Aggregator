@@ -8,3 +8,4 @@ from .api_views import *
 from .llm_views import *
 from .map import *
 from .serializers import *
+from .batch_processing import *
