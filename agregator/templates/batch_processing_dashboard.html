@@ -65,6 +65,24 @@
                     </table>
                 </div>
 
+                <div class="accordion" id="accordionColumns" style="margin-bottom: 12px;">
+                    <div class="accordion-item" id="document-part-choice">
+                        <h2 class="accordion-header">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                    data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
+                                Выбор разделов документа для обработки
+                            </button>
+                        </h2>
+                        <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
+                            <div class="accordion-body">
+                                <label><input type="checkbox" name="select_text" checked> Текст</label><br>
+                                <label><input type="checkbox" name="select_image" checked> Изображения</label><br>
+                                <label><input type="checkbox" name="select_coord" checked> Координаты</label><br>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="mt-3">
                     <button id="processBtn" class="btn btn-success" onclick="processSelected()">
                         Обработать выбранные файлы
@@ -91,6 +109,12 @@
     async function processSelected() {
     const selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked:not(:disabled)'))
         .map(checkbox => checkbox.value);
+    const select_text = Array.from(document.querySelectorAll('input[name="select_text"]'))
+        .map(checkbox => checkbox.value);
+    const select_image = Array.from(document.querySelectorAll('input[name="select_image"]'))
+        .map(checkbox => checkbox.value);
+    const select_coord = Array.from(document.querySelectorAll('input[name="select_coord"]'))
+        .map(checkbox => checkbox.value);
 
     if (selectedFiles.length === 0) {
         alert('Выберите файлы для обработки (только новые файлы без дубликатов)');
@@ -113,9 +137,9 @@
             body: JSON.stringify({
                 file_paths: selectedFiles,
                 file_type: document.getElementById('fileType').value,
-                select_text: false,
-                select_image: false,
-                select_coord: false,
+                select_text: select_text,
+                select_image: select_image,
+                select_coord: select_coord,
                 is_public: true
             })
         });

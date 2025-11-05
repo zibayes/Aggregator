@@ -529,7 +529,6 @@ def process_voan_list(self, progress_key=None):
         Path('uploaded_files/Памятники/').mkdir(exist_ok=True)
 
         # Шаг 3: Очистка старых файлов
-
         _clean_old_files(current_lists, 'list_voan')
 
         # Шаг 4: Поиск и скачивание файла
@@ -557,11 +556,11 @@ def process_voan_list(self, progress_key=None):
         tables = extract_tables_from_docx(file_path)
         dataframes = tables_to_dataframes(tables)
 
-        # Шаг 6: Обработка данных
+        # Шаг 6: Получаем ВСЕ существующие объекты ВОАН
         existing_sites = IdentifiedArchaeologicalHeritageSite.objects.all()
-        existing_sites_set = set(
-            (site.name, site.address, site.obj_info, site.document) for site in existing_sites
-        )
+
+        # Создаем множество для отслеживания объектов из нового перечня
+        new_sites_set = set()
 
         processed = 0
         total_rows = sum(len(df) for df in dataframes)
@@ -573,8 +572,10 @@ def process_voan_list(self, progress_key=None):
                 continue
 
             for index, row in df.iterrows():
-                # Обработка каждой строки
-                _process_voan_row(row, existing_sites_set)
+                # Обработка каждой строки и добавление в множество новых объектов
+                site_key = _process_voan_row(row)
+                if site_key:
+                    new_sites_set.add(site_key)
 
                 processed += 1
                 self.update_state(
@@ -588,16 +589,22 @@ def process_voan_list(self, progress_key=None):
                 )
 
         # Шаг 7: Помечаем удаленные объекты
+        # Те объекты, которые есть в БД, но отсутствуют в новом перечне
+        marked_excluded = 0
         for site in existing_sites:
-            if (site.name, site.address, site.obj_info, site.document) not in existing_sites_set:
+            site_key = (site.name, site.address, site.obj_info, site.document)
+            if site_key not in new_sites_set:
                 site.is_excluded = True
                 site.save()
+                marked_excluded += 1
+
+        logger.info(f"Помечено как исключенных: {marked_excluded} объектов ВОАН")
 
         return {
             'current': processed,
             'total': total_rows,
             'type': 'page_progress',
-            'message': 'Сканирование всех страниц завершено.'
+            'message': f'Сканирование завершено. Исключено объектов: {marked_excluded}'
         }
 
     except Exception as e:
@@ -669,23 +676,19 @@ def process_oan_list(self, progress_key=None):
                 'message': f'Не удалось извлечь таблицы из файла ОАН'
             }
 
-        # Шаг 6: Обработка данных ОАН
-        # Получаем существующие объекты для сравнения
+        # Шаг 6: Получаем ВСЕ существующие объекты ОАН
         existing_sites = ArchaeologicalHeritageSite.objects.all()
-        existing_sites_set = set(
-            (site.doc_name, site.district, site.document, site.register_num)
-            for site in existing_sites
-        )
+
+        # Создаем множество для отслеживания объектов из нового перечня
+        new_sites_set = set()
 
         processed = 0
         total_rows = sum(len(df) for df in dataframes)
 
         # Шаг 7: Обработка каждой таблицы и строки
         for i, df in enumerate(dataframes):
-            # Очищаем названия колонок от переносов строк
             df.columns = df.columns.str.replace('\n', '', regex=True)
 
-            # Проверяем наличие необходимых колонок
             required_columns = [
                 'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта',
                 'Район местонахождения',
@@ -697,7 +700,6 @@ def process_oan_list(self, progress_key=None):
                 logger.warning(f"Таблица {i + 1} не содержит всех необходимых колонок для ОАН")
                 continue
 
-            # Обрабатываем каждую строку в таблице
             for index, row in df.iterrows():
                 try:
                     # Обработка одной строки данных ОАН
@@ -712,7 +714,8 @@ def process_oan_list(self, progress_key=None):
                         register_num=row[
                             'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
                         defaults={
-                            'source': ''
+                            'source': '',
+                            'is_excluded': False  # Новые объекты не исключены
                         }
                     )
 
@@ -726,27 +729,29 @@ def process_oan_list(self, progress_key=None):
                         external_orders_download(archaeological_site.document, archaeological_site.source,
                                                  document_source)
                         archaeological_site.document_source = document_source
-                        archaeological_site.save()
+                    else:
+                        # Если объект уже существовал, но нет документов - скачиваем
+                        if not archaeological_site.document_source_dict:
+                            external_orders_download(archaeological_site.document, archaeological_site.source,
+                                                     document_source)
+                            archaeological_site.document_source = document_source
 
-                        # Связываем с учетной карточкой
-                        connect_account_card_to_heritage(archaeological_site.doc_name)
+                        # Снимаем пометку исключения, если объект найден в новом перечне
+                        archaeological_site.is_excluded = False
 
-                    # Если объект уже существовал, но нет документов - скачиваем
-                    elif not archaeological_site.document_source_dict:
-                        external_orders_download(archaeological_site.document, archaeological_site.source,
-                                                 document_source)
-                        archaeological_site.document_source = document_source
-                        archaeological_site.save()
+                    archaeological_site.save()
 
-                    # Удаляем из множества для последующего определения удаленных объектов
+                    # Связываем с учетной карточкой
+                    connect_account_card_to_heritage(archaeological_site.doc_name)
+
+                    # Добавляем в множество новых объектов
                     site_key = (
                         archaeological_site.doc_name,
                         archaeological_site.district,
                         archaeological_site.document,
                         archaeological_site.register_num
                     )
-                    if site_key in existing_sites_set:
-                        existing_sites_set.remove(site_key)
+                    new_sites_set.add(site_key)
 
                 except Exception as row_error:
                     logger.error(f"Ошибка обработки строки {index} в таблице {i + 1}: {row_error}")
@@ -765,10 +770,11 @@ def process_oan_list(self, progress_key=None):
                 )
 
         # Шаг 8: Помечаем удаленные объекты ОАН
+        # Те объекты, которые есть в БД, но отсутствуют в новом перечне
         marked_excluded = 0
         for site in existing_sites:
             site_key = (site.doc_name, site.district, site.document, site.register_num)
-            if site_key in existing_sites_set:
+            if site_key not in new_sites_set:
                 site.is_excluded = True
                 site.save()
                 marked_excluded += 1
@@ -781,7 +787,7 @@ def process_oan_list(self, progress_key=None):
             'current': processed,
             'total': total_rows,
             'type': 'page_progress',
-            'message': 'Обработка всех ОАН завершена.'
+            'message': f'Обработка всех ОАН завершена. Исключено объектов: {marked_excluded}'
         }
 
     except Exception as e:
@@ -902,63 +908,64 @@ def _download_file(href, title, current_lists):
     return path_to_download
 
 
-def _process_voan_row(row, existing_sites_set):
+def _process_voan_row(row):
     """Обработка одной строки данных ВОАН"""
-    address = row['Адрес объекта (или описание местоположения объекта)*']
-    if isinstance(address, str):
-        address = address.strip()
-    elif isinstance(address, pd.Series):
-        if len(address) > 1 and isinstance(address.iloc[1], str) and address.iloc[1].strip() != row[
-            'Наименование выявленного объекта культурного наследия']:
-            address = address.iloc[1].strip()
-        elif len(address) > 0 and isinstance(address.iloc[0], str) and address.iloc[0].strip() != row[
-            'Наименование выявленного объекта культурного наследия']:
-            address = address.iloc[0].strip()
-        else:
-            address = ''
+    try:
+        address = row['Адрес объекта (или описание местоположения объекта)*']
+        if isinstance(address, str):
+            address = address.strip()
+        elif isinstance(address, pd.Series):
+            if len(address) > 1 and isinstance(address.iloc[1], str) and address.iloc[1].strip() != row[
+                'Наименование выявленного объекта культурного наследия']:
+                address = address.iloc[1].strip()
+            elif len(address) > 0 and isinstance(address.iloc[0], str) and address.iloc[0].strip() != row[
+                'Наименование выявленного объекта культурного наследия']:
+                address = address.iloc[0].strip()
+            else:
+                address = ''
 
-    document_source = []
-    identified_site = IdentifiedArchaeologicalHeritageSite(
-        name=row['Наименование выявленного объекта культурного наследия'],
-        address=address,
-        obj_info=row['Сведения об историко-культурной ценности объекта'],
-        document=row['Документ о включении в перечень выявленных объектов'],
-    )
+        document_source = []
+        identified_site = IdentifiedArchaeologicalHeritageSite(
+            name=row['Наименование выявленного объекта культурного наследия'],
+            address=address,
+            obj_info=row['Сведения об историко-культурной ценности объекта'],
+            document=row['Документ о включении в перечень выявленных объектов'],
+        )
 
-    # Проверяем существование
-    site_exists = IdentifiedArchaeologicalHeritageSite.objects.filter(
-        name=identified_site.name,
-        address=identified_site.address,
-        obj_info=identified_site.obj_info,
-        document=identified_site.document,
-    ).exists()
-
-    if not site_exists:
-        folder = f'uploaded_files/Памятники/ВОАН/{address}/{clean_path_component(row["Наименование выявленного объекта культурного наследия"])}'
-        Path(folder).mkdir(parents=True, exist_ok=True)
-
-        identified_site.source = folder
-        external_orders_download(identified_site.document, folder, document_source)
-        identified_site.document_source = document_source
-        identified_site.save()
-        connect_account_card_to_heritage(identified_site.name)
-    else:
-        # Обновляем существующий
-        existing_site = IdentifiedArchaeologicalHeritageSite.objects.get(
+        # Проверяем существование
+        site_exists = IdentifiedArchaeologicalHeritageSite.objects.filter(
             name=identified_site.name,
             address=identified_site.address,
             obj_info=identified_site.obj_info,
             document=identified_site.document,
-        )
-        if not existing_site.document_source_dict:
-            external_orders_download(existing_site.document, existing_site.source, document_source)
-            existing_site.document_source = document_source
-            existing_site.save()
+        ).exists()
 
-    # Удаляем из множества для последующего определения удаленных
-    site_key = (identified_site.name, identified_site.address, identified_site.obj_info, identified_site.document)
-    if site_key in existing_sites_set:
-        existing_sites_set.remove(site_key)
+        if not site_exists:
+            folder = f'uploaded_files/Памятники/ВОАН/{address}/{clean_path_component(row["Наименование выявленного объекта культурного наследия"])}'
+            Path(folder).mkdir(parents=True, exist_ok=True)
+
+            identified_site.source = folder
+            external_orders_download(identified_site.document, folder, document_source)
+            identified_site.document_source = document_source
+            identified_site.save()
+            connect_account_card_to_heritage(identified_site.name)
+        else:
+            # Обновляем существующий
+            existing_site = IdentifiedArchaeologicalHeritageSite.objects.get(
+                name=identified_site.name,
+                address=identified_site.address,
+                obj_info=identified_site.obj_info,
+                document=identified_site.document,
+            )
+            if not existing_site.document_source_dict:
+                external_orders_download(existing_site.document, existing_site.source, document_source)
+                existing_site.document_source = document_source
+                existing_site.save()
+        return (identified_site.name, identified_site.address, identified_site.obj_info, identified_site.document)
+
+    except Exception as e:
+        logger.error(f"Ошибка обработки строки ВОАН: {e}")
+        return None
 
 
 def external_orders_download(query: str, output_path: str, document_source: List) -> None:

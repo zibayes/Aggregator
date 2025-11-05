@@ -85,6 +85,7 @@
                             отчётов</a></li>
                         {% if user.is_authenticated %}
                         <li><a class="dropdown-item" href="{% url 'deconstructor' %}">Менеджер загрузок</a></li>
+                        <li><a class="dropdown-item" href="{% url 'batch_processing' %}">Обработка хранилища</a></li>
                         <li><a class="dropdown-item" href="{% url 'external_sources' %}">Отчёты с внешних
                             источников</a></li>
                         {% endif %}
