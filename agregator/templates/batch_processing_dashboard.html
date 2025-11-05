@@ -9,7 +9,7 @@
             <form id="scanForm">
                 {% csrf_token %}
                 <div class="row">
-                    <div class="col-md-6">
+                    <div class="col-md-4">
                         <div class="mb-3">
                             <label class="form-label">Тип файлов:</label>
                             <select name="file_type" class="form-select" id="fileType">
@@ -31,42 +31,84 @@
                             </div>
                         </div>
                     </div>
+                    <div class="col-md-2">
+                        <div class="mb-3">
+                            <label class="form-label">Лимит файлов:</label>
+                            <select name="limit" class="form-select" id="fileLimit">
+                                <option value="1000">1000</option>
+                                <option value="5000">5000</option>
+                                <option value="10000">10000</option>
+                                <option value="50000">50000</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Сканировать директорию</button>
             </form>
         </div>
     </div>
 
+    <div id="scanProgress" class="mt-3" style="display: none;">
+        <div class="alert alert-info">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Сканирование директории...</span>
+                <div class="spinner-border spinner-border-sm" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="fileList" class="mt-4" style="display: none;">
         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Найденные файлы</h5>
-                <span id="fileCount"></span>
+                <h5 class="mb-0">Найденные файлы (только новые)</h5>
+                <div>
+                    <span id="fileCount" class="badge bg-primary me-2"></span>
+                    <span id="paginationInfo" class="badge bg-secondary"></span>
+                </div>
             </div>
             <div class="card-body">
                 <div class="mb-3">
-                    <button class="btn btn-sm btn-outline-secondary" onclick="selectAll()">Выбрать все</button>
+                    <button class="btn btn-sm btn-outline-secondary" onclick="selectAll()">Выбрать все на странице
+                    </button>
                     <button class="btn btn-sm btn-outline-secondary" onclick="deselectAll()">Снять выделение</button>
-                    <button class="btn btn-sm btn-outline-primary" onclick="selectNewOnly()">Только новые</button>
+                    <button class="btn btn-sm btn-outline-success" onclick="selectAllFiles()">Выбрать ВСЕ новые файлы
+                    </button>
                 </div>
 
-                <div class="table-responsive">
+                <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
                     <table class="table table-sm table-hover">
                         <thead>
                         <tr>
-                            <th><input type="checkbox" id="selectAllCheckbox"></th>
+                            <th width="50px"><input type="checkbox" id="selectAllCheckbox"
+                                                    onchange="toggleSelectAll(this.checked)"></th>
                             <th>Файл</th>
-                            <th>Размер</th>
-                            <th>Статус</th>
-                            <th>Хеш</th>
+                            <th width="100px">Размер</th>
+                            <th width="120px">Статус</th>
+                            <th width="200px">Хеш</th>
                         </tr>
                         </thead>
                         <tbody id="fileTableBody"></tbody>
                     </table>
                 </div>
 
-                <div class="accordion" id="accordionColumns" style="margin-bottom: 12px;">
-                    <div class="accordion-item" id="document-part-choice">
+                <!-- Пагинация -->
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary" id="prevPage" onclick="changePage(-1)">Назад
+                        </button>
+                        <span class="mx-2" id="pageInfo">Страница 1 из 1</span>
+                        <button class="btn btn-sm btn-outline-primary" id="nextPage" onclick="changePage(1)">Вперед
+                        </button>
+                    </div>
+                    <div>
+                        <span class="text-muted" id="pageStats"></span>
+                    </div>
+                </div>
+
+                <div class="accordion mt-3" id="accordionColumns">
+                    <div class="accordion-item">
                         <h2 class="accordion-header">
                             <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
                                     data-bs-target="#collapseOne" aria-expanded="false" aria-controls="collapseOne">
@@ -85,7 +127,7 @@
 
                 <div class="mt-3">
                     <button id="processBtn" class="btn btn-success" onclick="processSelected()">
-                        Обработать выбранные файлы
+                        Обработать выбранные файлы (<span id="selectedCount">0</span>)
                     </button>
                 </div>
             </div>
@@ -94,40 +136,300 @@
 </div>
 
 <script>
-    // JavaScript для управления интерфейсом
-    function browseDirectory() {
-        // В реальной реализации можно использовать диалог выбора директории
-        const fileType = document.getElementById('fileType').value;
-        const defaultDirs = {
-            'act': 'uploaded_files/Акты ГИКЭ',
-            'scientific_report': 'uploaded_files/Научные отчёты',
-            'tech_report': 'uploaded_files/Научно-технические отчёты'
-        };
-        document.getElementById('directoryPath').value = defaultDirs[fileType] || '';
+    // Функция для отладки
+function debugLog(message) {
+    console.log(message);
+}
+
+// Глобальные переменные для управления состоянием
+let currentFilesData = [];
+let currentPage = 1;
+let totalPages = 1;
+let allNewFiles = []; // Все новые файлы (все страницы)
+let selectedAllFiles = false;
+
+// Загрузка DOM
+document.addEventListener('DOMContentLoaded', function() {
+    debugLog('DOM загружен');
+    const scanForm = document.getElementById('scanForm');
+    if (scanForm) {
+        scanForm.addEventListener('submit', handleScanSubmit);
+    } else {
+        debugLog('ОШИБКА: Форма scanForm не найдена!');
     }
 
-    async function processSelected() {
-    const selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked:not(:disabled)'))
-        .map(checkbox => checkbox.value);
-    const select_text = Array.from(document.querySelectorAll('input[name="select_text"]'))
-        .map(checkbox => checkbox.value);
-    const select_image = Array.from(document.querySelectorAll('input[name="select_image"]'))
-        .map(checkbox => checkbox.value);
-    const select_coord = Array.from(document.querySelectorAll('input[name="select_coord"]'))
-        .map(checkbox => checkbox.value);
+    // Инициализируем элементы после загрузки DOM
+    initializeElements();
+});
 
-    if (selectedFiles.length === 0) {
-        alert('Выберите файлы для обработки (только новые файлы без дубликатов)');
+// Инициализация элементов DOM
+function initializeElements() {
+    // Создаем необходимые элементы если их нет
+    if (!document.getElementById('fileCount')) {
+        const fileCountElement = document.createElement('span');
+        fileCountElement.id = 'fileCount';
+        fileCountElement.className = 'badge bg-primary me-2';
+
+        const cardHeader = document.querySelector('.card-header');
+        if (cardHeader) {
+            const existingBadge = cardHeader.querySelector('.badge');
+            if (existingBadge) {
+                existingBadge.after(fileCountElement);
+            } else {
+                cardHeader.appendChild(fileCountElement);
+            }
+        }
+    }
+}
+
+// Обработчик сканирования директории
+async function handleScanSubmit(e) {
+    e.preventDefault();
+
+    const directory = document.getElementById('directoryPath').value;
+    const fileType = document.getElementById('fileType').value;
+    const limit = document.getElementById('fileLimit').value;
+
+    if (!directory) {
+        alert('Укажите директорию для сканирования');
         return;
     }
 
-    const processBtn = document.getElementById('processBtn');
-    const originalText = processBtn.textContent;
-    processBtn.disabled = true;
-    processBtn.textContent = 'Обработка...';
+    // Показываем индикатор прогресса
+    const scanProgress = document.getElementById('scanProgress');
+    if (scanProgress) scanProgress.style.display = 'block';
+
+    const fileList = document.getElementById('fileList');
+    if (fileList) fileList.style.display = 'none';
 
     try {
-        debugLog(`Отправка ${selectedFiles.length} файлов на обработку...`);
+        const response = await fetch('/batch/scan/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: new URLSearchParams({
+                'directory': directory,
+                'file_type': fileType,
+                'page': '1',
+                'limit': limit
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('HTTP error: ' + response.status);
+        }
+
+        const data = await response.json();
+
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+            return;
+        }
+
+        // Сохраняем все новые файлы
+        allNewFiles = data.files || [];
+        currentPage = data.current_page || 1;
+        totalPages = data.total_pages || 1;
+
+        displayFiles(data);
+        updatePagination(data);
+
+    } catch (error) {
+        debugLog('Ошибка при сканировании: ' + error.message);
+        alert('Ошибка при сканировании директории: ' + error.message);
+    } finally {
+        if (scanProgress) scanProgress.style.display = 'none';
+    }
+}
+
+// Отображение файлов
+function displayFiles(data) {
+    const fileList = document.getElementById('fileList');
+    const fileCount = document.getElementById('fileCount');
+    const fileTableBody = document.getElementById('fileTableBody');
+
+    if (!fileList || !fileTableBody) {
+        debugLog('ОШИБКА: Не найдены необходимые элементы DOM');
+        return;
+    }
+
+    fileList.style.display = 'block';
+
+    // Обновляем статистику если элемент существует
+    if (fileCount) {
+        fileCount.textContent = `Всего: ${data.total_count}, Новых: ${data.new_files}, Существующих: ${data.existing_files}`;
+    }
+
+    let tableHtml = '';
+
+    if (data.files && data.files.length > 0) {
+        data.files.forEach((file, index) => {
+            const isSelected = selectedAllFiles || isFileSelected(file.path);
+            tableHtml += `
+                <tr>
+                    <td>
+                        <input type="checkbox" class="file-checkbox" value="${file.path}"
+                               ${isSelected ? 'checked' : ''}
+                               onchange="updateSelection()">
+                    </td>
+                    <td>
+                        <div class="fw-bold">${file.name}</div>
+                        <small class="text-muted">${file.relative_path}</small>
+                    </td>
+                    <td>${(file.size / 1024 / 1024).toFixed(2)} МБ</td>
+                    <td><span class="badge bg-success">Новый</span></td>
+                    <td title="${file.file_hash}">
+                        <small>${file.file_hash ? file.file_hash.substring(0, 16) + '...' : 'Не вычислен'}</small>
+                    </td>
+                </tr>
+            `;
+        });
+    } else {
+        tableHtml = '<tr><td colspan="5" class="text-center">Новых файлов не найдено</td></tr>';
+    }
+
+    fileTableBody.innerHTML = tableHtml;
+    updateSelection();
+}
+
+// Пагинация
+async function changePage(direction) {
+    const newPage = currentPage + direction;
+    if (newPage < 1 || newPage > totalPages) return;
+
+    currentPage = newPage;
+
+    const directory = document.getElementById('directoryPath').value;
+    const fileType = document.getElementById('fileType').value;
+    const limit = document.getElementById('fileLimit').value;
+
+    try {
+        const response = await fetch('/batch/scan/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: new URLSearchParams({
+                'directory': directory,
+                'file_type': fileType,
+                'page': currentPage.toString(),
+                'limit': limit
+            })
+        });
+
+        const data = await response.json();
+        if (data.error) {
+            alert('Ошибка: ' + data.error);
+            return;
+        }
+
+        // Обновляем все новые файлы
+        allNewFiles = data.files || [];
+        displayFiles(data);
+        updatePagination(data);
+
+    } catch (error) {
+        debugLog('Ошибка при загрузке страницы: ' + error.message);
+        alert('Ошибка при загрузке страницы: ' + error.message);
+    }
+}
+
+function updatePagination(data) {
+    const pageInfo = document.getElementById('pageInfo');
+    const pageStats = document.getElementById('pageStats');
+    const prevPage = document.getElementById('prevPage');
+    const nextPage = document.getElementById('nextPage');
+
+    if (pageInfo) pageInfo.textContent = `Страница ${data.current_page} из ${data.total_pages}`;
+    if (pageStats) pageStats.textContent = `Показано: ${data.files.length} файлов`;
+
+    if (prevPage) prevPage.disabled = !data.has_previous;
+    if (nextPage) nextPage.disabled = !data.has_next;
+}
+
+// Управление выбором файлов
+function toggleSelectAll(checked) {
+    const checkboxes = document.querySelectorAll('.file-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = checked;
+    });
+    updateSelection();
+}
+
+function selectAll() {
+    document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateSelection();
+}
+
+function deselectAll() {
+    selectedAllFiles = false;
+    document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    updateSelection();
+}
+
+function selectAllFiles() {
+    selectedAllFiles = true;
+    document.querySelectorAll('.file-checkbox').forEach(checkbox => {
+        checkbox.checked = true;
+    });
+    updateSelection();
+    alert(`Выбраны ВСЕ новые файлы (${allNewFiles.length} шт.)`);
+}
+
+function isFileSelected(filePath) {
+    // В упрощенной версии всегда возвращаем false для индивидуального выбора
+    // В сложной реализации можно хранить Set с выбранными файлами
+    return false;
+}
+
+function updateSelection() {
+    const selectedCountElement = document.getElementById('selectedCount');
+    if (!selectedCountElement) return;
+
+    const selectedCount = document.querySelectorAll('.file-checkbox:checked').length;
+    selectedCountElement.textContent = selectedAllFiles ? 'ВСЕ' : selectedCount;
+}
+
+// Обработка выбранных файлов
+async function processSelected() {
+    let selectedFiles = [];
+
+    if (selectedAllFiles) {
+        // Берем все файлы из всех страниц
+        selectedFiles = allNewFiles.map(file => file.path);
+    } else {
+        // Берем только отмеченные чекбоксы
+        selectedFiles = Array.from(document.querySelectorAll('.file-checkbox:checked'))
+            .map(checkbox => checkbox.value);
+    }
+
+    if (selectedFiles.length === 0) {
+        alert('Выберите файлы для обработки');
+        return;
+    }
+
+    const selectText = document.querySelector('input[name="select_text"]').checked;
+    const selectImage = document.querySelector('input[name="select_image"]').checked;
+    const selectCoord = document.querySelector('input[name="select_coord"]').checked;
+
+    const processBtn = document.getElementById('processBtn');
+    if (!processBtn) {
+        alert('Элемент кнопки не найден');
+        return;
+    }
+
+    const originalText = processBtn.innerHTML;
+    processBtn.disabled = true;
+    processBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span> Обработка...';
+
+    try {
         const response = await fetch('/batch/process/', {
             method: 'POST',
             headers: {
@@ -137,228 +439,43 @@
             body: JSON.stringify({
                 file_paths: selectedFiles,
                 file_type: document.getElementById('fileType').value,
-                select_text: select_text,
-                select_image: select_image,
-                select_coord: select_coord,
+                select_text: selectText,
+                select_image: selectImage,
+                select_coord: selectCoord,
                 is_public: true
             })
         });
 
         const result = await response.json();
-        debugLog('Ответ от сервера: ' + JSON.stringify(result));
 
         if (result.success) {
             alert(`Успешно запущена обработка ${result.processed_count} файлов`);
-            // Обновляем список файлов, чтобы показать что они теперь в обработке
-            setTimeout(() => {
-                document.getElementById('scanForm').dispatchEvent(new Event('submit'));
-            }, 1000);
+            // Сбрасываем состояние
+            selectedAllFiles = false;
+            // Перезапускаем сканирование чтобы обновить список
+            document.getElementById('scanForm').dispatchEvent(new Event('submit'));
         } else {
             alert('Ошибка: ' + result.error);
         }
     } catch (error) {
-        debugLog('Ошибка при отправке запроса: ' + error);
         alert('Ошибка при отправке запроса: ' + error);
     } finally {
         processBtn.disabled = false;
-        processBtn.textContent = originalText;
+        processBtn.innerHTML = `Обработать выбранные файлы (<span id="selectedCount">0</span>)`;
+        // Переинициализируем элемент selectedCount
+        updateSelection();
     }
 }
 
-    // Дополнительные функции для управления выбором файлов
-    function selectAll() {
-        debugLog('Выбор всех файлов...');
-        document.querySelectorAll('.file-checkbox:not(:disabled)').forEach(checkbox => {
-            checkbox.checked = true;
-        });
-        updateSelectAllCheckbox();
-    }
-
-    function deselectAll() {
-        debugLog('Снятие выделения...');
-        document.querySelectorAll('.file-checkbox').forEach(checkbox => {
-            checkbox.checked = false;
-        });
-        updateSelectAllCheckbox();
-    }
-
-    function selectNewOnly() {
-        debugLog('Выбор только новых файлов...');
-        document.querySelectorAll('.file-checkbox').forEach(checkbox => {
-            const row = checkbox.closest('tr');
-            checkbox.checked = !row.classList.contains('table-secondary') && !checkbox.disabled;
-        });
-        updateSelectAllCheckbox();
-    }
-</script>
-<div id="debugInfo" class="mt-3" style="display: none;">
-    <div class="alert alert-info">
-        <h6>Отладочная информация:</h6>
-        <div id="debugContent"></div>
-    </div>
-</div>
-
-<script>
-    // Добавьте этот код в начало script
-    console.log('Страница пакетной обработки загружена');
-
-    // Функция для отладки
-    function debugLog(message) {
-        console.log(message);
-        const debugDiv = document.getElementById('debugInfo');
-        const debugContent = document.getElementById('debugContent');
-        if (debugDiv && debugContent) {
-            debugDiv.style.display = 'block';
-            debugContent.innerHTML += '<div>' + new Date().toLocaleTimeString() + ': ' + message + '</div>';
-        }
-    }
-
-    // Проверяем загрузку DOM
-    document.addEventListener('DOMContentLoaded', function() {
-        debugLog('DOM загружен');
-
-        const scanForm = document.getElementById('scanForm');
-        if (scanForm) {
-            debugLog('Форма найдена');
-            scanForm.addEventListener('submit', handleScanSubmit);
-        } else {
-            debugLog('ОШИБКА: Форма не найдена!');
-        }
-
-        const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            if (this.checked) {
-                selectAll();
-            } else {
-                deselectAll();
-            }
-        });
-    }
-    });
-
-    // Обработчик отправки формы
-    async function handleScanSubmit(e) {
-        e.preventDefault();
-        debugLog('Форма отправляется...');
-
-        const directory = document.getElementById('directoryPath').value;
-        const fileType = document.getElementById('fileType').value;
-
-        if (!directory) {
-            alert('Укажите директорию для сканирования');
-            return;
-        }
-
-        try {
-            debugLog('Отправка запроса на сканирование...');
-            const response = await fetch('/batch/scan/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
-                },
-                body: new URLSearchParams({
-                    'directory': directory,
-                    'file_type': fileType
-                })
-            });
-
-            debugLog('Получен ответ: ' + response.status);
-
-            if (!response.ok) {
-                throw new Error('HTTP error: ' + response.status);
-            }
-
-            const data = await response.json();
-            debugLog('Данные получены: ' + JSON.stringify(data));
-
-            if (data.error) {
-                alert('Ошибка: ' + data.error);
-                return;
-            }
-
-            displayFiles(data);
-
-        } catch (error) {
-            debugLog('Ошибка при сканировании: ' + error.message);
-            alert('Ошибка при сканировании директории: ' + error.message);
-        }
-    }
-
-    let currentFilesData = [];
-
-    // Обновленная функция displayFiles
-    function displayFiles(data) {
-    debugLog('Отображение файлов...');
-
-    const fileList = document.getElementById('fileList');
-    const fileCount = document.getElementById('fileCount');
-    const fileTableBody = document.getElementById('fileTableBody');
-
-    if (!fileList || !fileCount || !fileTableBody) {
-        debugLog('ОШИБКА: Не найдены элементы для отображения файлов');
-        return;
-    }
-
-    // Сохраняем данные для последующего использования
-    currentFilesData = data.files || [];
-
-    fileList.style.display = 'block';
-    fileCount.textContent = `Всего: ${data.total_count}, Новых: ${data.new_files}, Существующих: ${data.existing_files}`;
-
-    let tableHtml = '';
-
-    if (currentFilesData.length > 0) {
-        currentFilesData.forEach((file, index) => {
-            const status = file.exists_in_db ?
-                '<span class="badge bg-secondary">Уже в БД</span>' :
-                '<span class="badge bg-success">Новый</span>';
-
-            const rowClass = file.exists_in_db ? 'table-secondary' : '';
-            const canProcess = !file.exists_in_db;
-
-            tableHtml += `
-                <tr class="${rowClass}" data-file-index="${index}">
-                    <td>
-                        <input type="checkbox" class="file-checkbox" value="${file.path}"
-                               ${canProcess ? '' : 'disabled'}
-                               onchange="updateSelectAllCheckbox()">
-                    </td>
-                    <td>${file.name}</td>
-                    <td>${(file.size / 1024 / 1024).toFixed(2)} МБ</td>
-                    <td>${status}</td>
-                    <td title="${file.file_hash}">
-                        ${file.file_hash ? file.file_hash.substring(0, 16) + '...' : 'Не вычислен'}
-                    </td>
-                </tr>
-            `;
-        });
-    } else {
-        tableHtml = '<tr><td colspan="5" class="text-center">Файлы не найдены</td></tr>';
-    }
-
-    fileTableBody.innerHTML = tableHtml;
-
-    // Обновляем состояние основного чекбокса
-    updateSelectAllCheckbox();
-    debugLog('Файлы отображены: ' + currentFilesData.length + ' шт.');
-}
-
-// Функция для обновления состояния основного чекбокса
-function updateSelectAllCheckbox() {
-    const checkboxes = document.querySelectorAll('.file-checkbox:not(:disabled)');
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-
-    if (checkboxes.length === 0) {
-        selectAllCheckbox.checked = false;
-        selectAllCheckbox.disabled = true;
-        return;
-    }
-
-    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
-    selectAllCheckbox.checked = checkedCount === checkboxes.length;
-    selectAllCheckbox.disabled = false;
+// Вспомогательные функции
+function browseDirectory() {
+    const fileType = document.getElementById('fileType').value;
+    const defaultDirs = {
+        'act': 'uploaded_files/Акты ГИКЭ',
+        'scientific_report': 'uploaded_files/Научные отчёты',
+        'tech_report': 'uploaded_files/Научно-технические отчёты'
+    };
+    document.getElementById('directoryPath').value = defaultDirs[fileType] || '';
 }
 </script>
 

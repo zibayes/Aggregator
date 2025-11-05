@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.core.paginator import Paginator
 
 from agregator.processing.batch_processing import scan_and_prepare_batch, create_act_from_existing_file
 from agregator.processing.acts_processing import process_acts, error_handler_acts
@@ -34,15 +35,15 @@ def batch_processing_dashboard(request):
 def scan_directory(request):
     """Сканирует директорию и возвращает список файлов с проверкой дубликатов"""
     logger.info("=== SCAN DIRECTORY CALLED ===")
-    logger.info(f"Method: {request.method}")
-    logger.info(f"POST data: {request.POST}")
 
     if request.method == 'POST':
         try:
             directory = request.POST.get('directory', '').strip()
             file_type = request.POST.get('file_type', 'act')
+            page = int(request.POST.get('page', 1))
+            limit = int(request.POST.get('limit', 1000))  # Лимит файлов для сканирования
 
-            logger.info(f"Directory: {directory}, File type: {file_type}")
+            logger.info(f"Directory: {directory}, File type: {file_type}, Page: {page}")
 
             if not directory:
                 logger.error("Directory not provided")
@@ -53,31 +54,39 @@ def scan_directory(request):
                 return JsonResponse({'error': 'Директория не существует'}, status=400)
 
             # Сканируем и проверяем файлы
-            from agregator.processing.batch_processing import scan_and_prepare_batch
-            files = scan_and_prepare_batch(directory, file_type, request.user)
+            scan_result = scan_and_prepare_batch(directory, file_type, request.user, limit=limit)
+            files = scan_result['files']
+
+            # Пагинация
+            paginator = Paginator(files, 100)  # 100 файлов на страницу
+            page_obj = paginator.get_page(page)
 
             response_data = {
-                'files': files,
-                'total_count': len(files),
-                'new_files': len([f for f in files if not f['exists_in_db']]),
-                'existing_files': len([f for f in files if f['exists_in_db']])
+                'files': list(page_obj),
+                'total_count': scan_result['total_scanned'],
+                'new_files': scan_result['new_files_count'],
+                'existing_files': scan_result['existing_files_count'],
+                'has_next': page_obj.has_next(),
+                'has_previous': page_obj.has_previous(),
+                'current_page': page,
+                'total_pages': paginator.num_pages,
+                'page_size': 100
             }
 
-            logger.info(f"Scan completed: {len(files)} files found")
+            logger.info(
+                f"Scan completed: {scan_result['total_scanned']} files scanned, {scan_result['new_files_count']} new files")
             return JsonResponse(response_data)
 
         except Exception as e:
             logger.error(f"Error scanning directory: {e}", exc_info=True)
             return JsonResponse({'error': f'Ошибка при сканировании: {str(e)}'}, status=500)
 
-    logger.error("Method not allowed")
     return JsonResponse({'error': 'Метод не разрешен'}, status=405)
 
 
 @login_required
 @user_passes_test(lambda u: u.is_superuser)
-@login_required
-@user_passes_test(lambda u: u.is_superuser)
+@csrf_exempt
 def process_batch_files(request):
     """Запускает пакетную обработку выбранных файлов"""
     if request.method == 'POST':
@@ -133,22 +142,21 @@ def process_batch_files(request):
                     logger.error(error_msg, exc_info=True)
 
             if not created_ids:
-                error_message = 'Не удалось создать ни одной записи. ' + ' '.join(
-                    errors[:3])  # Показываем только первые 3 ошибки
+                error_message = 'Не удалось создать ни одной записи. ' + ' '.join(errors[:3])
                 return JsonResponse({'error': error_message}, status=400)
 
-            # ЗАПУСКАЕМ ОБРАБОТКУ КАК ПРИ ОБЫЧНОЙ ЗАГРУЗКЕ!
+            # Запускаем обработку
             task = processing_task.apply_async(
                 (created_ids, request.user.id, select_text, select_image, select_coord),
-                link_error=error_handler_acts.s()  # Добавляем обработчик ошибок
+                link_error=error_handler_acts.s()
             )
 
-            # Сохраняем информацию о задаче КАК ПРИ ОБЫЧНОЙ ЗАГРУЗКЕ
+            # Сохраняем информацию о задаче
             user_task = UserTasks(
                 user_id=request.user.id,
                 task_id=task.task_id,
                 files_type=file_type,
-                upload_source={'source': 'Пользовательский файл'}
+                upload_source={'source': 'Пакетная загрузка из файловой системы'}
             )
             user_task.save()
 

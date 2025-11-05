@@ -8,7 +8,7 @@ from agregator.processing.hash_utils import check_file_hash_in_sources
 logger = logging.getLogger(__name__)
 
 
-def discover_files(base_directory, extensions=None):
+def discover_files(base_directory, extensions=None, limit=None):
     """
     Рекурсивно находит все файлы в указанной директории
     """
@@ -29,7 +29,13 @@ def discover_files(base_directory, extensions=None):
         pattern = f"*{extension}"
         logger.info(f"Searching for: {pattern}")
 
+        files_found = 0
         for file_path in base_path.rglob(pattern):
+            # Если достигли лимита - прерываем
+            if limit and files_found >= limit:
+                logger.info(f"Достигнут лимит в {limit} файлов для расширения {extension}")
+                break
+
             # Пропускаем временные файлы и скрытые файлы
             if file_path.name.startswith('~') or file_path.name.startswith('.'):
                 continue
@@ -41,7 +47,7 @@ def discover_files(base_directory, extensions=None):
                 'size': file_path.stat().st_size,
                 'extension': extension.lower()
             })
-            logger.info(f"Found file: {file_path.name}")
+            files_found += 1
 
     logger.info(f"Total files found: {len(file_list)}")
     return file_list
@@ -87,9 +93,10 @@ def create_act_from_existing_file(file_info, user, is_public=False):
         return None
 
 
-def scan_and_prepare_batch(directory, file_type, user):
+def scan_and_prepare_batch(directory, file_type, user, limit=10000):
     """
     Сканирует директорию и подготавливает файлы для пакетной обработки
+    Возвращает ТОЛЬКО файлы, которых нет в БД
     """
     # Маппинг типов файлов на модели и расширения
     type_config = {
@@ -115,18 +122,25 @@ def scan_and_prepare_batch(directory, file_type, user):
         raise ValueError(f"Неизвестный тип файла: {file_type}")
 
     # Сканируем файлы
-    files = discover_files(directory, config['extensions'])
+    files = discover_files(directory, config['extensions'], limit=limit)
 
-    # Проверяем каждый файл на дубликаты
-    processed_files = []
+    # Проверяем каждый файл на дубликаты и фильтруем ТОЛЬКО те, которых нет в БД
+    new_files = []
     for file_info in files:
         is_duplicate, file_hash = check_file_hash_in_sources(file_info['path'], config['model'])
 
-        processed_files.append({
-            **file_info,
-            'exists_in_db': is_duplicate,
-            'file_hash': file_hash,
-            'can_process': not is_duplicate
-        })
+        # Добавляем только если файла нет в БД
+        if not is_duplicate:
+            new_files.append({
+                **file_info,
+                'exists_in_db': False,
+                'file_hash': file_hash,
+                'can_process': True
+            })
 
-    return processed_files
+    return {
+        'files': new_files,
+        'total_scanned': len(files),
+        'new_files_count': len(new_files),
+        'existing_files_count': len(files) - len(new_files)
+    }
