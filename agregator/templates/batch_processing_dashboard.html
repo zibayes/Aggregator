@@ -290,6 +290,37 @@ function displayFiles(data) {
         tableHtml = '<tr><td colspan="5" class="text-center">Новых файлов не найдено</td></tr>';
     }
 
+    if (currentFilesData.length > 0) {
+        currentFilesData.forEach((file, index) => {
+            const organizationStatus = file.needs_organization ?
+                `<span class="badge bg-warning" title="Будет организован в отдельную папку">📁</span>` :
+                `<span class="badge bg-success" title="Уже организован">✅</span>`;
+
+            tableHtml += `
+                <tr>
+                    <td>
+                        <input type="checkbox" class="file-checkbox" value="${file.path}"
+                               ${canProcess ? '' : 'disabled'}
+                               onchange="updateSelectAllCheckbox()">
+                    </td>
+                    <td>
+                        <div class="fw-bold">${file.name}</div>
+                        <small class="text-muted">${file.relative_path}</small>
+                        ${file.needs_organization ? '<br><small class="text-info">Будет организован в отдельную папку</small>' : ''}
+                    </td>
+                    <td>${(file.size / 1024 / 1024).toFixed(2)} МБ</td>
+                    <td>
+                        <span class="badge bg-success">Новый</span>
+                        ${organizationStatus}
+                    </td>
+                    <td title="${file.file_hash}">
+                        ${file.file_hash ? file.file_hash.substring(0, 16) + '...' : 'Не вычислен'}
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
     fileTableBody.innerHTML = tableHtml;
     updateSelection();
 }

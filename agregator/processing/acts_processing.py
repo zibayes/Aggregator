@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
 import traceback
+import logging
 
 import fitz  # PyMuPDF
 import pandas as pd
@@ -21,6 +22,8 @@ from agregator.models import Act
 from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents
 from agregator.processing.coordinates_tables import search_coords_in_text
+
+logger = logging.getLogger(__name__)
 
 SQUARE_RESERVE = []
 
@@ -93,6 +96,14 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     pdf_file = file  # pdf_file = 'uploaded_files/' + file
 
     current_act = Act.objects.get(id=act_id)
+    source_info = current_act.source_dict[source_index]
+
+    # Логируем информацию об организации
+    if source_info.get('was_organized'):
+        logger.info(f"Файл был организован: {source_info.get('original_path')} -> {file}")
+    else:
+        logger.info(f"Файл не требовал организации: {file}")
+
     acts = Act.objects.all()
     for act in acts:
         if act.source_dict is not None:

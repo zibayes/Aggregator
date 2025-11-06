@@ -37,6 +37,7 @@ from agregator.processing.commercial_offers_processing import process_commercial
 from agregator.processing.geo_objects_processing import process_geo_objects, error_handler_geo_objects
 from agregator.processing.utils import str_is_int
 from agregator.views.utils import upload_entity_view, get_user_tasks
+from agregator.redis_config import redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -395,6 +396,11 @@ def doc_reprocess(request, pk):
 @login_required
 # @owner_or_admin_required(UserTasks)
 def download_delete(request, task_id):
+    try:
+        redis_client.delete(task_id)
+        redis_client.delete('celery-task-meta-' + str(task_id))
+    except Exception:
+        print("Ошибка подключения к Redis")
     UserTasks.objects.filter(task_id=task_id).delete()
     TaskResult.objects.filter(task_id=task_id).delete()
     return JsonResponse({'response': 'deleted'})

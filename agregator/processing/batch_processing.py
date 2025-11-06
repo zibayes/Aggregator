@@ -4,6 +4,8 @@ from pathlib import Path
 from agregator.hash import calculate_file_hash
 from agregator.models import Act, ScientificReport, TechReport
 from agregator.processing.hash_utils import check_file_hash_in_sources
+from agregator.processing.batch_file_organizer import FileOrganizer
+from agregator.processing.batch_registry_utils import RegistryManager, KMLParser
 
 logger = logging.getLogger(__name__)
 
@@ -56,9 +58,25 @@ def discover_files(base_directory, extensions=None, limit=None):
 def create_act_from_existing_file(file_info, user, is_public=False):
     """
     Создает запись Act для существующего файла с проверкой дубликатов
+    ОРГАНИЗАЦИЯ ФАЙЛОВ ПРОИСХОДИТ ДО СОЗДАНИЯ ЗАПИСИ В БД!
     """
     try:
-        # Проверяем дубликат по хешу
+        # ОРГАНИЗУЕМ ФАЙЛЫ ПЕРЕД ВСЕМ!
+        original_path = file_info['path']
+        logger.info(f"Организация файла ПЕРЕД обработкой: {original_path}")
+
+        # ИСПОЛЬЗУЕМ СУЩЕСТВУЮЩИЙ FILEORGANIZER
+        new_path, was_organized = FileOrganizer.create_organized_structure(original_path, 'act')
+
+        # Обновляем информацию о файле
+        file_info['path'] = new_path
+        file_info['original_path'] = original_path
+        file_info['was_organized'] = was_organized
+
+        if was_organized:
+            logger.info(f"Файл организован: {original_path} -> {new_path}")
+
+        # Проверяем дубликат по хешу (уже по новому пути)
         is_duplicate, file_hash = check_file_hash_in_sources(file_info['path'], Act)
         if is_duplicate:
             logger.info(f"Файл уже существует в БД: {file_info['path']}")
@@ -72,17 +90,19 @@ def create_act_from_existing_file(file_info, user, is_public=False):
         )
         act.save()
 
-        # Создаем source с хешем
+        # Создаем source с хешем и информацией об организации
         source_content = [{
             'type': 'all',
-            'path': file_info['path'],  # абсолютный путь
+            'path': file_info['path'],  # новый путь после организации
+            'original_path': original_path,  # оригинальный путь
             'origin_filename': file_info['name'],
-            'file_hash': file_hash
+            'file_hash': file_hash,
+            'was_organized': was_organized
         }]
         act.source = source_content
 
         # Сохраняем upload_source отдельно
-        act.upload_source = {'source': 'Пакетная загрузка из файловой системы'}
+        act.upload_source = {'source': 'Пользовательский файл'}
         act.save()
 
         logger.info(f"Создан акт {act.id} для файла: {file_info['path']}")
@@ -108,12 +128,12 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000):
         'scientific_report': {
             'model': ScientificReport,
             'extensions': ['.pdf', '.doc', '.docx', '.odt'],
-            'creation_func': None  # TODO: добавить функцию
+            'creation_func': None
         },
         'tech_report': {
             'model': TechReport,
             'extensions': ['.pdf', '.doc', '.docx', '.odt'],
-            'creation_func': None  # TODO: добавить функцию
+            'creation_func': None
         }
     }
 
@@ -123,11 +143,15 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000):
 
     # Сканируем файлы
     files = discover_files(directory, config['extensions'], limit=limit)
+    logger.info(f"Найдено файлов: {len(files)}")
 
     # Проверяем каждый файл на дубликаты и фильтруем ТОЛЬКО те, которых нет в БД
     new_files = []
     for file_info in files:
         is_duplicate, file_hash = check_file_hash_in_sources(file_info['path'], config['model'])
+
+        # Проверяем нужно ли организовывать файл (для информации в интерфейсе)
+        needs_organization = FileOrganizer.should_reorganize(file_info['path'], FileOrganizer.ROOT_FOLDERS['act'])
 
         # Добавляем только если файла нет в БД
         if not is_duplicate:
@@ -135,7 +159,10 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000):
                 **file_info,
                 'exists_in_db': False,
                 'file_hash': file_hash,
-                'can_process': True
+                'can_process': True,
+                'needs_organization': needs_organization,
+                'was_organized': False,  # Будет установлено при создании
+                'final_location': file_info['path']  # Будет обновлено при создании
             })
 
     return {

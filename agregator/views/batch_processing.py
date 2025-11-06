@@ -145,9 +145,12 @@ def process_batch_files(request):
                 error_message = 'Не удалось создать ни одной записи. ' + ' '.join(errors[:3])
                 return JsonResponse({'error': error_message}, status=400)
 
-            # Запускаем обработку
+            # ЗАПУСКАЕМ ОБРАБОТКУ С ПРАВИЛЬНЫМИ АРГУМЕНТАМИ!
+            logger.info(
+                f"Запуск задачи process_acts с аргументами: acts_ids={created_ids}, user_id={request.user.id}, select_text={select_text}, select_image={select_image}, select_coord={select_coord}")
+
             task = processing_task.apply_async(
-                (created_ids, request.user.id, select_text, select_image, select_coord),
+                args=[created_ids, request.user.id, select_text, select_image, select_coord],
                 link_error=error_handler_acts.s()
             )
 
@@ -156,7 +159,7 @@ def process_batch_files(request):
                 user_id=request.user.id,
                 task_id=task.task_id,
                 files_type=file_type,
-                upload_source={'source': 'Пакетная загрузка из файловой системы'}
+                upload_source={'source': 'Пользовательский файл'}
             )
             user_task.save()
 
