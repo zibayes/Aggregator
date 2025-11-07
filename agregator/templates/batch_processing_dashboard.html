@@ -413,7 +413,7 @@ function selectAllFiles() {
         checkbox.checked = true;
     });
     updateSelection();
-    alert(`Выбраны ВСЕ новые файлы (${allNewFiles.length} шт.)`);
+    // alert(`Выбраны ВСЕ новые файлы (${allNewFiles.length} шт.)`);
 }
 
 function isFileSelected(filePath) {
@@ -484,7 +484,7 @@ async function processSelected() {
         const result = await response.json();
 
         if (result.success) {
-            alert(`Успешно запущена обработка ${result.processed_count} файлов`);
+            // alert(`Успешно запущена обработка ${result.processed_count} файлов`);
             // Сбрасываем состояние
             selectedAllFiles = false;
             // Перезапускаем сканирование чтобы обновить список

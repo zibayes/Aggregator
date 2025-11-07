@@ -22,7 +22,8 @@ from agregator.models import Act
 from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents
 from agregator.processing.coordinates_tables import search_coords_in_text
-from agregator.processing.batch_registry_utils import RegistryManager, KMLParser
+from agregator.processing.batch_registry_utils import RegistryManager
+from agregator.processing.batch_kml_utils import KMLParser
 
 logger = logging.getLogger(__name__)
 
@@ -130,11 +131,17 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         kml_path = KMLParser.find_kml_for_pdf(pdf_file)
         if kml_path:
             logger.info(f"📌 Найден KML файл: {kml_path}")
+
             kml_coordinates = KMLParser.parse_kml_file(kml_path)
+
             if kml_coordinates:
-                coordinates = kml_coordinates  # ЗАМЕНЯЕМ координаты из PDF на достоверные из KML
+                coordinates = kml_coordinates
                 logger.info("✅ Координаты успешно заменены на достоверные из KML")
                 use_kml = True
+
+                total_objects = sum(len(category_objects) for category_objects in kml_coordinates.values())
+                logger.info(f"📊 Извлечено {total_objects} объектов в {len(kml_coordinates)} категориях")
+
             else:
                 logger.warning("❌ Не удалось извлечь координаты из KML")
         else:

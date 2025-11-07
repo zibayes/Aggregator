@@ -5,7 +5,8 @@ from agregator.hash import calculate_file_hash
 from agregator.models import Act, ScientificReport, TechReport
 from agregator.processing.hash_utils import check_file_hash_in_sources
 from agregator.processing.batch_file_organizer import FileOrganizer
-from agregator.processing.batch_registry_utils import RegistryManager, KMLParser
+from agregator.processing.batch_registry_utils import RegistryManager
+from agregator.processing.batch_kml_utils import KMLParser
 
 logger = logging.getLogger(__name__)
 
