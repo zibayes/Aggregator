@@ -420,6 +420,7 @@ def test_extract_text_and_images_basic_processing(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -493,6 +494,7 @@ def test_extract_text_and_images_duplicate_file(
             user_id=test_user.id,
             is_public=False,
             select_text=True,
+            select_enrich=False,
             select_image=True,
             select_coord=True
         )
@@ -572,6 +574,7 @@ def test_extract_text_and_images_with_date_variations(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -650,6 +653,7 @@ def test_extract_text_and_images_with_object_types(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -729,6 +733,7 @@ def test_extract_text_and_images_with_multiple_experts(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -806,6 +811,7 @@ def test_extract_text_and_images_with_open_list(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -884,6 +890,7 @@ def test_extract_text_and_images_with_voan(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -964,6 +971,7 @@ def test_extract_text_and_images_with_invalid_date(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -1040,6 +1048,7 @@ def test_extract_text_and_images_with_xss_attack(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -1117,6 +1126,7 @@ def test_extract_text_and_images_with_sql_injection(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -1196,6 +1206,7 @@ def test_extract_text_and_images_with_long_text(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -1395,6 +1406,7 @@ def test_full_processing_workflow(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -1500,6 +1512,7 @@ def test_extract_text_and_images_empty_document(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -1581,6 +1594,7 @@ def test_extract_text_and_images_multi_page_document(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )
@@ -1666,6 +1680,7 @@ def test_extract_text_and_images_with_broken_structure(
         user_id=test_user.id,
         is_public=False,
         select_text=True,
+        select_enrich=False,
         select_image=True,
         select_coord=True
     )

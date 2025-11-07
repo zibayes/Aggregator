@@ -95,6 +95,7 @@ def process_batch_files(request):
             file_paths = data.get('file_paths', [])
             file_type = data.get('file_type', 'act')
             select_text = data.get('select_text', True)
+            select_enrich = data.get('select_enrich', True)
             select_image = data.get('select_image', True)
             select_coord = data.get('select_coord', True)
             is_public = data.get('is_public', True)
@@ -147,10 +148,10 @@ def process_batch_files(request):
 
             # ЗАПУСКАЕМ ОБРАБОТКУ С ПРАВИЛЬНЫМИ АРГУМЕНТАМИ!
             logger.info(
-                f"Запуск задачи process_acts с аргументами: acts_ids={created_ids}, user_id={request.user.id}, select_text={select_text}, select_image={select_image}, select_coord={select_coord}")
+                f"Запуск задачи process_acts с аргументами: acts_ids={created_ids}, user_id={request.user.id}, select_text={select_text}, select_enrich={select_enrich}, select_image={select_image}, select_coord={select_coord}")
 
             task = processing_task.apply_async(
-                args=[created_ids, request.user.id, select_text, select_image, select_coord],
+                args=[created_ids, request.user.id, select_text, select_enrich, select_image, select_coord],
                 link_error=error_handler_acts.s()
             )
 

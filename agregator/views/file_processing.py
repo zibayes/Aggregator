@@ -99,9 +99,11 @@ def deconstructor(request):
                                 file_groups[group_name].append({'type': report_type, 'file': uploaded_files.pop(i)})
                             else:
                                 file_groups[group_name] = [{'type': report_type, 'file': uploaded_files.pop(i)}]
-                select_text = select_image = select_coord = False
+                select_text = select_enrich = select_image = select_coord = False
                 if 'select_text' in request.POST:
                     select_text = True
+                if 'select_enrich' in request.POST:
+                    select_enrich = True
                 if 'select_image' in request.POST:
                     select_image = True
                 if 'select_coord' in request.POST:
@@ -110,19 +112,20 @@ def deconstructor(request):
                 try:
                     if file_type == 'act':
                         acts_ids = raw_reports_save(file_groups, uploaded_files, Act, user.id, is_public)
-                        task = process_acts.apply_async((acts_ids, user.id, select_text, select_image, select_coord),
-                                                        link_error=error_handler_acts.s())
+                        task = process_acts.apply_async(
+                            (acts_ids, user.id, select_text, select_enrich, select_image, select_coord),
+                            link_error=error_handler_acts.s())
                     elif file_type == 'scientific_report':
                         scientific_reports_ids = raw_reports_save(file_groups, uploaded_files, ScientificReport,
                                                                   user.id, is_public)
                         task = process_scientific_reports.apply_async(
-                            (scientific_reports_ids, user.id, select_text, select_image, select_coord),
+                            (scientific_reports_ids, user.id, select_text, select_enrich, select_image, select_coord),
                             link_error=error_handler_scientific_reports.s())
                     elif file_type == 'tech_report':
                         tech_reports_ids = raw_reports_save(file_groups, uploaded_files, TechReport,
                                                             user.id, is_public)
                         task = process_tech_reports.apply_async(
-                            (tech_reports_ids, user.id, select_text, select_image, select_coord),
+                            (tech_reports_ids, user.id, select_text, select_enrich, select_image, select_coord),
                             link_error=error_handler_tech_reports.s())
                 except Exception as e:
                     form.add_error(None, f"Ошибка при сохранении файлов: {str(e)}")
@@ -198,15 +201,18 @@ def external_sources(request):
             if start_page and end_page and start_page > end_page:
                 start_page, end_page = end_page, start_page
 
-        select_text = select_image = select_coord = False
+        select_text = select_enrich = select_image = select_coord = False
         if 'select_text' in request.POST:
             select_text = True
+        if 'select_enrich' in request.POST:
+            select_enrich = True
         if 'select_image' in request.POST:
             select_image = True
         if 'select_coord' in request.POST:
             select_coord = True
 
         scan_task = external_sources_processing.delay(start_date, end_date, start_page, end_page, select_text,
+                                                      select_enrich,
                                                       select_image, select_coord)
         scan_task_id = scan_task.id
         is_processing = True
@@ -363,23 +369,25 @@ def doc_reprocess(request, pk):
         user = request.user
         tasks_id = get_user_tasks(user.id, ('act', 'scientific_report', 'tech_report'))
         form = UploadReportsForm()
-        select_text = select_image = select_coord = False
+        select_text = select_enrich = select_image = select_coord = False
         if 'select_text' in request.POST:
             select_text = True
+        if 'select_enrich' in request.POST:
+            select_enrich = True
         if 'select_image' in request.POST:
             select_image = True
         if 'select_coord' in request.POST:
             select_coord = True
         if report_type == 'act':
-            task = process_acts.apply_async(([pk], user.id, select_text, select_image, select_coord),
+            task = process_acts.apply_async(([pk], user.id, select_text, select_enrich, select_image, select_coord),
                                             link_error=error_handler_acts.s())
         elif report_type == 'scientific_report':
             task = process_scientific_reports.apply_async(
-                ([pk], user.id, select_text, select_image, select_coord),
+                ([pk], user.id, select_text, select_enrich, select_image, select_coord),
                 link_error=error_handler_scientific_reports.s())
         elif report_type == 'tech_report':
             task = process_tech_reports.apply_async(
-                ([pk], user.id, select_text, select_image, select_coord),
+                ([pk], user.id, select_text, select_enrich, select_image, select_coord),
                 link_error=error_handler_tech_reports.s())
         else:
             return HttpResponse("Некорректный тип отчёта", status=404)

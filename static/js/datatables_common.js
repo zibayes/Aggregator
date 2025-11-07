@@ -184,6 +184,7 @@ function openDeleteModal(objectId, objectName, modalType) {
         type: modalType
     };
 
+    objectName = objectName.replace(/\r\n/g, ' ').replace(/\n/g, ' ').replace(/\t+/g, ' ').replace(/ +/g, ' ').trim();
     document.getElementById('deleteObjectName').textContent = objectName;
 
     const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));

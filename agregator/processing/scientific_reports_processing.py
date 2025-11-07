@@ -30,16 +30,18 @@ def choose_file() -> str:
 
 
 @shared_task(bind=True)
-def process_scientific_reports(self, reports_ids, user_id, select_text, select_image, select_coord):
+def process_scientific_reports(self, reports_ids, user_id, select_text, select_enrich, select_image, select_coord):
     return process_documents(self, reports_ids, user_id, 'scientific_reports', model_class=ScientificReport,
                              load_function=load_raw_reports,
-                             select_text=select_text, select_image=select_image, select_coord=select_coord,
+                             select_text=select_text, select_enrich=select_enrich, select_image=select_image,
+                             select_coord=select_coord,
                              process_function=extract_text_and_images)
 
 
 def extract_text_and_images(current_report, file, progress_recorder, pages_count, total_processed, progress_json,
                             report_id,
-                            source_index, task_id, user_id, is_public, select_text, select_image, select_coord):
+                            source_index, task_id, user_id, is_public, select_text, select_enrich, select_image,
+                            select_coord):
     if current_report.supplement:
         supplement_content = current_report.supplement_dict  # json.loads(current_report.supplement)
     else:

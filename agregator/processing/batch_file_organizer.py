@@ -13,9 +13,9 @@ class FileOrganizer:
 
     # Корневые папки для разных типов файлов (абсолютные пути)
     ROOT_FOLDERS = {
-        'act': '/app/uploaded_files/Акты ГИКЭ',
-        'scientific_report': '/app/uploaded_files/Научные отчёты',
-        'tech_report': '/app/uploaded_files/Научно-технические отчёты'
+        'act': 'uploaded_files/Акты ГИКЭ',
+        'scientific_report': 'uploaded_files/Научные отчёты',
+        'tech_report': 'uploaded_files/Научно-технические отчёты'
     }
 
     @staticmethod
@@ -42,48 +42,66 @@ class FileOrganizer:
     def should_reorganize(file_path: str, root_folder: str) -> bool:
         """
         Проверяет, нужно ли реорганизовывать файл
+        РАБОТАЕТ С АБСОЛЮТНЫМИ ПУТЯМИ ВНУТРИ КОНТЕЙНЕРА
         """
-        file_path = Path(file_path)
-        root_path = Path(root_folder)
-
-        # Проверяем, находится ли файл внутри корневой папки
         try:
-            relative_path = file_path.relative_to(root_path)
-        except ValueError:
-            # Файл не находится в корневой папке - не реорганизуем
-            logger.debug(f"Файл {file_path} не находится в корневой папке {root_folder}")
+            file_path = Path(file_path)
+            root_path = Path(root_folder)
+
+            logger.info(f"🔍 Проверка реорганизации: file={file_path}, root={root_path}")
+
+            # Проверяем, находится ли файл внутри корневой папки
+            try:
+                relative_path = file_path.relative_to(root_path)
+                logger.info(f"Файл внутри корневой папки, относительный путь: {relative_path}")
+            except ValueError:
+                # Файл не находится в корневой папке - не реорганизуем
+                logger.info(f"Файл {file_path} не находится в корневой папке {root_folder}")
+                return False
+
+            path_parts = relative_path.parts
+            logger.info(f"Части пути: {path_parts}, количество: {len(path_parts)}")
+
+            # Если файл в корне или на одном уровне вложенности - реорганизуем
+            if len(path_parts) <= 2:  # [file] или [year/file]
+                logger.info(f"Файл {file_path} находится на уровне {len(path_parts)}, реорганизуем")
+                return True
+
+            # Если в той же папке есть другие PDF файлы - реорганизуем
+            parent_dir = file_path.parent
+            if parent_dir != root_path:
+                try:
+                    pdf_files = list(parent_dir.glob('*.pdf'))
+                    if len(pdf_files) > 1:
+                        logger.info(f"В папке {parent_dir} найдено {len(pdf_files)} PDF файлов, реорганизуем")
+                        return True
+                except Exception as e:
+                    logger.warning(f"Ошибка при проверке PDF файлов в {parent_dir}: {e}")
+
+            logger.info(f"Файл {file_path} не требует реорганизации")
             return False
 
-        path_parts = relative_path.parts
-
-        # Если файл в корне или на одном уровне вложенности - реорганизуем
-        if len(path_parts) <= 2:  # [file] или [year/file]
-            logger.debug(f"Файл {file_path} находится на уровне {len(path_parts)}, реорганизуем")
-            return True
-
-        # Если в той же папке есть другие PDF файлы - реорганизуем
-        parent_dir = file_path.parent
-        if parent_dir != root_path:
-            try:
-                pdf_files = list(parent_dir.glob('*.pdf'))
-                if len(pdf_files) > 1:
-                    logger.debug(f"В папке {parent_dir} найдено {len(pdf_files)} PDF файлов, реорганизуем")
-                    return True
-            except Exception as e:
-                logger.warning(f"Ошибка при проверке PDF файлов в {parent_dir}: {e}")
-
-        logger.debug(f"Файл {file_path} не требует реорганизации")
-        return False
+        except Exception as e:
+            logger.error(f"Ошибка в should_reorganize для {file_path}: {e}")
+            return False
 
     @staticmethod
     def create_organized_structure(file_path: str, file_type: str) -> Tuple[str, bool]:
         """
         Создает организованную структуру папок и перемещает файлы
-        Возвращает (новый_путь_к_файлу, был_ли_файл_перемещен)
+        РАБОТАЕТ С АБСОЛЮТНЫМИ ПУТЯМИ, ВОЗВРАЩАЕТ ОТНОСИТЕЛЬНЫЕ
         """
         try:
             original_path = Path(file_path)
-            root_folder = FileOrganizer.ROOT_FOLDERS.get(file_type)
+
+            # Используем абсолютные пути внутри контейнера
+            ROOT_FOLDERS_ABS = {
+                'act': '/app/uploaded_files/Акты ГИКЭ',
+                'scientific_report': '/app/uploaded_files/Научные отчёты',
+                'tech_report': '/app/uploaded_files/Научно-технические отчёты'
+            }
+
+            root_folder = ROOT_FOLDERS_ABS.get(file_type)
 
             if not root_folder:
                 logger.warning(f"Неизвестный тип файла: {file_type}")
@@ -94,7 +112,8 @@ class FileOrganizer:
                 return file_path, False
 
             # Проверяем, нужно ли реорганизовывать
-            if not FileOrganizer.should_reorganize(file_path, root_folder):
+            if not FileOrganizer.should_reorganize(str(original_path), root_folder):
+                logger.info(f"Файл не требует реорганизации: {file_path}")
                 return file_path, False
 
             # Создаем имя папки на основе имени файла
@@ -102,13 +121,19 @@ class FileOrganizer:
             clean_folder_name = FileOrganizer.clean_filename(file_stem)
 
             # Определяем целевую папку
-            relative_to_root = Path(file_path).relative_to(root_folder)
-            if len(relative_to_root.parts) > 1:
-                # Сохраняем структуру вложенности (например, год)
-                parent_folder = relative_to_root.parts[0]
-                target_dir = Path(root_folder) / parent_folder / clean_folder_name
+            root_path = Path(root_folder)
+            relative_path = original_path.relative_to(root_path)
+
+            logger.info(f"Относительный путь: {relative_path}")
+
+            # СОХРАНЯЕМ существующую структуру папок!
+            if len(relative_path.parts) > 1:
+                # Сохраняем ВСЮ структуру вложенности (год и т.д.)
+                parent_structure = relative_path.parent
+                target_dir = root_path / parent_structure / clean_folder_name
+                logger.info(f"Создаем структуру с родительскими папками: {parent_structure}")
             else:
-                target_dir = Path(root_folder) / clean_folder_name
+                target_dir = root_path / clean_folder_name
 
             # Создаем целевую папку
             target_dir.mkdir(parents=True, exist_ok=True)
@@ -117,25 +142,28 @@ class FileOrganizer:
             # Новый путь для PDF файла
             new_pdf_path = target_dir / original_path.name
 
-            # Перемещаем PDF файл, если он еще не в целевой папке
+            # Перемещаем PDF файл
             moved_pdf = False
-            if new_pdf_path != original_path:
-                if new_pdf_path.exists():
-                    logger.warning(f"Файл {new_pdf_path} уже существует, пропускаем перемещение")
-                else:
-                    shutil.move(str(original_path), str(new_pdf_path))
-                    moved_pdf = True
-                    logger.info(f"Перемещен PDF: {original_path} -> {new_pdf_path}")
+            if new_pdf_path != original_path and not new_pdf_path.exists():
+                shutil.move(str(original_path), str(new_pdf_path))
+                moved_pdf = True
+                logger.info(f"✅ Перемещен PDF: {original_path} -> {new_pdf_path}")
+            elif new_pdf_path.exists():
+                logger.warning(f"Файл уже существует: {new_pdf_path}")
             else:
                 new_pdf_path = original_path
 
             # Ищем и перемещаем KML файл
             kml_moved = FileOrganizer._move_kml_file(original_path, target_dir)
 
-            return str(new_pdf_path), (moved_pdf or kml_moved)
+            # Преобразуем абсолютный путь обратно в относительный для БД
+            result_path = str(new_pdf_path).replace('/app/uploaded_files/', 'uploaded_files/')
+
+            logger.info(f"✅ Файл организован: {file_path} -> {result_path}")
+            return result_path, (moved_pdf or kml_moved)
 
         except Exception as e:
-            logger.error(f"Ошибка при организации файла {file_path}: {e}")
+            logger.error(f"❌ Ошибка при организации файла {file_path}: {e}")
             return file_path, False
 
     @staticmethod
@@ -149,9 +177,13 @@ class FileOrganizer:
             original_dir = original_pdf_path.parent
 
             possible_kml_names = [
+                f"{pdf_stem}.kmz",
+                f"{pdf_stem}.KMZ",
                 f"{pdf_stem}.kml",
                 f"{pdf_stem}.KML",
+                f"{pdf_stem}_coordinates.kmz",
                 f"{pdf_stem}_coordinates.kml",
+                f"{pdf_stem}_координаты.kmz"
                 f"{pdf_stem}_координаты.kml"
             ]
 

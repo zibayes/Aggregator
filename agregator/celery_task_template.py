@@ -16,6 +16,7 @@ def process_documents(
         load_function=None,
         process_function=None,
         select_text=None,
+        select_enrich=None,
         select_image=None,
         select_coord=None,
         additional_params=None
@@ -32,6 +33,7 @@ def process_documents(
         load_function: функция загрузки документов (если отличается от load_raw_reports)
         process_function: функция обработки документов
         select_text: флаг извлечения текста
+        select_enrich: флаг сопостовления с реестром
         select_image: флаг извлечения изображений
         select_coord: флаг извлечения координат
         additional_params: дополнительные параметры для process_function
@@ -110,7 +112,7 @@ def process_documents(
                         process_function(
                             path, progress_recorder, pages_count, total_processed,
                             progress_json, doc.id, i, self.request.id, user_id,
-                            getattr(doc, 'is_public', False), select_text, select_image, select_coord
+                            getattr(doc, 'is_public', False), select_text, select_enrich, select_image, select_coord
                         )
                     elif document_type in ['commercial_offers', 'account_cards', 'open_lists', 'geo_objects']:
                         time_on_start = datetime.now()
@@ -122,7 +124,7 @@ def process_documents(
                         process_function(
                             doc, path, progress_recorder, pages_count, total_processed,
                             progress_json, doc.id, i, self.request.id, user_id,
-                            getattr(doc, 'is_public', False), select_text, select_image, select_coord
+                            getattr(doc, 'is_public', False), select_text, select_enrich, select_image, select_coord
                         )
                 else:
                     raise Exception('NO PROCESS_FUNCTION PASSED AS ARGUMENT')

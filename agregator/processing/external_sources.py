@@ -63,7 +63,8 @@ ACTS_QUERY_EXCLUDE = [
 
 @shared_task(bind=True)
 @handle_interrupts
-def external_sources_processing(self, task_state, start_date, end_date, start_page, end_page, select_text, select_image,
+def external_sources_processing(self, task_state, start_date, end_date, start_page, end_page, select_text,
+                                select_enrich, select_image,
                                 select_coord):
     logger.info(
         f"🎬 НАЧАЛО СКАНИРОВАНИЯ. Параметры: start_date={start_date}, end_date={end_date}, start_page={start_page}, end_page={end_page}")
@@ -343,7 +344,8 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
 
                 # Обрабатываем скачанные файлы
                 if downloaded_page_files:
-                    processed_acts = process_downloaded_files(downloaded_page_files, admin, select_text, select_image,
+                    processed_acts = process_downloaded_files(downloaded_page_files, admin, select_text, select_enrich,
+                                                              select_image,
                                                               select_coord)
                     for info in task_state.data['files_info']:
                         if info.get('filename') in processed_acts and processed_acts[info['filename']]:
@@ -380,7 +382,7 @@ def get_downloaded_files_cache(admin_id):
     return downloaded_files
 
 
-def process_downloaded_files(files_data, admin, select_text, select_image, select_coord):
+def process_downloaded_files(files_data, admin, select_text, select_enrich, select_image, select_coord):
     """Обрабатывает скачанные файлы с использованием ThreadPoolExecutor для архивов"""
     processed_acts = {}
     all_acts_ids = []
@@ -450,8 +452,9 @@ def process_downloaded_files(files_data, admin, select_text, select_image, selec
             processed_acts[original_filename] = None
             continue
     if all_acts_ids:
-        task = process_acts.apply_async((all_acts_ids, admin.id, select_text, select_image, select_coord),
-                                        link_error=error_handler_acts.s())
+        task = process_acts.apply_async(
+            (all_acts_ids, admin.id, select_text, select_enrich, select_image, select_coord),
+            link_error=error_handler_acts.s())
         # Создаем UserTasks для всей задачи (или для каждого, если нужно)
         user_task = UserTasks(user_id=admin.id, task_id=task.task_id, files_type='act',
                               upload_source=upload_source)

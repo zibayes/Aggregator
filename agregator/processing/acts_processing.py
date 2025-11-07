@@ -22,6 +22,7 @@ from agregator.models import Act
 from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents
 from agregator.processing.coordinates_tables import search_coords_in_text
+from agregator.processing.batch_registry_utils import RegistryManager, KMLParser
 
 logger = logging.getLogger(__name__)
 
@@ -74,12 +75,13 @@ def get_gike_object_size(text_to_write: str, table_info: dict) -> None:
 
 
 @shared_task(bind=True)
-def process_acts(self, acts_ids, user_id, select_text, select_image, select_coord):
+def process_acts(self, acts_ids, user_id, select_text, select_enrich, select_image, select_coord):
     progress_json = None
     try:
         progress_json = process_documents(self, acts_ids, user_id, 'acts', model_class=Act,
                                           load_function=load_raw_reports,
-                                          select_text=select_text, select_image=select_image, select_coord=select_coord,
+                                          select_text=select_text, select_enrich=select_enrich,
+                                          select_image=select_image, select_coord=select_coord,
                                           process_function=extract_text_and_images)
     except Exception as e:
         print(f'Критическая ошибка при обработке актов {acts_ids}: {e}')
@@ -88,8 +90,10 @@ def process_acts(self, acts_ids, user_id, select_text, select_image, select_coor
 
 
 def extract_text_and_images(file, progress_recorder, pages_count, total_processed,
-                            progress_json, act_id, source_index, task_id, user_id, is_public, select_text, select_image,
+                            progress_json, act_id, source_index, task_id, user_id, is_public, select_text,
+                            select_enrich, select_image,
                             select_coord):
+    use_kml = False
     supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
     # coordinates = copy.deepcopy(COORDINATES_SAMPLE)
     coordinates = {}
@@ -121,6 +125,20 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     pdf = pdfplumber.open(pdf_file)
     folder = pdf_file[:pdf_file.rfind(".")]
     Path(folder).mkdir(exist_ok=True)
+
+    if select_coord:
+        kml_path = KMLParser.find_kml_for_pdf(pdf_file)
+        if kml_path:
+            logger.info(f"📌 Найден KML файл: {kml_path}")
+            kml_coordinates = KMLParser.parse_kml_file(kml_path)
+            if kml_coordinates:
+                coordinates = kml_coordinates  # ЗАМЕНЯЕМ координаты из PDF на достоверные из KML
+                logger.info("✅ Координаты успешно заменены на достоверные из KML")
+                use_kml = True
+            else:
+                logger.warning("❌ Не удалось извлечь координаты из KML")
+        else:
+            logger.info("ℹ️ KML файл не найден, используем координаты из PDF")
 
     # Разделы
     act_parts = ['Акт', 'Дата начала', 'Дата окончания',  # проведения экспертизы
@@ -167,6 +185,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         current_part = 0
         time_on_start = datetime.now()
         for page_number in range(len(document)):
+            logger.info(f"Pages of {pdf_file} - {page_number}/{len(document)}")
             pages_processed = total_processed[0] + page_number
             progress_json['file_groups'][str(act_id)][source_index]['pages']['processed'] = page_number
             expected_time = ((datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1)) * (sum(
@@ -707,10 +726,11 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                                              supplement_content, extracted_images, user_id,
                                              progress_json['file_groups'][str(act_id)][source_index]['origin_filename'],
                                              is_public, current_act.upload_source)
-            if select_coord:
+            if select_coord and not use_kml:
                 if re.search(r'Выписка\s+из\s+Единого\s+государственного\s+реестра', text, re.IGNORECASE):
                     continue
                 search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
+
         total_processed[0] += len(document)
 
     '''
@@ -727,6 +747,12 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         table_info['Площадь, протяжённость и/или др. параменты объекта'] = 'Общ. S = ' + SQUARE_RESERVE[0]
     document.close()
     pdf.close()
+
+    if select_text and select_enrich:
+        logger.info("=== ОБОГАЩЕНИЕ ДАННЫХ ИЗ РЕЕСТРА ===")
+        registry_matcher = RegistryManager(
+            "uploaded_files/Акты ГИКЭ/!! Текущий РЕЕСТР актов ГИКЭ КК 2015-2025 (на осн. 01.09.2023).xlsx")
+        table_info = registry_matcher.enrich_from_registry(table_info, pdf_file)
 
     # pd.DataFrame(table_info,columns=table_columns,index=[0]).to_excel(folder + "/" + "table.xlsx", index=False, engine='openpyxl')
     df_new = pd.DataFrame(table_info, columns=table_columns, index=[0])

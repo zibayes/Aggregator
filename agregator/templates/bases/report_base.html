@@ -3,88 +3,89 @@
 {% block title %}{% block report_title %}{% endblock %}{% endblock %}
 
 {% block content %}
+<br>
+<h2 align="center">{% block report_header %}{% endblock %}</h2>
+
+<div>
+    {% block report_sources %}{% endblock %}
+
+    {% if report.coordinates_dict %}
+    <a class="btn btn-success lang coordinates-button" style="border-radius: 12px; margin-right:10px;"
+       href="{% block map_link %}{% endblock %}">
+        Просмотр координат
+    </a>
     <br>
-    <h2 align="center">{% block report_header %}{% endblock %}</h2>
+    <br>
+    {% endif %}
 
-    <div>
-        {% block report_sources %}{% endblock %}
+    {% block report_actions %}{% endblock %}
+</div>
 
-        {% if report.coordinates_dict %}
-            <a class="btn btn-success lang coordinates-button" style="border-radius: 12px; margin-right:10px;"
-               href="{% block map_link %}{% endblock %}">
-                Просмотр координат
-            </a>
-            <br>
-            <br>
-        {% endif %}
-
-        {% block report_actions %}{% endblock %}
-    </div>
-
-    {% block report_modals %}
-        <div class="modal fade" id="delete_report" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Вы уверены, что хотите удалить этот отчёт?</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-footer">
-                        <form method="POST" action="{% block report_delete_url %}{% endblock %}" class="mt-3">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                            <button type="submit" class="btn btn-danger">Удалить</button>
-                        </form>
-                    </div>
-                </div>
+{% block report_modals %}
+<div class="modal fade" id="delete_report" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Вы уверены, что хотите удалить этот отчёт?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-        </div>
-        <div class="modal fade" id="reprocess" tabindex="-1">
-            <div class="modal-dialog">
-                <form method="POST" action="{% block reprocess_url %}{% endblock %}" class="mt-3">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Повторная обработка документа</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            Выберите разделы для обработки:<br>
-                            <label><input type="checkbox" name="select_text" checked> Текст</label><br>
-                            <label><input type="checkbox" name="select_image" checked> Изображения</label><br>
-                            <label><input type="checkbox" name="select_coord" checked> Координаты</label>
-                        </div>
-                        <div class="modal-footer">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                            <button type="submit" class="btn btn-primary">Начать обработку</button>
-                        </div>
-                    </div>
+            <div class="modal-footer">
+                <form method="POST" action="{% block report_delete_url %}{% endblock %}" class="mt-3">
+                    {% csrf_token %}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-danger">Удалить</button>
                 </form>
             </div>
         </div>
-    {% endblock %}
-
-    <hr>
-    <h2>Содержание</h2>
-    <div id="report-contents">
-        {% block report_contents %}{% endblock %}
     </div>
-    <hr>
+</div>
+<div class="modal fade" id="reprocess" tabindex="-1">
+    <div class="modal-dialog">
+        <form method="POST" action="{% block reprocess_url %}{% endblock %}" class="mt-3">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Повторная обработка документа</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Выберите разделы для обработки:<br>
+                    <label><input type="checkbox" name="select_text" checked> Текст</label><br>
+                    <label><input type="checkbox" name="select_enrich"> Сопоставлять с записями в реестре</label><br>
+                    <label><input type="checkbox" name="select_image" checked> Изображения</label><br>
+                    <label><input type="checkbox" name="select_coord" checked> Координаты</label>
+                </div>
+                <div class="modal-footer">
+                    {% csrf_token %}
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Начать обработку</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
 
-    {% block report_sections %}{% endblock %}
+<hr>
+<h2>Содержание</h2>
+<div id="report-contents">
+    {% block report_contents %}{% endblock %}
+</div>
+<hr>
 
-    {% if report.supplement_dict %}
-        {% include 'includes/report_supplements.html' %}
-    {% endif %}
+{% block report_sections %}{% endblock %}
 
-    <style>
-        p {
-            white-space: pre-wrap;
-        }
-    </style>
+{% if report.supplement_dict %}
+{% include 'includes/report_supplements.html' %}
+{% endif %}
 
-    {% load static %}
-    <script src="{% static 'js/gallery_scripts.js' %}"></script>
+<style>
+    p {
+        white-space: pre-wrap;
+    }
+</style>
+
+{% load static %}
+<script src="{% static 'js/gallery_scripts.js' %}"></script>
 
 {% endblock %}
 

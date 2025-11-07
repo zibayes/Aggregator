@@ -2,6 +2,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.apps import apps
 from agregator.processing.datatable_utils import DataTableServerSide
+import json
+import html
 
 
 @csrf_exempt
@@ -354,7 +356,7 @@ def format_heritage_site_data(site, site_type, config):
             Редактировать
         </a>
         <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({site.id}, '{name_value.replace("'", "\\'")}', '{config["delete_modal_id"]}')">
+                onclick="openDeleteModal({site.id}, '{html.escape(json.dumps(name_value))}', '{config["delete_modal_id"]}')">
             Удалить
         </button>
     </td>
@@ -467,7 +469,7 @@ def format_act_data(act, config):
             Редактировать
         </a>
         <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({act.id}, '{act.name_number.replace("'", "\\'") if act.name_number else "Акт".replace("'", "\\'")}', 'delete_act')">
+                onclick="openDeleteModal({act.id}, {html.escape(json.dumps(act.name_number or 'Акт'))}, 'delete_act')">
             Удалить
         </button>
     </td>
@@ -568,7 +570,7 @@ def format_scientific_report_data(report, config):
             Редактировать
         </a>
         <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({report.id}, '{name.replace("'", "\\'") if name else "Научный отчет".replace("'", "\\'")}', '{config["delete_modal_id"]}')">
+                onclick="openDeleteModal({report.id}, '{html.escape(json.dumps(name)) if name else "Научный отчет"}', '{config["delete_modal_id"]}')">
             Удалить
         </button>
     </td>
@@ -653,7 +655,7 @@ def format_tech_report_data(tech_report, config):
             Редактировать
         </a>
         <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({tech_report.id}, '{tech_report.name.replace("'", "\\'") if tech_report.name else "Отчёт".replace("'", "\\'")}', 'delete_tech_report')">
+                onclick="openDeleteModal({tech_report.id}, '{html.escape(json.dumps(tech_report.name)) if tech_report.name else "Отчёт"}', 'delete_tech_report')">
             Удалить
         </button>
     </td>
@@ -739,7 +741,7 @@ def format_open_list_data(open_list, config):
             Редактировать
         </a>
         <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({open_list.id}, '{open_list.number.replace("'", "\\'") if open_list.number else "Открытый лист".replace("'", "\\'")}', 'delete_open_list')">
+                onclick="openDeleteModal({open_list.id}, '{html.escape(json.dumps(open_list.number)) if open_list.number else "Открытый лист"}', 'delete_open_list')">
             Удалить
         </button>
     </td>
@@ -830,7 +832,7 @@ def format_account_card_data(account_card, config):
             Редактировать
         </a>
         <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({account_card.id}, '{account_card.name.replace("'", "\\'") if account_card.name else "Учётная карта".replace("'", "\\'")}', 'delete_account_card')">
+                onclick="openDeleteModal({account_card.id}, '{html.escape(json.dumps(account_card.name)) if account_card.name else "Учётная карта"}', 'delete_account_card')">
             Удалить
         </button>
     </td>
@@ -905,7 +907,7 @@ def format_commercial_offer_data(commercial_offer, config):
             Редактировать
         </a>
         <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({commercial_offer.id}, '{origin_filename.replace("'", "\\'")}', '{config["delete_modal_id"]}')">
+                onclick="openDeleteModal({commercial_offer.id}, '{html.escape(json.dumps(origin_filename))}', '{config["delete_modal_id"]}')">
             Удалить
         </button>
     </td>
@@ -965,7 +967,7 @@ def format_geo_object_data(geo_object, config):
             Редактировать
         </a>
         <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({geo_object.id}, '{origin_filename.replace("'", "\\'")}', '{config["delete_modal_id"]}')">
+                onclick="openDeleteModal({geo_object.id}, '{html.escape(json.dumps(origin_filename))}', '{config["delete_modal_id"]}')">
             Удалить
         </button>
     </td>

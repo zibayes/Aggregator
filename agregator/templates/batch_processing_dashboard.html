@@ -118,6 +118,8 @@
                         <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#accordionColumns">
                             <div class="accordion-body">
                                 <label><input type="checkbox" name="select_text" checked> Текст</label><br>
+                                <label><input type="checkbox" name="select_enrich"> Сопоставлять с записями в
+                                    реестре</label><br>
                                 <label><input type="checkbox" name="select_image" checked> Изображения</label><br>
                                 <label><input type="checkbox" name="select_coord" checked> Координаты</label><br>
                             </div>
@@ -447,6 +449,7 @@ async function processSelected() {
     }
 
     const selectText = document.querySelector('input[name="select_text"]').checked;
+    const selectEnrich = document.querySelector('input[name="select_enrich"]').checked;
     const selectImage = document.querySelector('input[name="select_image"]').checked;
     const selectCoord = document.querySelector('input[name="select_coord"]').checked;
 
@@ -471,6 +474,7 @@ async function processSelected() {
                 file_paths: selectedFiles,
                 file_type: document.getElementById('fileType').value,
                 select_text: selectText,
+                select_enrich: selectEnrich,
                 select_image: selectImage,
                 select_coord: selectCoord,
                 is_public: true
