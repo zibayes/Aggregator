@@ -96,14 +96,21 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="deleteModalLabel">Удаление открытого листа</h5>
+                <h5 class="modal-title" id="deleteModalLabel">Подтверждение удаления</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                Вы уверены, что хотите удалить открытый лист "<span id="deleteObjectName"></span>"?
-                <form id="deleteForm" method="post" style="display: none;">
-                    {% csrf_token %}
-                </form>
+                <p>Вы уверены, что хотите удалить "<span id="deleteObjectName"></span>"?</p>
+
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="deleteFilesCheckbox">
+                    <label class="form-check-label" for="deleteFilesCheckbox">
+                        <strong>Удалить файл и папку</strong>
+                    </label>
+                    <div class="form-text">
+                        Если не отметить, файлы останутся в системе, но будут отвязаны от записи.
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>

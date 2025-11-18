@@ -1,5 +1,5 @@
 $(document).ready(function() {
-  $('table').DataTable({
+  $('table:not(.no-datatables)').DataTable({
     language: {
     "processing": "Подождите...",
     "search": "Поиск:",

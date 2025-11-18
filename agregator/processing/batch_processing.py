@@ -305,7 +305,7 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000, use_cache=Tr
             })
 
     all_count = len(files)
-    new_count = len(existing_files)
+    new_count = all_count - len(existing_files)
 
     logger.info(f"Smart scan completed: {all_count} files, {new_count} new")
 

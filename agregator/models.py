@@ -188,8 +188,11 @@ class Act(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        delete_files_from_json_field(self.source)
-        super().delete(*args, **kwargs)
+        if hasattr(self, '_raw_delete') and self._raw_delete:
+            super().delete(*args, **kwargs)
+        else:
+            delete_files_from_json_field(self.source)
+            super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -251,8 +254,11 @@ class ScientificReport(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        delete_files_from_json_field(self.source)
-        super().delete(*args, **kwargs)
+        if hasattr(self, '_raw_delete') and self._raw_delete:
+            super().delete(*args, **kwargs)
+        else:
+            delete_files_from_json_field(self.source)
+            super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -318,8 +324,11 @@ class TechReport(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        delete_files_from_json_field(self.source)
-        super().delete(*args, **kwargs)
+        if hasattr(self, '_raw_delete') and self._raw_delete:
+            super().delete(*args, **kwargs)
+        else:
+            delete_files_from_json_field(self.source)
+            super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -373,9 +382,11 @@ class OpenLists(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.source:
-            delete_files(self.source.path)
-        super().delete(*args, **kwargs)
+        if hasattr(self, '_raw_delete') and self._raw_delete:
+            super().delete(*args, **kwargs)
+        else:
+            delete_files_from_json_field(self.source)
+            super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -420,9 +431,12 @@ class ObjectAccountCard(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.source and len(self.source) > 0:
-            delete_files(self.source)
-        super().delete(*args, **kwargs)
+        if hasattr(self, '_raw_delete') and self._raw_delete:
+            super().delete(*args, **kwargs)
+        else:
+            if self.source and len(self.source) > 0:
+                delete_files(self.source)
+            super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -462,11 +476,13 @@ class ArchaeologicalHeritageSite(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        delete_files_from_json_field(self.document_source)
-
-        if self.source and len(self.source) > 0:
-            delete_files(self.source)
-        super().delete(*args, **kwargs)
+        if hasattr(self, '_raw_delete') and self._raw_delete:
+            super().delete(*args, **kwargs)
+        else:
+            delete_files_from_json_field(self.document_source)
+            if self.source and len(self.source) > 0:
+                delete_files(self.source)
+            super().delete(*args, **kwargs)
 
     @property
     def document_source_dict(self):
@@ -498,11 +514,13 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        delete_files_from_json_field(self.document_source)
-
-        if self.source and len(self.source) > 0:
-            delete_files(self.source)
-        super().delete(*args, **kwargs)
+        if hasattr(self, '_raw_delete') and self._raw_delete:
+            super().delete(*args, **kwargs)
+        else:
+            delete_files_from_json_field(self.document_source)
+            if self.source and len(self.source) > 0:
+                delete_files(self.source)
+            super().delete(*args, **kwargs)
 
     @property
     def document_source_dict(self):
@@ -535,9 +553,12 @@ class CommercialOffers(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.source and len(self.source) > 0:
-            delete_files(self.source)
-        super().delete(*args, **kwargs)
+        if hasattr(self, '_raw_delete') and self._raw_delete:
+            super().delete(*args, **kwargs)
+        else:
+            if self.source and len(self.source) > 0:
+                delete_files(self.source)
+            super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -576,9 +597,12 @@ class GeoObject(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if self.source and len(self.source) > 0:
-            delete_files(self.source)
-        super().delete(*args, **kwargs)
+        if hasattr(self, '_raw_delete') and self._raw_delete:
+            super().delete(*args, **kwargs)
+        else:
+            if self.source and len(self.source) > 0:
+                delete_files(self.source)
+            super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):

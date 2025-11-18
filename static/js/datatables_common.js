@@ -191,36 +191,55 @@ function openDeleteModal(objectId, objectName, modalType) {
     deleteModal.show();
 }
 
+function getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+}
+
 function confirmDelete() {
     if (!currentDeleteData) return;
 
-    let deleteUrl;
-    if (currentDeleteData.type === 'delete_archaeological_heritage_site') {
-        deleteUrl = `/archaeological_heritage_sites_delete/${currentDeleteData.id}/`;
-    } else if (currentDeleteData.type === 'delete_identified_site') {
-        deleteUrl = `/identified_archaeological_heritage_sites_delete/${currentDeleteData.id}/`;
-    } else if (currentDeleteData.type === 'delete_act') {
-        deleteUrl = `/acts_delete/${currentDeleteData.id}/`;
-    } else if (currentDeleteData.type === 'delete_scientific_report') {
-        deleteUrl = `/scientific_reports_delete/${currentDeleteData.id}/`;
-    } else if (currentDeleteData.type === 'delete_tech_report') {
-        deleteUrl = `/tech_reports_delete/${currentDeleteData.id}/`;
-    } else if (currentDeleteData.type === 'delete_open_list') {
-        deleteUrl = `/open_lists_delete/${currentDeleteData.id}/`;
-    } else if (currentDeleteData.type === 'delete_account_card') {
-        deleteUrl = `/account_cards_delete/${currentDeleteData.id}/`;
-    } else if (currentDeleteData.type === 'delete_commercial_offer') {
-        deleteUrl = `/commercial_offers_delete/${currentDeleteData.id}/`;
-    } else if (currentDeleteData.type === 'delete_geo_object') {
-        deleteUrl = `/geo_objects_delete/${currentDeleteData.id}/`;
-    } else {
-        console.error('Unknown delete type:', currentDeleteData.type);
-        return;
+    const deleteFiles = document.getElementById('deleteFilesCheckbox').checked;
+    const csrfToken = getCSRFToken();
+
+    // Создаем форму динамически
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = getDeleteUrl(currentDeleteData);
+
+    // Добавляем CSRF токен
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = csrfToken;
+    form.appendChild(csrfInput);
+
+    // Добавляем флаг удаления файлов
+    if (deleteFiles) {
+        const filesInput = document.createElement('input');
+        filesInput.type = 'hidden';
+        filesInput.name = 'delete_files';
+        filesInput.value = 'on';
+        form.appendChild(filesInput);
     }
 
-    const form = document.getElementById('deleteForm');
-    form.action = deleteUrl;
+    document.body.appendChild(form);
     form.submit();
+}
+
+function getDeleteUrl(deleteData) {
+    const urlMap = {
+        'delete_act': `/acts_delete/${deleteData.id}/`,
+        'delete_scientific_report': `/scientific_reports_delete/${deleteData.id}/`,
+        'delete_tech_report': `/tech_reports_delete/${deleteData.id}/`,
+        'delete_open_list': `/open_lists_delete/${deleteData.id}/`,
+        'delete_archaeological_heritage_site': `/archaeological_heritage_sites_delete/${deleteData.id}/`,
+        'delete_identified_site': `/identified_archaeological_heritage_sites_delete/${deleteData.id}/`,
+        'delete_account_card': `/account_cards_delete/${deleteData.id}/`,
+        'delete_commercial_offer': `/commercial_offers_delete/${deleteData.id}/`,
+        'delete_geo_object': `/geo_objects_delete/${deleteData.id}/`
+    };
+
+    return urlMap[deleteData.type] || '#';
 }
 
 // Глобальная переменная для DataTable

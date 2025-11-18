@@ -64,7 +64,13 @@ def acts_edit(request, pk):
 @owner_or_admin_required(Act)
 def acts_delete(request, pk):
     act_instance = get_object_or_404(Act, id=pk)
-    act_instance.delete()
+    if request.method == 'POST':
+        delete_files_flag = request.POST.get('delete_files') == 'on'
+        if delete_files_flag:
+            act_instance.delete()
+        else:
+            act_instance._raw_delete = True
+            super(Act, act_instance).delete()
     return redirect(f'acts_register')
 
 
@@ -106,7 +112,13 @@ def scientific_reports_edit(request, pk):
 @owner_or_admin_required(ScientificReport)
 def scientific_reports_delete(request, pk):
     report_instance = get_object_or_404(ScientificReport, id=pk)
-    report_instance.delete()
+    if request.method == 'POST':
+        delete_files_flag = request.POST.get('delete_files') == 'on'
+        if delete_files_flag:
+            report_instance.delete()
+        else:
+            report_instance._raw_delete = True
+            super(ScientificReport, report_instance).delete()
     return redirect(f'scientific_reports_register')
 
 
@@ -148,7 +160,13 @@ def tech_reports_edit(request, pk):
 @owner_or_admin_required(TechReport)
 def tech_reports_delete(request, pk):
     report_instance = get_object_or_404(TechReport, id=pk)
-    report_instance.delete()
+    if request.method == 'POST':
+        delete_files_flag = request.POST.get('delete_files') == 'on'
+        if delete_files_flag:
+            report_instance.delete()
+        else:
+            report_instance._raw_delete = True
+            super(TechReport, report_instance).delete()
     return redirect(f'tech_reports_register')
 
 
@@ -183,7 +201,13 @@ def open_lists_edit(request, pk):
 @owner_or_admin_required(OpenLists)
 def open_lists_delete(request, pk):
     list_instance = get_object_or_404(OpenLists, id=pk)
-    list_instance.delete()
+    if request.method == 'POST':
+        delete_files_flag = request.POST.get('delete_files') == 'on'
+        if delete_files_flag:
+            list_instance.delete()
+        else:
+            list_instance._raw_delete = True
+            super(OpenLists, list_instance).delete()
     return redirect(f'open_lists_register')
 
 
@@ -243,7 +267,13 @@ def identified_archaeological_heritage_sites_edit(request, pk):
 @owner_or_admin_required(ArchaeologicalHeritageSite)
 def archaeological_heritage_sites_delete(request, pk):
     oan = get_object_or_404(ArchaeologicalHeritageSite, id=pk)
-    oan.delete()
+    if request.method == 'POST':
+        delete_files_flag = request.POST.get('delete_files') == 'on'
+        if delete_files_flag:
+            oan.delete()
+        else:
+            oan._raw_delete = True
+            super(ArchaeologicalHeritageSite, oan).delete()
     return redirect(f'archaeological_heritage_sites_register')
 
 
@@ -251,7 +281,13 @@ def archaeological_heritage_sites_delete(request, pk):
 @owner_or_admin_required(IdentifiedArchaeologicalHeritageSite)
 def identified_archaeological_heritage_sites_delete(request, pk):
     voan = get_object_or_404(IdentifiedArchaeologicalHeritageSite, id=pk)
-    voan.delete()
+    if request.method == 'POST':
+        delete_files_flag = request.POST.get('delete_files') == 'on'
+        if delete_files_flag:
+            voan.delete()
+        else:
+            voan._raw_delete = True
+            super(IdentifiedArchaeologicalHeritageSite, voan).delete()
     return redirect(f'identified_archaeological_heritage_sites_register')
 
 
@@ -289,7 +325,13 @@ def account_cards_edit(request, pk):
 @owner_or_admin_required(ObjectAccountCard)
 def account_cards_delete(request, pk):
     account_card_instance = get_object_or_404(ObjectAccountCard, id=pk)
-    account_card_instance.delete()
+    if request.method == 'POST':
+        delete_files_flag = request.POST.get('delete_files') == 'on'
+        if delete_files_flag:
+            account_card_instance.delete()
+        else:
+            account_card_instance._raw_delete = True
+            super(ObjectAccountCard, account_card_instance).delete()
     return redirect(f'account_cards_register')
 
 
@@ -319,7 +361,13 @@ def commercial_offers_edit(request, pk):
 @owner_or_admin_required(CommercialOffers)
 def commercial_offers_delete(request, pk):
     commercial_offer_instance = get_object_or_404(CommercialOffers, id=pk)
-    commercial_offer_instance.delete()
+    if request.method == 'POST':
+        delete_files_flag = request.POST.get('delete_files') == 'on'
+        if delete_files_flag:
+            commercial_offer_instance.delete()
+        else:
+            commercial_offer_instance._raw_delete = True
+            super(CommercialOffers, commercial_offer_instance).delete()
     return redirect(f'commercial_offers_register')
 
 
@@ -349,5 +397,11 @@ def geo_objects_edit(request, pk):
 @owner_or_admin_required(GeoObject)
 def geo_objects_delete(request, pk):
     geo_object = get_object_or_404(GeoObject, id=pk)
-    geo_object.delete()
+    if request.method == 'POST':
+        delete_files_flag = request.POST.get('delete_files') == 'on'
+        if delete_files_flag:
+            geo_object.delete()
+        else:
+            geo_object._raw_delete = True
+            super(GeoObject, geo_object).delete()
     return redirect(f'geo_objects_register')
