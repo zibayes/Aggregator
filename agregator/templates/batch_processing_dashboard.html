@@ -293,10 +293,13 @@ function displayFiles(data) {
     }
 
     if (currentFilesData.length > 0) {
+
         currentFilesData.forEach((file, index) => {
+        /*
             const organizationStatus = file.needs_organization ?
                 `<span class="badge bg-warning" title="Будет организован в отдельную папку">📁</span>` :
                 `<span class="badge bg-success" title="Уже организован">✅</span>`;
+        */
 
             tableHtml += `
                 <tr>

@@ -193,7 +193,7 @@ def extract_captions(text: str) -> tuple:
     text = text.replace("\n", "")
     captions = []
     captions_nums = []
-    caption_types = ["Рис.", "Рисунок", "Приложение"]
+    caption_types = ["Рис.", "Рисунок", "Приложение", "Илл.", "Иллюстрация"]
     for caption_type in caption_types:
         caption_len = len(caption_type)
         captions_count = text.count(caption_type)
