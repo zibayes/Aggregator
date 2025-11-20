@@ -3,53 +3,79 @@
 {% block title %}{% block heritage_title %}{% endblock %}{% endblock %}
 
 {% block content %}
-    <br>
-    <h2 align="center">{% block heritage_header %}{% endblock %}</h2>
+<br>
+<h2 align="center">{% block heritage_header %}{% endblock %}</h2>
 
-    <div>
-        {% block heritage_links %}{% endblock %}
+<div>
+    {% block heritage_links %}{% endblock %}
 
-        {% block heritage_actions %}{% endblock %}
-    </div>
+    {% block heritage_actions %}{% endblock %}
+</div>
 
-    {% block heritage_modals %}
-        <div class="modal fade" id="delete_heritage" tabindex="-1">
-            <div class="modal-dialog">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">{% block heritage_delete_title %}Удаление объекта
-                            наследия{% endblock %}</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                    </div>
-                    <div class="modal-body">
-                        <p>Это действие нельзя отменить. Все связанные данные будут удалены.</p>
-                    </div>
-                    <div class="modal-footer">
-                        <form method="POST" action="{% block heritage_delete_url %}{% endblock %}">
-                            {% csrf_token %}
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                            <button type="submit" class="btn btn-danger">Подтвердить удаление</button>
-                        </form>
+{% block heritage_modals %}
+<div class="modal fade" id="delete_heritage" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{% block heritage_delete_title %}Удаление объекта
+                    наследия{% endblock %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="form-check mt-3">
+                    <input class="form-check-input" type="checkbox" id="delete_files_report">
+                    <label class="form-check-label" for="delete_files_report">
+                        <strong>Удалить файл и папку</strong>
+                    </label>
+                    <div class="form-text">
+                        Если не отметить, файлы останутся в системе, но будут отвязаны от записи.
                     </div>
                 </div>
             </div>
+            <div class="modal-footer">
+                <form id="reportDeleteForm" method="POST" action="{% block heritage_delete_url %}{% endblock %}"
+                      class="mt-3 w-100">
+                    {% csrf_token %}
+                    <!-- Скрытое поле для чекбокса -->
+                    <input type="hidden" name="delete_files" id="delete_files_hidden" value="off">
+
+                    <div class="d-flex justify-content-between w-100">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <button type="button" class="btn btn-danger" onclick="handleReportDelete()">Удалить</button>
+                    </div>
+                </form>
+            </div>
         </div>
-    {% endblock %}
-
-    <hr>
-    <h2>Содержание</h2>
-    <div id="heritage-contents">
-        {% block heritage_contents %}{% endblock %}
     </div>
-    <hr>
+    <script>
+        function handleReportDelete() {
+            const checkbox = document.getElementById('delete_files_report');
+            const hiddenField = document.getElementById('delete_files_hidden');
 
-    {% block heritage_sections %}{% endblock %}
+            // Обновляем значение скрытого поля
+            hiddenField.value = checkbox.checked ? 'on' : 'off';
 
-    <style>
-        p {
-            white-space: pre-wrap;
+            // Отправляем форму
+            document.getElementById('reportDeleteForm').submit();
         }
-    </style>
+    </script>
+</div>
+{% endblock %}
+
+<hr>
+<h2>Содержание</h2>
+<div id="heritage-contents">
+    {% block heritage_contents %}{% endblock %}
+</div>
+<hr>
+
+{% block heritage_sections %}{% endblock %}
+
+<style>
+    p {
+        white-space: pre-wrap;
+    }
+</style>
 {% endblock %}
 
 <script>
