@@ -126,6 +126,24 @@ class RegistryManager:
         logger.info(f"   Обработано записей с совпадающим годом: {processed_count}")
 
         if best_match and best_similarity >= adjusted_min_similarity:
+            date_field = 'Дата окончания проведения ГИКЭ'
+            expert_field = 'Эксперт (физ. или юр.лицо)'
+            # Извлекаем значения из извлеченных данных
+            extracted_date = str(extracted_data.get(date_field, '')).strip()
+            extracted_expert = str(extracted_data.get(expert_field, '')).strip()
+            # Извлекаем значения из лучшего совпадения
+            registry_date = str(best_match.get(date_field, '')).strip()
+            registry_expert = str(best_match.get(expert_field, '')).strip()
+
+            date_similarity = self._calculate_field_similarity(extracted_date, registry_date)
+            expert_similarity = self._calculate_field_similarity(extracted_expert, registry_expert)
+
+            if date_similarity < 0.7 or expert_similarity < 0.7:
+                logger.warning(
+                    f"❌ Ключевые поля не совпадают на 70%: Дата {date_similarity:.2%}, Эксперт {expert_similarity:.2%}. Совпадение отклонено."
+                )
+                return None, 0.0
+
             logger.info(f"✅ НАЙДЕНО СОВПАДЕНИЕ В РЕЕСТРЕ: {best_similarity:.2%}")
             logger.info(f"   Номер акта: {best_match.get('Номер (если имеется) и наименование Акта ГИКЭ', 'N/A')}")
             logger.info(f"   Дата: {best_match.get('Дата окончания проведения ГИКЭ', 'N/A')}")
@@ -162,6 +180,19 @@ class RegistryManager:
             year_str = year_str[:-2]
 
         return year_str
+
+    def _calculate_field_similarity(self, str1: str, str2: str) -> float:
+        """
+        Рассчитывает схожесть двух строк для одного поля (аналогично логике в _calculate_practical_similarity).
+        Возвращает значение от 0.0 до 1.0.
+        """
+        normalized_str1 = str(str1).strip().lower()
+        normalized_str2 = str(str2).strip().lower()
+
+        if not normalized_str1 or normalized_str1 == 'nan' or not normalized_str2 or normalized_str2 == 'nan':
+            return 0.0
+
+        return SequenceMatcher(None, normalized_str1, normalized_str2).ratio()
 
     def _calculate_practical_similarity(self, extracted_data: Dict, registry_record: pd.Series) -> float:
         """
@@ -255,7 +286,7 @@ class RegistryManager:
 
         best_match, similarity = self.find_best_match_by_content(table_info)
 
-        if best_match:
+        if best_match and best_match.get('ГОД', 'N/A') == table_info['ГОД']:
             logger.info(f"🎯 ЗАМЕНЯЕМ ДАННЫЕ НА ДОСТОВЕРНЫЕ ИЗ РЕЕСТРА (схожесть: {similarity:.2%})")
 
             # ОБРАТНЫЙ МАППИНГ
@@ -311,11 +342,18 @@ class RegistryManager:
             date_match = re.search(r'(\d{1,2}\.\d{1,2}\.\d{4})', clean_name)
             if date_match:
                 extracted_date = date_match.group(1)
+                year = re.search(r'\d{4}', extracted_date)
+                if year:
+                    year = year.group(0)
+                else:
+                    year = None
                 current_date = table_info.get('Дата окончания проведения ГИКЭ', '')
 
                 # Если дата не заполнена или заполнена некорректно
                 if not current_date or str(current_date).strip() in ['', 'nan']:
                     table_info['Дата окончания проведения ГИКЭ'] = extracted_date
+                    if year:
+                        table_info['ГОД'] = year
                     logger.info(f"   📅 ИЗВЛЕЧЕНА ДАТА ИЗ ФАЙЛА: {extracted_date}")
 
             # Извлекаем фамилию эксперта (после даты, до запятой)

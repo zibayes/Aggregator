@@ -227,6 +227,11 @@ def universal_datatable(request, register_type):
         else:
             queryset = Model.objects.select_related('user').all()
 
+        if hasattr(Model, 'is_processing'):
+            queryset = queryset.filter(is_processing=False)
+            print(
+                f"DEBUG: Applied default filter is_processing=False for {register_type}, queryset count: {queryset.count()}")
+
         def format_data(obj):
             """Универсальная функция форматирования данных"""
             try:

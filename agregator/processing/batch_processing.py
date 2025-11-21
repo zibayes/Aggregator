@@ -166,7 +166,8 @@ def discover_files(base_directory, extensions=None, limit=None):
                 continue
 
             file_list.append({
-                'path': str(file_path.absolute()),
+                # 'path': str(file_path.absolute()),
+                'path': str(file_path),
                 'name': file_path.name,
                 'relative_path': str(file_path.relative_to(base_path)),
                 'size': file_path.stat().st_size,
@@ -196,6 +197,8 @@ def create_act_from_existing_file(file_info, user, is_public=False):
 
         # ИСПОЛЬЗУЕМ СУЩЕСТВУЮЩИЙ FILEORGANIZER
         new_path, was_organized = FileOrganizer.create_organized_structure(original_path, 'act')
+        new_path = new_path.replace('/app/uploaded_files/', 'uploaded_files/')
+        original_path = original_path.replace('/app/uploaded_files/', 'uploaded_files/')
 
         # Обновляем информацию о файле
         file_info['path'] = new_path
@@ -276,12 +279,14 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000, use_cache=Tr
 
     logger.debug(f'existing_paths: {existing_paths}')
     for file_info in files:
+        file_info['path'] = file_info['path'].replace('/app/uploaded_files/', 'uploaded_files/')
         file_path = file_info['path']
         abs_path = os.path.abspath(file_path)
+        logger.debug(f'file_path: {file_path}')
         logger.debug(f'abs_path: {abs_path}')
 
         # Простая проверка - есть ли такой путь в БД
-        exists_in_db = abs_path in existing_paths
+        exists_in_db = abs_path in existing_paths or file_path in existing_paths
 
         if exists_in_db:
             existing_files.append({
@@ -344,8 +349,9 @@ def _preload_existing_data(model_class):
                     if isinstance(item, dict):
                         # Добавляем путь
                         if 'path' in item and item['path']:
-                            abs_path = os.path.abspath(item['path'])
-                            existing_paths.add(abs_path)
+                            # abs_path = os.path.abspath(item['path'])
+                            # existing_paths.add(abs_path)
+                            existing_paths.add(item['path'])
                         # Добавляем хеш
                         if 'file_hash' in item and item['file_hash']:
                             existing_hashes.add(item['file_hash'])

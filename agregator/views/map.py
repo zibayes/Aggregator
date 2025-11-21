@@ -46,93 +46,111 @@ def interactive_map(request):
 
 def download_all_coordinates(request):
     if request.method == 'POST':
+        # Получаем все отчеты
         acts = Act.objects.filter(is_processing=False)
         scientific_reports = ScientificReport.objects.filter(is_processing=False)
-        tech_report = TechReport.objects.filter(is_processing=False)
-        all_coordinates = {'Акты': {}, 'Научные отчёты': {}, 'Научно-технические отчёты': {}}
+        tech_reports = TechReport.objects.filter(is_processing=False)
+
+        all_coordinates = {
+            'Акты': {},
+            'Научные отчёты': {},
+            'Научно-технические отчёты': {}
+        }
         coordinates_to_download = {}
 
+        # Собираем координаты из всех отчетов
         for act in acts:
-            all_coordinates['Акты'][
-                act.source_dict[0]['origin_filename']] = act.coordinates_dict  # TODO: Подобрать более удачный нейминг?
+            all_coordinates['Акты'][act.source_dict[0]['origin_filename']] = act.coordinates_dict
         for report in scientific_reports:
             all_coordinates['Научные отчёты'][report.source_dict[0]['origin_filename']] = report.coordinates_dict
-        for report in tech_report:
-            all_coordinates['Научно-технические отчёты'][report.source[0]['origin_filename']] = report.coordinates_dict
+        for report in tech_reports:
+            all_coordinates['Научно-технические отчёты'][
+                report.source_dict[0]['origin_filename']] = report.coordinates_dict
 
+        # Фильтруем по выбранным в запросе
         for report_type, reports in all_coordinates.items():
-            for report, groups in reports.items():
-                for group, point in groups.items():
-                    for point_name, coords in point.items():
-                        for key in request.POST.keys():
-                            if f'{report_type}-{report}-{group}-{point_name}' == key:
-                                if report_type not in coordinates_to_download.keys():
-                                    coordinates_to_download[report_type] = {}
-                                if report not in coordinates_to_download[report_type].keys():
-                                    coordinates_to_download[report_type][report] = {}
-                                if group not in coordinates_to_download[report_type][report].keys():
-                                    coordinates_to_download[report_type][report][group] = {}
-                                coordinates_to_download[report_type][report][group][point_name] = coords
+            for report_name, groups in reports.items():
+                for group, points in groups.items():
+                    for point_name, coords in points.items():
+                        key = f'{report_type}-{report_name}-{group}-{point_name}'
+                        if key in request.POST:
+                            if report_type not in coordinates_to_download:
+                                coordinates_to_download[report_type] = {}
+                            if report_name not in coordinates_to_download[report_type]:
+                                coordinates_to_download[report_type][report_name] = {}
+                            if group not in coordinates_to_download[report_type][report_name]:
+                                coordinates_to_download[report_type][report_name][group] = {}
+                            coordinates_to_download[report_type][report_name][group][point_name] = coords
 
         if coordinates_to_download:
             kml = simplekml.Kml()
-            catalog_style = simplekml.Style()
-            catalog_style.iconstyle.color = simplekml.Color.blue
-            catalog_style.polystyle.color = simplekml.Color.blue
-            photos_style = simplekml.Style()
-            photos_style.iconstyle.color = simplekml.Color.green
-            pits_style = simplekml.Style()
-            pits_style.iconstyle.color = simplekml.Color.red
-            current_style = current_group = None
+
+            # Стили (такие же как в первой функции)
+            styles = {
+                'catalog': simplekml.Style(),
+                'photos': simplekml.Style(),
+                'pits': simplekml.Style(),
+                'center': simplekml.Style()
+            }
+            styles['catalog'].iconstyle.color = simplekml.Color.blue
+            styles['catalog'].polystyle.color = simplekml.Color.blue
+            styles['photos'].iconstyle.color = simplekml.Color.green
+            styles['pits'].iconstyle.color = simplekml.Color.red
+            styles['center'].iconstyle.color = simplekml.Color.yellow
+
             for report_type, reports in coordinates_to_download.items():
                 report_type_folder = kml.newfolder(name=report_type)
-                for report, groups in reports.items():
-                    report_folder = report_type_folder.newfolder(name=report)
-                    for group, point in groups.items():
-                        system_check = True  # 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
+
+                for report_name, groups in reports.items():
+                    report_folder = report_type_folder.newfolder(name=report_name)
+
+                    for group, points in groups.items():
+                        current_style = None
+                        current_group = None
+
+                        # Определяем стиль и группу
                         if 'фотофиксации' in group:
-                            current_style = photos_style
-                            photos_group = report_folder.newfolder(name=group)
-                            current_group = photos_group
+                            current_style = styles['photos']
+                            current_group = report_folder.newfolder(name=group)
                         elif 'Каталог' in group:
-                            current_style = catalog_style
-                            catalog_group = report_folder.newfolder(name=group)
-                            current_group = catalog_group
-                            # Собираем все координаты из point в один список
-                            polygon_coords = []  # Список для координат полигона
-                            for point_name, coords in point.items():
-                                if isinstance(coords, list) and len(coords) == 2:  # Проверяем, что это [lat, lon]
-                                    polygon_coords.append(coords)  # Добавляем в список
-                                else:
-                                    print(f"Пропущен некорректный элемент для {point_name}: {coords}")
+                            current_style = styles['catalog']
+                            current_group = report_folder.newfolder(name=group)
 
-                            if polygon_coords:  # Если есть координаты, создаём полигон
-                                polygon = current_group.newpolygon(
-                                    name="Полигон")  # Один полигон для всей группы
-                                outer_boundary = polygon.outerboundaryis
-                                outer_coords = [(c[1], c[0], 0) for c in
-                                                polygon_coords]  # Преобразуем: [lat, lon] -> [lon, lat, 0]
-                                outer_boundary.coords = outer_coords  # Устанавливаем координаты
-                                polygon.style = current_style  # Применяем стиль
-                            else:
-                                print(f"Для группы '{group}' нет валидных координат для полигона")
+                            # Полигон для каталога
+                            polygon_coords = []
+                            for coords in points.values():
+                                if isinstance(coords, list) and len(coords) == 2:
+                                    polygon_coords.append(coords)
+
+                            if polygon_coords:
+                                polygon = current_group.newpolygon(name="Полигон")
+                                outer_coords = [(c[1], c[0], 0) for c in polygon_coords]
+                                polygon.outerboundaryis.coords = outer_coords
+                                polygon.style = current_style
+
                         elif 'Шурфы' in group:
-                            current_style = pits_style
-                            pits_group = report_folder.newfolder(name=group)
-                            current_group = pits_group
-                        for point_name, coords in point.items():
-                            if current_group and system_check:
-                                photo_point = current_group.newpoint(name=str(point_name),
-                                                                     coords=[
-                                                                         (coords[1],
-                                                                          coords[
-                                                                              0])])  # TODO: менять их местами или нет?!
-                                photo_point.style = current_style
+                            current_style = styles['pits']
+                            current_group = report_folder.newfolder(name=group)
+                        elif 'Центр' in group:
+                            current_style = styles['center']
+                            current_group = report_folder.newfolder(name=group)
 
+                        # Создаем точки
+                        if current_group and 'Каталог' not in group:
+                            for point_name, coords in points.items():
+                                if isinstance(coords, list) and len(coords) == 2:
+                                    point = current_group.newpoint(
+                                        name=str(point_name),
+                                        coords=[(coords[1], coords[0])]
+                                    )
+                                    point.style = current_style
+
+            # Формируем ответ
             response = HttpResponse(kml.kml(), content_type='application/vnd.google-earth.kml+xml')
-            filename = f'all_coordinates.kml'
+            filename = 'all_coordinates.kml'
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
+
         return HttpResponse('Координаты для экспорта не выбраны', status=404)
     return JsonResponse({'response': f'Method {request.method} is not available for this URL'})
 
@@ -257,25 +275,24 @@ def get_geojson_polygons_sync(points):
 
 def download_coordinates(request, report_type, pk):
     if request.method == 'POST':
-        if report_type == 'act':
-            report = get_object_or_404(Act, id=pk)
-        elif report_type == 'scientific_report':
-            report = get_object_or_404(ScientificReport, id=pk)
-        elif report_type == 'tech_report':
-            report = get_object_or_404(TechReport, id=pk)
-        elif report_type == 'account_card':
-            report = get_object_or_404(ObjectAccountCard, id=pk)
-        elif report_type == 'commercial_offer':
-            report = get_object_or_404(CommercialOffers, id=pk)
-        elif report_type == 'geo_object':
-            report = get_object_or_404(GeoObject, id=pk)
-        else:
+        # Определяем тип отчета
+        report_models = {
+            'act': Act,
+            'scientific_report': ScientificReport,
+            'tech_report': TechReport,
+            'account_card': ObjectAccountCard,
+            'commercial_offer': CommercialOffers,
+            'geo_object': GeoObject,
+        }
+
+        if report_type not in report_models:
             return HttpResponse("Некорректный тип отчёта", status=404)
+
+        report = get_object_or_404(report_models[report_type], id=pk)
         coordinates = report.coordinates_dict if report else {}
         coordinates_to_download = {}
-        print('request.POST.keys(): ' + str(request.POST.keys()))
-        print('coordinates.items(): ' + str(coordinates.items()))
 
+        # Фильтруем координаты по выбранным в запросе
         post_keys = list(request.POST.keys())
         for group, points in coordinates.items():
             for point_name, coords in points.items():
@@ -287,63 +304,66 @@ def download_coordinates(request, report_type, pk):
 
         if coordinates_to_download:
             kml = simplekml.Kml()
-            catalog_style = simplekml.Style()
-            catalog_style.iconstyle.color = simplekml.Color.blue
-            catalog_style.polystyle.color = simplekml.Color.blue
-            photos_style = simplekml.Style()
-            photos_style.iconstyle.color = simplekml.Color.green
-            pits_style = simplekml.Style()
-            pits_style.iconstyle.color = simplekml.Color.red
-            obj_center = simplekml.Style()
-            obj_center.iconstyle.color = simplekml.Color.yellow
-            current_style = current_group = None
-            for group, point in coordinates_to_download.items():
-                system_check = True  # 'WGS-84' in group or 'WGS84' in group or 'WGS 84' in group or 'Шурф' in group
+
+            # Стили для разных типов точек
+            styles = {
+                'catalog': simplekml.Style(),
+                'photos': simplekml.Style(),
+                'pits': simplekml.Style(),
+                'center': simplekml.Style()
+            }
+            styles['catalog'].iconstyle.color = simplekml.Color.blue
+            styles['catalog'].polystyle.color = simplekml.Color.blue
+            styles['photos'].iconstyle.color = simplekml.Color.green
+            styles['pits'].iconstyle.color = simplekml.Color.red
+            styles['center'].iconstyle.color = simplekml.Color.yellow
+
+            for group, points in coordinates_to_download.items():
+                current_style = None
+                current_group = None
+
+                # Определяем стиль и группу по названию
                 if 'фотофиксации' in group:
-                    current_style = photos_style
-                    photos_group = kml.newfolder(name=group)
-                    current_group = photos_group
+                    current_style = styles['photos']
+                    current_group = kml.newfolder(name=group)
                 elif 'Каталог' in group:
-                    current_style = catalog_style
-                    catalog_group = kml.newfolder(name=group)
-                    current_group = catalog_group
-                    # Собираем все координаты из point в один список
-                    polygon_coords = []  # Список для координат полигона
-                    for point_name, coords in point.items():
-                        if isinstance(coords, list) and len(coords) == 2:  # Проверяем, что это [lat, lon]
-                            polygon_coords.append(coords)  # Добавляем в список
-                        else:
-                            print(f"Пропущен некорректный элемент для {point_name}: {coords}")
+                    current_style = styles['catalog']
+                    current_group = kml.newfolder(name=group)
 
-                    if polygon_coords:  # Если есть координаты, создаём полигон
-                        polygon = current_group.newpolygon(
-                            name="Полигон")  # Один полигон для всей группы
-                        outer_boundary = polygon.outerboundaryis
-                        outer_coords = [(c[1], c[0], 0) for c in
-                                        polygon_coords]  # Преобразуем: [lat, lon] -> [lon, lat, 0]
-                        outer_boundary.coords = outer_coords  # Устанавливаем координаты
-                        polygon.style = current_style  # Применяем стиль
-                    else:
-                        print(f"Для группы '{group}' нет валидных координат для полигона")
+                    # Создаем полигон для каталога
+                    polygon_coords = []
+                    for coords in points.values():
+                        if isinstance(coords, list) and len(coords) == 2:
+                            polygon_coords.append(coords)
+
+                    if polygon_coords:
+                        polygon = current_group.newpolygon(name="Полигон")
+                        outer_coords = [(c[1], c[0], 0) for c in polygon_coords]
+                        polygon.outerboundaryis.coords = outer_coords
+                        polygon.style = current_style
+
                 elif 'Шурфы' in group:
-                    current_style = pits_style
-                    pits_group = kml.newfolder(name=group)
-                    current_group = pits_group
+                    current_style = styles['pits']
+                    current_group = kml.newfolder(name=group)
                 elif 'Центр' in group:
-                    current_style = obj_center
-                    center_group = kml.newfolder(name=group)
-                    current_group = center_group
-                for point_name, coords in point.items():
-                    if current_group and system_check:
-                        photo_point = current_group.newpoint(name=str(point_name),
-                                                             coords=[
-                                                                 (coords[1],
-                                                                  coords[0])])  # TODO: менять их местами или нет?!
-                        photo_point.style = current_style
+                    current_style = styles['center']
+                    current_group = kml.newfolder(name=group)
 
+                # Создаем точки (кроме каталога, где создается только полигон)
+                if current_group and 'Каталог' not in group:
+                    for point_name, coords in points.items():
+                        if isinstance(coords, list) and len(coords) == 2:
+                            point = current_group.newpoint(
+                                name=str(point_name),
+                                coords=[(coords[1], coords[0])]
+                            )
+                            point.style = current_style
+
+            # Формируем ответ с KML
             response = HttpResponse(kml.kml(), content_type='application/vnd.google-earth.kml+xml')
             filename = f'coordinates-{report_type}-{pk}.kml'
             response['Content-Disposition'] = f'attachment; filename="{filename}"'
             return response
+
         return HttpResponse('Координаты для экспорта не выбраны', status=404)
     return JsonResponse({'response': f'Method {request.method} is not available for this URL'})

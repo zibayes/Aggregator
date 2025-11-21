@@ -111,7 +111,7 @@ fi
 # === Запуск приложения ===
 if [ "$SERVICE_TYPE" = "app" ]; then
     echo "=== Запуск веб-приложения (Gunicorn) ==="
-    exec gunicorn archeology.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 300 \
+    exec gunicorn archeology.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 7200 \
     --log-level info \
     --access-logfile - \
     --error-logfile -
