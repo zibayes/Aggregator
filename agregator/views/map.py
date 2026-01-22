@@ -93,7 +93,9 @@ def download_all_coordinates(request):
                 'center': simplekml.Style()
             }
             styles['catalog'].iconstyle.color = simplekml.Color.blue
-            styles['catalog'].polystyle.color = simplekml.Color.blue
+            styles['catalog'].polystyle.color = simplekml.Color.changealphaint(60, simplekml.Color.blue)
+            styles['catalog'].linestyle.color = simplekml.Color.blue
+            styles['catalog'].linestyle.width = 2
             styles['photos'].iconstyle.color = simplekml.Color.green
             styles['pits'].iconstyle.color = simplekml.Color.red
             styles['center'].iconstyle.color = simplekml.Color.yellow
@@ -313,7 +315,9 @@ def download_coordinates(request, report_type, pk):
                 'center': simplekml.Style()
             }
             styles['catalog'].iconstyle.color = simplekml.Color.blue
-            styles['catalog'].polystyle.color = simplekml.Color.blue
+            styles['catalog'].polystyle.color = simplekml.Color.changealphaint(60, simplekml.Color.blue)
+            styles['catalog'].linestyle.color = simplekml.Color.blue
+            styles['catalog'].linestyle.width = 2
             styles['photos'].iconstyle.color = simplekml.Color.green
             styles['pits'].iconstyle.color = simplekml.Color.red
             styles['center'].iconstyle.color = simplekml.Color.yellow
@@ -339,6 +343,7 @@ def download_coordinates(request, report_type, pk):
                     if polygon_coords:
                         polygon = current_group.newpolygon(name="Полигон")
                         outer_coords = [(c[1], c[0], 0) for c in polygon_coords]
+                        outer_coords.append((polygon_coords[0][1], polygon_coords[0][0], 0))
                         polygon.outerboundaryis.coords = outer_coords
                         polygon.style = current_style
 

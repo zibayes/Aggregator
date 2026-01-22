@@ -89,9 +89,12 @@ def dms_to_decimal(dms):
     parts = re.split('[°\'"]+', dms)
     print('!!' + str(parts))
 
-    degrees = float(parts[0])
-    minutes = float(parts[1])
-    seconds = float(parts[2])
+    if len(parts) >= 3 and str_is_float(parts[0]) and str_is_float(parts[1]) and str_is_float(parts[2]):
+        degrees = float(parts[0])
+        minutes = float(parts[1])
+        seconds = float(parts[2])
+    else:
+        return None
 
     decimal = degrees + minutes / 60 + seconds / 3600
     return decimal
