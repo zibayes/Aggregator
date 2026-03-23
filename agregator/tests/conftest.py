@@ -160,7 +160,8 @@ def test_commercial_offer(test_user):
     from agregator.models import CommercialOffers
     return CommercialOffers.objects.create(
         user=test_user,
-        origin_filename='Test Commercial Offer'
+        origin_filename='Test Commercial Offer',
+        source='test_commercial_offer.pdf'
     )
 
 
@@ -169,7 +170,8 @@ def test_geo_object(test_user):
     from agregator.models import GeoObject
     return GeoObject.objects.create(
         user=test_user,
-        origin_filename='Test Geo Object'
+        origin_filename='Test Geo Object',
+        source='test_geo_object.shp'
     )
 
 

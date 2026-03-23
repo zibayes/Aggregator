@@ -16,6 +16,7 @@
                                 <option value="act">Акты ГИКЭ</option>
                                 <option value="scientific_report">Научные отчеты</option>
                                 <option value="tech_report">Технические отчеты</option>
+                                <option value="account_card">Учетные карты</option>
                             </select>
                         </div>
                     </div>
@@ -443,7 +444,8 @@
         const defaultDirs = {
             'act': 'uploaded_files/Акты ГИКЭ',
             'scientific_report': 'uploaded_files/Научные отчёты',
-            'tech_report': 'uploaded_files/Научно-технические отчёты'
+            'tech_report': 'uploaded_files/Научно-технические отчёты',
+            'account_card': 'uploaded_files/Памятники'
         };
         document.getElementById('directoryPath').value = defaultDirs[fileType] || '';
     }

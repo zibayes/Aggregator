@@ -5,6 +5,9 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
+import logging
+
+logger = logging.getLogger(__name__)
 
 from celery import shared_task
 

@@ -61,6 +61,23 @@ ACTS_QUERY_EXCLUDE = [
 ]
 
 
+def create_note_file(output_path: str, order_text: str = None) -> None:
+    """Создает файл Примечание.txt в указанной папке"""
+    note_path = os.path.join(output_path, "Примечание.txt")
+    try:
+        with open(note_path, 'w', encoding='utf-8') as note_file:
+            if order_text:
+                # Форматируем текст: название приказа + сообщение
+                note_file.write(f"{order_text}\nНет приказа на сайте службы")
+            else:
+                note_file.write("Нет приказа о включении объекта в перечень")
+        logger.info(f"Создан файл примечания: {note_path}")
+        if order_text:
+            logger.info(f"Текст приказа в примечании: {order_text[:100]}...")  # Логируем первые 100 символов
+    except Exception as e:
+        logger.error(f"Ошибка при создании файла примечания в {output_path}: {e}")
+
+
 @shared_task(bind=True)
 @handle_interrupts
 def external_sources_processing(self, task_state, start_date, end_date, start_page, end_page, select_text,
@@ -705,6 +722,10 @@ def process_oan_list(self, progress_key=None):
 
             for index, row in df.iterrows():
                 try:
+                    # Получаем текст приказа из таблицы
+                    order_text = row['Документ о постановке на государственную охрану']
+                    logger.info(f"📄 Текст приказа ОАН из таблицы: {order_text}")
+
                     # Обработка одной строки данных ОАН
                     document_source = []
 
@@ -713,7 +734,7 @@ def process_oan_list(self, progress_key=None):
                         doc_name=row[
                             'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
                         district=row['Район местонахождения'],
-                        document=row['Документ о постановке на государственную охрану'],
+                        document=order_text,  # Используем переменную order_text
                         register_num=row[
                             'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
                         defaults={
@@ -731,12 +752,22 @@ def process_oan_list(self, progress_key=None):
                         archaeological_site.source = str(nested_folders)
                         external_orders_download(archaeological_site.document, archaeological_site.source,
                                                  document_source)
+
+                        # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
+                        if not document_source:
+                            create_note_file(archaeological_site.source, order_text)
+
                         archaeological_site.document_source = document_source
                     else:
                         # Если объект уже существовал, но нет документов - скачиваем
                         if not archaeological_site.document_source_dict:
                             external_orders_download(archaeological_site.document, archaeological_site.source,
                                                      document_source)
+
+                            # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
+                            if not document_source:
+                                create_note_file(archaeological_site.source, order_text)
+
                             archaeological_site.document_source = document_source
 
                         # Снимаем пометку исключения, если объект найден в новом перечне
@@ -809,12 +840,16 @@ def _process_oan_row(row, existing_sites_set):
     try:
         document_source = []
 
+        # Получаем текст приказа из таблицы
+        order_text = row['Документ о постановке на государственную охрану']
+        logger.info(f"📄 Текст приказа ОАН из таблицы: {order_text}")
+
         # Поиск существующего объекта или создание нового
         archaeological_site, created = ArchaeologicalHeritageSite.objects.get_or_create(
             doc_name=row[
                 'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
             district=row['Район местонахождения'],
-            document=row['Документ о постановке на государственную охрану'],
+            document=order_text,  # Используем переменную
             register_num=row[
                 'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
             defaults={
@@ -829,7 +864,14 @@ def _process_oan_row(row, existing_sites_set):
             nested_folders.mkdir(parents=True, exist_ok=True)
 
             archaeological_site.source = str(nested_folders)
+
+            # Скачиваем документы
             external_orders_download(archaeological_site.document, archaeological_site.source, document_source)
+
+            # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
+            if not document_source:
+                create_note_file(archaeological_site.source, order_text)
+
             archaeological_site.document_source = document_source
             archaeological_site.save()
 
@@ -838,7 +880,13 @@ def _process_oan_row(row, existing_sites_set):
 
         # Если объект уже существует, но нет документов - скачиваем
         elif not archaeological_site.document_source_dict:
+            # Скачиваем документы
             external_orders_download(archaeological_site.document, archaeological_site.source, document_source)
+
+            # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
+            if not document_source:
+                create_note_file(archaeological_site.source, order_text)
+
             archaeological_site.document_source = document_source
             archaeological_site.save()
 
@@ -935,6 +983,10 @@ def _process_voan_row(row):
             document=row['Документ о включении в перечень выявленных объектов'],
         )
 
+        # Получаем текст приказа из таблицы
+        order_text = row['Документ о включении в перечень выявленных объектов']
+        logger.info(f"📄 Текст приказа ВОАН из таблицы: {order_text}")
+
         # Проверяем существование
         site_exists = IdentifiedArchaeologicalHeritageSite.objects.filter(
             name=identified_site.name,
@@ -948,7 +1000,15 @@ def _process_voan_row(row):
             Path(folder).mkdir(parents=True, exist_ok=True)
 
             identified_site.source = folder
+
+            # Скачиваем документы
             external_orders_download(identified_site.document, folder, document_source)
+
+            # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
+            if not document_source:
+                # Передаем текст приказа из таблицы
+                create_note_file(folder, order_text)
+
             identified_site.document_source = document_source
             identified_site.save()
             connect_account_card_to_heritage(identified_site.name)
@@ -961,7 +1021,13 @@ def _process_voan_row(row):
                 document=identified_site.document,
             )
             if not existing_site.document_source_dict:
+                # Скачиваем документы
                 external_orders_download(existing_site.document, existing_site.source, document_source)
+
+                # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
+                if not document_source:
+                    create_note_file(existing_site.source, order_text)
+
                 existing_site.document_source = document_source
                 existing_site.save()
         return (identified_site.name, identified_site.address, identified_site.obj_info, identified_site.document)

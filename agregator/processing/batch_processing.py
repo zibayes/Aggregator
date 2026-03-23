@@ -8,7 +8,7 @@ import json
 import hashlib
 from agregator.redis_config import REDIS_HOST, REDIS_PORT, REDIS_DB
 from agregator.hash import calculate_file_hash
-from agregator.models import Act, ScientificReport, TechReport
+from agregator.models import Act, ScientificReport, TechReport, ObjectAccountCard
 from agregator.processing.hash_utils import check_file_hash_in_sources
 from agregator.processing.batch_file_organizer import FileOrganizer
 from agregator.processing.batch_registry_utils import RegistryManager
@@ -239,6 +239,67 @@ def create_act_from_existing_file(file_info, user, is_public=False):
         return None
 
 
+def create_account_card_from_existing_file(file_info, user, is_public=False):
+    """
+    Создаёт запись учётной карты для существующего файла с проверкой дубликатов.
+    Организация файлов не производится — используется переданный путь как есть.
+
+    Аргументы:
+        file_info (dict): словарь с информацией о файле, должен содержать ключи
+                          'path' (полный путь) и 'name' (имя файла)
+        user (User): пользователь, создающий запись
+        is_public (bool): флаг публичности записи
+
+    Возвращает:
+        int или None: ID созданной учётной карты или None в случае ошибки/дубликата
+    """
+    try:
+        original_path = file_info['path']
+        logger.info(f"Создание учётной карты для файла: {original_path}")
+
+        # Проверка дубликата по хешу
+        is_duplicate, file_hash = check_file_hash_in_sources(original_path, ObjectAccountCard)
+        if is_duplicate:
+            logger.info(f"Файл уже существует в БД (учётная карта): {original_path}")
+            return None
+
+        # Если хеш не был вычислен внутри check_file_hash_in_sources, вычисляем явно
+        if file_hash is None:
+            file_hash = calculate_file_hash(original_path)
+
+        # Создаём запись учётной карты с минимальными обязательными полями
+        account_card = ObjectAccountCard(
+            user=user,
+            is_public=is_public,
+            is_processing=True,
+            origin_filename=file_info['name']
+        )
+        account_card.save()
+
+        # Формируем source как JSON-строку (список с одним словарём)
+        source_content = [{
+            'type': 'all',
+            'path': original_path,
+            'original_path': original_path,
+            'origin_filename': file_info['name'],
+            'file_hash': file_hash,
+            'was_organized': False  # организация не производилась
+        }]
+        account_card.source = json.dumps(source_content, ensure_ascii=False)
+
+        # Заполняем upload_source (JSONField) метаданными загрузки
+        account_card.upload_source = {'source': 'Пользовательский файл'}
+
+        account_card.save()
+
+        logger.info(f"Создана учётная карта {account_card.id} для файла: {original_path}")
+        return account_card.id
+
+    except Exception as e:
+        logger.error(f"Ошибка при создании учётной карты для {file_info['path']}: {e}")
+        return None
+
+
 def scan_and_prepare_batch(directory, file_type, user, limit=10000, use_cache=True, max_workers=8):
     """
     Умное сканирование с автоматическим выбором стратегии
@@ -257,6 +318,11 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000, use_cache=Tr
         'tech_report': {
             'model': TechReport,
             'extensions': ['.pdf', '.doc', '.docx', '.odt'],
+            'creation_func': None
+        },
+        'account_card': {
+            'model': ObjectAccountCard,
+            'extensions': ['kml'],  # '.pdf', '.doc', '.docx', '.odt',
             'creation_func': None
         }
     }

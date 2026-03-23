@@ -18,6 +18,7 @@ from celery import shared_task
 from docx import Document
 from pytesseract import Output
 import logging
+from typing import Dict, List, Optional, Tuple, Any
 
 from agregator.processing.files_saving import load_raw_account_cards
 from agregator.hash import calculate_file_hash
@@ -73,137 +74,340 @@ def sort_contours_custom(contours):
     return [c[0] for c in sorted_contours]
 
 
-def normalize_table_structure(table):
-    """Приводит таблицу к стандартной структуре"""
-    normalized = []
+def smart_detect_table_structure(table: List[List[str]]) -> Tuple[Optional[int], Optional[int], Optional[int], int]:
+    """
+    Умное определение структуры таблицы:
+    Возвращает (индекс_точки, индекс_широты, индекс_долготы, количество_строк_заголовков)
+    """
+    if not table or len(table) < 2:
+        return None, None, None, 0
 
-    for row in table:
-        # Очищаем каждую ячейку
-        clean_row = [str(cell).strip() if cell is not None else "" for cell in row]
-        # Убираем полностью пустые строки
-        if any(cell for cell in clean_row):
-            normalized.append(clean_row)
+    # Словари для поиска в разных вариациях
+    point_keywords = [
+        r'№', r'номер', r'точк', r'угол', r'поворот', r'обозначение',
+        r'характерн', r'point', r'центр'
+    ]
 
-    return normalized
+    lat_keywords = [
+        r'широт', r'latitude', r'lat', r'с\.ш\.', r'северн', r'north',
+        r'с\. ш\.', r'с.ш', r'широты', r'северной'
+    ]
 
+    lon_keywords = [
+        r'долгот', r'longitude', r'lon', r'в\.д\.', r'восточн', r'east',
+        r'в\. д\.', r'в.д', r'долготы', r'восточной'
+    ]
 
-def detect_coordinate_columns(row):
-    """Определяет индексы столбцов с координатами в строке"""
-    lat_idx, lon_idx, point_idx = None, None, None
+    # Случай 1: Таблица с мультизаголовками (как в новых примерах)
+    # Ищем строки, где есть координаты в формате градусов
+    data_start_row = 0
+    for i, row in enumerate(table):
+        if i > 5:  # Не проверяем слишком глубоко
+            break
 
-    for i, cell in enumerate(row):
-        cell_lower = str(cell).lower()
+        # Проверяем, есть ли в строке координаты в формате градусов
+        has_coords = False
+        for cell in row:
+            if isinstance(cell, str) and re.search(r'\d+°\d+\'', cell, re.IGNORECASE | re.MULTILINE):
+                has_coords = True
+                break
+
+        if has_coords:
+            data_start_row = i
+            break
+
+    # Определяем заголовки (строки до data_start_row)
+    header_rows = table[:data_start_row] if data_start_row > 0 else []
+
+    # Собираем все заголовки по столбцам (объединяя multi-row headers)
+    max_cols = max(len(row) for row in table[:data_start_row + 3]) if table else 0
+    column_titles = [''] * max_cols
+
+    for row in header_rows:
+        for col_idx, cell in enumerate(row):
+            if col_idx < max_cols and cell and str(cell).strip():
+                column_titles[col_idx] += ' ' + str(cell).strip()
+
+    # Чистим заголовки
+    column_titles = [title.strip() for title in column_titles]
+
+    # Ищем индексы по ключевым словам в заголовках
+    point_idx, lat_idx, lon_idx = None, None, None
+
+    for col_idx, title in enumerate(column_titles):
+        title_lower = title.lower()
+
+        # Проверка на номер точки
+        if any(re.search(keyword, title_lower, re.IGNORECASE | re.MULTILINE) for keyword in point_keywords):
+            point_idx = col_idx
 
         # Проверка на широту
-        if re.search(r'(широт|latitude|lat)', cell_lower):
-            lat_idx = i
+        if any(re.search(keyword, title_lower, re.IGNORECASE | re.MULTILINE) for keyword in lat_keywords):
+            lat_idx = col_idx
+
         # Проверка на долготу
-        elif re.search(r'(долгот|longitude|lon|lng)', cell_lower):
-            lon_idx = i
-        # Проверка на номер точки
-        elif re.search(r'(№|номер|n|точк|угол|поворот|point)', cell_lower):
-            point_idx = i
-        # Дополнительные проверки для русского языка
-        elif 'северная' in cell_lower and 'широта' in cell_lower:
-            lat_idx = i
-        elif 'восточная' in cell_lower and 'долгота' in cell_lower:
-            lon_idx = i
+        if any(re.search(keyword, title_lower, re.IGNORECASE | re.MULTILINE) for keyword in lon_keywords):
+            lon_idx = col_idx
 
-    return lat_idx, lon_idx, point_idx
+    # Если не нашли через заголовки, ищем по содержимому первых строк данных
+    if lat_idx is None or lon_idx is None:
+        # Берем первые 3 строки данных
+        sample_rows = table[data_start_row:data_start_row + 3]
+
+        if sample_rows:
+            # Для каждого столбца проверяем, содержит ли он координаты
+            for col_idx in range(max_cols):
+                has_lat_format, has_lon_format = False, False
+
+                for row in sample_rows:
+                    if col_idx < len(row):
+                        cell = str(row[col_idx]).strip()
+
+                        # Проверяем формат координат
+                        if re.search(r'\d+°\d+\'', cell, re.IGNORECASE | re.MULTILINE):
+                            # Проверяем, похоже ли на широту (обычно начинается с 55, 56, 57)
+                            if re.match(r'^5[0-9]', cell, re.IGNORECASE | re.MULTILINE):
+                                has_lat_format = True
+                            # Проверяем, похоже ли на долготу (обычно начинается с 90, 91, 95, 96)
+                            elif re.match(r'^9[0-9]', cell, re.IGNORECASE | re.MULTILINE):
+                                has_lon_format = True
+
+                if has_lat_format and lat_idx is None:
+                    lat_idx = col_idx
+                if has_lon_format and lon_idx is None:
+                    lon_idx = col_idx
+
+    # Если все еще не определили, используем эвристику:
+    # Первый столбец - точка, второй - широта, третий - долгота
+    if point_idx is None and lat_idx is not None and lon_idx is not None:
+        # Ищем столбец, который не широта и не долгота
+        for col_idx in range(max_cols):
+            if col_idx != lat_idx and col_idx != lon_idx:
+                point_idx = col_idx
+                break
+
+    return point_idx, lat_idx, lon_idx, data_start_row
 
 
-def is_data_row(row, point_idx, lat_idx, lon_idx):
-    """Проверяет, является ли строка строкой с данными (а не заголовком)"""
-    if len(row) <= max(point_idx or 0, lat_idx or 0, lon_idx or 0):
+def is_data_row(row: List[str], point_idx: int, lat_idx: int, lon_idx: int) -> bool:
+    """Проверяет, является ли строка строкой с данными"""
+    if not row:
+        return False
+
+    # Проверяем наличие необходимых столбцов
+    max_idx = max(point_idx or 0, lat_idx or 0, lon_idx or 0)
+    if len(row) <= max_idx:
         return False
 
     # Проверяем, что в ячейках нет заголовочных слов
     test_cells = []
-    if point_idx is not None:
-        test_cells.append(row[point_idx])
-    test_cells.extend([row[lat_idx], row[lon_idx]])
+    if point_idx is not None and point_idx < len(row):
+        test_cells.append(str(row[point_idx]).lower())
+    if lat_idx is not None and lat_idx < len(row):
+        test_cells.append(str(row[lat_idx]).lower())
+    if lon_idx is not None and lon_idx < len(row):
+        test_cells.append(str(row[lon_idx]).lower())
+
+    forbidden_terms = [
+        'широта', 'долгота', 'latitude', 'longitude', 'lat', 'lon',
+        'угол', 'поворот', '№', 'номер', 'north', 'east', 'точк',
+        'северн', 'восточн', 'с.ш.', 'в.д.', 'координат'
+    ]
 
     for cell in test_cells:
-        cell_str = str(cell).lower()
-        if any(term in cell_str for term in [
-            'широта', 'долгота', 'latitude', 'longitude',
-            'угол', 'поворот', '№', 'номер', 'north', 'east'
-        ]):
+        for term in forbidden_terms:
+            if term in cell:
+                return False
+
+    # Проверяем, что в ячейках с координатами есть символ градуса
+    if lat_idx is not None and lat_idx < len(row):
+        lat_cell = str(row[lat_idx])
+        if '°' not in lat_cell:
+            return False
+
+    if lon_idx is not None and lon_idx < len(row):
+        lon_cell = str(row[lon_idx])
+        if '°' not in lon_cell:
             return False
 
     return True
 
 
-def process_coordinates_table_universal(nested_tables, min_header=3):
+def normalize_coordinates_better(coord_str: str) -> str:
+    """Нормализует строку с координатами"""
+    if not coord_str or not isinstance(coord_str, str):
+        return ""
+
+    # Заменяем разные символы кавычек на стандартные
+    coord_str = coord_str.strip()
+    coord_str = coord_str.replace('"', '"').replace('"', '"')
+    coord_str = coord_str.replace("'", "'").replace("`", "'")
+    coord_str = coord_str.replace("″", '"').replace("′′", '"')
+
+    # Заменяем запятые в десятичных долях на точки
+    # Ищем паттерн: градусы'минуты,секунды"
+    match = re.search(r'(\d+)°\s*(\d+)[\'′]\s*([\d,]+\.?\d*)', coord_str)
+    if match:
+        degrees = match.group(1)
+        minutes = match.group(2)
+        seconds = match.group(3).replace(',', '.')
+        coord_str = f"{degrees}°{minutes}'{seconds}\""
+
+    return coord_str
+
+
+def dms_to_decimal_robust(dms_str: str) -> Optional[float]:
+    """Надежное преобразование DMS в десятичные градусы"""
+    try:
+        if not dms_str:
+            return None
+
+        # Нормализуем строку
+        dms_str = normalize_coordinates_better(dms_str)
+
+        # Убираем лишние пробелы
+        dms_str = re.sub(r'\s+', '', dms_str)
+
+        # Парсим различные форматы
+        patterns = [
+            r'(-?\d+)°(\d+)[\'′](\d+\.?\d*?)["″]?([NSEW])?',
+            r'(-?\d+)°(\d+)\.(\d+\.?\d*)',  # Формат 55°35.123
+            r'(-?\d+)°(\d+)[\'′](\d+\.?\d*)',  # Без секунд
+            r'(-?\d+)°(\d+)[\'′](\d+)[\"″](\d+\.?\d*)',  # С десятичными в секундах
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, dms_str, re.IGNORECASE)
+            if match:
+                degrees = float(match.group(1))
+                minutes = float(match.group(2))
+                seconds = float(match.group(3)) if len(match.groups()) >= 3 else 0
+
+                decimal = degrees + minutes / 60 + seconds / 3600
+
+                # Учитываем направление (N/S/E/W)
+                if len(match.groups()) >= 4 and match.group(4):
+                    direction = match.group(4).upper()
+                    if direction in ['S', 'W']:
+                        decimal = -decimal
+
+                return round(decimal, 10)
+
+        # Если не нашли паттерн, пробуем парсить как десятичные градусы
+        try:
+            # Убираем все нецифровые символы кроме точки и минуса
+            clean = re.sub(r'[^\d\.\-]', '', dms_str)
+            if clean:
+                return float(clean)
+        except:
+            pass
+
+        return None
+    except Exception as e:
+        logger.error(f"Ошибка преобразования координаты {dms_str}: {e}")
+        return None
+
+
+def extract_points_from_table(table: List[List[str]]) -> Dict[str, List[float]]:
+    """Извлекает точки из одной таблицы"""
+    points = {}
+
+    if not table:
+        return points
+
+    # Определяем структуру таблицы
+    point_idx, lat_idx, lon_idx, data_start = smart_detect_table_structure(table)
+
+    if lat_idx is None or lon_idx is None:
+        logger.warning(f"Не удалось определить столбцы с координатами в таблице")
+        return points
+
+    logger.info(f"Определена структура: точка={point_idx}, широта={lat_idx}, долгота={lon_idx}, старт={data_start}")
+
+    # Обрабатываем строки данных
+    for row_idx, row in enumerate(table[data_start:], start=data_start):
+        if not is_data_row(row, point_idx, lat_idx, lon_idx):
+            continue
+
+        try:
+            # Извлекаем данные
+            point_key = ""
+            if point_idx is not None and point_idx < len(row):
+                point_key = str(row[point_idx]).strip()
+
+            # Если нет ключа, создаем его
+            if not point_key:
+                point_key = f"point_{len(points) + 1}"
+
+            lat_str = str(row[lat_idx]).strip() if lat_idx < len(row) else ""
+            lon_str = str(row[lon_idx]).strip() if lon_idx < len(row) else ""
+
+            # Проверяем на пустые значения
+            if not lat_str or not lon_str:
+                continue
+
+            # Преобразуем координаты
+            lat = dms_to_decimal_robust(lat_str)
+            lon = dms_to_decimal_robust(lon_str)
+
+            if lat is not None and lon is not None:
+                points[point_key] = [lat, lon]
+                logger.debug(f"Добавлена точка {point_key}: {lat}, {lon}")
+            else:
+                logger.warning(f"Не удалось преобразовать координаты: {lat_str}, {lon_str}")
+
+        except Exception as e:
+            logger.error(f"Ошибка обработки строки {row_idx}: {row}, ошибка: {e}")
+            continue
+
+    return points
+
+
+def process_all_tables_universal(nested_tables: List[List[List[str]]]) -> Dict[str, Any]:
+    """Основная функция обработки всех таблиц"""
     coordinates = {'Каталог координат': {}}
+    all_points = {}
 
-    for table in nested_tables:
-        # Нормализуем таблицу
-        table = normalize_table_structure(table)
+    logger.info(f"Начинаем обработку {len(nested_tables)} таблиц")
 
+    for table_idx, table in enumerate(nested_tables):
         if not table:
             continue
 
-        # Пытаемся найти заголовки в первых 3 строках
-        lat_idx, lon_idx, point_idx = None, None, None
+        logger.info(f"Обработка таблицы {table_idx + 1}/{len(nested_tables)}")
 
-        for i in range(min(min_header, len(table))):
-            row = table[i]
-            row_lat_idx, row_lon_idx, row_point_idx = detect_coordinate_columns(row)
+        # Пытаемся извлечь точки из таблицы
+        try:
+            points = extract_points_from_table(table)
 
-            if row_lat_idx is not None or row_lon_idx is not None:
-                lat_idx = row_lat_idx if row_lat_idx is not None else lat_idx
-                lon_idx = row_lon_idx if row_lon_idx is not None else lon_idx
-                point_idx = row_point_idx if row_point_idx is not None else point_idx
+            if points:
+                logger.info(f"  Извлечено {len(points)} точек")
 
-        # Если не нашли заголовки, пытаемся определить по содержимому
-        if lat_idx is None or lon_idx is None:
-            # Предполагаем стандартную структуру: точка, широта, долгота
-            if len(table[0]) >= 3:
-                point_idx = 0
-                lat_idx = 1
-                lon_idx = 2
+                # Объединяем точки, разрешая конфликты
+                for key, value in points.items():
+                    if key in all_points:
+                        # Если точка уже существует, добавляем суффикс
+                        suffix = 1
+                        while f"{key}_{suffix}" in all_points:
+                            suffix += 1
+                        all_points[f"{key}_{suffix}"] = value
+                    else:
+                        all_points[key] = value
+            else:
+                logger.warning(f"  Не удалось извлечь точки из таблицы {table_idx + 1}")
 
-        # Если все еще не определили - пропускаем таблицу
-        if lat_idx is None or lon_idx is None:
-            logger.info(f"Не удалось определить структуру таблицы: {table[:2]}")
+        except Exception as e:
+            logger.error(f"Критическая ошибка при обработке таблицы {table_idx + 1}: {e}")
             continue
 
-        # Обрабатываем строки
-        for row in table:
-            if not is_data_row(row, point_idx, lat_idx, lon_idx):
-                continue
+    # Добавляем все точки в результат
+    coordinates['Каталог координат'] = all_points
 
-            try:
-                # Извлекаем данные
-                point_val = str(row[point_idx] if point_idx < len(row) else "").strip()
-                lat_val = str(row[lat_idx] if lat_idx < len(row) else "").strip()
-                lon_val = str(row[lon_idx] if lon_idx < len(row) else "").strip()
-
-                # Если нет номера точки, генерируем его
-                if not point_val:
-                    point_val = f"point_{len(coordinates['Каталог координат']) + 1}"
-
-                # Пропускаем пустые координаты
-                if not lat_val or not lon_val:
-                    continue
-
-                # Преобразуем координаты
-                lat = dms_to_decimal(normalize_coordinates(lat_val))
-                lon = dms_to_decimal(normalize_coordinates(lon_val))
-
-                if lat is not None and lon is not None:
-                    coordinates['Каталог координат'][point_val] = [lat, lon]
-
-            except Exception as e:
-                logger.debug(f"Ошибка в строке {row}: {e}")
-                continue
-
-    # Добавляем системную информацию
+    # Добавляем метаданные
     if coordinates['Каталог координат']:
         coordinates['Каталог координат']['coordinate_system'] = 'wgs84'
-        # coordinates['Каталог координат']['points_count'] = len(coordinates['Каталог координат'])
 
+    logger.info(f"Обработка завершена. Всего точек: {len(all_points)}")
     return coordinates
 
 
@@ -367,11 +571,11 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                         supplement_content[category].append({"label": image_captions[image_name], "source": image_path})
 
             coordinates['Каталог координат'] = {}
-            coordinates = process_coordinates_table_universal(nested_tables)
+            coordinates = process_all_tables_universal(nested_tables)
             i = 0
             logger.info(f"coordinates['Каталог координат']: {coordinates['Каталог координат']}")
             while not coordinates['Каталог координат'] and i < len(tables):
-                coordinates = process_coordinates_table_universal(tables[i], 0)
+                coordinates = process_all_tables_universal(tables[i])
                 i += 1
             '''
             coordinates['Каталог координат'] = {}

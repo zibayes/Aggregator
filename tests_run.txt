@@ -37,6 +37,10 @@ pytest agregator/tests/test_views/test_serializers.py --cov=agregator.views.seri
 
 pytest agregator/tests/test_views/test_utils.py --cov=agregator.views.utils --cov-report=term-missing -v
 
+pytest agregator/tests/test_views/test_datatable_views.py --cov=agregator.views.datatable_views --cov-report=term-missing -v
+
+pytest agregator/tests/test_views/test_batch_processing.py --cov=agregator.views.batch_processing --cov-report=term-missing -v
+
 pytest agregator/tests/test_views/ --cov=agregator.views --cov-report=term-missing -v
 
 
@@ -51,3 +55,9 @@ pytest agregator/tests/test_processing/test_acts_processing.py --cov=agregator.p
 pytest agregator/tests/test_processing/test_commercial_offers_processing.py --cov=agregator.processing.commercial_offers_processing --cov-report=term-missing -v
 
 pytest agregator/tests/test_processing/test_coordinates_extraction.py --cov=agregator.processing.coordinates_extraction --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_geo_objects_processing.py --cov=agregator.processing.geo_objects_processing --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_geo_utils.py --cov=agregator.processing.geo_utils --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_utils.py --cov=agregator.processing.utils --cov-report=term-missing -v
