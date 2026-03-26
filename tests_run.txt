@@ -61,3 +61,19 @@ pytest agregator/tests/test_processing/test_geo_objects_processing.py --cov=agre
 pytest agregator/tests/test_processing/test_geo_utils.py --cov=agregator.processing.geo_utils --cov-report=term-missing -v
 
 pytest agregator/tests/test_processing/test_utils.py --cov=agregator.processing.utils --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_coordinates_tables.py --cov=agregator.processing.coordinates_tables --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_hash_utils.py --cov=agregator.processing.hash_utils --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_links.py --cov=agregator.processing.links --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_batch_kml_utils.py --cov=agregator.processing.batch_kml_utils --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_batch_registry_utils.py --cov=agregator.processing.batch_registry_utils --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_batch_processing.py --cov=agregator.processing.batch_processing --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_tech_reports_processing.py --cov=agregator.processing.tech_reports_processing --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_scientific_reports_processing.py --cov=agregator.processing.scientific_reports_processing --cov-report=term-missing -v
