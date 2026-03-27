@@ -6,6 +6,7 @@ import redis
 from pathlib import Path
 import json
 import hashlib
+from collections import defaultdict
 from agregator.redis_config import REDIS_HOST, REDIS_PORT, REDIS_DB
 from agregator.hash import calculate_file_hash
 from agregator.models import Act, ScientificReport, TechReport, ObjectAccountCard
@@ -135,12 +136,13 @@ class FileScannerCache:
 
 def discover_files(base_directory, extensions=None, limit=None):
     """
-    Рекурсивно находит все файлы в указанной директории
+    Рекурсивно находит все файлы в указанной директории.
+    Для расширения .kml применяется специальное правило: в каждой папке
+    выбирается только один файл, предпочтительно с именем, начинающимся на "центр".
     """
     if extensions is None:
         extensions = ['.pdf', '.doc', '.docx', '.odt']
 
-    file_list = []
     base_path = Path(base_directory)
 
     logger.info(f"Scanning directory: {base_directory}")
@@ -148,32 +150,62 @@ def discover_files(base_directory, extensions=None, limit=None):
 
     if not base_path.exists():
         logger.error(f"Директория не существует: {base_directory}")
-        return file_list
+        return []
+
+    file_list = []
+    kml_by_folder = defaultdict(list)  # {folder_path: [file_info, ...]}
 
     for extension in extensions:
         pattern = f"*{extension}"
         logger.info(f"Searching for: {pattern}")
 
-        files_found = 0
         for file_path in base_path.rglob(pattern):
-            # Если достигли лимита - прерываем
-            if limit and files_found >= limit:
-                logger.info(f"Достигнут лимит в {limit} файлов для расширения {extension}")
-                break
-
-            # Пропускаем временные файлы и скрытые файлы
+            # Пропускаем временные и скрытые файлы
             if file_path.name.startswith('~') or file_path.name.startswith('.'):
                 continue
 
-            file_list.append({
-                # 'path': str(file_path.absolute()),
+            file_info = {
                 'path': str(file_path),
                 'name': file_path.name,
                 'relative_path': str(file_path.relative_to(base_path)),
                 'size': file_path.stat().st_size,
                 'extension': extension.lower()
-            })
-            files_found += 1
+            }
+
+            if extension == 'kml':
+                # Собираем kml файлы по папкам
+                folder = str(file_path.parent)
+                kml_by_folder[folder].append(file_info)
+            else:
+                # Для остальных расширений добавляем сразу
+                file_list.append(file_info)
+
+    # Обработка kml файлов: в каждой папке оставляем только один
+    for folder, kml_files in kml_by_folder.items():
+        if not kml_files:
+            continue
+
+        # Ищем файл, имя которого начинается с "центр" (регистронезависимо)
+        center_file = None
+        for f in kml_files:
+            if 'центр' in f['name'].lower():
+                center_file = f
+                break
+
+        if center_file:
+            selected = center_file
+        else:
+            # Если нет файла с "центр", берём первый
+            selected = kml_files[0]
+
+        file_list.append(selected)
+        if len(kml_files) > 1:
+            logger.info(f"В папке {folder} найдено {len(kml_files)} файлов .kml, выбран '{selected['name']}'")
+
+    # Применяем лимит после всех фильтраций
+    if limit and len(file_list) > limit:
+        logger.info(f"Достигнут лимит в {limit} файлов, возвращается только {limit} записей")
+        file_list = file_list[:limit]
 
     logger.info(f"Total files found: {len(file_list)}")
     return file_list
