@@ -26,6 +26,7 @@ from agregator.models import ObjectAccountCard, IdentifiedArchaeologicalHeritage
 from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents
 from agregator.processing.geo_utils import calculate_polygons_area, dms_to_decimal, normalize_coordinates
+from agregator.processing.batch_kml_utils import KMLParser
 
 logger = logging.getLogger(__name__)
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
@@ -957,6 +958,33 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
     except Exception:
         logger.info(f"ACCONT CARDS FATANL ERROR")
         logger.info(traceback.format_exc())
+
+    kml_path = KMLParser.find_kml_for_pdf(file, True)
+    if kml_path:
+        logger.info(f"📌 Найден KML файл: {kml_path}")
+
+        kml_coordinates = {}
+        try:
+            if isinstance(kml_path, list):
+                for path in kml_path:
+                    kml_coordinates.update(KMLParser.parse_kml_file(path))
+            else:
+                kml_coordinates = KMLParser.parse_kml_file(kml_path)
+        except Exception as e:
+            traceback.print_exc()
+            logger.warning(f"❌ Не удалось извлечь координаты из KML: {e}")
+
+        if kml_coordinates:
+            coordinates = kml_coordinates
+            logger.info("✅ Координаты успешно заменены на достоверные из KML")
+
+            total_objects = sum(len(category_objects) for category_objects in kml_coordinates.values())
+            logger.info(f"📊 Извлечено {total_objects} объектов в {len(kml_coordinates)} категориях")
+
+        else:
+            logger.warning("❌ Не удалось извлечь координаты из KML")
+    else:
+        logger.info("ℹ️ KML файл не найден, используем координаты из PDF")
 
     current_account_card.supplement = supplement_content
     current_account_card.coordinates = coordinates

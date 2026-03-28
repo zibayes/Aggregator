@@ -260,7 +260,7 @@ def account_cards_register_download(request):
 def account_cards_register(request):
     only_fields = [
         'id', 'user_id', 'date_uploaded', 'upload_source', 'is_processing',
-        'is_public', 'origin_filename', 'name', 'creation_time',
+        'is_public', 'name', 'creation_time',
         'address', 'object_type', 'general_classification', 'description',
         'usage', 'discovery_info', 'source'
     ]

@@ -400,7 +400,6 @@ class ObjectAccountCard(models.Model):
     upload_source = models.JSONField(null=True, blank=True)
     is_processing = models.BooleanField(default=True)
     is_public = models.BooleanField(default=True)
-    origin_filename = models.TextField()
 
     name = models.TextField()
     creation_time = models.TextField()
@@ -426,6 +425,7 @@ class ObjectAccountCard(models.Model):
 
     def save(self, *args, **kwargs):
         self.upload_source = to_json(self.upload_source)
+        self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
         self.coordinates = to_json(self.coordinates)
         super().save(*args, **kwargs)
@@ -434,13 +434,16 @@ class ObjectAccountCard(models.Model):
         if hasattr(self, '_raw_delete') and self._raw_delete:
             super().delete(*args, **kwargs)
         else:
-            if self.source and len(self.source) > 0:
-                delete_files(self.source)
+            delete_files_from_json_field(self.source)
             super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
         return from_json(self.upload_source)
+
+    @property
+    def source_dict(self):
+        return from_json(self.source)
 
     @property
     def supplement_dict(self):

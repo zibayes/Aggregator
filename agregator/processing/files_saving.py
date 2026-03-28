@@ -405,8 +405,6 @@ def raw_account_cards_save(uploaded_files, user_id, is_public, upload_source=Non
         account_cards_ids.append(account_card_id)
         path = f'uploaded_files/Учётные карты/{file.name[:file.name.rfind('.')]}'
         Path(path).mkdir(parents=True, exist_ok=True)
-        origin_name = file.name
-        account_card.origin_filename = origin_name
         account_card.upload_source = {'source': 'Пользовательский файл'}
 
         with open(path + '/' + file.name, 'wb+') as destination:
@@ -416,7 +414,25 @@ def raw_account_cards_save(uploaded_files, user_id, is_public, upload_source=Non
             else:
                 for chunk in file.chunks():
                     destination.write(chunk)
-        account_card.source = path + '/' + file.name
+
+        source_content = []
+        file_path = path + '/' + file.name
+
+        try:
+            from agregator.hash import calculate_file_hash
+            file_hash = calculate_file_hash(file_path)
+        except Exception as e:
+            logger.error(f"Ошибка при вычислении хеша файла {file_path}: {e}")
+            file_hash = None
+
+        source_content.append({
+            'type': 'all',
+            'path': file_path,
+            'origin_filename': file.name,
+            'file_hash': file_hash
+        })
+        account_card.source = source_content
+
         account_card.save()
     return account_cards_ids
 
@@ -426,18 +442,23 @@ def load_raw_account_cards(account_cards_ids):
     pages_count = {}
     for account_card_id in account_cards_ids:
         account_card = ObjectAccountCard.objects.get(id=account_card_id)
+        source_str = str(account_card.source)
+        account_card.source = account_card.source_dict
         i = 0
-        if account_card.source.lower().endswith(('.doc', '.docx')):
-            in_file = os.path.abspath(account_card.source)
-            if account_card.source.lower().endswith('.doc'):
-                new_filename = account_card.source[:account_card.source.rfind('.')] + '.docx'
-                account_card.source = new_filename
-                out_file = os.path.abspath(new_filename)
-                convert_document(in_file, out_file, 'docx')
-            pages_count[account_card.source] = get_page_count(in_file)
-        elif account_card.source.lower().endswith('.pdf'):
-            with fitz.open(account_card.source) as pdf_doc:
-                pages_count[account_card.source] = len(pdf_doc)
+        current_dict = account_card.source_dict
+        for source in current_dict:
+            if source['path'].lower().endswith(('.doc', '.docx')):
+                in_file = os.path.abspath(source['path'])
+                if source['path'].lower().endswith('.doc') and '.doc' not in source_str:
+                    new_filename = source['path'][:source['path'].rfind('.')] + '.docx'
+                    account_card.source.append(source)
+                    account_card.source[-1]['path'] = new_filename
+                    out_file = os.path.abspath(new_filename)
+                    convert_document(in_file, out_file, 'docx')
+                pages_count[source['path']] = get_page_count(in_file)
+            elif source['path'].lower().endswith('.pdf'):
+                with fitz.open(source['path']) as pdf_doc:
+                    pages_count[source['path']] = len(pdf_doc)
         account_card.save()
         account_cards.append(account_card)
     return account_cards, pages_count

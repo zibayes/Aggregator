@@ -19,7 +19,7 @@ def check_file_hash_in_sources(file_path, model_class):
                 for source_item in record.source_dict:
                     existing_hash = source_item.get('file_hash')
                     if existing_hash == file_hash:
-                        logger.info(f"Found duplicate: record {record.id}, file {source_item.get('origin_filename')}")
+                        logger.info(f"Found duplicate: record {record.id}")
                         return True, file_hash
 
                     # Дополнительная проверка: сравниваем пути файлов

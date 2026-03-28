@@ -351,8 +351,10 @@ def format_heritage_site_data(site, site_type, config):
 
     # Исходный документ
     original_doc_cell = ''
-    if account_card and account_card.source:
-        original_doc_cell = f'<a href="/{account_card.source}" target="_blank">{account_card.origin_filename}</a>'
+    if hasattr(account_card, 'source_dict') and account_card.source_dict:
+        for source in account_card.source_dict:
+            if source.get('path'):
+                original_doc_cell += f'<a href="/{source['path']}" target="_blank">{source['origin_filename']}</a>'
 
     # Кнопки действий
     actions_cell = f'''

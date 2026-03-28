@@ -136,13 +136,12 @@ class FileScannerCache:
 
 def discover_files(base_directory, extensions=None, limit=None):
     """
-    Рекурсивно находит все файлы в указанной директории.
-    Для расширения .kml применяется специальное правило: в каждой папке
-    выбирается только один файл, предпочтительно с именем, начинающимся на "центр".
+    Рекурсивно находит все файлы в указанной директории
     """
     if extensions is None:
         extensions = ['.pdf', '.doc', '.docx', '.odt']
 
+    file_list = []
     base_path = Path(base_directory)
 
     logger.info(f"Scanning directory: {base_directory}")
@@ -150,62 +149,32 @@ def discover_files(base_directory, extensions=None, limit=None):
 
     if not base_path.exists():
         logger.error(f"Директория не существует: {base_directory}")
-        return []
-
-    file_list = []
-    kml_by_folder = defaultdict(list)  # {folder_path: [file_info, ...]}
+        return file_list
 
     for extension in extensions:
         pattern = f"*{extension}"
         logger.info(f"Searching for: {pattern}")
 
+        files_found = 0
         for file_path in base_path.rglob(pattern):
-            # Пропускаем временные и скрытые файлы
+            # Если достигли лимита - прерываем
+            if limit and files_found >= limit:
+                logger.info(f"Достигнут лимит в {limit} файлов для расширения {extension}")
+                break
+
+            # Пропускаем временные файлы и скрытые файлы
             if file_path.name.startswith('~') or file_path.name.startswith('.'):
                 continue
 
-            file_info = {
+            file_list.append({
+                # 'path': str(file_path.absolute()),
                 'path': str(file_path),
                 'name': file_path.name,
                 'relative_path': str(file_path.relative_to(base_path)),
                 'size': file_path.stat().st_size,
                 'extension': extension.lower()
-            }
-
-            if extension == 'kml':
-                # Собираем kml файлы по папкам
-                folder = str(file_path.parent)
-                kml_by_folder[folder].append(file_info)
-            else:
-                # Для остальных расширений добавляем сразу
-                file_list.append(file_info)
-
-    # Обработка kml файлов: в каждой папке оставляем только один
-    for folder, kml_files in kml_by_folder.items():
-        if not kml_files:
-            continue
-
-        # Ищем файл, имя которого начинается с "центр" (регистронезависимо)
-        center_file = None
-        for f in kml_files:
-            if 'центр' in f['name'].lower():
-                center_file = f
-                break
-
-        if center_file:
-            selected = center_file
-        else:
-            # Если нет файла с "центр", берём первый
-            selected = kml_files[0]
-
-        file_list.append(selected)
-        if len(kml_files) > 1:
-            logger.info(f"В папке {folder} найдено {len(kml_files)} файлов .kml, выбран '{selected['name']}'")
-
-    # Применяем лимит после всех фильтраций
-    if limit and len(file_list) > limit:
-        logger.info(f"Достигнут лимит в {limit} файлов, возвращается только {limit} записей")
-        file_list = file_list[:limit]
+            })
+            files_found += 1
 
     logger.info(f"Total files found: {len(file_list)}")
     return file_list
@@ -273,62 +242,91 @@ def create_act_from_existing_file(file_info, user, is_public=False):
 
 def create_account_card_from_existing_file(file_info, user, is_public=False):
     """
-    Создаёт запись учётной карты для существующего файла с проверкой дубликатов.
-    Организация файлов не производится — используется переданный путь как есть.
-
-    Аргументы:
-        file_info (dict): словарь с информацией о файле, должен содержать ключи
-                          'path' (полный путь) и 'name' (имя файла)
-        user (User): пользователь, создающий запись
-        is_public (bool): флаг публичности записи
+    Создаёт или дополняет учётную карту для файла.
+    - Если файл уже существует в БД (по хешу), ничего не делает.
+    - Если в БД есть учётная карта, у которой хотя бы один файл лежит в той же папке,
+      что и новый файл, то новый файл добавляется к этой карте (в source и upload_source).
+    - Иначе создаётся новая учётная карта.
 
     Возвращает:
-        int или None: ID созданной учётной карты или None в случае ошибки/дубликата
+        int или None: ID учётной карты (существующей или новой) или None при ошибке/дубликате.
     """
     try:
         original_path = file_info['path']
-        logger.info(f"Создание учётной карты для файла: {original_path}")
+        folder = os.path.dirname(original_path)
+        logger.info(f"Обработка файла: {original_path}, папка: {folder}")
 
-        # Проверка дубликата по хешу
+        # 1. Проверка дубликата по хешу (глобально)
         is_duplicate, file_hash = check_file_hash_in_sources(original_path, ObjectAccountCard)
         if is_duplicate:
-            logger.info(f"Файл уже существует в БД (учётная карта): {original_path}")
+            logger.info(f"Файл уже существует в БД: {original_path}")
             return None
 
         # Если хеш не был вычислен внутри check_file_hash_in_sources, вычисляем явно
         if file_hash is None:
             file_hash = calculate_file_hash(original_path)
 
-        # Создаём запись учётной карты с минимальными обязательными полями
+        # 2. Поиск учётной карты, привязанной к этой папке
+        target_card = None
+        # Загружаем все карты, у которых source не пустой
+        cards = ObjectAccountCard.objects.exclude(source__isnull=True).exclude(source='').only('id', 'source')
+        for card in cards:
+            try:
+                for item in card.source_dict:
+                    if isinstance(item, dict) and 'path' in item:
+                        item_folder = os.path.dirname(item['path'])
+                        if item_folder == folder:
+                            target_card = card
+                            logger.info(f"Найдена карта {card.id} для папки {folder}")
+                            break
+                if target_card:
+                    break
+            except (json.JSONDecodeError, TypeError) as e:
+                logger.warning(f"Ошибка парсинга source карты {card.id}: {e}")
+                continue
+
+        # 3. Если карта найдена — добавляем файл к ней
+        if target_card:
+            new_entry = {
+                'path': original_path,
+                'original_path': original_path,
+                'origin_filename': file_info['name'],
+                'file_hash': file_hash,
+            }
+            source_dict = target_card.source_dict
+            source_dict.append(new_entry)
+            target_card.source = source_dict
+
+            target_card.save()
+            logger.info(f"Файл добавлен к существующей карте {target_card.id}: {original_path}")
+            return target_card.id
+
+        # 4. Карта не найдена — создаём новую
         account_card = ObjectAccountCard(
             user=user,
             is_public=is_public,
-            is_processing=True,
-            origin_filename=file_info['name']
+            is_processing=True
         )
         account_card.save()
 
-        # Формируем source как JSON-строку (список с одним словарём)
         source_content = [{
             'type': 'all',
             'path': original_path,
             'original_path': original_path,
             'origin_filename': file_info['name'],
             'file_hash': file_hash,
-            'was_organized': False  # организация не производилась
+            'was_organized': False
         }]
         account_card.source = json.dumps(source_content, ensure_ascii=False)
 
-        # Заполняем upload_source (JSONField) метаданными загрузки
         account_card.upload_source = {'source': 'Пользовательский файл'}
-
         account_card.save()
 
-        logger.info(f"Создана учётная карта {account_card.id} для файла: {original_path}")
+        logger.info(f"Создана новая учётная карта {account_card.id} для файла: {original_path}")
         return account_card.id
 
     except Exception as e:
-        logger.error(f"Ошибка при создании учётной карты для {file_info['path']}: {e}")
+        logger.error(f"Ошибка при обработке файла {file_info['path']}: {e}")
         return None
 
 
@@ -354,8 +352,8 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000, use_cache=Tr
         },
         'account_card': {
             'model': ObjectAccountCard,
-            'extensions': ['kml'],  # '.pdf', '.doc', '.docx', '.odt',
-            'creation_func': None
+            'extensions': ['.pdf', '.doc', '.docx', '.odt'],  # 'kml'
+            'creation_func': create_account_card_from_existing_file
         }
     }
 

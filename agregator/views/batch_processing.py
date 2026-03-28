@@ -8,8 +8,10 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.core.paginator import Paginator
 
-from agregator.processing.batch_processing import scan_and_prepare_batch, create_act_from_existing_file
+from agregator.processing.batch_processing import scan_and_prepare_batch, create_act_from_existing_file, \
+    create_account_card_from_existing_file
 from agregator.processing.acts_processing import process_acts, error_handler_acts
+from agregator.processing.account_cards_processing import process_account_cards, error_handler_account_cards
 from agregator.models import UserTasks
 
 logger = logging.getLogger(__name__)
@@ -108,10 +110,17 @@ def process_batch_files(request):
             # Маппинг функций создания и обработки
             creation_functions = {
                 'act': create_act_from_existing_file,
+                'account_card': create_account_card_from_existing_file,
             }
 
             processing_tasks = {
                 'act': process_acts,
+                'account_card': process_account_cards,
+            }
+
+            error_handler = {
+                'act': error_handler_acts,
+                'account_card': error_handler_account_cards,
             }
 
             creation_func = creation_functions.get(file_type)
@@ -150,10 +159,16 @@ def process_batch_files(request):
             logger.info(
                 f"Запуск задачи process_acts с аргументами: acts_ids={created_ids}, user_id={request.user.id}, select_text={select_text}, select_enrich={select_enrich}, select_image={select_image}, select_coord={select_coord}")
 
-            task = processing_task.apply_async(
-                args=[created_ids, request.user.id, select_text, select_enrich, select_image, select_coord],
-                link_error=error_handler_acts.s()
-            )
+            if file_type in ['act', 'scientific_report', 'tech_report']:
+                task = processing_task.apply_async(
+                    args=[created_ids, request.user.id, select_text, select_enrich, select_image, select_coord],
+                    link_error=error_handler.get(file_type).s()
+                )
+            elif file_type in ['account_card']:
+                task = processing_task.apply_async(
+                    args=[created_ids, request.user.id],
+                    link_error=error_handler.get(file_type).s()
+                )
 
             # Сохраняем информацию о задаче
             user_task = UserTasks(

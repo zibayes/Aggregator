@@ -12,13 +12,14 @@
 
 {% block document_sources %}
 {% include 'includes/django_messages.html' %}
-{% if account_card.upload_source_dict %}
+{% for source in account_card.source_dict %}
 <a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px;"
-   href="/{{ account_card.source }}">
-    Исходник: {{ account_card.origin_filename }}
+   href="/{{ source.path }}">
+    Исходник: {{ source.origin_filename }}
 </a>
-<br><br>
-{% endif %}
+<br>
+<br>
+{% endfor %}
 {% if account_card.heritage_url %}
 <a class="btn btn-primary lang heritage-button" style="border-radius: 12px; margin-right:10px;"
    href="{{ account_card.heritage_url }}">

@@ -63,7 +63,7 @@ class ObjectAccountCardSerializer(serializers.ModelSerializer):
     class Meta:
         model = ObjectAccountCard
         fields = ['id', 'user', 'date_uploaded', 'upload_source', 'is_processing', 'is_public',
-                  'origin_filename', 'name', 'creation_time', 'address', 'object_type',
+                  'name', 'creation_time', 'address', 'object_type',
                   'general_classification', 'description', 'usage', 'discovery_info', 'compiler',
                   'supplement', 'coordinates', 'source']
 

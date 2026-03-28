@@ -185,7 +185,7 @@ CREATE TABLE object_account_cards
     compile_date           text                     NULL, -- Дата составления учетной карты
     supplement             json                     NULL, -- приложение к учётной карте (иллюстрации)
     coordinates            json                     NULL, -- каталог координат
-    source                 text                     NULL  -- путь к файлам учётной карты а на сервере
+    source                 json                     NULL  -- путь к файлам учётной карты а на сервере
 );
 
 -- ПАМЯТНИКИ

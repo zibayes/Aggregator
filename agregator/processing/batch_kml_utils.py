@@ -4,7 +4,7 @@ import os
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 import logging
 
 logger = logging.getLogger(__name__)
@@ -339,8 +339,19 @@ class KMLParser:
         return coordinates
 
     @staticmethod
-    def find_kml_for_pdf(pdf_path: str) -> Optional[str]:
-        """Находит KML файл для PDF файла в новой структуре"""
+    def find_kml_for_pdf(pdf_path: str, multiple_files: bool = False) -> Union[Optional[str], Optional[List[str]]]:
+        """
+        Находит KML/KMZ файл(ы) для PDF файла.
+
+        Аргументы:
+            pdf_path (str): путь к PDF-файлу
+            multiple_files (bool): если True, возвращает список всех подходящих файлов;
+                                   если False, возвращает первый найденный (или None)
+
+        Возвращает:
+            Union[str, List[str], None]: если multiple_files=False – строка или None;
+                                         если multiple_files=True – список строк или None.
+        """
         pdf_dir = Path(pdf_path).parent
         pdf_name = Path(pdf_path).stem
 
@@ -356,23 +367,41 @@ class KMLParser:
             f"{pdf_name}_координаты.kmz"
         ]
 
-        for name in possible_names:
-            kml_path = pdf_dir / name
-            if kml_path.exists():
-                return str(kml_path)
+        found_files = set()
 
-        # Если не нашли, ищем в родительской папке (старая структура)
+        # Вспомогательная функция для проверки и добавления
+        def add_if_exists(path: Path):
+            if path.exists():
+                if multiple_files:
+                    found_files.add(str(path))
+                else:
+                    return str(path)
+            return None
+
+        # 1. Поиск в той же папке по возможным именам
+        for name in possible_names:
+            result = add_if_exists(pdf_dir / name)
+            if not multiple_files and result is not None:
+                return result
+
+        # 2. Поиск в родительской папке по возможным именам
         parent_dir = pdf_dir.parent
         for name in possible_names:
-            kml_path = parent_dir / name
-            if kml_path.exists():
-                return str(kml_path)
+            result = add_if_exists(parent_dir / name)
+            if not multiple_files and result is not None:
+                return result
 
-        # Ищем любой KML в папке PDF
-        for kml_file in pdf_dir.glob("*.kml"):
-            return str(kml_file)
+        # 3. Fallback: любой KML или KMZ в папке PDF
+        for ext in ['*.kml', '*.kmz']:
+            for kml_file in pdf_dir.glob(ext):
+                if multiple_files:
+                    found_files.add(str(kml_file))
+                else:
+                    return str(kml_file)
 
-        for kml_file in pdf_dir.glob("*.kmz"):
-            return str(kml_file)
+        # 4. Если multiple_files=False и ничего не нашли — возвращаем None
+        if not multiple_files:
+            return None
 
-        return None
+        # 5. Для multiple_files: возвращаем список или None
+        return list(found_files) if found_files else None

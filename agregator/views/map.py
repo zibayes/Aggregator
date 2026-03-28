@@ -161,7 +161,10 @@ def map(request, report_type, pk):
     report = None
     if report_type == 'account_card':
         report = get_object_or_404(ObjectAccountCard, id=pk)
-        report_name = report.origin_filename
+        if report.source_dict and len(report.source_dict) > 0:
+            report_name = report.source_dict[0]['origin_filename']
+        else:
+            report_name = 'Учётная карта'
     elif report_type == 'commercial_offer':
         report = get_object_or_404(CommercialOffers, id=pk)
         report_name = report.origin_filename
