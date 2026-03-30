@@ -136,7 +136,8 @@ class FileScannerCache:
 
 def discover_files(base_directory, extensions=None, limit=None):
     """
-    Рекурсивно находит все файлы в указанной директории
+    Рекурсивно находит все файлы в указанной директории.
+    Исключает файлы, в названии которых есть слова 'приказ' или 'решение'.
     """
     if extensions is None:
         extensions = ['.pdf', '.doc', '.docx', '.odt']
@@ -151,23 +152,26 @@ def discover_files(base_directory, extensions=None, limit=None):
         logger.error(f"Директория не существует: {base_directory}")
         return file_list
 
+    exclude_words = ['приказ', 'решение']
+
     for extension in extensions:
         pattern = f"*{extension}"
         logger.info(f"Searching for: {pattern}")
 
         files_found = 0
         for file_path in base_path.rglob(pattern):
-            # Если достигли лимита - прерываем
-            if limit and files_found >= limit:
-                logger.info(f"Достигнут лимит в {limit} файлов для расширения {extension}")
-                break
-
-            # Пропускаем временные файлы и скрытые файлы
+            # Пропускаем временные и скрытые файлы
             if file_path.name.startswith('~') or file_path.name.startswith('.'):
                 continue
 
+            # Исключаем файлы с запрещёнными словами
+            name_lower = file_path.name.lower()
+            if any(word in name_lower for word in exclude_words):
+                logger.debug(f"Исключён файл (содержит запрещённое слово): {file_path.name}")
+                continue
+
+            # Добавляем подходящий файл
             file_list.append({
-                # 'path': str(file_path.absolute()),
                 'path': str(file_path),
                 'name': file_path.name,
                 'relative_path': str(file_path.relative_to(base_path)),
@@ -175,6 +179,11 @@ def discover_files(base_directory, extensions=None, limit=None):
                 'extension': extension.lower()
             })
             files_found += 1
+
+            # Если достигнут лимит — прерываем
+            if limit and files_found >= limit:
+                logger.info(f"Достигнут лимит в {limit} файлов для расширения {extension}")
+                break
 
     logger.info(f"Total files found: {len(file_list)}")
     return file_list

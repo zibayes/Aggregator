@@ -956,7 +956,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                             current_account_card.discovery_info = ' '.join(
                                 lines[index[0] + 1:index[1]]).strip()
     except Exception:
-        logger.info(f"ACCONT CARDS FATANL ERROR")
+        logger.info(f"ACCOUNT CARDS FATAL ERROR")
         logger.info(traceback.format_exc())
 
     kml_path = KMLParser.find_kml_for_pdf(file, True)

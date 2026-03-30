@@ -1,3 +1,4 @@
+import copy
 import io
 import json
 import os
@@ -449,10 +450,13 @@ def load_raw_account_cards(account_cards_ids):
         for source in current_dict:
             if source['path'].lower().endswith(('.doc', '.docx')):
                 in_file = os.path.abspath(source['path'])
-                if source['path'].lower().endswith('.doc') and '.doc' not in source_str:
+                if source['path'].lower().endswith('.doc') and '.docx' not in source_str:
                     new_filename = source['path'][:source['path'].rfind('.')] + '.docx'
-                    account_card.source.append(source)
+                    account_card.source.append(copy.deepcopy(source))
                     account_card.source[-1]['path'] = new_filename
+                    account_card.source[-1]['origin_filename'] = account_card.source[-1]['origin_filename'][
+                                                                 :account_card.source[-1]['origin_filename'].rfind(
+                                                                     '.')] + '.docx'
                     out_file = os.path.abspath(new_filename)
                     convert_document(in_file, out_file, 'docx')
                 pages_count[source['path']] = get_page_count(in_file)

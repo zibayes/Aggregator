@@ -67,8 +67,15 @@ def process_documents(
             source_path = origin_filename = None
             if document_type == 'account_cards':
                 if doc.source_dict and len(doc.source_dict) > 0:
-                    source_path = doc.source_dict[0]['path']
-                    origin_filename = doc.source_dict[0]['origin_filename']
+                    if '.doc' in doc.source:
+                        for source in doc.source_dict:
+                            if '.doc' in source['path']:
+                                source_path = source['path']
+                                origin_filename = source['origin_filename']
+                                break
+                    else:
+                        source_path = doc.source_dict[0]['path']
+                        origin_filename = doc.source_dict[0]['origin_filename']
             else:
                 source_path = doc.source.path if hasattr(doc, 'source') and hasattr(doc.source,
                                                                                     'path') else f'uploaded_files/{doc.source}' if 'uploaded_files/' not in doc.source else doc.source  # doc.source if hasattr(doc, 'source') else f'uploaded_files/{doc.source.name}'

@@ -238,7 +238,7 @@ class KMLProcessor:
                         result["Пункты фотофиксации"][name] = swapped_coord
 
                     else:
-                        category_name = folder_path[-1] if folder_path else "Другие объекты"
+                        category_name = 'Центр объекта'  # folder_path[-1] if folder_path else "Другие объекты"
                         if category_name not in result:
                             result[category_name] = {"coordinate_system": "wgs84"}
                         result[category_name][name] = swapped_coord

@@ -77,3 +77,9 @@ pytest agregator/tests/test_processing/test_batch_processing.py --cov=agregator.
 pytest agregator/tests/test_processing/test_tech_reports_processing.py --cov=agregator.processing.tech_reports_processing --cov-report=term-missing -v
 
 pytest agregator/tests/test_processing/test_scientific_reports_processing.py --cov=agregator.processing.scientific_reports_processing --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_files_saving.py --cov=agregator.processing.files_saving --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_images_extraction.py --cov=agregator.processing.images_extraction --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_datatable_utils.py --cov=agregator.processing.datatable_utils --cov-report=term-missing -v
