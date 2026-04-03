@@ -83,3 +83,7 @@ pytest agregator/tests/test_processing/test_files_saving.py --cov=agregator.proc
 pytest agregator/tests/test_processing/test_images_extraction.py --cov=agregator.processing.images_extraction --cov-report=term-missing -v
 
 pytest agregator/tests/test_processing/test_datatable_utils.py --cov=agregator.processing.datatable_utils --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_open_lists_ocr.py --cov=agregator.processing.open_lists_ocr --cov-report=term-missing -v
+
+pytest agregator/tests/test_processing/test_external_sources.py --cov=agregator.processing.external_sources --cov-report=term-missing -v
