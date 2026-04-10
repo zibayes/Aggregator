@@ -3,6 +3,7 @@ from pathlib import Path
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 from django.dispatch import receiver
+from celery import current_app
 
 
 class AgregatorConfig(AppConfig):
@@ -19,6 +20,28 @@ class AgregatorConfig(AppConfig):
         self.connect_model_signals()
         # Создаем папки при запуске
         self.create_folders()
+
+        # self.revoke_all_tasks()
+
+    def revoke_all_tasks(self):
+        app = current_app
+        if not app:
+            return
+
+        # 1. Отзываем все активные задачи с сигналом SIGTERM (9)
+        inspector = app.control.inspect()
+        active = inspector.active() or {}
+        reserved = inspector.reserved() or {}
+        scheduled = inspector.scheduled() or {}
+
+        for worker, tasks in {**active, **reserved, **scheduled}.items():
+            for task in tasks:
+                task_id = task.get('id')
+                if task_id:
+                    app.control.revoke(task_id, terminate=True, signal='SIGKILL')
+
+        # 2. Чистим очередь (удаляем сообщения из брокера)
+        app.control.purge()
 
     @receiver(post_migrate)
     def load_geojson_data(sender, **kwargs):

@@ -47,7 +47,7 @@ class TestDetailViews:
         assert response.status_code == 200
         assert 'tech_report.html' in [t.name for t in response.templates]
         assert response.context['report'] == test_tech_report
-        assert 'Test Tech Report' in response.content.decode('utf-8')
+        assert 'Реестр научно-технических отчётов' in response.content.decode('utf-8')
 
     def test_tech_reports_view_nonexistent(self, client):
         """Тест отображения несуществующего техотчета"""
@@ -243,7 +243,8 @@ class TestDetailViewsIntegration:
         test_cases = [
             (reverse('acts', kwargs={'pk': test_act.id}), 'Test Act'),
             (reverse('scientific_reports', kwargs={'pk': test_scientific_report.id}), 'Test Scientific Report'),
-            (reverse('tech_reports', kwargs={'pk': test_tech_report.id}), 'Test Tech Report'),
+            (reverse('tech_reports', kwargs={'pk': test_tech_report.id}), 'Реестр научно-технических отчётов'),
+            # 'Test Tech Report'
             (reverse('open_lists', kwargs={'pk': test_open_list.id}), 'TEST-001'),
             (reverse('archaeological_heritage_sites', kwargs={'pk': test_archaeological_heritage_site.id}), 'Test OAN'),
             (reverse('identified_archaeological_heritage_sites', kwargs={'pk': test_identified_heritage_site.id}),

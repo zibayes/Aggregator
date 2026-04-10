@@ -82,7 +82,7 @@ def settings(request):
             user.set_password(password)  # Хешируйте новый пароль
             update_session_auth_hash(request, user)  # Убедитесь, что сеанс остается активным
             update_kod_user(
-                request.user.username,
+                user,
                 password
             )
         user.save()

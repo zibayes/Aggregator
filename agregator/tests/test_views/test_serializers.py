@@ -131,7 +131,6 @@ SERIALIZER_TEST_DATA = [
         ObjectAccountCardSerializer, ObjectAccountCard,
         lambda user: {
             'user': user.id,
-            'origin_filename': 'test_card.pdf',
             'name': 'Test Card',
             'creation_time': 'Time',
             'address': 'Address',

@@ -5,7 +5,7 @@ def main(build):
     if build:
         os.system('docker-compose up --build')
     else:
-        os.system('docker-compose up --no-recreate')
+        os.system('docker-compose up --no-recreate --no-build')
 
 
 if __name__ == '__main__':
