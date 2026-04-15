@@ -81,7 +81,7 @@
     {% if account_card.general_classification %}
     <li><a href="#general_classification">Общая видовая принадлежность</a></li>
     {% endif %}
-    {% if account_card.description %}
+    {% if account_card.description or account_card.supplement_dict %}
     <li><a href="#description">Описание</a></li>
     {% endif %}
     {% if account_card.usage %}
@@ -110,7 +110,7 @@
 <p>{{ account_card.creation_time|escape|linebreaksbr }}</p>
 {% endif %}
 
-{% if account_card.address %}
+{% if account_card.address or account_card.supplement_dict %}
 <h2 id="address">Адрес</h2>
 <p>{{ account_card.address|escape|linebreaksbr }}</p>
 
@@ -138,7 +138,7 @@
 <p>{{ account_card.general_classification|escape|linebreaksbr }}</p>
 {% endif %}
 
-{% if account_card.description %}
+{% if account_card.description or account_card.supplement_dict %}
 <h2 id="description">Описание</h2>
 <p>{{ account_card.description|escape|linebreaksbr }}</p>
 
