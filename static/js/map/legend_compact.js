@@ -7,7 +7,7 @@ function setupMarkerGroupToggle(options) {
             // Обработка маркеров
             markers.forEach(item => {
                 if (item.group.includes(groupPattern))
-                    this.checked ? item.marker.addTo(map) : map.removeLayer(item.marker);
+                    this.checked ? markerClusterGroup.addLayer(item.marker) : markerClusterGroup.removeLayer(item.marker);
             });
 
             // Обновление дочерних чекбоксов

@@ -24,7 +24,7 @@ function updateGroupMarkers(markers, groupPattern, visible) {
         const isMatch = item.group.includes(groupPattern) ||
             item.group.toLowerCase().includes(patternLower);
         if (isMatch) {
-            visible ? item.marker.addTo(map) : map.removeLayer(item.marker);
+            visible ? markerClusterGroup.addLayer(item.marker) : markerClusterGroup.removeLayer(item.marker);
         }
     });
 }

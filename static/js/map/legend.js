@@ -33,12 +33,13 @@ function createMapMarker(point, reportType, reportName, group, point_name, area 
     const marker = L.marker([point[0], point[1]], {
         color: 'red',
         icon: icon
-    }).addTo(map)
-        .bindPopup(popup)
+    }).bindPopup(popup)
         .bindTooltip(`<b>${point_name}</b>`, {
             permanent: true,
             direction: 'bottom'
         });
+
+    markerClusterGroup.addLayer(marker);
 
     bounds.extend(marker.getLatLng());
     return marker;
@@ -56,7 +57,7 @@ function setupPointToggle(markersArray, reportName, group, pointName) {
         }
         array.forEach(item => {
             if (item.group.includes(group) && item.point_name === pointName) {
-                this.checked ? item.marker.addTo(map) : map.removeLayer(item.marker);
+                this.checked ? markerClusterGroup.addLayer(item.marker) : markerClusterGroup.removeLayer(item.marker);
             }
         });
     });

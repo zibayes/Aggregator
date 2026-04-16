@@ -1,7 +1,7 @@
 let groupCheckbox;
 // Инициализация карты
-var map = L.map('map').setView([56.01528, 92.89325], 10);  // , {crs: L.CRS.EPSG3395}
 var maxZoom = 20;
+var map = L.map('map', {maxZoom: maxZoom}).setView([56.01528, 92.89325], 10);  // , {crs: L.CRS.EPSG3395}
 var zoomControl = map.zoomControl;
 var current_icon;
 var markers = [];
@@ -35,3 +35,14 @@ document.addEventListener('DOMContentLoaded', function () {
         });
      */
 });
+
+var markerClusterGroup = L.markerClusterGroup({
+    chunkedLoading: true,          // рендерит порциями без блокировки UI
+    spiderfyOnMaxZoom: true,       // при максимальном зуме разводит близкие маркеры паутинкой
+    showCoverageOnHover: true,
+    zoomToBoundsOnClick: true,
+    maxClusterRadius: 50           // радиус кластеризации в пикселях
+});
+
+map.addLayer(markerClusterGroup);
+window.markerClusterGroup = markerClusterGroup;

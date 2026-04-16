@@ -48,6 +48,9 @@
     <script src="{% static 'js/FileSaver.min.js' %}"></script>
     <script src="{% static 'js/turf.min.js' %}"></script>
     <script src="{% static 'js/Leaflet.VectorGrid.bundled.js' %}"></script>
+    <link rel="stylesheet" href="{% static 'css/MarkerCluster.css' %}">
+    <link rel="stylesheet" href="{% static 'css/MarkerCluster.Default.css' %}">
+    <script src="{% static 'js/leaflet.markercluster.js' %}"></script>
 
     <link rel="stylesheet" href="{% static 'css/interactive_map.css' %}"/>
 
@@ -343,9 +346,9 @@
                         // Показываем/скрываем маркеры
                         groupMarkers.forEach(marker => {
                             if (this.checked) {
-                                marker.marker.addTo(map);
+                                markerClusterGroup.addLayer(marker.marker);
                             } else {
-                                map.removeLayer(marker.marker);
+                                markerClusterGroup.removeLayer(marker.marker);
                             }
                         });
 
