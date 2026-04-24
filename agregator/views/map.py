@@ -21,6 +21,77 @@ from agregator.models import Act, ScientificReport, TechReport, ObjectAccountCar
     GeojsonData
 
 
+def api_map_coordinates(request, report_type, pk):
+    """API для получения координат одного отчёта"""
+    report_models = {
+        'act': Act,
+        'scientific_report': ScientificReport,
+        'tech_report': TechReport,
+        'account_card': ObjectAccountCard,
+        'commercial_offer': CommercialOffers,
+        'geo_object': GeoObject,
+    }
+    model = report_models.get(report_type)
+    if not model:
+        return JsonResponse({'error': 'Invalid report type'}, status=400)
+
+    report = get_object_or_404(model, id=pk)
+    data = {
+        'report_type': report_type,
+        'report_id': pk,
+        'report_name': get_report_name(report, report_type),
+        'coordinates': report.coordinates_dict,
+    }
+    return JsonResponse(data)
+
+
+def api_interactive_map_coordinates(request):
+    """API для получения координат всех отчётов (общая карта)"""
+    acts = Act.objects.filter(is_processing=False)
+    scientific_reports = ScientificReport.objects.filter(is_processing=False)
+    tech_reports = TechReport.objects.filter(is_processing=False)
+
+    all_coordinates = {
+        'Акты': {},
+        'Научные отчёты': {},
+        'Научно-технические отчёты': {}
+    }
+
+    for act in acts:
+        all_coordinates['Акты'][act.id] = {
+            'coordinates': act.coordinates_dict,
+            'report_name': get_report_name(act, 'act')
+        }
+    for report in scientific_reports:
+        all_coordinates['Научные отчёты'][report.id] = {
+            'coordinates': report.coordinates_dict,
+            'report_name': get_report_name(report, 'scientific_report')
+        }
+    for report in tech_reports:
+        all_coordinates['Научно-технические отчёты'][report.id] = {
+            'coordinates': report.coordinates_dict,
+            'report_name': get_report_name(report, 'tech_report')
+        }
+
+    return JsonResponse({'all_coordinates': all_coordinates})
+
+
+def get_report_name(report, report_type):
+    """Вспомогательная функция для извлечения имени отчёта"""
+    if report_type in ('act', 'scientific_report', 'tech_report'):
+        if report.source_dict and len(report.source_dict) > 0:
+            return report.source_dict[0]['origin_filename']
+        else:
+            return getattr(report, 'origin_filename', 'Неизвестный файл')
+    elif report_type == 'account_card':
+        if report.source_dict and len(report.source_dict) > 0:
+            return report.source_dict[0]['origin_filename']
+        else:
+            return 'Учётная карта'
+    else:
+        return report.origin_filename
+
+
 def interactive_map(request):
     acts = Act.objects.filter(is_processing=False)
     scientific_reports = ScientificReport.objects.filter(is_processing=False)

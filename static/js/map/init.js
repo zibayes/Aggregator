@@ -11,6 +11,7 @@ var catalogCoords = [];
 var all_catalogCoords = {};
 window.all_catalogPolyline = {};
 window.catalogPolyline = {};
+window.markersRawData = [];
 
 document.addEventListener('DOMContentLoaded', function () {
     const allContents = document.querySelectorAll('[id$="_content"]');

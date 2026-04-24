@@ -341,7 +341,7 @@ def download_commercial_offer_report(request, pk):
                     logger.error(f"Ошибка обработки GeoObject: {e}")
                     traceback.print_exc()
                     return HttpResponse(f"Ошибка обработки GeoObject: {e}", status=404)
-            else:  # строка 344
+            else:
                 try:
                     for ac_polygon in account_card.coordinates_dict.values():
                         for point_name, coords in ac_polygon.items():

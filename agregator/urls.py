@@ -190,6 +190,9 @@ urlpatterns = [
     path('api/messages/', views.MessageList.as_view(), name='message-list'),
     path('api/messages/<int:pk>/', views.MessageDetail.as_view(), name='message-detail'),
 
+    path('api/map/<str:report_type>/<int:pk>/', views.api_map_coordinates, name='api_map_coordinates'),
+    path('api/interactive_map/', views.api_interactive_map_coordinates, name='api_interactive_map_coordinates'),
+
     # WOPI API endpoints
     path('wopi/files/<path:file_id>/contents', wopi_views.wopi_contents, name='wopi_contents'),
     path('wopi/files/<path:file_id>', wopi_views.wopi_endpoint, name='wopi_endpoint'),

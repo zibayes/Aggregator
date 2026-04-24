@@ -229,6 +229,7 @@
         });
     </script>
     <script src="{% static 'js/map/init.js' %}"></script>
+    <script src="{% static 'js/map/map_data_loader.js' %}"></script>
     <script src="{% static 'js/map/layers.js' %}"></script>
     <script src="{% static 'js/map/panel_control.js' %}"></script>
     <script src="{% static 'js/map/icons.js' %}"></script>
@@ -408,157 +409,12 @@
         }
 
         {% if coordinates %}
-            // Основной цикл обработки координат
-            {% for group, point in coordinates.items %}
-                {% if point.coordinate_system or report_type == 'account_card' %}
-                    {% for point_name, coords in point.items %}
-                        {% if not point_name in "coordinate_system,area" %}
-                            polygon_area = undefined;
-                            {% if point.area %}
-                                polygon_area = parseFloat(`{{ point.area }}`.replace(',', '.'))
-                            {% endif %}
-
-                            marker = createMapMarker(
-                                {{ coords|safe }},
-                                '{{ report_type }}',
-                                '{{ report_name }}',
-                                '{{ group }}',
-                                '{{ point_name }}',
-                                polygon_area,
-                            );
-
-                            markers.push({
-                                marker: marker,
-                                group: '{{ group }}',
-                                point_name: '{{ point_name }}'
-                            });
-
-                            bounds.extend(marker.getLatLng());
-
-                            {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                catalogCoords.push({{ coords|safe }});
-                            {% endif %}
-
-                            setupPointToggle(markers, '{{ report_name }}', '{{ group }}', '{{ point_name }}');
-                        {% endif %}
-                    {% endfor %}
-                {% endif %}
-
-                if (catalogCoords.length > 0) {
-                    catalogCoords.push(catalogCoords[0]);
-                    window.catalogPolyline[`{{ group }}`] = L.polyline(catalogCoords, {color: 'blue'}).addTo(map);
-                    catalogCoords = [];
-                }
-
-                // Применение функций к конкретным группам
-                {% if 'Шурфы' in group %}
-                    setupMarkerGroupToggle({
-                        checkboxId: 'toggleShurfs-{{ report_name }}-{{ group }}',
-                        groupPattern: 'Шурф'
-                    });
-                {% endif %}
-
-                {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                    setupMarkerGroupToggle({
-                        checkboxId: 'toggleCatalog-{{ report_name }}-{{ group }}',
-                        groupPattern: 'каталог координат участка',
-                        polylineSelector: '#toggleCatalogPolyline-{{ group|cut:" "|cut:"."|cut:":"|cut:"["|cut:"]"|cut:"("|cut:")" }}'
-                    });
-                    setupPolylineToggle('toggleCatalogPolyline-{{ group|cut:" "|cut:"."|cut:":"|cut:"["|cut:"]"|cut:"("|cut:")" }}', `{{ group }}`);
-                {% endif %}
-
-                {% if 'фото' in group %}
-                    setupMarkerGroupToggle({
-                        checkboxId: 'togglePhotoPoints-{{ report_name }}-{{ group }}',
-                        groupPattern: 'Пункты фотофиксации'
-                    });
-                {% endif %}
-
-                {% if 'Центр' in group or report_type == 'geo_object' %}
-                    setupMarkerGroupToggle({
-                        checkboxId: 'toggleCenterPoints-{{ report_name }}-{{ group }}',
-                        groupPattern: 'Центр объекта'
-                    });
-                {% endif %}
-
-            {% endfor %}
-
-            map.fitBounds(bounds);
+            window.mapDataUrl = "{% url 'api_map_coordinates' report_type=report_type pk=pk %}";
+            console.log(window.mapDataUrl);
+            window.isAllCoordinates = false;
         {% elif all_coordinates %}
-            // Главный цикл обработки координат
-            {% for report_type, reports in all_coordinates.items %}
-                {% for report_id, report in reports.items %}
-                    all_markers['{{ report_id }}'] = [];
-                    all_catalogCoords['{{ report_id }}'] = [];
-                    window.all_catalogPolyline['{{ report_id }}'] = {}
-
-                    {% for group, point in report.coordinates.items %}
-                        {% if point.coordinate_system or report_type == 'account_card' %}
-                            {% for point_name, coords in point.items %}
-                                {% if not point_name in "coordinate_system,area" %}
-                                    polygon_area = undefined;
-                                    {% if point.area %}
-                                        polygon_area = parseFloat(`{{ point.area }}`.replace(',', '.'))
-                                    {% endif %}
-
-                                    marker = createMapMarker(
-                                        {{ coords|safe }},
-                                        '{{ report_type }}',
-                                        '{{ report.report_name }}',
-                                        '{{ group }}',
-                                        '{{ point_name }}',
-                                        polygon_area,
-                                    );
-
-                                    all_markers['{{ report_id }}'].push({
-                                        marker: marker,
-                                        group: '{{ group }}',
-                                        point_name: '{{ point_name }}'
-                                    });
-
-                                    {% if 'Каталог' in group or report_type == 'commercial_offer' %}
-                                        all_catalogCoords['{{ report_id }}'].push({{ coords|safe }});
-                                    {% endif %}
-
-                                    setupPointToggle(all_markers, '{{ report_id }}', '{{ group }}', '{{ point_name }}');
-                                {% endif %}
-                            {% endfor %}
-                        {% endif %}
-
-                        if (all_catalogCoords[`{{ report_id }}`].length > 0) {
-                            all_catalogCoords['{{ report_id }}'].push(all_catalogCoords['{{ report_id }}'][0]);
-                            window.all_catalogPolyline['{{ report_id }}']['{{ group }}'] = L.polyline(
-                                all_catalogCoords['{{ report_id }}'],
-                                {color: 'blue'}
-                            ).addTo(map);
-                            setupPolylineCheckbox('{{ report_id }}', '{{ group }}', window.all_catalogPolyline['{{ report_id }}']['{{ group }}']);
-                        }
-                        all_catalogCoords['{{ report_id }}'] = []
-                    {% endfor %}
-
-                    all_groups = Object.keys(JSON.parse('{{ report.coordinates|escapejs }}'.replace(/'/g, '"')));
-                    // Настройка групповых переключателей
-                    setupGroupToggles('{{ report_id }}', all_groups, `{{ report_type }}`);
-
-                    document.getElementById('toggleMarkerGroup-{{ report_id }}').addEventListener('change', function () {
-                        const reportName = '{{ report_id }}';
-                        const isChecked = this.checked;
-
-                        ['Shurfs', 'Catalog', 'PhotoPoints'].forEach(type => {
-                            all_groups.forEach(group => {
-                                const checkbox = document.getElementById(`toggle${type}-${group}`);
-                                console.log(`toggle${type}-${group}`)
-                                console.log(checkbox)
-                                if (checkbox) {
-                                    checkbox.checked = isChecked;
-                                    checkbox.dispatchEvent(new Event('change'));
-                                }
-                            });
-                        });
-                    });
-                {% endfor %}
-            {% endfor %}
-            map.fitBounds(bounds);
+            window.mapDataUrl = "{% url 'api_interactive_map_coordinates' %}";
+            window.isAllCoordinates = true;
         {% endif %}
     </script>
     {% if coordinates %}

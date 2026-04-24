@@ -39,7 +39,11 @@ function createMapMarker(point, reportType, reportName, group, point_name, area 
             direction: 'bottom'
         });
 
-    markerClusterGroup.addLayer(marker);
+    if (window.markerClusterGroup) {
+        window.markerClusterGroup.addLayer(marker);
+    } else {
+        marker.addTo(map); // fallback
+    }
 
     bounds.extend(marker.getLatLng());
     return marker;
