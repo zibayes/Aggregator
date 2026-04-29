@@ -217,7 +217,7 @@ def external_sources(request):
         scan_task_id = scan_task.id
         is_processing = True
     try:
-        admin = User.objects.get(is_superuser=True)
+        admin = User.objects.filter(is_superuser=True)[0]
     except User.DoesNotExist:
         admin = request.user
     tasks_id = get_user_tasks(admin.id, ('act', 'scientific_report', 'tech_report', 'open_list'), True)

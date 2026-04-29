@@ -348,7 +348,8 @@ var additionalLayers = {
     })
 }
 
-baseLayers["OpenStreetMap"].addTo(map);
+// baseLayers["OpenStreetMap"].addTo(map);
+baseLayers["Google satellite"].addTo(map);
 
 function additionalLayerSwitch() {
     var additionalSelectedLayer = document.getElementById('additionalLayerSelect').value;

@@ -5,6 +5,9 @@ from datetime import datetime
 from celery_progress.backend import ProgressRecorder
 
 from .redis_config import redis_client
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def process_documents(
@@ -143,7 +146,8 @@ def process_documents(
                 else:
                     raise Exception('NO PROCESS_FUNCTION PASSED AS ARGUMENT')
                 processed = 'True'
-            except Exception:
+            except Exception as e:
+                logger.error(f'DOCUMENTS PROCESSIONG ERROR: {e}')
                 traceback.print_exc()
                 processed = 'Error'
 

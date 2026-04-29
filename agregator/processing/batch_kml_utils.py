@@ -363,7 +363,7 @@ class KMLParser:
             f"{pdf_name}.KMZ",
             f"{pdf_name}_coordinates.kml",
             f"{pdf_name}_coordinates.kmz",
-            f"{pdf_name}_координаты.kml"
+            f"{pdf_name}_координаты.kml",
             f"{pdf_name}_координаты.kmz"
         ]
 

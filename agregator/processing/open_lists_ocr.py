@@ -506,11 +506,90 @@ def change_img_perspect(img, dst_pts, src_pts=None, shift=0):
 def change_brightness_and_perspect(img, koef):
     h, w = img.shape[:2]
     shift = int(koef * 12)
+    # 1. Перспектива
     img = change_img_perspect(img, dst_pts=np.array(
         [[-0.02 * w + shift, 0], [0.99 * w + shift, 0], [0 + shift, h], [w + shift, h]],
         dtype=np.float32), shift=shift)
-    img = cv2.convertScaleAbs(img, alpha=1.2, beta=0)
+    # 2. Обрезаем чёрные артефакты warp (левые и правые края)
+    img = crop_warp_borders(img, shift)
+    # 3. Подавление синего фонового шума
+    img = remove_blue_noise(img)
+    # 4. Бинаризация методом Оцу
+    gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    # 5. Обратно в RGB (трёхканальное) для совместимости с OCR
+    img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
     return img
+
+
+def crop_to_main_text(region_rgb: np.ndarray, confidence_threshold: int = 30, padding: int = 5,
+                      psm: str = '6') -> np.ndarray:
+    """
+    Обрезает регион сверху и снизу по границам надёжно распознанных слов (черновой OCR).
+    Параметры:
+        confidence_threshold: минимальная уверенность слова для учёта (0-100)
+        padding: отступ в пикселях от крайних слов
+        psm: режим page segmentation для Tesseract
+    Возвращает обрезанный RGB регион (или исходный, если обрезка невозможна).
+    """
+    if region_rgb.size == 0:
+        return region_rgb
+
+    config = f'--psm {psm} --oem 3'
+    data = pytesseract.image_to_data(region_rgb, lang='rus+eng', config=config,
+                                     output_type=pytesseract.Output.DICT)
+    valid_ys = []
+    n = len(data['text'])
+    for i in range(n):
+        text = data['text'][i].strip()
+        if not text:
+            continue
+        conf = int(data['conf'][i]) if data['conf'][i] != '-1' else 100
+        if conf < confidence_threshold:
+            continue
+        if len(text) < 2 and not text.isdigit():
+            continue
+        y = data['top'][i]
+        h = data['height'][i]
+        valid_ys.append((y, y + h))
+
+    if not valid_ys:
+        return region_rgb
+
+    top = min(y for y, _ in valid_ys)
+    bottom = max(y for _, y in valid_ys)
+
+    top = max(0, top - padding)
+    bottom = min(region_rgb.shape[0], bottom + padding)
+
+    return region_rgb[top:bottom, :]
+
+
+def crop_warp_borders(img: np.ndarray, margin: int) -> np.ndarray:
+    """
+    Обрезает левый и правый края на margin пикселей (убирает чёрные артефакты warp),
+    сохраняя нетронутыми верхние/нижние границы.
+    """
+    h, w = img.shape[:2]
+    # Обрезаем по ширине: от margin до w - margin//3 (как в predictor)
+    return img[:, margin:w - margin // 3]
+
+
+def remove_blue_noise(image_rgb: np.ndarray) -> np.ndarray:
+    """
+    Заменяет синие и голубые пиксели (фоновое оформление) на белый цвет.
+    Использует HSV: Hue в диапазоне синего, насыщенность выше порога.
+    Возвращает копию RGB-изображения.
+    """
+    hsv = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2HSV)
+    lower_blue = np.array([90, 60, 60])
+    upper_blue = np.array([140, 255, 255])
+    mask = cv2.inRange(hsv, lower_blue, upper_blue)
+
+    # Морфологическое расширение маски (опционально) – убрано, можно добавить при необходимости
+    result = image_rgb.copy()
+    result[mask > 0] = [255, 255, 255]
+    return result
 
 
 def preprocess_string(string: str) -> str:
@@ -771,6 +850,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
             pil_img = pil_img.resize(
                 (int(pil_img.width / ratio * new_ratio), int(pil_img.height / ratio * new_ratio)),
                 Image.LANCZOS)
+        page_koef = (pil_img.width / 596 + pil_img.height / 842) / 2 * UPSCALE[0]
 
         # Детекция областей моделью
         logger.info("Запуск детекции областей моделью")
@@ -784,6 +864,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         if regions.get('number') is not None:
             logger.info("Распознавание номера листа")
             list_number_img = regions['number']
+            list_number_img = change_brightness_and_perspect(list_number_img, page_koef)
             extracted_text = preprocess_list_number(extract_text_from_image(list_number_img, '1'))
             list_number_match = re.search(r'№[ \n]*.*\d+-*\d*.*', extracted_text, re.IGNORECASE)
             if list_number_match:
@@ -798,6 +879,7 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         if regions.get('holder') is not None:
             logger.info("Распознавание держателя (ФИО)")
             holder_region = regions['holder']
+            holder_region = change_brightness_and_perspect(holder_region, page_koef)
             extracted_text = extract_text_from_image(holder_region, '1')
             list_holder = re.search(r'[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+[ \n]+[А-ЯЁ]+[а-яё]+', extracted_text)
             if list_holder:
@@ -812,9 +894,10 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         if regions.get('object') is not None:
             logger.info("Распознавание объекта")
             object_region = regions['object']
-            height, width = object_region.shape[:2]
-            koef = (width / 596 + height / 842) / 2 * UPSCALE[0]
-            object_region = change_brightness_and_perspect(object_region, koef)
+            # 1. Обрезаем "чужие" строки сверху/снизу по данным OCR
+            object_region = crop_to_main_text(object_region, confidence_threshold=40, psm='6')
+            # 2. Постобработка (перспектива + очистка + бинаризация)
+            object_region = change_brightness_and_perspect(object_region, page_koef)
             extracted_text = preprocess_string(extract_text_from_image(object_region, '1'))
             list_data['Объект'] = spell_check(extracted_text)
             logger.info(f"Объект: {list_data['Объект'][:100]}...")
@@ -825,11 +908,11 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         if regions.get('works') is not None:
             logger.info("Распознавание работ")
             works_region = regions['works']
-            height, width = works_region.shape[:2]
-            koef = (width / 596 + height / 842) / 2 * UPSCALE[0]
-            works_region = change_brightness_and_perspect(works_region, koef)
+            # 1. Обрезаем лишние строки
+            works_region = crop_to_main_text(works_region, confidence_threshold=40, psm='6')
+            # 2. Постобработка
+            works_region = change_brightness_and_perspect(works_region, page_koef)
             extracted_text = preprocess_string(extract_text_from_image(works_region, '1')).lower()
-            extracted_text = spell_check(extracted_text)
 
             best_type_similarity = best_text_similarity = 0
             best_type_similarity_text = best_text_similarity_text = ''
@@ -853,7 +936,9 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
         # Обработка дат (start_date, end_date)
         if not list_data['Начало срока'] or not list_data['Конец срока']:
             start_date_region = regions.get('start_date')
+            start_date_region = change_brightness_and_perspect(start_date_region, page_koef)
             end_date_region = regions.get('end_date')
+            end_date_region = change_brightness_and_perspect(end_date_region, page_koef)
             dates_list_regions = []
             if start_date_region is not None:
                 dates_list_regions.append(start_date_region)

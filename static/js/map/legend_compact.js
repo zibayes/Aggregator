@@ -5,9 +5,12 @@ function setupMarkerGroupToggle(options) {
     if (object) {
         object.addEventListener('change', function () {
             // Обработка маркеров
+            console.log("hererer");
+            console.log(markers);
             markers.forEach(item => {
                 if (item.group.includes(groupPattern))
-                    this.checked ? markerClusterGroup.addLayer(item.marker) : markerClusterGroup.removeLayer(item.marker);
+                    this.checked ? item.marker.addTo(map) : map.removeLayer(item.marker); // TODO: CLUSTERS!
+                    // this.checked ? markerClusterGroup.addLayer(item.marker) : markerClusterGroup.removeLayer(item.marker);
             });
 
             // Обновление дочерних чекбоксов

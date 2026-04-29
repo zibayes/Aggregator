@@ -138,7 +138,13 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     Path(folder).mkdir(exist_ok=True)
 
     if select_coord:
-        kml_path = KMLParser.find_kml_for_pdf(pdf_file)
+        kml_path = None
+        try:
+            kml_path = KMLParser.find_kml_for_pdf(pdf_file)
+        except Exception as e:
+            logger.error(f'Ошибка при обработке kml! {e}')
+            traceback.print_exc()
+            
         if kml_path:
             logger.info(f"📌 Найден KML файл: {kml_path}")
 
@@ -891,7 +897,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
 
 @shared_task
 def error_handler_acts(task, exception, exception_desc):
-    print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
+    logger.error(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
+    traceback.print_exc()
     progress_json = redis_client.get(task.id)
     if progress_json is None:
         progress_json = redis_client.get('celery-task-meta-' + str(task.id))

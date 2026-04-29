@@ -4,6 +4,7 @@ import json
 import os
 import platform
 import subprocess
+import traceback
 from pathlib import Path
 import shutil
 
@@ -345,6 +346,7 @@ def save_report_source(report, file, path, report_directory, report_id, source_c
         file_hash = calculate_file_hash(file_path)
     except Exception as e:
         logger.error(f"Ошибка при вычислении хеша файла {file_path}: {e}")
+        traceback.print_exc()
         file_hash = None
 
     if index:
@@ -424,6 +426,7 @@ def raw_account_cards_save(uploaded_files, user_id, is_public, upload_source=Non
             file_hash = calculate_file_hash(file_path)
         except Exception as e:
             logger.error(f"Ошибка при вычислении хеша файла {file_path}: {e}")
+            traceback.print_exc()
             file_hash = None
 
         source_content.append({

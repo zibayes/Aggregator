@@ -42,7 +42,7 @@ var markerClusterGroup = L.markerClusterGroup({
     spiderfyOnMaxZoom: true,       // при максимальном зуме разводит близкие маркеры паутинкой
     showCoverageOnHover: true,
     zoomToBoundsOnClick: true,
-    maxClusterRadius: 50           // радиус кластеризации в пикселях
+    maxClusterRadius: 10           // радиус кластеризации в пикселях
 });
 
 map.addLayer(markerClusterGroup);

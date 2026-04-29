@@ -85,37 +85,37 @@
 <ul>
     <li><a href="#act">Акт</a></li>
     {% if report.start_date %}
-    <li><a href="#start_date">Дата начала</a></li>
+    <li><a href="#start_date">Дата начала проведения экспертизы</a></li>
     {% endif %}
     {% if report.end_date %}
-    <li><a href="#end_date">Дата окончания</a></li>
+    <li><a href="#end_date">Дата окончания проведения экспертизы</a></li>
     {% endif %}
     {% if report.exp_place %}
-    <li><a href="#exp_place">Место провидения</a></li>
+    <li><a href="#exp_place">Место проведения экспертизы</a></li>
     {% endif %}
     {% if report.exp_customer %}
-    <li><a href="#exp_customer">Заказчик</a></li>
+    <li><a href="#exp_customer">Заказчик экспертизы</a></li>
     {% endif %}
     {% if report.exp_expert %}
-    <li><a href="#exp_expert">Эксперт</a></li>
+    <li><a href="#exp_expert">Сведения об эксперте</a></li>
     {% endif %}
     {% if report.relationship %}
-    <li><a href="#relationship">Отношение</a></li>
+    <li><a href="#relationship">Отношения к заказчику</a></li>
     {% endif %}
     {% if report.goal %}
-    <li><a href="#goal">Цель</a></li>
+    <li><a href="#goal">Цель экспертизы</a></li>
     {% endif %}
     {% if report.object %}
-    <li><a href="#object">Объект</a></li>
+    <li><a href="#object">Объект экспертизы</a></li>
     {% endif %}
     {% if report.docs %}
-    <li><a href="#docs">Документы</a></li>
+    <li><a href="#docs">Перечень документов, представленных заявителем</a></li>
     {% endif %}
     {% if report.exp_info %}
-    <li><a href="#exp_info">Информация</a></li>
+    <li><a href="#exp_info">Сведения о проведенных исследованиях</a></li>
     {% endif %}
     {% if report.exp_facts %}
-    <li><a href="#exp_facts">Факты</a></li>
+    <li><a href="#exp_facts">Факты и сведения, выявленные и установленные в результате проведенных исследований</a></li>
     {% endif %}
     {% if report.literature %}
     <li><a href="#literature">Литература</a></li>
@@ -131,70 +131,70 @@
 
 {% block report_sections %}
 <h2 id="act">Акт</h2>
-<p>{{ report.act|default:report.name_number|escape|linebreaksbr }}</p>
+<p>{{ report.act|default:report.name_number|linebreaksbr }}</p>
 
 {% if report.start_date %}
-<h2 id="start_date">Дата начала</h2>
-<p>{{ report.start_date|escape|linebreaksbr }}</p>
+<h2 id="start_date">Дата начала проведения экспертизы</h2>
+<p>{{ report.start_date|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.end_date %}
-<h2 id="end_date">Дата окончания</h2>
-<p>{{ report.end_date|escape|linebreaksbr }}</p>
+<h2 id="end_date">Дата окончания проведения экспертизы</h2>
+<p>{{ report.end_date|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.exp_place %}
-<h2 id="exp_place">Место провидения</h2>
-<p>{{ report.exp_place|escape|linebreaksbr }}</p>
+<h2 id="exp_place">Место проведения экспертизы</h2>
+<p>{{ report.exp_place|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.exp_customer %}
-<h2 id="exp_customer">Заказчик</h2>
-<p>{{ report.exp_customer|escape|linebreaksbr }}</p>
+<h2 id="exp_customer">Заказчик экспертизы</h2>
+<p>{{ report.exp_customer|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.exp_expert %}
-<h2 id="exp_expert">Эксперт</h2>
-<p>{{ report.exp_expert|escape|linebreaksbr }}</p>
+<h2 id="exp_expert">Сведения об эксперте</h2>
+<p>{{ report.exp_expert|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.relationship %}
-<h2 id="relationship">Отношение</h2>
-<p>{{ report.relationship|escape|linebreaksbr }}</p>
+<h2 id="relationship">Отношения к заказчику</h2>
+<p>{{ report.relationship|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.goal %}
-<h2 id="goal">Цель</h2>
-<p>{{ report.goal|escape|linebreaksbr }}</p>
+<h2 id="goal">Цель экспертизы</h2>
+<p>{{ report.goal|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.object %}
-<h2 id="object">Объект</h2>
-<p>{{ report.object|escape|linebreaksbr }}</p>
+<h2 id="object">Объект экспертизы</h2>
+<p>{{ report.object|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.docs %}
-<h2 id="docs">Документы</h2>
-<p>{{ report.docs|escape|linebreaksbr }}</p>
+<h2 id="docs">Перечень документов, представленных заявителем</h2>
+<p>{{ report.docs|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.exp_info %}
-<h2 id="exp_info">Информация</h2>
-<p>{{ report.exp_info|escape|linebreaksbr }}</p>
+<h2 id="exp_info">Сведения о проведенных исследованиях</h2>
+<p>{{ report.exp_info|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.exp_facts %}
-<h2 id="exp_facts">Факты</h2>
-<p>{{ report.exp_facts|escape|linebreaksbr }}</p>
+<h2 id="exp_facts">Факты и сведения, выявленные и установленные в результате проведенных исследований</h2>
+<p>{{ report.exp_facts|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.literature %}
 <h2 id="literature">Литература</h2>
-<p>{{ report.literature|escape|linebreaksbr }}</p>
+<p>{{ report.literature|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.exp_conclusion %}
 <h2 id="exp_conclusion">Заключение</h2>
-<p>{{ report.exp_conclusion|escape|linebreaksbr }}</p>
+<p>{{ report.exp_conclusion|safe|linebreaksbr }}</p>
 {% endif %}
 {% endblock %}

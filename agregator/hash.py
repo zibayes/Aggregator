@@ -1,4 +1,5 @@
 import hashlib
+import os
 
 
 def calculate_file_hash(file_path, hash_algorithm='sha256'):
@@ -12,8 +13,11 @@ def calculate_file_hash(file_path, hash_algorithm='sha256'):
     else:
         raise ValueError("Unsupported hash algorithm. Use 'md5', 'sha1', or 'sha256'.")
 
-    with open(file_path, 'rb') as f:
-        file_content = f.read()
-        hash_func.update(file_content)
+    if os.path.isfile(file_path):
+        with open(file_path, 'rb') as f:
+            file_content = f.read()
+            hash_func.update(file_content)
+    else:
+        return None
 
     return hash_func.hexdigest()
