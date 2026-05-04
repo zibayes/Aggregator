@@ -504,6 +504,7 @@ def change_img_perspect(img, dst_pts, src_pts=None, shift=0):
 
 
 def change_brightness_and_perspect(img, koef):
+    '''
     h, w = img.shape[:2]
     shift = int(koef * 12)
     # 1. Перспектива
@@ -519,6 +520,7 @@ def change_brightness_and_perspect(img, koef):
     _, img = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     # 5. Обратно в RGB (трёхканальное) для совместимости с OCR
     img = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+    '''
     return img
 
 

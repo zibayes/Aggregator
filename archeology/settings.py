@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'django_celery_results',
     'celery_progress',
+    'debug_toolbar',
 ]
 
 SITE_ID = 1
@@ -102,6 +103,7 @@ SPECTACULAR_SETTINGS = {
 }
 
 MIDDLEWARE = [
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -112,6 +114,14 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'agregator.middleware.FilePreviewMiddleware',
 ]
+
+INTERNAL_IPS = ['*']
+
+DEBUG_TOOLBAR_CONFIG = {
+    'SHOW_TOOLBAR_CALLBACK': lambda request: True,
+    'RENDER_PANELS': True,
+    'RESULTS_CACHE_SIZE': 100,
+}
 
 CORS_ALLOW_ALL_ORIGINS = True
 ROOT_URLCONF = 'archeology.urls'

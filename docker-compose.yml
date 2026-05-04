@@ -105,6 +105,8 @@ services:
 
   db:
     image: postgres:17
+    ports:
+      - "5433:5432"
     user: postgres
     environment:
       POSTGRES_DB: postgres

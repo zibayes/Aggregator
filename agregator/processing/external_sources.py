@@ -60,6 +60,19 @@ ACTS_QUERY_EXCLUDE = [
     'выполнение работ по оценке технического состояния',
 ]
 
+OAN_REQUIRED_COLUMNS = {
+    'name': 'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта',
+    'place': 'Район местонахождения/местонахождение',
+    'doc': 'Документ о постановке на государственную охрану',
+    'number': 'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'
+}
+VOAN_REQUIRED_COLUMNS = {
+    'name': 'Наименование выявленного объекта культурного наследия',
+    'address': 'Адрес объекта (или описание местоположения объекта)*',
+    'obj_info': 'Сведения об историко-культурной ценности объекта',
+    'doc': 'Документ о включении в перечень выявленных объектов'
+}
+
 
 def create_note_file(output_path: str, order_text: str = None) -> None:
     """Создает файл Примечание.txt в указанной папке"""
@@ -709,14 +722,7 @@ def process_oan_list(self, progress_key=None):
         for i, df in enumerate(dataframes):
             df.columns = df.columns.str.replace('\n', '', regex=True)
 
-            required_columns = [
-                'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта',
-                'Район местонахождения',
-                'Документ о постановке на государственную охрану',
-                'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'
-            ]
-
-            if not all(col in df.columns for col in required_columns):
+            if not all(col in df.columns for col in OAN_REQUIRED_COLUMNS.values()):
                 logger.warning(f"Таблица {i + 1} не содержит всех необходимых колонок для ОАН")
                 continue
 
@@ -731,12 +737,10 @@ def process_oan_list(self, progress_key=None):
 
                     # Создаем или получаем объект археологического наследия
                     archaeological_site, created = ArchaeologicalHeritageSite.objects.get_or_create(
-                        doc_name=row[
-                            'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
-                        district=row['Район местонахождения'],
+                        doc_name=row[OAN_REQUIRED_COLUMNS['name']],
+                        district=row[OAN_REQUIRED_COLUMNS['place']],
                         document=order_text,  # Используем переменную order_text
-                        register_num=row[
-                            'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
+                        register_num=row[OAN_REQUIRED_COLUMNS['number']],
                         defaults={
                             'source': '',
                             'is_excluded': False  # Новые объекты не исключены
@@ -745,7 +749,7 @@ def process_oan_list(self, progress_key=None):
 
                     # Если объект создан впервые, создаем папку и скачиваем документы
                     if created:
-                        folder = f'uploaded_files/Памятники/ОАН/{row["Район местонахождения"]}/{clean_path_component(row["Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта"])}'
+                        folder = f'uploaded_files/Памятники/ОАН/{row[OAN_REQUIRED_COLUMNS['place']]}/{clean_path_component(row[OAN_REQUIRED_COLUMNS['name']])}'
                         nested_folders = Path(folder)
                         nested_folders.mkdir(parents=True, exist_ok=True)
 
@@ -846,12 +850,10 @@ def _process_oan_row(row, existing_sites_set):
 
         # Поиск существующего объекта или создание нового
         archaeological_site, created = ArchaeologicalHeritageSite.objects.get_or_create(
-            doc_name=row[
-                'Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта'],
-            district=row['Район местонахождения'],
+            doc_name=row[OAN_REQUIRED_COLUMNS['name']],
+            district=row[OAN_REQUIRED_COLUMNS['place']],
             document=order_text,  # Используем переменную
-            register_num=row[
-                'Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)'],
+            register_num=row[OAN_REQUIRED_COLUMNS['number']],
             defaults={
                 'source': ''
             }
@@ -859,7 +861,7 @@ def _process_oan_row(row, existing_sites_set):
 
         # Если объект новый - создаем структуру папок и скачиваем документы
         if created:
-            folder = f'uploaded_files/Памятники/ОАН/{row["Район местонахождения"]}/{clean_path_component(row["Наименование объекта согласно документу о постановке на государственную охрану, датировка объекта"])}'
+            folder = f'uploaded_files/Памятники/ОАН/{row["Район местонахождения/местонахождение"]}/{clean_path_component(row[OAN_REQUIRED_COLUMNS['name']])}'
             nested_folders = Path(folder)
             nested_folders.mkdir(parents=True, exist_ok=True)
 
@@ -962,25 +964,25 @@ def _download_file(href, title, current_lists):
 def _process_voan_row(row):
     """Обработка одной строки данных ВОАН"""
     try:
-        address = row['Адрес объекта (или описание местоположения объекта)*']
+        address = row[VOAN_REQUIRED_COLUMNS['address']]
         if isinstance(address, str):
             address = address.strip()
         elif isinstance(address, pd.Series):
             if len(address) > 1 and isinstance(address.iloc[1], str) and address.iloc[1].strip() != row[
-                'Наименование выявленного объекта культурного наследия']:
+                VOAN_REQUIRED_COLUMNS['name']]:
                 address = address.iloc[1].strip()
             elif len(address) > 0 and isinstance(address.iloc[0], str) and address.iloc[0].strip() != row[
-                'Наименование выявленного объекта культурного наследия']:
+                VOAN_REQUIRED_COLUMNS['name']]:
                 address = address.iloc[0].strip()
             else:
                 address = ''
 
         document_source = []
         identified_site = IdentifiedArchaeologicalHeritageSite(
-            name=row['Наименование выявленного объекта культурного наследия'],
+            name=row[VOAN_REQUIRED_COLUMNS['name']],
             address=address,
-            obj_info=row['Сведения об историко-культурной ценности объекта'],
-            document=row['Документ о включении в перечень выявленных объектов'],
+            obj_info=row[VOAN_REQUIRED_COLUMNS['obj_info']],
+            document=row[VOAN_REQUIRED_COLUMNS['doc']],
         )
 
         # Получаем текст приказа из таблицы
@@ -996,7 +998,7 @@ def _process_voan_row(row):
         ).exists()
 
         if not site_exists:
-            folder = f'uploaded_files/Памятники/ВОАН/{address}/{clean_path_component(row["Наименование выявленного объекта культурного наследия"])}'
+            folder = f'uploaded_files/Памятники/ВОАН/{address}/{clean_path_component(row[VOAN_REQUIRED_COLUMNS['name']])}'
             Path(folder).mkdir(parents=True, exist_ok=True)
 
             identified_site.source = folder
