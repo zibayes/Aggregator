@@ -1,5 +1,7 @@
 import json
 import os
+import logging
+import traceback
 from datetime import datetime
 from tkinter import filedialog
 
@@ -13,6 +15,8 @@ from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents
 from agregator.processing.coordinates_tables import extract_tables_from_pdf, analyze_coordinates_in_tables_from_pdf, \
     extract_coordinates_from_docx_table, extract_coordinates_xlsx, format_coordinates
+
+logger = logging.getLogger(__name__)
 
 
 def choose_file() -> str:
@@ -78,6 +82,8 @@ def extract_coordinates(file, progress_recorder, pages_count, total_processed,
         results = []
         for table in doc.tables:
             result, coordinate_system = extract_coordinates_from_docx_table(table, doc)
+            if result is None or coordinate_system is None:
+                continue
             results.append(result)
             for sys in coordinate_system:
                 coordinate_systems.append(sys)
@@ -86,25 +92,9 @@ def extract_coordinates(file, progress_recorder, pages_count, total_processed,
         results, coordinate_systems = extract_coordinates_xlsx(file)
 
     if results is not None:
-        print(results)
+        logger.info(results)
         coordinates = format_coordinates(results, coordinate_systems)
 
     current_commercial_offer.coordinates = coordinates
     current_commercial_offer.is_processing = False
     current_commercial_offer.save()
-
-
-@shared_task
-def error_handler_commercial_offers(task, exception, exception_desc):
-    print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = redis_client.get(task.id)
-    if progress_json is None:
-        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
-    progress_json = json.loads(progress_json)
-    for account_card_id, source in progress_json['file_groups'].items():
-        print(account_card_id, source)
-        if source['processed'] != 'True':
-            commercial_offer = CommercialOffers.objects.get(id=account_card_id)
-            commercial_offer.delete()
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception

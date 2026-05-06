@@ -10,8 +10,9 @@ from django.core.paginator import Paginator
 
 from agregator.processing.batch_processing import scan_and_prepare_batch, create_act_from_existing_file, \
     create_account_card_from_existing_file
-from agregator.processing.acts_processing import process_acts, error_handler_acts
-from agregator.processing.account_cards_processing import process_account_cards, error_handler_account_cards
+from agregator.processing.acts_processing import process_acts
+from agregator.processing.account_cards_processing import process_account_cards
+from agregator.processing.error_handler import error_handler
 from agregator.models import UserTasks
 
 logger = logging.getLogger(__name__)
@@ -118,11 +119,6 @@ def process_batch_files(request):
                 'account_card': process_account_cards,
             }
 
-            error_handler = {
-                'act': error_handler_acts,
-                'account_card': error_handler_account_cards,
-            }
-
             creation_func = creation_functions.get(file_type)
             processing_task = processing_tasks.get(file_type)
 
@@ -162,12 +158,12 @@ def process_batch_files(request):
             if file_type in ['act', 'scientific_report', 'tech_report']:
                 task = processing_task.apply_async(
                     args=[created_ids, request.user.id, select_text, select_enrich, select_image, select_coord],
-                    link_error=error_handler.get(file_type).s()
+                    link_error=error_handler.s(file_type)
                 )
             elif file_type in ['account_card']:
                 task = processing_task.apply_async(
                     args=[created_ids, request.user.id],
-                    link_error=error_handler.get(file_type).s()
+                    link_error=error_handler.s(file_type)
                 )
 
             # Сохраняем информацию о задаче

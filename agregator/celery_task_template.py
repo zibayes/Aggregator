@@ -123,6 +123,7 @@ def process_documents(
                 progress_json['file_groups'][str(doc.id)]['processed'] = 'Processing'
 
             # Вызов функции обработки
+            error_text = None
             try:
                 if process_function:
                     if document_type == 'acts':
@@ -147,18 +148,20 @@ def process_documents(
                     raise Exception('NO PROCESS_FUNCTION PASSED AS ARGUMENT')
                 processed = 'True'
             except Exception as e:
-                logger.error(f'DOCUMENTS PROCESSIONG ERROR: {e}')
-                traceback.print_exc()
+                logger.exception(f'DOCUMENTS PROCESSING ERROR: {e}')
                 processed = 'Error'
+                error_text = str(e)
 
             if document_type in ['scientific_reports', 'acts', 'tech_reports']:
                 progress_json['file_groups'][str(doc.id)][i]['pages']['processed'] = \
                     progress_json['file_groups'][str(doc.id)][i]['pages']['all']
                 progress_json['file_groups'][str(doc.id)][i]['processed'] = processed
+                progress_json['file_groups'][str(doc.id)][i]['error_text'] = error_text
             else:
                 progress_json['file_groups'][str(doc.id)]['pages']['processed'] = \
                     progress_json['file_groups'][str(doc.id)]['pages']['all']
                 progress_json['file_groups'][str(doc.id)]['processed'] = processed
+                progress_json['file_groups'][str(doc.id)]['error_text'] = error_text
 
             redis_client.set(self.request.id, json.dumps(progress_json))
             progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)

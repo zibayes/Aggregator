@@ -1022,21 +1022,6 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
     logger.info(f"Обработка завершена для open_list_id={open_list_id}")
 
 
-@shared_task
-def error_handler_open_lists(task, exception, exception_desc):
-    logger.error(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = redis_client.get(task.id)
-    if progress_json is None:
-        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
-    progress_json = json.loads(progress_json)
-    for open_list_id, source in progress_json['file_groups'].items():
-        if source['processed'] != 'True':
-            open_list = OpenLists.objects.get(id=open_list_id)
-            open_list.delete()
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception
-
-
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()

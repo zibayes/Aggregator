@@ -85,8 +85,7 @@ def process_acts(self, acts_ids, user_id, select_text, select_enrich, select_ima
                                           select_image=select_image, select_coord=select_coord,
                                           process_function=extract_text_and_images)
     except Exception as e:
-        print(f'Критическая ошибка при обработке актов {acts_ids}: {e}')
-        traceback.print_exc()
+        logger.error(f'Критическая ошибка при обработке актов {acts_ids}: {e}')
     return progress_json
 
 
@@ -131,7 +130,6 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         pdf = pdfplumber.open(pdf_file)
     except Exception as e:
         logger.error(f'Ошибка при открытии файла акта id = {current_act.id}! Обработка остановлена!')
-        traceback.print_exc()
         return
 
     folder = pdf_file[:pdf_file.rfind(".")]
@@ -143,8 +141,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
             kml_path = KMLParser.find_kml_for_pdf(pdf_file)
         except Exception as e:
             logger.error(f'Ошибка при обработке kml! {e}')
-            traceback.print_exc()
-            
+
         if kml_path:
             logger.info(f"📌 Найден KML файл: {kml_path}")
 
@@ -152,8 +149,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
             try:
                 kml_coordinates = KMLParser.parse_kml_file(kml_path)
             except Exception as e:
-                traceback.print_exc()
-                logger.warning(f"❌ Не удалось извлечь координаты из KML: {e}")
+                logger.error(f"❌ Не удалось извлечь координаты из KML: {e}")
 
             if kml_coordinates:
                 coordinates = kml_coordinates
@@ -893,25 +889,3 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         current_act.save()
     except Exception as e:
         logger.error(f"Ошибка при сохранении данных акта id = {current_act.id}: {e}")
-
-
-@shared_task
-def error_handler_acts(task, exception, exception_desc):
-    logger.error(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    traceback.print_exc()
-    progress_json = redis_client.get(task.id)
-    if progress_json is None:
-        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
-    progress_json = json.loads(progress_json)
-    for act_id, sources in progress_json['file_groups'].items():
-        deleted_report = False
-        for source in sources:
-            if source['processed'] != 'True':
-                act = Act.objects.get(id=act_id)
-                act.delete()
-                deleted_report = True
-                break
-        if deleted_report:
-            continue
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception

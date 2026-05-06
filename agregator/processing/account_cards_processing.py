@@ -40,6 +40,7 @@ os.environ["MKL_NUM_THREADS"] = "1"
 
 min_area = 80000  # 100000
 symbol_config = r'--oem 3 --psm 3 -c tessedit_char_whitelist=+'
+LANG = 'rus+eng'
 
 # Константы для модели (можно вынести в настройки)
 MODEL_PATH = "account_cards_segmenter.pth"  # путь к файлу модели
@@ -139,7 +140,7 @@ def ocr_full_page(image_rgb: np.ndarray) -> List[Dict]:
     """OCR всей страницы с возвратом слов и координат"""
     gray = cv2.cvtColor(image_rgb, cv2.COLOR_RGB2GRAY)
     _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    data = pytesseract.image_to_data(thresh, lang='rus+eng', output_type=pytesseract.Output.DICT)
+    data = pytesseract.image_to_data(thresh, lang=LANG, output_type=pytesseract.Output.DICT)
     words = []
     n = len(data['text'])
     for i in range(n):
@@ -288,7 +289,7 @@ def extract_text_from_block(image_rgb: np.ndarray, block: Dict) -> str:
     # Выбираем psm в зависимости от класса
     psm = '6' if block['class'] == 'table' else '1'  # 6 - unified block of text, 1 - auto
     config = f'--oem 3 --psm {psm}'
-    text = pytesseract.image_to_string(crop, lang='rus+eng', config=config).strip()
+    text = pytesseract.image_to_string(crop, lang=LANG, config=config).strip()
     return text
 
 
@@ -303,7 +304,7 @@ def extract_coordinates_from_table_block(image_rgb: np.ndarray, block: Dict) -> 
     # Упрощённо: выполняем OCR с сохранением структуры (pytesseract image_to_data)
     gray = cv2.cvtColor(crop, cv2.COLOR_RGB2GRAY)
     _, thresh = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY_INV)
-    data = pytesseract.image_to_data(thresh, lang='rus+eng', config='--psm 6', output_type=pytesseract.Output.DICT)
+    data = pytesseract.image_to_data(thresh, lang=LANG, config='--psm 6', output_type=pytesseract.Output.DICT)
     # Группируем слова в строки и столбцы - упрощённая реализация
     # Здесь можно использовать более сложный парсинг, как в оригинальном коде.
     # Для простоты вернём пустой словарь, чтобы не усложнять.
@@ -320,7 +321,7 @@ def choose_file() -> str:
 
 def extract_text_from_image(image: cv2.UMat, psm_conf: str) -> str:
     custom_config = f'--oem 3 --psm {psm_conf}'
-    extracted_text = pytesseract.image_to_string(image, lang='rus+eng', config=custom_config)
+    extracted_text = pytesseract.image_to_string(image, lang=LANG, config=custom_config)
     return extracted_text
 
 
@@ -707,8 +708,8 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
     for account_card in account_cards:
         if account_card.source and account_card.id != account_card_id and os.path.isfile(account_card.source):
             file_hash = calculate_file_hash(file)
-            open_list_hash = calculate_file_hash(account_card.source)
-            if file_hash == open_list_hash:
+            account_card_hash = calculate_file_hash(account_card.source)
+            if file_hash == account_card_hash:
                 raise FileExistsError(
                     f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(account_card_id)]['origin_filename']}")
 
@@ -932,7 +933,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                         if section == 'UNKNOWN':
                             continue
                         # Распознаём текст блока (можно использовать psm 6 для блока текста)
-                        block_text = pytesseract.image_to_string(roi_bgr, lang='rus+eng',
+                        block_text = pytesseract.image_to_string(roi_bgr, lang=LANG,
                                                                  config='--oem 3 --psm 6').strip()
 
                         if not block_text:
@@ -1097,7 +1098,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                             'page': page_number
                         })
                     elif class_name == 'image_caption':
-                        caption_text = pytesseract.image_to_string(roi_bgr, lang='rus+eng',
+                        caption_text = pytesseract.image_to_string(roi_bgr, lang=LANG,
                                                                    config='--oem 3 --psm 6').strip()
                         caption_blocks.append({
                             'box': [x1, y1, x2, y2],
@@ -1105,7 +1106,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                             'page': page_number
                         })
                     elif class_name == 'compile_date':
-                        text = pytesseract.image_to_string(roi_bgr, lang='rus+eng', config='--oem 3 --psm 6').strip()
+                        text = pytesseract.image_to_string(roi_bgr, lang=LANG, config='--oem 3 --psm 6').strip()
                         current_account_card.compile_date = text
 
                 MAX_CAPTION_DIST = 400
@@ -1138,12 +1139,12 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                         # OCR блока подписи
                         cap_roi = img_bgr[best_cap['box'][1]:best_cap['box'][3],
                                   best_cap['box'][0]:best_cap['box'][2]]
-                        label = pytesseract.image_to_string(cap_roi, lang='rus+eng', config='--psm 6').strip()
+                        label = pytesseract.image_to_string(cap_roi, lang=LANG, config='--psm 6').strip()
                     else:
                         # Fallback: OCR области под изображением (100 пикселей вниз)
                         fallback_roi = img_bgr[y2:y2 + 100, x1:x2]
                         if fallback_roi.size > 0:
-                            label = pytesseract.image_to_string(fallback_roi, lang='rus+eng',
+                            label = pytesseract.image_to_string(fallback_roi, lang=LANG,
                                                                 config='--psm 7').strip()
 
                     # Сохраняем изображение
@@ -1172,8 +1173,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
             else:
                 kml_coordinates = KMLParser.parse_kml_file(kml_path)
         except Exception as e:
-            traceback.print_exc()
-            logger.warning(f"❌ Не удалось извлечь координаты из KML: {e}")
+            logger.error(f"❌ Не удалось извлечь координаты из KML: {e}")
 
         if kml_coordinates:
             coordinates = kml_coordinates
@@ -1201,22 +1201,6 @@ def ccw(A, B, C):
 
 def intersect(A, B, C, D):
     return ccw(A, C, D) != ccw(B, C, D) and ccw(A, B, C) != ccw(A, B, D)
-
-
-@shared_task
-def error_handler_account_cards(task, exception, exception_desc):
-    print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = redis_client.get(task.id)
-    if progress_json is None:
-        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
-    progress_json = json.loads(progress_json)
-    for account_card_id, source in progress_json['file_groups'].items():
-        print(account_card_id, source)
-        if source['processed'] != 'True':
-            account_card = ObjectAccountCard.objects.get(id=account_card_id)
-            account_card.delete()
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception
 
 
 def connect_account_card_to_heritage(object_name, progress_json=None):

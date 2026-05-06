@@ -26,18 +26,18 @@ from agregator.views.utils import get_scan_task
 from agregator.forms import UploadReportsForm, UploadOpenListsForm, UploadCommercialOffersForm, UploadGeoObjectsForm
 from agregator.processing.files_saving import raw_reports_save, raw_open_lists_save, raw_account_cards_save, \
     raw_geo_objects_save, raw_commercial_offers_save
-from agregator.processing.acts_processing import process_acts, error_handler_acts
-from agregator.processing.scientific_reports_processing import process_scientific_reports, \
-    error_handler_scientific_reports
-from agregator.processing.tech_reports_processing import process_tech_reports, error_handler_tech_reports
-from agregator.processing.open_lists_ocr import process_open_lists, error_handler_open_lists
+from agregator.processing.acts_processing import process_acts
+from agregator.processing.scientific_reports_processing import process_scientific_reports
+from agregator.processing.tech_reports_processing import process_tech_reports
+from agregator.processing.open_lists_ocr import process_open_lists
 from agregator.processing.external_sources import external_sources_processing
-from agregator.processing.account_cards_processing import process_account_cards, error_handler_account_cards
-from agregator.processing.commercial_offers_processing import process_commercial_offers, error_handler_commercial_offers
-from agregator.processing.geo_objects_processing import process_geo_objects, error_handler_geo_objects
+from agregator.processing.account_cards_processing import process_account_cards
+from agregator.processing.commercial_offers_processing import process_commercial_offers
+from agregator.processing.geo_objects_processing import process_geo_objects
 from agregator.processing.utils import str_is_int
 from agregator.views.utils import upload_entity_view, get_user_tasks
 from agregator.redis_config import redis_client
+from agregator.processing.error_handler import error_handler
 
 logger = logging.getLogger(__name__)
 
@@ -114,19 +114,19 @@ def deconstructor(request):
                         acts_ids = raw_reports_save(file_groups, uploaded_files, Act, user.id, is_public)
                         task = process_acts.apply_async(
                             (acts_ids, user.id, select_text, select_enrich, select_image, select_coord),
-                            link_error=error_handler_acts.s())
+                            link_error=error_handler.s(file_type))
                     elif file_type == 'scientific_report':
                         scientific_reports_ids = raw_reports_save(file_groups, uploaded_files, ScientificReport,
                                                                   user.id, is_public)
                         task = process_scientific_reports.apply_async(
                             (scientific_reports_ids, user.id, select_text, select_enrich, select_image, select_coord),
-                            link_error=error_handler_scientific_reports.s())
+                            link_error=error_handler.s(file_type))
                     elif file_type == 'tech_report':
                         tech_reports_ids = raw_reports_save(file_groups, uploaded_files, TechReport,
                                                             user.id, is_public)
                         task = process_tech_reports.apply_async(
                             (tech_reports_ids, user.id, select_text, select_enrich, select_image, select_coord),
-                            link_error=error_handler_tech_reports.s())
+                            link_error=error_handler.s(file_type))
                 except Exception as e:
                     form.add_error(None, f"Ошибка при сохранении файлов: {str(e)}")
                     return render(request, 'deconstructor.html', {'form': form, 'tasks_id': tasks_id})
@@ -346,8 +346,7 @@ def cancel_external_scan_task(request, task_id):
 def open_list_ocr(request):
     tasks_id = get_user_tasks(request.user.id, ('open_list',))
     view = upload_entity_view(request, tasks_id, 'open_list', UploadOpenListsForm, raw_open_lists_save,
-                              process_open_lists,
-                              error_handler_open_lists, 'open_list_ocr.html')
+                              process_open_lists, 'open_list_ocr.html')
     return view
 
 
@@ -380,15 +379,15 @@ def doc_reprocess(request, pk):
             select_coord = True
         if report_type == 'act':
             task = process_acts.apply_async(([pk], user.id, select_text, select_enrich, select_image, select_coord),
-                                            link_error=error_handler_acts.s())
+                                            link_error=error_handler.s(report_type))
         elif report_type == 'scientific_report':
             task = process_scientific_reports.apply_async(
                 ([pk], user.id, select_text, select_enrich, select_image, select_coord),
-                link_error=error_handler_scientific_reports.s())
+                link_error=error_handler.s(report_type))
         elif report_type == 'tech_report':
             task = process_tech_reports.apply_async(
                 ([pk], user.id, select_text, select_enrich, select_image, select_coord),
-                link_error=error_handler_tech_reports.s())
+                link_error=error_handler.s(report_type))
         else:
             return HttpResponse("Некорректный тип отчёта", status=404)
         tasks_id = [task.task_id] + tasks_id
@@ -418,8 +417,7 @@ def download_delete(request, task_id):
 def account_cards_upload(request):
     tasks_id = get_user_tasks(request.user.id, ('account_card',))
     view = upload_entity_view(request, tasks_id, 'account_card', UploadReportsForm, raw_account_cards_save,
-                              process_account_cards,
-                              error_handler_account_cards, 'account_cards_upload.html')
+                              process_account_cards, 'account_cards_upload.html')
     return view
 
 
@@ -428,8 +426,7 @@ def commercial_offers_upload(request):
     tasks_id = get_user_tasks(request.user.id, ('commercial_offer',))
     view = upload_entity_view(request, tasks_id, 'commercial_offer', UploadCommercialOffersForm,
                               raw_commercial_offers_save,
-                              process_commercial_offers,
-                              error_handler_commercial_offers, 'commercial_offers_upload.html')
+                              process_commercial_offers, 'commercial_offers_upload.html')
     return view
 
 
@@ -438,6 +435,5 @@ def geo_objects_upload(request):
     tasks_id = get_user_tasks(request.user.id, ('geo_object',))
     view = upload_entity_view(request, tasks_id, 'geo_object', UploadGeoObjectsForm,
                               raw_geo_objects_save,
-                              process_geo_objects,
-                              error_handler_geo_objects, 'geo_object_upload.html')
+                              process_geo_objects, 'geo_object_upload.html')
     return view

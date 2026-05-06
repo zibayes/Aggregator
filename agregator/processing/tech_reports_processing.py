@@ -424,27 +424,6 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
     current_report.save()
 
 
-@shared_task
-def error_handler_tech_reports(task, exception, exception_desc):
-    print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = redis_client.get(task.id)
-    if progress_json is None:
-        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
-    progress_json = json.loads(progress_json)
-    for report_id, sources in progress_json['file_groups'].items():
-        deleted_report = False
-        for source in sources:
-            if source['processed'] != 'True':
-                report = TechReport.objects.get(id=report_id)
-                report.delete()
-                deleted_report = True
-                break
-        if deleted_report:
-            continue
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception
-
-
 if __name__ == "__main__":
     root = tk.Tk()
     root.withdraw()

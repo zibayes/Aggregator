@@ -345,7 +345,7 @@ def extract_coordinates_from_docx_table(table, doc):
 
         return dfs, coordinate_systems
 
-    return None
+    return None, None
 
 
 def extract_coordinates_xlsx(file_path):
@@ -416,6 +416,7 @@ def extract_coordinates_xlsx(file_path):
                     for i in range(len(dfs)):
                         dfs[i] = pd.concat([row_to_insert, dfs[i]], ignore_index=True)
                 return dfs, coordinate_systems
+    return None, None
 
 
 def search_coords_in_text(pdf, page_number, document, tables, text, coordinates):

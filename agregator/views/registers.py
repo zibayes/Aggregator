@@ -338,8 +338,7 @@ def download_commercial_offer_report(request, pk):
                             if min_distance is None or min_distance > distance:
                                 min_distance = distance
                 except Exception as e:
-                    logger.error(f"Ошибка обработки GeoObject: {e}")
-                    traceback.print_exc()
+                    logger.exception(f"Ошибка обработки GeoObject: {e}")
                     return HttpResponse(f"Ошибка обработки GeoObject: {e}", status=404)
             else:
                 try:
@@ -395,8 +394,7 @@ def download_commercial_offer_report(request, pk):
                             else:
                                 df_existing = df_existing._append(df_new, ignore_index=True)
                 except Exception as e:
-                    logger.error(f"Ошибка обработки GeoObject: {e}")
-                    traceback.print_exc()
+                    logger.exception(f"Ошибка обработки GeoObject: {e}")
                     return HttpResponse(f"Ошибка обработки GeoObject: {e}", status=404)
 
         if min_distance is not None and type(account_card) != GeoObject:

@@ -2,6 +2,7 @@ import copy
 import logging
 
 from agregator.models import UserTasks
+from agregator.processing.error_handler import error_handler
 from django_celery_results.models import TaskResult
 from django.shortcuts import render
 import pandas as pd
@@ -20,7 +21,7 @@ def validate_email(email):
         return False
 
 
-def upload_entity_view(request, tasks_id, entity_type, entity_form, save_func, process_func, error_handler, page):
+def upload_entity_view(request, tasks_id, entity_type, entity_form, save_func, process_func, page):
     user_id = request.user.id
     if request.method == 'POST':
         form = entity_form(request.POST, request.FILES)
@@ -32,7 +33,7 @@ def upload_entity_view(request, tasks_id, entity_type, entity_form, save_func, p
                 is_public = False
             entities_ids = save_func(uploaded_files, user_id, is_public)
             task = process_func.apply_async((entities_ids, user_id),
-                                            link_error=error_handler.s())
+                                            link_error=error_handler.s(entity_type))
             tasks_id = [task.task_id] + tasks_id
             user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type=entity_type,
                                   upload_source={'source': 'Пользовательский файл'})

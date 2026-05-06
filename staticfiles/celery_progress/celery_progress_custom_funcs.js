@@ -237,6 +237,10 @@ function add_process_icon(file, li, value, result, key, isError) {
         }
     } else if (value.processed === 'Error') {
         icon.textContent = text_content + ` ❌`;
+        icon.appendChild(document.createElement('br'));
+        let error_text = document.createElement('a');
+        error_text.textContent = `Ошибка: ` + value.error_text;
+        icon.appendChild(error_text);
     }
     li.appendChild(icon)
 }

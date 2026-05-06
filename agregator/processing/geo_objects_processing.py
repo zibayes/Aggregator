@@ -157,19 +157,3 @@ def extract_coordinates(file, progress_recorder, pages_count, total_processed,
     current_geo_object.coordinates = coordinates
     current_geo_object.is_processing = False
     current_geo_object.save()
-
-
-@shared_task
-def error_handler_geo_objects(task, exception, exception_desc):
-    print(f"Задача {task.id} завершилась с ошибкой: {exception} {exception_desc}")
-    progress_json = redis_client.get(task.id)
-    if progress_json is None:
-        progress_json = redis_client.get('celery-task-meta-' + str(task.id))
-    progress_json = json.loads(progress_json)
-    for geo_object_id, source in progress_json['file_groups'].items():
-        print(geo_object_id, source)
-        if source['processed'] != 'True':
-            geo_object = GeoObject.objects.get(id=geo_object_id)
-            geo_object.delete()
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception

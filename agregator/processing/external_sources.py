@@ -27,7 +27,8 @@ import threading
 from django.core.cache import cache
 
 from agregator.processing.account_cards_processing import connect_account_card_to_heritage
-from agregator.processing.acts_processing import process_acts, error_handler_acts
+from agregator.processing.acts_processing import process_acts
+from agregator.processing.error_handler import error_handler
 from .files_saving import raw_reports_save
 from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
 from agregator.processing.utils import clean_path_component
@@ -484,7 +485,7 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
     if all_acts_ids:
         task = process_acts.apply_async(
             (all_acts_ids, admin.id, select_text, select_enrich, select_image, select_coord),
-            link_error=error_handler_acts.s())
+            link_error=error_handler.s('act'))
         # Создаем UserTasks для всей задачи (или для каждого, если нужно)
         user_task = UserTasks(user_id=admin.id, task_id=task.task_id, files_type='act',
                               upload_source=upload_source)
@@ -641,7 +642,7 @@ def process_voan_list(self, progress_key=None):
         }
 
     except Exception as e:
-        logger.exception("Ошибка в процессе обработки ВОАН")
+        logger.error(f"Ошибка в процессе обработки ВОАН: {e}")
         return {
             'current': 0,
             'total': 1,
@@ -829,7 +830,7 @@ def process_oan_list(self, progress_key=None):
         }
 
     except Exception as e:
-        logger.exception("Ошибка в процессе обработки ОАН")
+        logger.error(f"Ошибка в процессе обработки ОАН: {e}")
         return {
             'current': 0,
             'total': 1,

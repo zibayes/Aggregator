@@ -11,8 +11,9 @@ from PIL import Image
 
 from agregator.models import UserTasks
 from .files_saving import raw_open_lists_save
-from .open_lists_ocr import process_open_lists, error_handler_open_lists, \
+from .open_lists_ocr import process_open_lists, \
     borders_cut, get_image_angle, image_binarization_plain, rotate_image
+from agregator.processing.error_handler import error_handler
 from agregator.torch_image_classifier import PyTorchImageClassifier
 
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
@@ -367,7 +368,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
 
                 open_lists_ids = raw_open_lists_save([pil_img], user_id, is_public, origin_name, upload_source)
                 task = process_open_lists.apply_async((open_lists_ids, user_id),
-                                                      link_error=error_handler_open_lists.s())
+                                                      link_error=error_handler.s('open_list'))
                 user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
                                       upload_source=upload_source)
                 user_task.save()
@@ -420,7 +421,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 open_lists_ids = raw_open_lists_save([pil_img], user_id, is_public, origin_name, upload_source)
 
                 task = process_open_lists.apply_async((open_lists_ids, user_id),
-                                                      link_error=error_handler_open_lists.s())
+                                                      link_error=error_handler.s('open_list'))
                 user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
                                       upload_source=upload_source)
                 user_task.save()

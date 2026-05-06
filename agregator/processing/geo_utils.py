@@ -1,10 +1,13 @@
 import math
 import re
 import traceback
+import logging
 
 from pyproj import Proj, transform
 
 from agregator.processing.utils import str_is_float
+
+logger = logging.getLogger(__name__)
 
 COORDINATE_SYSTEMS = [
     r'wgs.*?\d+',
@@ -268,6 +271,5 @@ def calculate_polygons_area(coordinates: dict):
                 elif 'area' in coordinates[key]:
                     del coordinates[key]['area']
         except Exception as e:
-            print(f'Ошибка при обработке координат: {e}')
-            traceback.print_exc()
+            logger.error(f'Ошибка при обработке координат: {e}')
             continue
