@@ -417,7 +417,10 @@ def download_coordinates(request, report_type, pk):
                     if polygon_coords:
                         polygon = current_group.newpolygon(name="Полигон")
                         outer_coords = [(c[1], c[0], 0) for c in polygon_coords]
-                        outer_coords.append((polygon_coords[0][1], polygon_coords[0][0], 0))
+                        if polygon_coords[0] != polygon_coords[-1]:
+                            outer_coords.append(
+                                (polygon_coords[0][1], polygon_coords[0][0],
+                                 0))  # Начальная координата замыкающая - добавляется, если её нет в конце
                         polygon.outerboundaryis.coords = outer_coords
                         polygon.style = current_style
 

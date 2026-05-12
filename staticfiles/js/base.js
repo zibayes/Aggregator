@@ -1,4 +1,5 @@
 $(document).ready(function () {
+    /*
     window.dataTable = $('table:not(.no-datatables)').DataTable({
         language: {
             "processing": "Подождите...",
@@ -248,6 +249,7 @@ $(document).ready(function () {
             "thousands": " "
         },
     });
+    */
 
     $('.column-toggle').each(function () {
         var column = window.dataTable.column($(this).data('column'));

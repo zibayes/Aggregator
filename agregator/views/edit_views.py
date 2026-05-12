@@ -24,6 +24,7 @@ from agregator.models import Act, ScientificReport, TechReport, OpenLists, Archa
     IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, CommercialOffers, GeoObject
 from agregator.processing.coordinates_extraction import process_coords_from_edit_page
 from agregator.views import process_edit_form, process_supplement
+from agregator.forms import UploadGeoObjectsForm
 
 
 @login_required
@@ -51,13 +52,13 @@ def acts_edit(request, pk):
             act.supplement = process_supplement(request, act)
         except Exception as e:
             messages.error(request, f'Ошибка при обновлении: {str(e)}')
-            return render(request, 'act_edit.html', {'report': act})
+            return render(request, 'act_edit.html', {'report': act, 'coordinates_upload_form': UploadGeoObjectsForm})
 
         act.save()
         messages.success(request, 'Акт успешно обновлен.')
         return redirect(f'/acts/{act.id}')  # Перенаправление на страницу профиля
 
-    return render(request, 'act_edit.html', {'report': act})
+    return render(request, 'act_edit.html', {'report': act, 'coordinates_upload_form': UploadGeoObjectsForm})
 
 
 @login_required
@@ -99,13 +100,15 @@ def scientific_reports_edit(request, pk):
             report.supplement = process_supplement(request, report)
         except Exception as e:
             messages.error(request, f'Ошибка при обновлении: {str(e)}')
-            return render(request, 'scientific_report_edit.html', {'report': report})
+            return render(request, 'scientific_report_edit.html',
+                          {'report': report, 'coordinates_upload_form': UploadGeoObjectsForm})
 
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
         return redirect(f'/scientific_reports/{report.id}')
 
-    return render(request, 'scientific_report_edit.html', {'report': report})
+    return render(request, 'scientific_report_edit.html',
+                  {'report': report, 'coordinates_upload_form': UploadGeoObjectsForm})
 
 
 @login_required
@@ -147,13 +150,14 @@ def tech_reports_edit(request, pk):
             report.supplement = process_supplement(request, report)
         except Exception as e:
             messages.error(request, f'Ошибка при обновлении: {str(e)}')
-            return render(request, 'tech_report_edit.html', {'report': report})
+            return render(request, 'tech_report_edit.html',
+                          {'report': report, 'coordinates_upload_form': UploadGeoObjectsForm})
 
         report.save()
         messages.success(request, 'Отчёт успешно обновлен.')
         return redirect(f'/tech_reports/{report.id}')
 
-    return render(request, 'tech_report_edit.html', {'report': report})
+    return render(request, 'tech_report_edit.html', {'report': report, 'coordinates_upload_form': UploadGeoObjectsForm})
 
 
 @login_required
@@ -312,13 +316,15 @@ def account_cards_edit(request, pk):
             account_card.coordinates = process_coords_from_edit_page(request, account_card)
         except Exception as e:
             messages.error(request, f'Ошибка при обновлении: {str(e)}')
-            return render(request, 'account_card_edit.html', {'account_card': account_card})
+            return render(request, 'account_card_edit.html',
+                          {'account_card': account_card, 'coordinates_upload_form': UploadGeoObjectsForm})
 
         account_card.save()
         messages.success(request, 'Учётная карта успешно обновлена.')
         return redirect(f'/account_cards/{account_card.id}')
 
-    return render(request, 'account_card_edit.html', {'account_card': account_card})
+    return render(request, 'account_card_edit.html',
+                  {'account_card': account_card, 'coordinates_upload_form': UploadGeoObjectsForm})
 
 
 @login_required
@@ -347,14 +353,14 @@ def commercial_offers_edit(request, pk):
         except Exception as e:
             messages.error(request, f'Ошибка при обновлении: {str(e)}')
             return render(request, 'commercial_offer_edit.html',
-                          {'commercial_offer': commercial_offer})
+                          {'commercial_offer': commercial_offer, 'coordinates_upload_form': UploadGeoObjectsForm})
 
         commercial_offer.save()
         messages.success(request, 'Коммерческое предложение успешно обновлено.')
         return redirect(f'/commercial_offers_edit/{commercial_offer.id}')
 
     return render(request, 'commercial_offer_edit.html',
-                  {'commercial_offer': commercial_offer})
+                  {'commercial_offer': commercial_offer, 'coordinates_upload_form': UploadGeoObjectsForm})
 
 
 @login_required
@@ -383,14 +389,14 @@ def geo_objects_edit(request, pk):
         except Exception as e:
             messages.error(request, f'Ошибка при обновлении: {str(e)}')
             return render(request, 'geo_object_edit.html',
-                          {'geo_object': geo_object})
+                          {'geo_object': geo_object, 'coordinates_upload_form': UploadGeoObjectsForm})
 
         geo_object.save()
         messages.success(request, 'Коммерческое предложение успешно обновлено.')
         return redirect(f'/geo_objects_edit/{geo_object.id}')
 
     return render(request, 'geo_object_edit.html',
-                  {'geo_object': geo_object})
+                  {'geo_object': geo_object, 'coordinates_upload_form': UploadGeoObjectsForm})
 
 
 @login_required

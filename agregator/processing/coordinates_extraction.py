@@ -3,11 +3,18 @@ import os
 
 from tkinter import filedialog
 import re
+from typing import Optional
+
 import pdfplumber
 import pandas as pd
+import logging
 from django.http import JsonResponse
 from agregator.models import GeojsonData
 from agregator.processing.geo_utils import calculate_polygons_area, convert_proj4, convert_to_wgs84, dms_to_decimal
+from agregator.forms import UploadGeoObjectsForm
+from agregator.processing.batch_kml_utils import KMLParser
+
+logger = logging.getLogger(__name__)
 
 COORDINATES_SAMPLE = {'Шурфы': {}}
 
@@ -151,41 +158,71 @@ def save_geojson_polygons_to_db():
                             geojson_data.save()
 
 
-def process_coords_from_edit_page(request, entity) -> dict:
+def process_coords_from_edit_page(request, entity) -> Optional[dict]:
     entity.coordinates = entity.coordinates_dict
     coordinates = {}
     current_group = None
-    for key, value in request.POST.dict().items():
-        if 'group[' in key:
-            current_group = value
-        elif 'coordinate_system[' in key:
-            if current_group not in coordinates.keys():
-                coordinates[current_group] = {}
-            coordinates[current_group]['coordinate_system'] = value
-        elif 'point[' in key:
-            if current_group not in coordinates.keys():
-                coordinates[current_group] = {}
-            val = value.split(';')
-            if len(val) != 3:
+
+    form = UploadGeoObjectsForm(request.POST, request.FILES)
+    if form.is_valid():
+        uploaded_files = form.cleaned_data['files']
+        if len(uploaded_files) > 0:
+            file = uploaded_files[0]
+        else:
+            return None
+        if hasattr(entity, 'source_dict'):
+            file_path = entity.source_dict[0]
+        else:
+            file_path = entity.source
+        if '\\' in file_path:
+            deter = '\\'
+        else:
+            deter = '/'
+        folder_path = file_path[:file_path.rfind(deter)]
+        kml_path = folder_path + '/' + file.name
+
+        with open(kml_path, 'wb+') as destination:
+            for chunk in file.chunks():
+                destination.write(chunk)
+        try:
+            kml_coordinates = KMLParser.parse_kml_file(kml_path)
+        except Exception as e:
+            logger.error(f"❌ Не удалось извлечь координаты из KML: {e}")
+            return None
+        return kml_coordinates
+
+    else:
+        for key, value in request.POST.dict().items():
+            if 'group[' in key:
+                current_group = value
+            elif 'coordinate_system[' in key:
+                if current_group not in coordinates.keys():
+                    coordinates[current_group] = {}
+                coordinates[current_group]['coordinate_system'] = value
+            elif 'point[' in key:
+                if current_group not in coordinates.keys():
+                    coordinates[current_group] = {}
+                val = value.split(';')
+                if len(val) != 3:
+                    continue
+                point_name, x, y = [x.strip() for x in val]
+                x = x.replace(',', '.')
+                y = y.replace(',', '.')
+                coordinates[current_group][point_name] = [x, y]
+        for group, polygon in coordinates.items():
+            if polygon['coordinate_system'] == 'None':
                 continue
-            point_name, x, y = [x.strip() for x in val]
-            x = x.replace(',', '.')
-            y = y.replace(',', '.')
-            coordinates[current_group][point_name] = [x, y]
-    for group, polygon in coordinates.items():
-        if polygon['coordinate_system'] == 'None':
-            continue
-        elif entity.coordinates and group in entity.coordinates.keys():
-            if 'coordinate_system' not in entity.coordinates[group]:
-                entity.coordinates[group]['coordinate_system'] = polygon['coordinate_system']
-                coordinates[group]['coordinate_system'] = 'wgs84'
-            if coordinates[group]['coordinate_system'] != entity.coordinates[group]['coordinate_system']:
-                for point_name, coords in polygon.items():
-                    if point_name == 'coordinate_system':
-                        continue
-                    lat, lon = convert_proj4(coords[0], coords[1],
-                                             entity.coordinates[group]['coordinate_system'],
-                                             coordinates[group]['coordinate_system'])
-                    coordinates[group][point_name] = [lat, lon]
-    calculate_polygons_area(coordinates)
-    return coordinates
+            elif entity.coordinates and group in entity.coordinates.keys():
+                if 'coordinate_system' not in entity.coordinates[group]:
+                    entity.coordinates[group]['coordinate_system'] = polygon['coordinate_system']
+                    coordinates[group]['coordinate_system'] = 'wgs84'
+                if coordinates[group]['coordinate_system'] != entity.coordinates[group]['coordinate_system']:
+                    for point_name, coords in polygon.items():
+                        if point_name == 'coordinate_system':
+                            continue
+                        lat, lon = convert_proj4(coords[0], coords[1],
+                                                 entity.coordinates[group]['coordinate_system'],
+                                                 coordinates[group]['coordinate_system'])
+                        coordinates[group][point_name] = [lat, lon]
+        calculate_polygons_area(coordinates)
+        return coordinates

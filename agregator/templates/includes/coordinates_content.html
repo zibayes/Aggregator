@@ -3,6 +3,12 @@
 
 <h4>Редактирование координат</h4>
 
+<div id="file-choice">
+    <label>Загрузка файла с координатами полностью замещает существующие координаты.</label>
+    {{ coordinates_upload_form.as_p }}
+</div>
+<hr>
+
 {% for group, point in object.coordinates_dict.items %}
     <div class="mb-3" id="polygon-{{ group }}">
         <label for="group[{{ group }}]">Название полигона: </label>

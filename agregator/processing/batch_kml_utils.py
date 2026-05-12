@@ -86,6 +86,7 @@ class KMLProcessor:
     def _process_element(self, element, folder_path: List[str], result: Dict[str, Any]):
         """Рекурсивно обрабатывает элементы KML"""
         tag = self._get_tag_without_namespace(element.tag)
+        logger.info(f'TAG PROCESSING KML: {tag}')
 
         if tag == 'Folder' or tag == 'Document':
             folder_name_elem = self._find_element(element, 'name')
@@ -118,7 +119,8 @@ class KMLProcessor:
         """Обрабатывает различные типы геометрий с учетом категорий"""
 
         # Полигоны - ВЫНОСИМ ОТДЕЛЬНО В КАТАЛОГ КООРДИНАТ
-        polygons = self._find_all_elements(placemark, 'Polygon')
+        polygons = set(self._find_all_elements(placemark, 'Polygon'))
+        logger.info(f'POLYGONS!! : {polygons}')
         if polygons:
             for polygon in polygons:
                 poly_coords = self._extract_coordinates(polygon)
@@ -149,7 +151,7 @@ class KMLProcessor:
                         result[catalog_name] = {"coordinate_system": "wgs84"}
 
                     # Если все точки совпали - используем существующие точки
-                    if len(matching_points) == len(poly_coords_swapped):
+                    if len(matching_points) == len(poly_coords_swapped) and len(remaining_points) != 0:
                         for point_name, point_coords in matching_points.items():
                             result[catalog_name][point_name] = point_coords
 
@@ -163,9 +165,10 @@ class KMLProcessor:
                         # Если не все точки совпали - создаем новые пронумерованные точки из полигона
                         for i, coord in enumerate(poly_coords_swapped, 1):
                             result[catalog_name][str(i)] = coord
+                        logger.info(f'RESUUULT!! : {result}')
 
                         # Удаляем совпавшие точки из исходной папки
-                        if current_folder and current_folder in result:
+                        if current_folder and current_folder in result and len(remaining_points) > 0:
                             result[current_folder] = remaining_points
                             if not any(k not in ["coordinate_system", "area"] for k in result[current_folder].keys()):
                                 del result[current_folder]
