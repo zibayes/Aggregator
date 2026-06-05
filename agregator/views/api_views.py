@@ -36,7 +36,8 @@ def get_user_tasks_open_lists(request):
 @login_required
 def get_user_tasks_external(request):
     try:
-        admin = User.objects.get(is_superuser=True)
+        admin = User.objects.filter(is_superuser=True)[0]
+        # admin = User.objects.get(is_superuser=True)
     except User.DoesNotExist:
         admin = request.user
     tasks_id = get_user_tasks(admin.id, ('act', 'scientific_report', 'tech_report', 'open_list'), True)

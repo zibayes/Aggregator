@@ -111,7 +111,11 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
     )
 
     # Получаем данные один раз
-    admin = User.objects.get(is_superuser=True)
+    # admin = User.objects.get(is_superuser=True)
+    try:
+        admin = User.objects.filter(is_superuser=True)[0]
+    except User.DoesNotExist:
+        pass
 
     # Создаем множество для быстрого поиска
     downloaded_files = get_downloaded_files_cache(admin.id)
