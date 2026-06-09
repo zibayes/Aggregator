@@ -3,6 +3,9 @@
 # ==================== ЭТАП 1: Системные зависимости ====================
 FROM python:3.12 as system-deps
 
+RUN sed -i 'deb http://deb.debian.org/debian '"$(cat /etc/debian_version | cut -d. -f1)"' main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
+    echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list
+
 # Устанавливаем альтернативные репозитории для Debian
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
@@ -12,7 +15,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
         redis-tools \
         netcat-openbsd \
         p7zip-full \
-        unar \
+        p7zip-rar \
+        unrar-free \
         build-essential \
         wget \
         supervisor \

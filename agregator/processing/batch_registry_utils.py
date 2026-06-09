@@ -286,7 +286,8 @@ class RegistryManager:
 
         best_match, similarity = self.find_best_match_by_content(table_info)
 
-        if best_match and best_match.get('ГОД', 'N/A') == table_info['ГОД']:
+        if best_match and best_match.get('ГОД', 'N/A') == table_info.get('ГОД', 'N//A') and best_match.get(
+                'Дата окончания проведения ГИКЭ', 'N/A') == table_info.get('Дата окончания проведения ГИКЭ', 'N//A'):
             logger.info(f"🎯 ЗАМЕНЯЕМ ДАННЫЕ НА ДОСТОВЕРНЫЕ ИЗ РЕЕСТРА (схожесть: {similarity:.2%})")
 
             # ОБРАТНЫЙ МАППИНГ

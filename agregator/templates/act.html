@@ -87,7 +87,7 @@
     {% if report.start_date %}
     <li><a href="#start_date">Дата начала проведения экспертизы</a></li>
     {% endif %}
-    {% if report.end_date %}
+    {% if report.finish_date %}
     <li><a href="#end_date">Дата окончания проведения экспертизы</a></li>
     {% endif %}
     {% if report.exp_place %}
@@ -138,9 +138,9 @@
 <p>{{ report.start_date|safe|linebreaksbr }}</p>
 {% endif %}
 
-{% if report.end_date %}
+{% if report.finish_date %}
 <h2 id="end_date">Дата окончания проведения экспертизы</h2>
-<p>{{ report.end_date|safe|linebreaksbr }}</p>
+<p>{{ report.finish_date|safe|linebreaksbr }}</p>
 {% endif %}
 
 {% if report.exp_place %}

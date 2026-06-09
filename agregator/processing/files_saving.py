@@ -16,6 +16,7 @@ import logging
 
 from agregator.models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers, \
     GeoObject
+from agregator.processing.rasterized_reports_ocr import report_rasterization_check_and_process
 
 logger = logging.getLogger(__name__)
 
@@ -313,6 +314,7 @@ def save_report(files, reports_ids, report_type, user_id, is_public, report_dire
         report_folder_name = files[0]['file'].name
     else:
         report_folder_name = files.name
+    report_folder_name = report_folder_name[:-1] if report_folder_name[-1] == '.' else report_folder_name
     report_folder_name = report_folder_name[:report_folder_name.rfind('.')]
     path = f'uploaded_files/{report_directory}/{report_folder_name}'
     Path(path).mkdir(parents=True, exist_ok=True)
@@ -370,6 +372,8 @@ def save_report_source(report, file, path, report_directory, report_id, source_c
         else:
             for chunk in file.chunks():
                 destination.write(chunk)
+
+    report_rasterization_check_and_process(file_path)
 
 
 def load_raw_reports(reports_ids, report_type):

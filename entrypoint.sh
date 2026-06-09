@@ -113,7 +113,7 @@ if [ "$SERVICE_TYPE" = "app" ]; then
     echo "=== Запуск веб-приложения (Gunicorn) ==="
     exec gunicorn archeology.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 7200 \
     --log-level info \
-    --access-logfile - \
+    # --access-logfile - \
     --error-logfile -
 elif [ "$SERVICE_TYPE" = "celery" ]; then
     echo "=== Запуск Celery worker ==="

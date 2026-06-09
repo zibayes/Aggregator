@@ -13,6 +13,9 @@ from urllib.parse import quote
 
 import pandas as pd
 import patoolib
+import zipfile
+import rarfile
+
 import requests
 from requests.adapters import HTTPAdapter
 from requests.packages.urllib3.util.retry import Retry
@@ -300,15 +303,21 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                     continue
 
                 file = link['href'][link['href'].rfind('/') + 1:]
+                file_lower = file.lower()
 
                 # Пропускаем уже скачанные или ненужные файлы
                 if file in downloaded_files:
                     file_info.update({'status': 'пропущен', 'reason': 'Файл уже скачан'})
                     task_state.add_file_info(file_info)
                     continue
-                if file.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff')):
+                if file_lower.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff')):
                     file_info.update(
                         {'status': 'пропущен', 'reason': 'У файла неподходящий формат: .sig/.png/.jpg/.bmp/.tiff'})
+                    task_state.add_file_info(file_info)
+                    continue
+                if not is_act_file(file_lower):
+                    file_info.update(
+                        {'status': 'пропущен', 'reason': 'Файл электронной подписи'})
                     task_state.add_file_info(file_info)
                     continue
 
@@ -330,7 +339,8 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                 task_state.add_file_info(file_info)
 
                 # Добавление файла в очередь
-                path_to_download = f'uploaded_files/Акты ГИКЭ/{file}'
+                Path('uploaded_files/Акты ГИКЭ/ООКН/').mkdir(exist_ok=True)
+                path_to_download = f'uploaded_files/Акты ГИКЭ/ООКН/{file}'
                 page_files.append((path_to_download, url, file))
 
             except Exception as e:
@@ -381,7 +391,7 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                 if downloaded_page_files:
                     processed_acts = process_downloaded_files(downloaded_page_files, admin, select_text, select_enrich,
                                                               select_image,
-                                                              select_coord)
+                                                              select_coord, task_state)
                     for info in task_state.data['files_info']:
                         if info.get('filename') in processed_acts and processed_acts[info['filename']]:
                             info['act_id'] = processed_acts[info['filename']]
@@ -417,7 +427,30 @@ def get_downloaded_files_cache(admin_id):
     return downloaded_files
 
 
-def process_downloaded_files(files_data, admin, select_text, select_enrich, select_image, select_coord):
+def fix_name(name):
+    for enc_from, enc_to in [('cp437', 'cp866'), ('cp437', 'cp1251')]:
+        try:
+            return name.encode(enc_from).decode(enc_to)
+        except:
+            continue
+    return name
+
+
+def unzip_zip(zip_path, extract_to):
+    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+        for file_info in zip_ref.infolist():
+            file_info.filename = fix_name(file_info.filename)
+            zip_ref.extract(file_info, extract_to)
+
+
+def unzip_rar(rar_path, extract_to):
+    with rarfile.RarFile(rar_path, 'r') as rar_ref:
+        for file_info in rar_ref.infolist():
+            file_info.filename = fix_name(file_info.filename)
+            rar_ref.extract(file_info, extract_to)
+
+
+def process_downloaded_files(files_data, admin, select_text, select_enrich, select_image, select_coord, task_state):
     """Обрабатывает скачанные файлы с использованием ThreadPoolExecutor для архивов"""
     processed_acts = {}
     all_acts_ids = []
@@ -433,7 +466,11 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
                 os.makedirs(folder, exist_ok=True)
 
                 try:
-                    patoolib.extract_archive(path_to_download, outdir=folder)
+                    # patoolib.extract_archive(path_to_download, outdir=folder)
+                    if path_to_download.lower().endswith('.rar'):
+                        unzip_rar(path_to_download, folder)
+                    elif path_to_download.lower().endswith('.zip'):
+                        unzip_zip(path_to_download, folder)
 
                     # Используем ThreadPool для поиска файлов в архиве
                     with ThreadPoolExecutor(max_workers=5) as executor:
@@ -449,9 +486,15 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
                                 archive_files.extend(pdf_files)
                             except Exception as e:
                                 logger.error(f"Ошибка при поиске PDF в {root}: {e}")
+                                for info in task_state.data['files_info']:
+                                    if info.get('filename') == original_filename:
+                                        info.update({'status': 'ошибка', 'reason': f'Ошибка скачивания: {str(e)}'})
 
-                except patoolib.util.PatoolError as e:
+                except Exception as e:
                     logger.error(f'Ошибка при разархивировании {path_to_download}: {e}')
+                    for info in task_state.data['files_info']:
+                        if info.get('filename') == original_filename:
+                            info.update({'status': 'ошибка', 'reason': f'Ошибка скачивания: {str(e)}'})
                     continue
 
             files_to_save = []
@@ -485,6 +528,9 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
         except Exception as e:
             logger.error(f"Ошибка при обработке файла {path_to_download}: {e}")
             processed_acts[original_filename] = None
+            for info in task_state.data['files_info']:
+                if info.get('filename') == original_filename:
+                    info.update({'status': 'ошибка', 'reason': f'Ошибка обработки: {str(e)}'})
             continue
     if all_acts_ids:
         task = process_acts.apply_async(
@@ -498,12 +544,20 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
     return processed_acts
 
 
+def is_act_file(filename: str) -> bool:
+    if (not (re.search(r'проверк[\s\S]+подп\S+', filename) or re.search(r'электр\S+\s*подп\S+',
+                                                                        filename))) and not (
+            'протокол' in filename or 'report' in filename):
+        return True
+    return False
+
+
 def find_pdf_files(root, files):
     """Вспомогательная функция для поиска PDF файлов"""
     pdf_files = []
     for file in files:
-        if (file.lower().endswith('.pdf') and
-                not re.search(r'проверк[\s\S]+подпис[\S]+', file, re.IGNORECASE)):
+        file_lower = file.lower()
+        if is_act_file(file_lower) and file_lower.endswith('.pdf'):
             pdf_files.append(os.path.join(root, file))
     return pdf_files
 

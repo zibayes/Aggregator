@@ -167,9 +167,27 @@ DATABASES = {
 }
 '''
 
+
+class SkipHeadAndCeleryProgressFilter(logging.Filter):
+    def filter(self, record):
+        # record.args — это кортеж аргументов для логирования
+        # В django.request логах аргументом передаётся request
+        if hasattr(record, 'request'):
+            method = record.request.method
+            path = record.request.path
+            if method == 'HEAD' or '/celery-progress/' in path:
+                return False
+        return True
+
+
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'skip_head_celery': {
+            '()': SkipHeadAndCeleryProgressFilter,
+        },
+    },
     'formatters': {
         'verbose': {
             'format': '{levelname} {asctime} {module}:{lineno} {message}',

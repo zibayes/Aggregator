@@ -1,6 +1,7 @@
 import io
 import re
 from pathlib import Path
+from typing import Collection
 
 import cv2
 import fitz
@@ -122,7 +123,14 @@ def get_pil_image_from_pixmap(pixmap):
     except Exception as e:
         print(f"Ошибка преобразования pixmap: {e}")
         image_bytes = pixmap.tobytes("png")
-        return Image.open(io.BytesIO(image_bytes))
+        fallback_img = Image.open(io.BytesIO(image_bytes))
+        if pixmap.alpha:
+            if fallback_img.mode != "RGB":
+                fallback_img = fallback_img.convert("RGB")
+        else:
+            if fallback_img.mode != "RGB":
+                fallback_img = fallback_img.convert("RGB")
+        return fallback_img
     return img
 
 
@@ -137,6 +145,8 @@ def is_valid_image(image_bytes):
 
 def calculate_average_rgb(img):
     pixels = list(img.getdata())
+    if len(pixels) > 0 and (not isinstance(pixels[0], Collection) or len(pixels[0]) != 3):
+        return 0, 0, 0
 
     r_total = 0
     g_total = 0
@@ -268,6 +278,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
     image_list = page.get_images(full=True)
     caption_index = 0
     for img_index, img in enumerate(image_list):
+        image_text = image_num = None
         if captions and caption_index < len(captions):
             image_text = captions[caption_index]
             image_num = captions_nums[caption_index]
@@ -295,7 +306,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
         current_folder = folder
         pil_img = get_pil_image_from_pixmap(pixmap)
         avg_color = calculate_average_rgb(pil_img)
-        if captions:
+        if captions and image_text is not None:
             image_text = image_text.replace('\n', '')
             lowered_image_text = image_text.lower()
             if 'общий вид участка обследования' in lowered_image_text or 'общий вид участка' in lowered_image_text or 'общие виды' in lowered_image_text:
@@ -366,12 +377,14 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 supplement_content["open_list"].append(
                     {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
 
+                # TODO: ДОБАВЛЕНИЕ ОТКРЫТЫХ ЛИСТОВ ИЗ ОТЧЁТОВ В СИСТЕМУ
+                '''
                 open_lists_ids = raw_open_lists_save([pil_img], user_id, is_public, origin_name, upload_source)
-                task = process_open_lists.apply_async((open_lists_ids, user_id),
-                                                      link_error=error_handler.s('open_list'))
+                task = process_open_lists.apply_async((open_lists_ids, user_id), link_error=error_handler.s('open_list'))
                 user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
                                       upload_source=upload_source)
                 user_task.save()
+                '''
             else:
                 print(image_filename)
                 pil_img, image_bytes = image_rotate(pil_img)
@@ -418,6 +431,9 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 Path(current_folder).mkdir(exist_ok=True)
                 supplement_content["open_list"].append(
                     {"source": current_folder + "/" + image_filename})
+
+                # TODO: ДОБАВЛЕНИЕ ОТКРЫТЫХ ЛИСТОВ ИЗ ОТЧЁТОВ В СИСТЕМУ
+                '''                
                 open_lists_ids = raw_open_lists_save([pil_img], user_id, is_public, origin_name, upload_source)
 
                 task = process_open_lists.apply_async((open_lists_ids, user_id),
@@ -425,6 +441,7 @@ def extract_images_with_captions(text, page, page_number, document, folder,
                 user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
                                       upload_source=upload_source)
                 user_task.save()
+                '''
             elif image_class == 'Документы':
                 current_folder += '/Документы'
                 Path(current_folder).mkdir(exist_ok=True)
