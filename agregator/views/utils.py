@@ -1,6 +1,8 @@
 import copy
+import json
 import logging
 
+from agregator.redis_config import redis_client
 from agregator.models import UserTasks
 from agregator.processing.error_handler import error_handler
 from django_celery_results.models import TaskResult

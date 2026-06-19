@@ -3,20 +3,22 @@
 # ==================== ЭТАП 1: Системные зависимости ====================
 FROM python:3.12 as system-deps
 
-RUN sed -i 'deb http://deb.debian.org/debian '"$(cat /etc/debian_version | cut -d. -f1)"' main contrib non-free non-free-firmware/' /etc/apt/sources.list.d/debian.sources 2>/dev/null || \
-    echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list
+RUN echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
+    echo "deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+    echo "deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list
 
 # Устанавливаем альтернативные репозитории для Debian
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
     apt-get update && \
-    apt-get install -y --no-install-recommends --fix-missing \
+    apt-get install -y --no-install-recommends \
         postgresql-client \
         redis-tools \
         netcat-openbsd \
         p7zip-full \
         p7zip-rar \
         unrar-free \
+		unrar \
         build-essential \
         wget \
         supervisor \
@@ -35,6 +37,8 @@ RUN --mount=type=cache,target=/var/cache/apt \
         tk \
         tzdata && \
     rm -rf /var/lib/apt/lists/*
+	
+RUN ln -sf /usr/bin/unrar-free /usr/bin/unrar
 
 # Устанавливаем временную зону на Красноярск
 ENV TZ=Asia/Krasnoyarsk
@@ -54,11 +58,11 @@ COPY --from=system-deps /usr/lib/libtesseract.so* /usr/lib/
 
 WORKDIR /app
 
-# Установка Libreoffice
+# Установка Libreoffice и Ghostscript 
 RUN --mount=type=cache,target=/var/cache/apt \
     --mount=type=cache,target=/var/lib/apt/lists \
     apt-get update && \
-    apt-get install -y --no-install-recommends libreoffice libglib2.0-0
+    apt-get install -y --no-install-recommends libreoffice libglib2.0-0 ghostscript
 
 # Установка Python-зависимостей
 COPY requirements.txt .

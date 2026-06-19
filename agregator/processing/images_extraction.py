@@ -7,7 +7,7 @@ import cv2
 import fitz
 import numpy as np
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageStat
 # from tensorflow.keras.models import load_model
 
 from agregator.models import UserTasks
@@ -144,27 +144,10 @@ def is_valid_image(image_bytes):
 
 
 def calculate_average_rgb(img):
-    pixels = list(img.getdata())
-    if len(pixels) > 0 and (not isinstance(pixels[0], Collection) or len(pixels[0]) != 3):
-        return 0, 0, 0
-
-    r_total = 0
-    g_total = 0
-    b_total = 0
-
-    # Считаем сумму значений для каждого канала
-    for r, g, b in pixels:
-        r_total += r
-        g_total += g
-        b_total += b
-
-    # Вычисляем средние значения
-    num_pixels = len(pixels)
-    average_r = r_total // num_pixels
-    average_g = g_total // num_pixels
-    average_b = b_total // num_pixels
-
-    return average_r, average_g, average_b
+    if img.mode != "RGB":
+        img = img.convert("RGB")
+    stat = ImageStat.Stat(img)
+    return tuple(int(v) for v in stat.mean)
 
 
 def predict_image_class(img):
@@ -274,204 +257,204 @@ def preprocess_open_list(pix):
 def extract_images_with_captions(text, page, page_number, document, folder,
                                  supplement_content, extracted_images, user_id, origin_name, is_public,
                                  upload_source=None):
-    captions, captions_nums = extract_captions(text)
     image_list = page.get_images(full=True)
-    caption_index = 0
-    for img_index, img in enumerate(image_list):
-        image_text = image_num = None
-        if captions and caption_index < len(captions):
-            image_text = captions[caption_index]
-            image_num = captions_nums[caption_index]
-            caption_index += 1
-        img_index = img[0]
-        if img_index in extracted_images:
-            continue
-        extracted_images.append(img_index)
-        base_image = document.extract_image(img_index)
-        image_bytes = base_image["image"]
-        pixmap = fitz.Pixmap(image_bytes)
-        if pixmap.width <= IMAGE_MIN_SIZE or pixmap.height <= IMAGE_MIN_SIZE:
-            continue
-        if not is_valid_image(image_bytes):
-            image_bytes = pixmap.tobytes("png")
-        image = Image.open(io.BytesIO(image_bytes))
-        pixels = list(image.getdata())
-        num_pixels = len(pixels)
-        avg_color = sum([(x[0] + x[1] + x[2]) // 3 if isinstance(x, tuple) else x // 1 for x in pixels]) // num_pixels
-        if avg_color == 255 or avg_color == 0:
-            continue
-        image_ext = base_image["ext"]
-        image_filename = f"page_{page_number + 1}_img_{img_index}.{image_ext}"
-        # image_filename = f"page_{page_number + 1}_img_{img_index}.png"
-        current_folder = folder
-        pil_img = get_pil_image_from_pixmap(pixmap)
-        avg_color = calculate_average_rgb(pil_img)
-        if captions and image_text is not None:
-            image_text = image_text.replace('\n', '')
-            lowered_image_text = image_text.lower()
-            if 'общий вид участка обследования' in lowered_image_text or 'общий вид участка' in lowered_image_text or 'общие виды' in lowered_image_text:
-                current_folder += '/Общий вид'
-                supplement_content["object_fotos"].append({"label": image_text, "image_num": image_num,
-                                                           "source": current_folder + "/" + image_filename})
-            elif 'карта' in lowered_image_text or 'карты' in lowered_image_text:
-                current_folder += '/Карты'
-                supplement_content["maps"].append({"label": image_text, "image_num": image_num,
-                                                   "source": current_folder + "/" + image_filename})
-            elif 'схема' in lowered_image_text or 'схемы' in lowered_image_text:
-                current_folder += '/Схемы'
-                supplement_content["schemas"].append({"label": image_text, "image_num": image_num,
-                                                      "source": current_folder + "/" + image_filename})
-            elif 'спутниковый снимок' in lowered_image_text:
-                current_folder += '/Спутниковые снимки'
-                supplement_content["maps"].append({"label": image_text, "image_num": image_num,
-                                                   "source": current_folder + "/" + image_filename})
-            elif 'шурф' in lowered_image_text:
-                current_folder += '/Шурфы'
-                Path(current_folder).mkdir(exist_ok=True)
-                pit = re.search(r'Шурф.*? № *\d+', image_text, re.IGNORECASE)
-                image_folder = None
-                if pit:
-                    image_folder = 'Ш' + pit.group(0)[1:]
-                    current_folder += '/' + image_folder
-                supplement_content["pits_fotos"].append({"label": image_text, "image_num": image_num,
-                                                         "source": current_folder + "/" + image_filename,
-                                                         'folder': image_folder})
-            elif 'раскоп' in lowered_image_text:
-                current_folder += '/Раскопы'
-                supplement_content["excavation_fotos"].append({"label": image_text, "image_num": image_num,
+    if len(image_list) > 0:
+        captions, captions_nums = extract_captions(text)
+        caption_index = 0
+        for img_index, img in enumerate(image_list):
+            image_text = image_num = None
+            if captions and caption_index < len(captions):
+                image_text = captions[caption_index]
+                image_num = captions_nums[caption_index]
+                caption_index += 1
+            img_index = img[0]
+            if img_index in extracted_images:
+                continue
+            extracted_images.append(img_index)
+            base_image = document.extract_image(img_index)
+            image_bytes = base_image["image"]
+            pixmap = fitz.Pixmap(image_bytes)
+            if pixmap.width <= IMAGE_MIN_SIZE or pixmap.height <= IMAGE_MIN_SIZE:
+                continue
+            image_ext = base_image["ext"]
+            image_filename = f"page_{page_number + 1}_img_{img_index}.{image_ext}"
+            # image_filename = f"page_{page_number + 1}_img_{img_index}.png"
+            current_folder = folder
+            pil_img = get_pil_image_from_pixmap(pixmap)
+            avg_color = calculate_average_rgb(pil_img)
+            avg = sum(avg_color) // 3
+            if avg == 255 or avg == 0:
+                continue
+            if captions and image_text is not None:
+                image_text = image_text.replace('\n', '')
+                lowered_image_text = image_text.lower()
+                if 'общий вид участка обследования' in lowered_image_text or 'общий вид участка' in lowered_image_text or 'общие виды' in lowered_image_text:
+                    current_folder += '/Общий вид'
+                    supplement_content["object_fotos"].append({"label": image_text, "image_num": image_num,
                                                                "source": current_folder + "/" + image_filename})
-            elif 'зачистка' in lowered_image_text or 'заичистка' in lowered_image_text:
-                current_folder += '/Шурфы'
-                Path(current_folder).mkdir(exist_ok=True)
-                pit = re.search(r'Зачистка.*? № *\d+', image_text, re.IGNORECASE)
-                image_folder = None
-                if pit:
-                    image_folder = 'З' + pit.group(0)[1:]
-                    current_folder += '/' + image_folder
-                supplement_content["pits_fotos"].append({"label": image_text, "image_num": image_num,
-                                                         "source": current_folder + "/" + image_filename,
-                                                         'folder': image_folder})
-            elif 'врезка' in lowered_image_text:
-                current_folder += '/Шурфы'
-                Path(current_folder).mkdir(exist_ok=True)
-                pit = re.search(r'Врезка.*? № *\d+', image_text, re.IGNORECASE)
-                image_folder = None
-                if pit:
-                    image_folder = 'В' + pit.group(0)[1:]
-                    current_folder += '/' + image_folder
-                supplement_content["pits_fotos"].append(
-                    {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename,
-                     'folder': image_folder})
-            elif 'открытый лист' in lowered_image_text or is_image_open_list(avg_color, pil_img) or (
-                    ((result := predict_image_class(pil_img))[0] == 'Открытый лист' and result[1] >= 0.75)):
-                pix = page.get_pixmap(dpi=300)
-                try:
-                    pil_img = preprocess_open_list(pix)
-                except Exception as e:
-                    print('OpenList preprocess failed: ' + str(e))
-                image_bytes = pil_img.tobytes()
-                print(image_filename)
-                # pil_img, image_bytes = image_rotate(pil_img)
-                current_folder += '/Открытый лист'
-                Path(current_folder).mkdir(exist_ok=True)
-                supplement_content["open_list"].append(
-                    {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
+                elif 'карта' in lowered_image_text or 'карты' in lowered_image_text:
+                    current_folder += '/Карты'
+                    supplement_content["maps"].append({"label": image_text, "image_num": image_num,
+                                                       "source": current_folder + "/" + image_filename})
+                elif 'схема' in lowered_image_text or 'схемы' in lowered_image_text:
+                    current_folder += '/Схемы'
+                    supplement_content["schemas"].append({"label": image_text, "image_num": image_num,
+                                                          "source": current_folder + "/" + image_filename})
+                elif 'спутниковый снимок' in lowered_image_text:
+                    current_folder += '/Спутниковые снимки'
+                    supplement_content["maps"].append({"label": image_text, "image_num": image_num,
+                                                       "source": current_folder + "/" + image_filename})
+                elif 'шурф' in lowered_image_text:
+                    current_folder += '/Шурфы'
+                    Path(current_folder).mkdir(exist_ok=True)
+                    pit = re.search(r'Шурф.*? № *\d+', image_text, re.IGNORECASE)
+                    image_folder = None
+                    if pit:
+                        image_folder = 'Ш' + pit.group(0)[1:]
+                        current_folder += '/' + image_folder
+                    supplement_content["pits_fotos"].append({"label": image_text, "image_num": image_num,
+                                                             "source": current_folder + "/" + image_filename,
+                                                             'folder': image_folder})
+                elif 'раскоп' in lowered_image_text:
+                    current_folder += '/Раскопы'
+                    supplement_content["excavation_fotos"].append({"label": image_text, "image_num": image_num,
+                                                                   "source": current_folder + "/" + image_filename})
+                elif 'зачистка' in lowered_image_text or 'заичистка' in lowered_image_text:
+                    current_folder += '/Шурфы'
+                    Path(current_folder).mkdir(exist_ok=True)
+                    pit = re.search(r'Зачистка.*? № *\d+', image_text, re.IGNORECASE)
+                    image_folder = None
+                    if pit:
+                        image_folder = 'З' + pit.group(0)[1:]
+                        current_folder += '/' + image_folder
+                    supplement_content["pits_fotos"].append({"label": image_text, "image_num": image_num,
+                                                             "source": current_folder + "/" + image_filename,
+                                                             'folder': image_folder})
+                elif 'врезка' in lowered_image_text:
+                    current_folder += '/Шурфы'
+                    Path(current_folder).mkdir(exist_ok=True)
+                    pit = re.search(r'Врезка.*? № *\d+', image_text, re.IGNORECASE)
+                    image_folder = None
+                    if pit:
+                        image_folder = 'В' + pit.group(0)[1:]
+                        current_folder += '/' + image_folder
+                    supplement_content["pits_fotos"].append(
+                        {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename,
+                         'folder': image_folder})
+                elif 'открытый лист' in lowered_image_text or is_image_open_list(avg_color, pil_img) or (
+                        ((result := predict_image_class(pil_img))[0] == 'Открытый лист' and result[1] >= 0.75)):
+                    pix = page.get_pixmap(dpi=300)
+                    try:
+                        pil_img = preprocess_open_list(pix)
+                    except Exception as e:
+                        print('OpenList preprocess failed: ' + str(e))
+                    image_bytes = pil_img.tobytes()
+                    print(image_filename)
+                    # pil_img, image_bytes = image_rotate(pil_img)
+                    current_folder += '/Открытый лист'
+                    Path(current_folder).mkdir(exist_ok=True)
+                    supplement_content["open_list"].append(
+                        {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
 
-                # TODO: ДОБАВЛЕНИЕ ОТКРЫТЫХ ЛИСТОВ ИЗ ОТЧЁТОВ В СИСТЕМУ
-                '''
-                open_lists_ids = raw_open_lists_save([pil_img], user_id, is_public, origin_name, upload_source)
-                task = process_open_lists.apply_async((open_lists_ids, user_id), link_error=error_handler.s('open_list'))
-                user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
-                                      upload_source=upload_source)
-                user_task.save()
-                '''
+                    # TODO: ДОБАВЛЕНИЕ ОТКРЫТЫХ ЛИСТОВ ИЗ ОТЧЁТОВ В СИСТЕМУ
+                    '''
+                    open_lists_ids = raw_open_lists_save([pil_img], user_id, is_public, origin_name, upload_source)
+                    task = process_open_lists.apply_async((open_lists_ids, user_id), link_error=error_handler.s('open_list'))
+                    user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
+                                          upload_source=upload_source)
+                    user_task.save()
+                    '''
+                else:
+                    print(image_filename)
+                    pil_img, image_bytes = image_rotate(pil_img)
+                    image_class, confidence = predict_image_class(pil_img)
+                    print(image_class)
+                    if image_class == 'Документы' and confidence >= 0.75:
+                        current_folder += '/Документы'
+                        Path(current_folder).mkdir(exist_ok=True)
+                        supplement_content["docs"].append(
+                            {"label": image_text, "image_num": image_num,
+                             "source": current_folder + "/" + image_filename})
+                    elif image_class == 'Карты' and confidence >= 0.75:
+                        current_folder += '/Карты'
+                        Path(current_folder).mkdir(exist_ok=True)
+                        supplement_content["maps"].append(
+                            {"label": image_text, "image_num": image_num,
+                             "source": current_folder + "/" + image_filename})
+                    elif image_class == 'Материал' and confidence >= 0.75:
+                        current_folder += '/Материал'
+                        Path(current_folder).mkdir(exist_ok=True)
+                        supplement_content["material_fotos"].append(
+                            {"label": image_text, "image_num": image_num,
+                             "source": current_folder + "/" + image_filename})
+                    else:
+                        current_folder += '/Иное'
+                        Path(current_folder).mkdir(exist_ok=True)
+                        supplement_content["other"].append(
+                            {"label": image_text, "image_num": image_num,
+                             "source": current_folder + "/" + image_filename})
             else:
                 print(image_filename)
                 pil_img, image_bytes = image_rotate(pil_img)
                 image_class, confidence = predict_image_class(pil_img)
                 print(image_class)
-                if image_class == 'Документы' and confidence >= 0.75:
+                if page_number == 0:
+                    current_folder += '/Титульник'
+                    Path(current_folder).mkdir(exist_ok=True)
+                    supplement_content["title_page"].append(
+                        {"source": current_folder + "/" + image_filename})
+                elif is_image_open_list(avg_color, pil_img) or (image_class == 'Открытый лист' and confidence >= 0.75):
+                    pix = page.get_pixmap(dpi=300)
+                    try:
+                        pil_img = preprocess_open_list(pix)
+                    except Exception as e:
+                        print('OpenList preprocess failed: ' + str(e))
+                    image_bytes = pil_img.tobytes()
+                    current_folder += '/Открытый лист'
+                    Path(current_folder).mkdir(exist_ok=True)
+                    supplement_content["open_list"].append(
+                        {"source": current_folder + "/" + image_filename})
+
+                    # TODO: ДОБАВЛЕНИЕ ОТКРЫТЫХ ЛИСТОВ ИЗ ОТЧЁТОВ В СИСТЕМУ
+                    '''                
+                    open_lists_ids = raw_open_lists_save([pil_img], user_id, is_public, origin_name, upload_source)
+    
+                    task = process_open_lists.apply_async((open_lists_ids, user_id),
+                                                          link_error=error_handler.s('open_list'))
+                    user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
+                                          upload_source=upload_source)
+                    user_task.save()
+                    '''
+                elif image_class == 'Документы':
                     current_folder += '/Документы'
                     Path(current_folder).mkdir(exist_ok=True)
                     supplement_content["docs"].append(
-                        {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
-                elif image_class == 'Карты' and confidence >= 0.75:
+                        {"source": current_folder + "/" + image_filename})
+                elif image_class == 'Карты':
                     current_folder += '/Карты'
                     Path(current_folder).mkdir(exist_ok=True)
                     supplement_content["maps"].append(
-                        {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
-                elif image_class == 'Материал' and confidence >= 0.75:
+                        {"source": current_folder + "/" + image_filename})
+                elif image_class == 'Материал':
                     current_folder += '/Материал'
                     Path(current_folder).mkdir(exist_ok=True)
                     supplement_content["material_fotos"].append(
-                        {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
+                        {"source": current_folder + "/" + image_filename})
                 else:
-                    current_folder += '/Иное'
+                    current_folder += '/Без подписей'
                     Path(current_folder).mkdir(exist_ok=True)
-                    supplement_content["other"].append(
-                        {"label": image_text, "image_num": image_num, "source": current_folder + "/" + image_filename})
-        else:
-            print(image_filename)
-            pil_img, image_bytes = image_rotate(pil_img)
-            image_class, confidence = predict_image_class(pil_img)
-            print(image_class)
-            if page_number == 0:
-                current_folder += '/Титульник'
-                Path(current_folder).mkdir(exist_ok=True)
-                supplement_content["title_page"].append(
-                    {"source": current_folder + "/" + image_filename})
-            elif is_image_open_list(avg_color, pil_img) or (image_class == 'Открытый лист' and confidence >= 0.75):
-                pix = page.get_pixmap(dpi=300)
-                try:
-                    pil_img = preprocess_open_list(pix)
-                except Exception as e:
-                    print('OpenList preprocess failed: ' + str(e))
-                image_bytes = pil_img.tobytes()
-                current_folder += '/Открытый лист'
-                Path(current_folder).mkdir(exist_ok=True)
-                supplement_content["open_list"].append(
-                    {"source": current_folder + "/" + image_filename})
-
-                # TODO: ДОБАВЛЕНИЕ ОТКРЫТЫХ ЛИСТОВ ИЗ ОТЧЁТОВ В СИСТЕМУ
-                '''                
-                open_lists_ids = raw_open_lists_save([pil_img], user_id, is_public, origin_name, upload_source)
-
-                task = process_open_lists.apply_async((open_lists_ids, user_id),
-                                                      link_error=error_handler.s('open_list'))
-                user_task = UserTasks(user_id=user_id, task_id=task.task_id, files_type='open_list',
-                                      upload_source=upload_source)
-                user_task.save()
-                '''
-            elif image_class == 'Документы':
-                current_folder += '/Документы'
-                Path(current_folder).mkdir(exist_ok=True)
-                supplement_content["docs"].append(
-                    {"source": current_folder + "/" + image_filename})
-            elif image_class == 'Карты':
-                current_folder += '/Карты'
-                Path(current_folder).mkdir(exist_ok=True)
-                supplement_content["maps"].append(
-                    {"source": current_folder + "/" + image_filename})
-            elif image_class == 'Материал':
-                current_folder += '/Материал'
-                Path(current_folder).mkdir(exist_ok=True)
-                supplement_content["material_fotos"].append(
-                    {"source": current_folder + "/" + image_filename})
-            else:
-                current_folder += '/Без подписей'
-                Path(current_folder).mkdir(exist_ok=True)
-                supplement_content["no_captions"].append(
-                    {"source": current_folder + "/" + image_filename})
-        Path(current_folder).mkdir(exist_ok=True)
-        try:
-            if not image_bytes.startswith(b'\x89PNG'):
+                    supplement_content["no_captions"].append(
+                        {"source": current_folder + "/" + image_filename})
+            Path(current_folder).mkdir(exist_ok=True)
+            try:
+                if not image_bytes.startswith(b'\x89PNG'):
+                    pil_img.save(current_folder + "/" + image_filename, "PNG")
+                else:
+                    with open(current_folder + "/" + image_filename, "wb") as img_file:
+                        img_file.write(image_bytes)
+            except Exception as e:
+                print(f"Ошибка сохранения изображения: {e}")
                 pil_img.save(current_folder + "/" + image_filename, "PNG")
-            else:
-                with open(current_folder + "/" + image_filename, "wb") as img_file:
-                    img_file.write(image_bytes)
-        except Exception as e:
-            print(f"Ошибка сохранения изображения: {e}")
-            pil_img.save(current_folder + "/" + image_filename, "PNG")
 
 
 def insert_supplement_links(report_parts: dict) -> None:

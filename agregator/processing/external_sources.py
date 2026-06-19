@@ -3,6 +3,7 @@ import os
 import re
 import shutil
 import ssl
+import traceback
 import urllib.request
 from pathlib import Path
 import time
@@ -12,9 +13,12 @@ from typing import List
 from urllib.parse import quote
 
 import pandas as pd
-import patoolib
+# import patoolib
 import zipfile
 import rarfile
+
+rarfile.UNRAR_TOOL = '/usr/bin/unrar'  # /usr/bin/7z
+rarfile.PRIORITY = (rarfile.UNRAR_TOOL,)
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -463,6 +467,8 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
 
             if path_to_download.lower().endswith(('.zip', '.rar')):
                 folder = path_to_download[:path_to_download.rfind('.')]
+                while folder.endswith('.'):
+                    folder = folder[:-1]
                 os.makedirs(folder, exist_ok=True)
 
                 try:
@@ -492,6 +498,7 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
 
                 except Exception as e:
                     logger.error(f'Ошибка при разархивировании {path_to_download}: {e}')
+                    logger.error(traceback.format_exc())
                     for info in task_state.data['files_info']:
                         if info.get('filename') == original_filename:
                             info.update({'status': 'ошибка', 'reason': f'Ошибка скачивания: {str(e)}'})

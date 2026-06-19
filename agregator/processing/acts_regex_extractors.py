@@ -48,9 +48,13 @@ def extract_act_name(text, current_section_idx, text_file, page_number, table_in
     text_to_write = ''
     if act:
         text_to_write = act.group(0)
+        if '№' not in text_to_write and 'б/н' not in text_to_write.lower():
+            text_to_write += " б/н "
         obj = RE_ACT_OBJECT.search(text)
         if obj:
             exploration_object = True
+            if not text_to_write.endswith(' '):
+                text_to_write += ' '
             text_to_write += obj.group(0)
     else:
         start = RE_ACT_SECTION.search(text)
@@ -60,9 +64,9 @@ def extract_act_name(text, current_section_idx, text_file, page_number, table_in
     text_file.write(
         f"--- АКТ --- (стр. {page_number + 1}):\n{text_to_write}\n")
     current_section_idx += 1
-    if '№' not in text_to_write:
+    if '№' not in text_to_write and 'б/н' not in text_to_write.lower():
         text_to_write += " б/н"
-    table_info['Номер (если имеется) и наименование Акта ГИКЭ'] = text_to_write
+    table_info['Номер (если имеется) и наименование Акта ГИКЭ'] = text_to_write.strip()
     return current_section_idx, exploration_object
 
 
@@ -135,19 +139,6 @@ def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_
             current_part += 2
             text_to_write = date.group(1)
 
-        year = YEAR_PATTERN.search(text_to_write)
-        if year:
-            year = year.group(1)
-        elif interval_type != 'words':
-            text_to_write = text
-            year = YEAR_PATTERN.search(text_to_write)
-            if year:
-                year = year.group(1)
-        else:
-            year = YEAR_PATTERN.search(text_to_write)
-            if year:
-                year = year.group(1)
-        table_info['ГОД'] = year
         date = DATE_WORDS2_PATTERN.findall(text_to_write)
         if date:
             if len(date) > 1:
@@ -174,6 +165,9 @@ def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_
         if len(day) < 2:
             date = '0' + date
         table_info['Дата окончания проведения ГИКЭ'] = date
+        year = date[date.rfind('.') + 1:]  # YEAR_PATTERN.search(date)
+        if year:
+            table_info['ГОД'] = year
         if full_time_interval:
             is_continue = True
         else:

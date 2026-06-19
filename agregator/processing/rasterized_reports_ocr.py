@@ -1,11 +1,18 @@
 import re
+import time
 import traceback
 
 import fitz  # PyMuPDF
 import ocrmypdf
 import logging
 
+import queue
+import threading
+from agregator.processing.ocrmypdf_progress_channel import set_queue
+from agregator.celery_task_template import progress_update
+
 logger = logging.getLogger(__name__)
+PLUGIN_PATH = 'agregator/processing/ocrmypdf_progress_plugin.py'
 
 
 def detect_rasterization_pdf(document, text_threshold=10, rasterization_threshold=0.8, pages_to_check=10):
@@ -42,21 +49,88 @@ def detect_rasterization_pdf(document, text_threshold=10, rasterization_threshol
     return False
 
 
-def add_pdf_text_layer_ocr(input_path: str, output_path: str):
+def add_pdf_text_layer_ocr(input_path: str, output_path: str, progress_recorder_tuple: tuple) -> None:
     """Функция создания текстового слоя для растеризированных документов"""
+    q = queue.Queue()
+    set_queue(q)
+    progress_recorder, task_id, progress_json, current_val, max_val = progress_recorder_tuple
+    state = {
+        "latest": None,
+        "done": False,
+        "error": None,
+    }
+    state_lock = threading.Lock()
+
+    def consumer():
+        try:
+            progress_json["status"] = "ocr"
+            while True:
+                item = q.get()
+                if item is None:
+                    break
+                with state_lock:
+                    state["latest"] = item
+        except Exception as e:
+            with state_lock:
+                state["error"] = e
+                state["done"] = True
+
+    def run_ocr():
+        try:
+            ocrmypdf.ocr(
+                input_path,
+                output_path,
+                language="rus",
+                deskew=True,
+                force_ocr=True,
+                optimize=0,
+                plugins=PLUGIN_PATH,
+            )
+        except Exception as e:
+            with state_lock:
+                state["error"] = e
+        finally:
+            with state_lock:
+                state["done"] = True
+            q.put(None)
+
+    consumer_thread = threading.Thread(target=consumer, daemon=True)
+    ocr_thread = threading.Thread(target=run_ocr, daemon=True)
+
+    consumer_thread.start()
+    ocr_thread.start()
+
+    last_signature = None
+    update_val = 0.
     try:
-        ocrmypdf.ocr(
-            input_path,
-            output_path,
-            language='rus',  # rus+eng
-            deskew=True,
-            force_ocr=True,
-            optimize=0
-        )
-        logger.info(f"OCR завершен успешно для файла: {input_path}")
-    except Exception as e:
-        logger.error(f"Ошибка OCR: {e}")
-        logger.error(traceback.format_exc())
+        while True:
+            with state_lock:
+                latest = state["latest"]
+                done = state["done"]
+                error = state["error"]
+
+            if latest is not None:
+                signature = (latest.get("desc"), latest.get("percent"))
+                if signature != last_signature:
+                    if update_val < 1.:
+                        update_val += 0.01
+                    progress_json["ocr"] = f"{latest.get('desc')} ({latest.get('percent')}%)"
+                    progress_update(progress_recorder, task_id, progress_json, current_val + update_val, max_val)
+                    last_signature = signature
+                    # logger.info(f'OCRMYPDF signature: {last_signature}')
+
+            if error is not None:
+                logger.info(f'error = {error}')
+                raise error
+
+            if done:
+                break
+
+            time.sleep(0.1)
+
+    finally:
+        ocr_thread.join()
+        consumer_thread.join()
 
 
 def is_likely_mojibake(text, threshold=0.5):
@@ -77,9 +151,9 @@ def is_likely_mojibake(text, threshold=0.5):
     return ratio > threshold
 
 
-def report_rasterization_check_and_process(file_path, pages_to_check=8):
+def report_rasterization_check_and_process(file_path, progress_recorder, pages_to_check=8):
     document = fitz.open(file_path)
     if file_path.endswith('.pdf') and type != 'images' and (
             detect_rasterization_pdf(document, pages_to_check) or is_likely_mojibake(
         ''.join([page.get_text() for page in document[:pages_to_check]]))):
-        add_pdf_text_layer_ocr(file_path, file_path)
+        add_pdf_text_layer_ocr(file_path, file_path, progress_recorder)

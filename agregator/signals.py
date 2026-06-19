@@ -24,7 +24,7 @@ MODEL_NAMES = {
 def auto_create_links(sender, instance, created, **kwargs):
     """Автоматическое создание ссылок после сохранения"""
     class_name = sender.__name__
-    logger.info(f"Сигнал post_save: sender={sender}, class_name={class_name}, created={created}")
+    # logger.info(f"Сигнал post_save: sender={sender}, class_name={class_name}, created={created}")
 
     if class_name in MODEL_NAMES:
         if created:
@@ -38,18 +38,20 @@ def auto_create_links(sender, instance, created, **kwargs):
             except Exception as e:
                 logger.error(f"Ошибка при создании ссылки: {str(e)}", exc_info=True)
         else:
-            logger.debug(f"Обновление объекта {class_name} (id={instance.id}) - ссылка не создается")
+            pass
+            # logger.debug(f"Обновление объекта {class_name} (id={instance.id}) - ссылка не создается")
     else:
-        logger.debug(f"Модель {class_name} не требует создания ссылки")
+        pass
+        # logger.debug(f"Модель {class_name} не требует создания ссылки")
 
 
 @receiver(post_delete)
 def auto_delete_links(sender, instance, **kwargs):
     """Автоматическое удаление ссылок после удаления объекта"""
     class_name = sender.__name__
-    logger.info(f"Сигнал post_delete: sender={sender}, class_name={class_name}")
 
     if class_name in MODEL_NAMES:
+        logger.info(f"Сигнал post_delete: sender={sender}, class_name={class_name}")
         try:
             source_path = None
             if hasattr(instance, 'source_dict') and instance.source_dict:

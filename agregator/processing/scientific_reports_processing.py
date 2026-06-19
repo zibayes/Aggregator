@@ -11,6 +11,8 @@ import fitz  # PyMuPDF
 import pandas as pd
 import pdfplumber
 from celery import shared_task
+import traceback
+import logging
 
 from agregator.processing.coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
 from agregator.processing.files_saving import load_raw_reports
@@ -20,6 +22,8 @@ from agregator.processing.images_extraction import extract_images_with_captions,
 from agregator.models import ScientificReport
 from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents
+
+logger = logging.getLogger(__name__)
 
 
 def choose_file() -> str:
@@ -31,11 +35,19 @@ def choose_file() -> str:
 
 @shared_task(bind=True)
 def process_scientific_reports(self, reports_ids, user_id, select_text, select_enrich, select_image, select_coord):
-    return process_documents(self, reports_ids, user_id, 'scientific_reports', model_class=ScientificReport,
-                             load_function=load_raw_reports,
-                             select_text=select_text, select_enrich=select_enrich, select_image=select_image,
-                             select_coord=select_coord,
-                             process_function=extract_text_and_images)
+    progress_json = None
+    try:
+        progress_json = process_documents(self, reports_ids, user_id, 'scientific_reports',
+                                          model_class=ScientificReport,
+                                          load_function=load_raw_reports,
+                                          select_text=select_text, select_enrich=select_enrich,
+                                          select_image=select_image,
+                                          select_coord=select_coord,
+                                          process_function=extract_text_and_images)
+    except Exception as e:
+        logger.error(f'Критическая ошибка при обработке научных отчётов {reports_ids}: {e}')
+        logger.error(traceback.format_exc())
+    return progress_json
 
 
 def extract_text_and_images(current_report, file, progress_recorder, pages_count, total_processed, progress_json,

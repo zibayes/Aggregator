@@ -14,9 +14,11 @@ import pandas as pd
 from PIL import Image
 import logging
 
+from agregator.decorators import profiled
 from agregator.models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers, \
     GeoObject
 from agregator.processing.rasterized_reports_ocr import report_rasterization_check_and_process
+from agregator.celery_task_template import progress_update, PROCESSING_PART, ALL_PARTS, CONVERTATION_PART
 
 logger = logging.getLogger(__name__)
 
@@ -261,9 +263,12 @@ def raw_open_lists_save(uploaded_files, user_id, is_public, origin_filename=None
     return open_lists_ids
 
 
-def load_raw_open_lists(open_lists_ids):
+def load_raw_open_lists(open_lists_ids, progress_recorder, progress_json, task_id):
     pages_count = {}
     open_lists = []
+    processed = 0.01
+    total = len(open_lists_ids)
+    progress_update(progress_recorder, task_id, progress_json, processed, ALL_PARTS)
     for open_list_id in open_lists_ids:
         open_list = OpenLists.objects.get(id=open_list_id)
         folder = f'uploaded_files/'
@@ -280,6 +285,8 @@ def load_raw_open_lists(open_lists_ids):
         with fitz.open(folder + '/' + open_list.source.name) as pdf_doc:
             pages_count[str(open_list.id)] = len(pdf_doc)
         open_lists.append(open_list)
+        processed += 1
+        progress_update(progress_recorder, task_id, progress_json, (processed / total) * CONVERTATION_PART, ALL_PARTS)
     return open_lists, pages_count
 
 
@@ -314,7 +321,8 @@ def save_report(files, reports_ids, report_type, user_id, is_public, report_dire
         report_folder_name = files[0]['file'].name
     else:
         report_folder_name = files.name
-    report_folder_name = report_folder_name[:-1] if report_folder_name[-1] == '.' else report_folder_name
+    while report_folder_name.endswith('.'):
+        report_folder_name = report_folder_name[:-1]
     report_folder_name = report_folder_name[:report_folder_name.rfind('.')]
     path = f'uploaded_files/{report_directory}/{report_folder_name}'
     Path(path).mkdir(parents=True, exist_ok=True)
@@ -373,12 +381,13 @@ def save_report_source(report, file, path, report_directory, report_id, source_c
             for chunk in file.chunks():
                 destination.write(chunk)
 
-    report_rasterization_check_and_process(file_path)
 
-
-def load_raw_reports(reports_ids, report_type):
+def load_raw_reports(reports_ids, report_type, progress_recorder, progress_json, task_id):
     reports = []
     pages_count = {}
+    processed = 0.01
+    total = len(reports_ids)
+    progress_update(progress_recorder, task_id, progress_json, processed, ALL_PARTS)
     for report_id in reports_ids:
         report = report_type.objects.get(id=report_id)
         report.source = report.source_dict
@@ -393,12 +402,20 @@ def load_raw_reports(reports_ids, report_type):
                 source['path'] = new_filename
                 report.source[i]['path'] = new_filename
                 report.save()
-
-            with fitz.open(os.path.abspath(source['path'])) as pdf_doc:
+            path = os.path.abspath(source['path'])
+            with fitz.open(path) as pdf_doc:
                 pages_count[source['path']] = len(pdf_doc)
+            try:
+                report_rasterization_check_and_process(path, (progress_recorder, task_id, progress_json,
+                                                              processed / total * CONVERTATION_PART, ALL_PARTS))
+            except Exception as e:
+                logger.error(f'Ошибка OCR: {e}')
+                logger.error(traceback.format_exc())
             i += 1
         report.save()
         reports.append(report)
+        processed += 1
+        progress_update(progress_recorder, task_id, progress_json, processed / total * CONVERTATION_PART, ALL_PARTS)
     return reports, pages_count
 
 
@@ -443,9 +460,12 @@ def raw_account_cards_save(uploaded_files, user_id, is_public, upload_source=Non
     return account_cards_ids
 
 
-def load_raw_account_cards(account_cards_ids):
+def load_raw_account_cards(account_cards_ids, progress_recorder, progress_json, task_id):
     account_cards = []
     pages_count = {}
+    processed = 0.01
+    total = len(account_cards_ids)
+    progress_update(progress_recorder, task_id, progress_json, processed, ALL_PARTS)
     for account_card_id in account_cards_ids:
         account_card = ObjectAccountCard.objects.get(id=account_card_id)
         source_str = str(account_card.source)
@@ -468,6 +488,8 @@ def load_raw_account_cards(account_cards_ids):
             elif source['path'].lower().endswith('.pdf'):
                 with fitz.open(source['path']) as pdf_doc:
                     pages_count[source['path']] = len(pdf_doc)
+        processed += 1
+        progress_update(progress_recorder, task_id, progress_json, processed / total * CONVERTATION_PART, ALL_PARTS)
         account_card.save()
         account_cards.append(account_card)
     return account_cards, pages_count
@@ -497,9 +519,12 @@ def raw_commercial_offers_save(uploaded_files, user_id, is_public, upload_source
     return commercial_offers_ids
 
 
-def load_raw_commercial_offers(commercial_offers_ids):
+def load_raw_commercial_offers(commercial_offers_ids, progress_recorder, progress_json, task_id):
     commercial_offers = []
     pages_count = {}
+    processed = 0.01
+    total = len(commercial_offers_ids)
+    progress_update(progress_recorder, task_id, progress_json, processed, ALL_PARTS)
     for commercial_offer_id in commercial_offers_ids:
         commercial_offer = CommercialOffers.objects.get(id=commercial_offer_id)
         i = 0
@@ -525,6 +550,8 @@ def load_raw_commercial_offers(commercial_offers_ids):
                 df = pd.read_excel(commercial_offer.source, engine='openpyxl')
             commercial_offer.source = new_filename
             pages_count[commercial_offer.source] = len(df)
+        processed += 1
+        progress_update(progress_recorder, task_id, progress_json, processed / total * CONVERTATION_PART, ALL_PARTS)
         commercial_offer.save()
         commercial_offers.append(commercial_offer)
     return commercial_offers, pages_count
@@ -554,12 +581,17 @@ def raw_geo_objects_save(uploaded_files, user_id, is_public, upload_source=None)
     return account_cards_ids
 
 
-def load_raw_geo_objects(geo_objects_ids):
+def load_raw_geo_objects(geo_objects_ids, progress_recorder, progress_json, task_id):
     geo_objects = []
     pages_count = {}
+    processed = 0.01
+    total = len(geo_objects_ids)
+    progress_update(progress_recorder, task_id, progress_json, processed, ALL_PARTS)
     for geo_object_id in geo_objects_ids:
         geo_object = GeoObject.objects.get(id=geo_object_id)
         geo_object.save()
         pages_count[geo_object.source] = 1
         geo_objects.append(geo_object)
+        processed += 1
+        progress_update(progress_recorder, task_id, progress_json, processed / total * CONVERTATION_PART, ALL_PARTS)
     return geo_objects, pages_count

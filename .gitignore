@@ -164,6 +164,7 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 .idea/
 
+profile_output/
 uploaded_files/**
 !uploaded_files/regions_polygons/
 !uploaded_files/regions_polygons/**

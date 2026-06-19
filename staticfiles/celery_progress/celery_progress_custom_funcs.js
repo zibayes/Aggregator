@@ -132,21 +132,29 @@ function onProgressCustom(progressBarElement, progressBarMessageElement, progres
             progressBarMessageElement.textContent = this.messages.started;
         }
     } else {
+        // console.log(progress);
         if (description !== '') {
-            progressBarMessageElement.innerHTML = 'Статус: Идёт загрузка и обработка <strong>' +
+            status = 'Обработка'
+            if (description.status === 'convertation') {
+                status = 'Конвертация'
+            } else if (description.status === 'ocr') {
+                status = 'Создание текстового слоя: ' + description.ocr;
+            }
+            progressBarMessageElement.innerHTML = 'Статус: ' + status + ' <strong>' +
                 report_types[description.file_types] + '</strong>';
             let expected_time = ''
             if (description.expected_time !== undefined) {
                 expected_time = 'Ожидаемое время выполнения: ' + description.expected_time
             }
             let progress_div = progressBarMessageElement.nextElementSibling.nextElementSibling;
-            progress_div.textContent = "Прогресс: Всего обработано " +
-                progress.current + '/' + progress.total + ' страниц (' + progress.percent + "%" + ') ' + expected_time;
+            progress_div.textContent = "Прогресс: " + progress.percent + "%" + '; ' + expected_time;
             progress_div.nextElementSibling.textContent = 'Время начала обработки: ' + description.time_started;
             if (description.time_ended !== undefined) {
                 progress_div.nextElementSibling.nextElementSibling.textContent = 'Время окончания обработки: ' + description.time_ended + expected_time;
             }
-            add_process_status(progressBarMessageElement, description, 'False')
+            if (description.file_groups !== undefined) {
+                add_process_status(progressBarMessageElement, description, 'False')
+            }
         }
     }
 }

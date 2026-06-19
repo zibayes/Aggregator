@@ -426,7 +426,7 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
 
     page_tables = pdf.pages[page_number].extract_tables()
     next_page_tables = None
-    if page_number + 1 < len(pdf.pages):
+    if len(page_tables) > 0 and page_number + 1 < len(pdf.pages):
         next_page_tables = pdf.pages[page_number + 1].extract_tables()
     if page_number < len(document) - 1:
         next_page = document[page_number + 1]

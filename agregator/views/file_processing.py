@@ -2,6 +2,7 @@ import os.path
 import re
 import json
 import logging
+import traceback
 from time import time
 
 import pandas as pd
@@ -37,7 +38,7 @@ from agregator.processing.geo_objects_processing import process_geo_objects
 from agregator.processing.utils import str_is_int
 from agregator.views.utils import upload_entity_view, get_user_tasks
 from agregator.redis_config import redis_client
-from agregator.processing.error_handler import error_handler
+from agregator.processing.error_handler import error_handler, delete_instances_on_task_revoke
 
 logger = logging.getLogger(__name__)
 
@@ -404,12 +405,17 @@ def doc_reprocess(request, pk):
 # @owner_or_admin_required(UserTasks)
 def download_delete(request, task_id):
     try:
+        delete_instances_on_task_revoke(task_id)
+        task = AsyncResult(task_id)
+        task.revoke(terminate=True)
         redis_client.delete(task_id)
         redis_client.delete('celery-task-meta-' + str(task_id))
-    except Exception:
-        print("Ошибка подключения к Redis")
-    UserTasks.objects.filter(task_id=task_id).delete()
-    TaskResult.objects.filter(task_id=task_id).delete()
+        UserTasks.objects.filter(task_id=task_id).delete()
+        TaskResult.objects.filter(task_id=task_id).delete()
+    except Exception as e:
+        logger.error(f"Ошибка удаления задачи: {e}")
+        logger.error(traceback.format_exc())
+
     return JsonResponse({'response': 'deleted'})
 
 

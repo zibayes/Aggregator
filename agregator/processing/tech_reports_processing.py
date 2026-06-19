@@ -12,6 +12,8 @@ import pandas as pd
 import pdfplumber
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
+import traceback
+import logging
 
 from agregator.processing.coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
 from agregator.processing.files_saving import load_raw_reports
@@ -21,6 +23,8 @@ from agregator.processing.images_extraction import extract_images_with_captions,
 from agregator.models import TechReport
 from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents
+
+logger = logging.getLogger(__name__)
 
 
 def choose_file() -> str:
@@ -32,47 +36,17 @@ def choose_file() -> str:
 
 @shared_task(bind=True)
 def process_tech_reports(self, reports_ids, user_id, select_text, select_enrich, select_image, select_coord):
-    return process_documents(self, reports_ids, user_id, 'tech_reports', model_class=TechReport,
-                             load_function=load_raw_reports,
-                             select_text=select_text, select_enrich=select_enrich, select_image=select_image,
-                             select_coord=select_coord,
-                             process_function=extract_text_and_images)
-    progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(0, 100, '')
-    reports, pages_count = load_raw_reports(reports_ids, TechReport)
-    # delete_files_in_directory('uploaded_files/users/' + str(user_id), uploaded_files)
-    total_processed = [0]
-    file_groups = {}
-    for report in reports:
-        for source in report.source_dict:
-            file = source.copy()
-            file['processed'] = 'False'
-            file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
-            if str(report.id) in file_groups.keys():
-                file_groups[str(report.id)].append(file)
-            else:
-                file_groups[str(report.id)] = [file]
-    progress_json = {'user_id': user_id, 'file_groups': file_groups, 'file_types': 'tech_reports',
-                     'time_started': datetime.now().strftime(
-                         "%Y-%m-%d %H:%M:%S")}
-    redis_client.set(self.request.id, json.dumps(progress_json))
-    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-    for current_report in reports:
-        i = 0
-        for source in current_report.source_dict:
-            if not source['path'].lower().endswith(('.pdf', '.doc', '.docx')):
-                continue
-            progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'Processing'
-            extract_text_and_images(current_report, source['path'], progress_recorder, pages_count,
-                                    total_processed, progress_json, current_report.id, i, self.request.id, user_id,
-                                    current_report.is_public, select_text, select_enrich, select_image, select_coord)
-            progress_json['file_groups'][str(current_report.id)][i]['pages']['processed'] = \
-                progress_json['file_groups'][str(current_report.id)][i]['pages']['all']
-            progress_json['file_groups'][str(current_report.id)][i]['processed'] = 'True'
-            redis_client.set(self.request.id, json.dumps(progress_json))
-            progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
-            i += 1
-    progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    progress_json = None
+    try:
+        progress_json = process_documents(self, reports_ids, user_id, 'tech_reports', model_class=TechReport,
+                                          load_function=load_raw_reports,
+                                          select_text=select_text, select_enrich=select_enrich,
+                                          select_image=select_image,
+                                          select_coord=select_coord,
+                                          process_function=extract_text_and_images)
+    except Exception as e:
+        logger.error(f'Критическая ошибка при обработке научно-технических отчётов {reports_ids}: {e}')
+        logger.error(traceback.format_exc())
     return progress_json
 
 

@@ -9,6 +9,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+CONVERTATION_PART = 20
+PROCESSING_PART = 80
+ALL_PARTS = 100
+
+
+def progress_update(progress_recorder, task_id, progress_json, total_processed, max_val):
+    """Функция обновления прогресс бара"""
+    redis_client.set(task_id, json.dumps(progress_json))
+    progress_recorder.set_progress(total_processed, max_val, progress_json)
+
 
 def process_documents(
         self,
@@ -41,15 +51,26 @@ def process_documents(
         select_coord: флаг извлечения координат
         additional_params: дополнительные параметры для process_function
     """
+    progress_json = {
+        'user_id': user_id,
+        'file_types': document_type,
+        'time_started': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        'status': 'convertation'
+    }
+
     progress_recorder = ProgressRecorder(self)
-    progress_recorder.set_progress(0, 100, '')
+    progress_recorder.set_progress(0, ALL_PARTS, progress_json)
+
+    task_id = self.request.id
+    logger.info(f'task_id = {task_id}')
 
     # Загрузка документов
     if document_type in ['scientific_reports', 'acts', 'tech_reports']:
-        documents, pages_count = load_function(document_ids, model_class)
+        documents, pages_count = load_function(document_ids, model_class, progress_recorder, progress_json, task_id)
     else:
-        documents, pages_count = load_function(document_ids)
+        documents, pages_count = load_function(document_ids, progress_recorder, progress_json, task_id)
 
+    progress_json['status'] = 'processing'
     total_processed = [0]
     file_groups = {}
 
@@ -93,15 +114,10 @@ def process_documents(
             print('file=' + str(file))
             file_groups[str(doc.id)] = file
 
-    progress_json = {
-        'user_id': user_id,
-        'file_groups': file_groups,
-        'file_types': document_type,
-        'time_started': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    }
+    progress_json['file_groups'] = file_groups
 
-    redis_client.set(self.request.id, json.dumps(progress_json))
-    progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
+    progress_update(progress_recorder, task_id, progress_json,
+                    CONVERTATION_PART + PROCESSING_PART * (total_processed[0] / sum(pages_count.values())), ALL_PARTS)
 
     # Обработка документов
     for doc in documents:
@@ -129,19 +145,19 @@ def process_documents(
                     if document_type == 'acts':
                         process_function(
                             path, progress_recorder, pages_count, total_processed,
-                            progress_json, doc.id, i, self.request.id, user_id,
+                            progress_json, doc.id, i, task_id, user_id,
                             getattr(doc, 'is_public', False), select_text, select_enrich, select_image, select_coord
                         )
                     elif document_type in ['commercial_offers', 'account_cards', 'open_lists', 'geo_objects']:
                         time_on_start = datetime.now()
                         process_function(
                             path, progress_recorder, pages_count, total_processed,
-                            doc.id, progress_json, self.request.id, time_on_start
+                            doc.id, progress_json, task_id, time_on_start
                         )
                     else:
                         process_function(
                             doc, path, progress_recorder, pages_count, total_processed,
-                            progress_json, doc.id, i, self.request.id, user_id,
+                            progress_json, doc.id, i, task_id, user_id,
                             getattr(doc, 'is_public', False), select_text, select_enrich, select_image, select_coord
                         )
                 else:
@@ -163,8 +179,9 @@ def process_documents(
                 progress_json['file_groups'][str(doc.id)]['processed'] = processed
                 progress_json['file_groups'][str(doc.id)]['error_text'] = error_text
 
-            redis_client.set(self.request.id, json.dumps(progress_json))
-            progress_recorder.set_progress(total_processed[0], sum(pages_count.values()), progress_json)
+            progress_update(progress_recorder, task_id, progress_json,
+                            CONVERTATION_PART + PROCESSING_PART * (total_processed[0] / sum(pages_count.values())),
+                            ALL_PARTS)
             i += 1
 
     progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

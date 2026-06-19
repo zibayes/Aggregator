@@ -15,13 +15,15 @@ import pandas as pd
 import pdfplumber
 from celery import shared_task
 
+from agregator.decorators import profiled
 from agregator.processing.files_saving import load_raw_reports
 from agregator.hash import calculate_file_hash
 from agregator.processing.images_extraction import extract_images_with_captions, insert_supplement_links, \
     SUPPLEMENT_CONTENT
 from agregator.models import Act
 from agregator.redis_config import redis_client
-from agregator.celery_task_template import process_documents
+from agregator.celery_task_template import process_documents, progress_update, CONVERTATION_PART, PROCESSING_PART, \
+    ALL_PARTS
 from agregator.processing.coordinates_tables import search_coords_in_text
 from agregator.processing.batch_registry_utils import RegistryManager
 from agregator.processing.batch_kml_utils import KMLParser
@@ -46,6 +48,7 @@ def choose_pdf_file() -> str:
 
 
 @shared_task(bind=True)
+@profiled(enabled=True)
 def process_acts(self, acts_ids, user_id, select_text, select_enrich, select_image, select_coord):
     progress_json = None
     try:
@@ -56,6 +59,7 @@ def process_acts(self, acts_ids, user_id, select_text, select_enrich, select_ima
                                           process_function=extract_text_and_images)
     except Exception as e:
         logger.error(f'Критическая ошибка при обработке актов {acts_ids}: {e}')
+        logger.error(traceback.format_exc())
     return progress_json
 
 
@@ -88,7 +92,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                     act_hash = calculate_file_hash(source_path)
                     if file_hash == act_hash:
                         raise FileExistsError(
-                            f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
+                            f"Такой файл уже загружен в систему (act.id = {act.id}): {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
 
     # Открываем PDF-файл
     if not os.path.exists(pdf_file):
@@ -210,9 +214,9 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                 hours, remainder = divmod(total_seconds, 3600)
                 minutes, seconds = divmod(remainder, 60)
                 progress_json['expected_time'] = f"{hours:02}:{minutes:02}:{seconds:02}"
-                redis_client.set(task_id, json.dumps(progress_json))
-                progress_recorder.set_progress(pages_processed, sum(pages_count.values()),
-                                               progress_json)
+                progress_update(progress_recorder, task_id, progress_json,
+                                CONVERTATION_PART + PROCESSING_PART * (pages_processed / sum(pages_count.values())),
+                                ALL_PARTS)
                 page = document[page_number]
                 # Извлечение текста
                 text = page.get_text()

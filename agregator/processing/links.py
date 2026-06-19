@@ -2,6 +2,10 @@ import os
 from django.urls import reverse
 from django.conf import settings
 from archeology.settings import BASE_URL
+import logging
+import traceback
+
+logger = logging.getLogger(__name__)
 
 
 def create_url_file(file_path, target_url):
@@ -65,12 +69,15 @@ def create_link_for_instance(instance):
             target_url = get_object_url(instance)
             link_filename = f"{instance.__class__.__name__}_{instance.id}.url"
             link_path = os.path.join(link_dir, link_filename)
+            logger.info(f'link_path: {link_path}')
+            logger.info(f'target_url: {target_url}')
 
             create_url_file(link_path, target_url)
             return link_path
 
     except Exception as e:
-        print(f"Error creating link for {instance}: {e}")
+        logger.error(f"Error creating link for {instance}: {e}")
+        logger.error(traceback.format_exc())
     return None
 
 
