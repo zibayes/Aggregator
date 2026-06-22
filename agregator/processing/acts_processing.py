@@ -3,6 +3,7 @@ import json
 import math
 import os
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 from tkinter import filedialog
@@ -68,10 +69,13 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                             select_enrich, select_image,
                             select_coord):
     use_kml = False
+    start_time = time.time()
+    logger.info(f"ОБРАБАТЫВАЕТСЯ АКТ: {file}")
     supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
     # coordinates = copy.deepcopy(COORDINATES_SAMPLE)
     coordinates = {}
     pdf_file = file  # pdf_file = 'uploaded_files/' + file
+    file_hash = calculate_file_hash(pdf_file)
 
     current_act = Act.objects.get(id=act_id)
     source_info = current_act.source_dict[source_index]
@@ -86,13 +90,15 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     for act in acts:
         if act.source_dict is not None:
             for source in act.source_dict:
-                source_path = source['path']
-                if act.id != act_id and os.path.isfile(source_path):
-                    file_hash = calculate_file_hash(pdf_file)
-                    act_hash = calculate_file_hash(source_path)
+                if act.id != act_id:
+                    act_hash = source['file_hash']
+                    source_path = source['path']
+                    if not act_hash and os.path.isfile(source_path):
+                        act_hash = calculate_file_hash(source_path)
                     if file_hash == act_hash:
                         raise FileExistsError(
                             f"Такой файл уже загружен в систему (act.id = {act.id}): {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
+    logger.info(f"После проверки хеша: {round((time.time() - start_time), 2)} секунд")
 
     # Открываем PDF-файл
     if not os.path.exists(pdf_file):
@@ -101,7 +107,6 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
 
     try:
         document = fitz.open(pdf_file)
-        pdf = pdfplumber.open(pdf_file)
     except Exception as e:
         logger.error(f'Ошибка при открытии файла акта id = {current_act.id}! Обработка остановлена!')
         return
@@ -110,6 +115,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     Path(folder).mkdir(exist_ok=True)
 
     if select_coord:
+        logger.info(f"До извлечения координат из KML: {round((time.time() - start_time), 2)} секунд")
         kml_path = None
         try:
             kml_path = KMLParser.find_kml_for_pdf(pdf_file)
@@ -137,6 +143,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                 logger.warning("❌ Не удалось извлечь координаты из KML")
         else:
             logger.info("ℹ️ KML файл не найден, используем координаты из PDF")
+        logger.info(f"После извлечения координат из KML: {round((time.time() - start_time), 2)} секунд")
 
     # Разделы
     SECTIONS = OrderedDict([
@@ -195,6 +202,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     full_name = False
     full_text = None
     tables = []
+    logger.info(f"После подготовки разделов: {round((time.time() - start_time), 2)} секунд")
 
     # Создаем или очищаем текстовый файл
     with open(folder + "/" + "text.txt", "w", encoding="utf-8") as text_file:
@@ -204,7 +212,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         time_on_start = datetime.now()
         for page_number in range(len(document)):
             try:
-                logger.info(f"Pages of {pdf_file} - {page_number}/{len(document)}")
+                logger.info(
+                    F"--- Старт страницы {page_number}/{len(document)} / Время выполнения: {round((time.time() - start_time), 2)} секунд ---")
                 pages_processed = total_processed[0] + page_number
                 progress_json['file_groups'][str(act_id)][source_index]['pages']['processed'] = page_number
                 expected_time = ((datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1)) * (
@@ -266,7 +275,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                                              text_to_write)
                         elif current_section_name == 'expert':
                             several_experts, full_name = extract_expert(text_to_write, several_experts, full_name,
-                                                                        table_info, pdf, page_number)
+                                                                        table_info, document, page_number)
                         elif current_section_name == 'object':
                             object_info, exploration_object = extract_object(object_info, exploration_object, text,
                                                                              text_to_write, table_info, SQUARE_RESERVE)
@@ -324,7 +333,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                 if select_coord and not use_kml:
                     if re.search(r'Выписка\s+из\s+Единого\s+государственного\s+реестра', text, re.IGNORECASE):
                         continue
-                    search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
+                    search_coords_in_text(page_number, document, tables, text, coordinates)
             except Exception as e:
                 logger.error(f'Ошибка при обработке страницы №{page_number} акта id = {current_act.id}: {e}')
                 logger.error(traceback.format_exc())
@@ -341,11 +350,14 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
             print('COORDS!!!!: ' + str(coordinates))
     '''
 
+    logger.info("--- Конец обработки / Время выполнения: %s секунд ---" % round((time.time() - start_time), 2))
+
     if ('Площадь, протяжённость и/или др. параменты объекта' not in table_info.keys() or \
         'Общ. S' not in table_info['Площадь, протяжённость и/или др. параменты объекта']) and len(SQUARE_RESERVE) > 0:
         table_info['Площадь, протяжённость и/или др. параменты объекта'] = 'Общ. S = ' + SQUARE_RESERVE[0]
     document.close()
-    pdf.close()
+
+    logger.info("--- ПДФка закрыта / Время выполнения: %s секунд ---" % round((time.time() - start_time), 2))
 
     if select_text and select_enrich:
         logger.info("=== ОБОГАЩЕНИЕ ДАННЫХ ИЗ РЕЕСТРА ===")
@@ -367,6 +379,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
             logger.error(f"Ошибка при вставке ссылок на иллюстрации для акта id = {current_act.id}: {e}")
 
     try:
+        logger.info("--- Заполнение БД / Время выполнения: %s секунд ---" % round((time.time() - start_time), 2))
         if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('text', 'all'):
             current_act.year = df_new['ГОД'][0]
             current_act.finish_date = df_new['Дата окончания проведения ГИКЭ'][0]

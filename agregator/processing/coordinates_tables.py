@@ -419,15 +419,15 @@ def extract_coordinates_xlsx(file_path):
     return None, None
 
 
-def search_coords_in_text(pdf, page_number, document, tables, text, coordinates):
+def search_coords_in_text(page_number, document, tables, text, coordinates):
     found_table = False
     points_type = None
     coords_system = None
 
-    page_tables = pdf.pages[page_number].extract_tables()
+    page_tables = [table.extract() for table in document[page_number].find_tables()]
     next_page_tables = None
-    if len(page_tables) > 0 and page_number + 1 < len(pdf.pages):
-        next_page_tables = pdf.pages[page_number + 1].extract_tables()
+    if len(page_tables) > 0 and page_number + 1 < len(document):
+        next_page_tables = document[page_number + 1].extract_tables()
     if page_number < len(document) - 1:
         next_page = document[page_number + 1]
         text += next_page.get_text()
@@ -504,8 +504,9 @@ def search_coords_in_text(pdf, page_number, document, tables, text, coordinates)
                                         next_page_joined = False
                                         break
                                 # page_tables[i] += next_page_tables[0]
-                            if page_number + k < len(pdf.pages):
-                                next_page_tables = pdf.pages[page_number + k].extract_tables()
+                            if page_number + k < len(document):
+                                next_page_tables = [table.extract() for table in
+                                                    document[page_number + k].find_tables()]
                                 k += 1
                 if len(page_tables[i]) > 1 and len(page_tables[i][0]) > 1:
                     print(page_tables[i][0], page_tables[i][1])

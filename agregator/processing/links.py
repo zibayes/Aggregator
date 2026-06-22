@@ -69,10 +69,9 @@ def create_link_for_instance(instance):
             target_url = get_object_url(instance)
             link_filename = f"{instance.__class__.__name__}_{instance.id}.url"
             link_path = os.path.join(link_dir, link_filename)
-            logger.info(f'link_path: {link_path}')
-            logger.info(f'target_url: {target_url}')
 
-            create_url_file(link_path, target_url)
+            if not os.path.isfile(link_path) and os.path.isdir(link_dir):
+                create_url_file(link_path, target_url)
             return link_path
 
     except Exception as e:

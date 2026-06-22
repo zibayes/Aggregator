@@ -34,7 +34,7 @@ months = {'января': '01', 'февраля': '02', 'марта': '03', 'а�
           'июля': '07',
           'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12', }
 
-RE_ACT_HEADER = re.compile(r'А\s*К\s*Т *(?!.*государственной)№? *[\S\d\/\-– ]*',
+RE_ACT_HEADER = re.compile(r'А\s*К\s*Т *(?!.*(?:государственной|электр.+подпис.+))№? *[\S\d\/\-– ]*',
                            re.I)  # А *К *Т *№* *\d*/*\d*(?!.*подписан).*
 RE_ACT_SECTION = re.compile(r'Акт', re.I)
 RE_ACT_NAST = re.compile(r'Настоящий Акт', re.I)
@@ -46,16 +46,10 @@ def extract_act_name(text, current_section_idx, text_file, page_number, table_in
     # А *К *Т *№* *\d*/*\d*\n*(?!.*подписан).*\n*.*
     # А *К *Т № \d+/*\d*\n*.*
     text_to_write = ''
+    obj = None
     if act:
         text_to_write = act.group(0)
-        if '№' not in text_to_write and 'б/н' not in text_to_write.lower():
-            text_to_write += " б/н "
         obj = RE_ACT_OBJECT.search(text)
-        if obj:
-            exploration_object = True
-            if not text_to_write.endswith(' '):
-                text_to_write += ' '
-            text_to_write += obj.group(0)
     else:
         start = RE_ACT_SECTION.search(text)
         end = RE_ACT_NAST.search(text)
@@ -66,6 +60,11 @@ def extract_act_name(text, current_section_idx, text_file, page_number, table_in
     current_section_idx += 1
     if '№' not in text_to_write and 'б/н' not in text_to_write.lower():
         text_to_write += " б/н"
+    if obj:
+        exploration_object = True
+        if not text_to_write.endswith(' '):
+            text_to_write += ' '
+        text_to_write += obj.group(0)
     table_info['Номер (если имеется) и наименование Акта ГИКЭ'] = text_to_write.strip()
     return current_section_idx, exploration_object
 
@@ -246,7 +245,7 @@ RE_EXPERT_NAME_BEFORE_COMMA_EDU = re.compile(r'[А-Яа-яёЁ]+\s*[А-Яа-яё
                                              re.IGNORECASE)
 
 
-def extract_expert(text_to_write, several_experts, full_name, table_info, pdf, page_number):
+def extract_expert(text_to_write, several_experts, full_name, table_info, document, page_number):
     if RE_EXPERT_MULTI_START.search(text_to_write) or several_experts:
         names = []
         if not full_name:
@@ -296,10 +295,10 @@ def extract_expert(text_to_write, several_experts, full_name, table_info, pdf, p
                     name = name.group(0)
                     table_info['Эксперт (физ. или юр.лицо)'] = name
                 else:
-                    page_tables = pdf.pages[page_number].extract_tables()
-                    if page_tables and len(page_tables[0]) >= 5 and page_tables[0][4][
-                        0] == 'ФИО эксперта':
-                        table_info['Эксперт (физ. или юр.лицо)'] = page_tables[0][4][1]
+                    page_tables = [table.extract() for table in document[page_number].find_tables()]
+                    for table in page_tables:
+                        if len(table) >= 5 and table[4][0] == 'ФИО эксперта':
+                            table_info['Эксперт (физ. или юр.лицо)'] = page_tables[0][4][1]
     return several_experts, full_name
 
 

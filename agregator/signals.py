@@ -27,14 +27,14 @@ def auto_create_links(sender, instance, created, **kwargs):
     # logger.info(f"Сигнал post_save: sender={sender}, class_name={class_name}, created={created}")
 
     if class_name in MODEL_NAMES:
-        if created:
+        if not created:
             logger.info(f"Создание ссылки для {class_name} (id={instance.id})")
             try:
                 link_path = create_link_for_instance(instance)
                 if link_path:
                     logger.info(f"Ссылка успешно создана: {link_path}")
                 else:
-                    logger.warning(f"Ссылка не создана для {class_name} (id={instance.id})")
+                    logger.warning(f"Ссылка не создана для {class_name} (id={instance.id}); link_path = {link_path}")
             except Exception as e:
                 logger.error(f"Ошибка при создании ссылки: {str(e)}", exc_info=True)
         else:

@@ -19,6 +19,7 @@ from agregator.models import Act, ScientificReport, TechReport, OpenLists, Objec
     GeoObject
 from agregator.processing.rasterized_reports_ocr import report_rasterization_check_and_process
 from agregator.celery_task_template import progress_update, PROCESSING_PART, ALL_PARTS, CONVERTATION_PART
+from agregator.hash import calculate_file_hash
 
 logger = logging.getLogger(__name__)
 
@@ -350,27 +351,19 @@ def save_report_source(report, file, path, report_directory, report_id, source_c
 
     file_path = path + '/' + file.name
 
-    # Вычисляем хеш файла
-    try:
-        from agregator.hash import calculate_file_hash
-        file_hash = calculate_file_hash(file_path)
-    except Exception as e:
-        logger.error(f"Ошибка при вычислении хеша файла {file_path}: {e}")
-        file_hash = None
-
     if index:
         source_content.append({
             'type': type,
             'path': file_path,
             'origin_filename': origin_name,
-            'file_hash': file_hash
+            'file_hash': None
         })
     else:
         source_content.append({
             'type': 'all',
             'path': file_path,
             'origin_filename': origin_name,
-            'file_hash': file_hash
+            'file_hash': None
         })
 
     with open(file_path, 'wb+') as destination:
@@ -411,6 +404,14 @@ def load_raw_reports(reports_ids, report_type, progress_recorder, progress_json,
             except Exception as e:
                 logger.error(f'Ошибка OCR: {e}')
                 logger.error(traceback.format_exc())
+
+            try:
+                file_hash = calculate_file_hash(source['path'])
+            except Exception as e:
+                logger.error(f"Ошибка при вычислении хеша файла {source['path']}: {e}")
+                file_hash = None
+            source['file_hash'] = file_hash
+
             i += 1
         report.save()
         reports.append(report)
@@ -441,18 +442,11 @@ def raw_account_cards_save(uploaded_files, user_id, is_public, upload_source=Non
         source_content = []
         file_path = path + '/' + file.name
 
-        try:
-            from agregator.hash import calculate_file_hash
-            file_hash = calculate_file_hash(file_path)
-        except Exception as e:
-            logger.error(f"Ошибка при вычислении хеша файла {file_path}: {e}")
-            file_hash = None
-
         source_content.append({
             'type': 'all',
             'path': file_path,
             'origin_filename': file.name,
-            'file_hash': file_hash
+            'file_hash': None
         })
         account_card.source = source_content
 
@@ -488,6 +482,12 @@ def load_raw_account_cards(account_cards_ids, progress_recorder, progress_json, 
             elif source['path'].lower().endswith('.pdf'):
                 with fitz.open(source['path']) as pdf_doc:
                     pages_count[source['path']] = len(pdf_doc)
+            try:
+                file_hash = calculate_file_hash(source['path'])
+            except Exception as e:
+                logger.error(f"Ошибка при вычислении хеша файла {source['path']}: {e}")
+                file_hash = None
+            source['file_hash'] = file_hash
         processed += 1
         progress_update(progress_recorder, task_id, progress_json, processed / total * CONVERTATION_PART, ALL_PARTS)
         account_card.save()

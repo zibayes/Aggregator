@@ -138,10 +138,14 @@ function onProgressCustom(progressBarElement, progressBarMessageElement, progres
             if (description.status === 'convertation') {
                 status = 'Конвертация'
             } else if (description.status === 'ocr') {
-                status = 'Создание текстового слоя: ' + description.ocr;
+                status = 'Создание текстового слоя';
             }
-            progressBarMessageElement.innerHTML = 'Статус: ' + status + ' <strong>' +
-                report_types[description.file_types] + '</strong>';
+            text = 'Статус: ' + status + ' <strong>' +
+                report_types[description.file_types] + '</strong>'
+            if (description.status === 'ocr') {
+                text = text + ' (' + description.ocr + ')';
+            }
+            progressBarMessageElement.innerHTML = text;
             let expected_time = ''
             if (description.expected_time !== undefined) {
                 expected_time = 'Ожидаемое время выполнения: ' + description.expected_time

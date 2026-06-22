@@ -218,7 +218,7 @@ LOGGING = {
         'agregator': {
             'handlers': ['console'],
             'level': 'DEBUG',
-            'propagate': True,
+            'propagate': False,
         },
         'celery': {
             'handlers': ['console'],
@@ -233,6 +233,7 @@ LOGGING = {
     },
 }
 
+'''
 CELERY_LOG_LEVEL = 'INFO'
 
 # Если нужно более детальное логирование задач
@@ -246,6 +247,7 @@ logging.basicConfig(
         logging.StreamHandler(),  # Вывод в stdout
     ]
 )
+'''
 
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
