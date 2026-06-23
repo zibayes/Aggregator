@@ -5,7 +5,7 @@ from datetime import datetime
 from celery import shared_task
 import logging
 
-from agregator.redis_config import redis_client
+from agregator.redis_config import redis_client, get_progress_json
 from agregator.models import CommercialOffers, ObjectAccountCard, Act, ScientificReport, TechReport, GeoObject, \
     OpenLists
 
@@ -21,36 +21,33 @@ def error_handler(model, task, exception, exception_desc):
 
 
 def delete_instances_on_task_revoke(task_id):
-    progress_json = redis_client.get(task_id)
+    progress_json = get_progress_json(task_id)
     if progress_json is None:
-        progress_json = redis_client.get('celery-task-meta-' + str(task_id))
-    if progress_json is not None:
-        progress_json = json.loads(progress_json)
-    else:
         return None
 
     model = progress_json['file_types']
     is_report = 'report' in model or 'act' in model
     model = get_model(model)
 
-    if is_report and 'file_groups' in progress_json:
-        for report_id, sources in progress_json['file_groups'].items():
-            deleted_report = False
-            for source in sources:
+    if 'file_groups' in progress_json:
+        if is_report:
+            for report_id, sources in progress_json['file_groups'].items():
+                deleted_report = False
+                for source in sources:
+                    if source['processed'] != 'True':
+                        report = model.objects.filter(id=report_id).first()
+                        if report:
+                            report.delete()
+                        deleted_report = True
+                        break
+                if deleted_report:
+                    continue
+        else:
+            for object_id, source in progress_json['file_groups'].items():
                 if source['processed'] != 'True':
-                    report = model.objects.filter(id=report_id).first()
-                    if report:
-                        report.delete()
-                    deleted_report = True
-                    break
-            if deleted_report:
-                continue
-    else:
-        for object_id, source in progress_json['file_groups'].items():
-            if source['processed'] != 'True':
-                model_object = model.objects.filter(id=object_id).first()
-                if model_object:
-                    model_object.delete()
+                    model_object = model.objects.filter(id=object_id).first()
+                    if model_object:
+                        model_object.delete()
     return progress_json
 
 

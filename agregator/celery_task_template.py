@@ -20,6 +20,16 @@ def progress_update(progress_recorder, task_id, progress_json, total_processed, 
     progress_recorder.set_progress(total_processed, max_val, progress_json)
 
 
+def get_expected_time(time_on_start, pages_processed, pages_count):
+    expected_time = ((datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1)) * (
+            sum(
+                pages_count.values()) - pages_processed)
+    total_seconds = int(expected_time.total_seconds())
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+
 def process_documents(
         self,
         document_ids,
@@ -32,6 +42,7 @@ def process_documents(
         select_enrich=None,
         select_image=None,
         select_coord=None,
+        progress_json=None,
         additional_params=None
 ):
     """
@@ -51,12 +62,15 @@ def process_documents(
         select_coord: флаг извлечения координат
         additional_params: дополнительные параметры для process_function
     """
-    progress_json = {
-        'user_id': user_id,
-        'file_types': document_type,
-        'time_started': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-        'status': 'convertation'
-    }
+    if progress_json is None:
+        progress_json = {
+            'user_id': user_id,
+            'file_types': document_type,
+            'time_started': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'status': 'convertation'
+        }
+    elif 'status' in progress_json and progress_json['status'] == 'success':
+        return progress_json
 
     progress_recorder = ProgressRecorder(self)
     progress_recorder.set_progress(0, ALL_PARTS, progress_json)
@@ -75,46 +89,47 @@ def process_documents(
     file_groups = {}
 
     # Подготовка структуры file_groups в зависимости от типа документа
-    if document_type in ['scientific_reports', 'acts', 'tech_reports']:
-        for doc in documents:
-            for source in doc.source_dict:
-                file = source.copy()
-                file['processed'] = 'False'
-                file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
-                print('file=' + str(file))
-                if str(doc.id) in file_groups:
-                    file_groups[str(doc.id)].append(file)
-                else:
-                    file_groups[str(doc.id)] = [file]
-    else:
-        for doc in documents:
-            source_path = origin_filename = None
-            if document_type == 'account_cards':
-                if doc.source_dict and len(doc.source_dict) > 0:
-                    if '.doc' in doc.source:
-                        for source in doc.source_dict:
-                            if '.doc' in source['path']:
-                                source_path = source['path']
-                                origin_filename = source['origin_filename']
-                                break
+    if 'file_groups' not in progress_json:
+        if document_type in ['scientific_reports', 'acts', 'tech_reports']:
+            for doc in documents:
+                for source in doc.source_dict:
+                    file = source.copy()
+                    file['processed'] = 'False'
+                    file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
+                    print('file=' + str(file))
+                    if str(doc.id) in file_groups:
+                        file_groups[str(doc.id)].append(file)
                     else:
-                        source_path = doc.source_dict[0]['path']
-                        origin_filename = doc.source_dict[0]['origin_filename']
-            else:
-                source_path = doc.source.path if hasattr(doc, 'source') and hasattr(doc.source,
-                                                                                    'path') else f'uploaded_files/{doc.source}' if 'uploaded_files/' not in doc.source else doc.source  # doc.source if hasattr(doc, 'source') else f'uploaded_files/{doc.source.name}'
-                source_path = source_path.replace('/app/uploaded_files/', 'uploaded_files/')
-                origin_filename = doc.origin_filename
-            file = {
-                'path': source_path,
-                'origin_filename': origin_filename,
-                'processed': 'False',
-                'pages': {'processed': '0', 'all': pages_count.get(str(doc.id), pages_count.get(source_path, 0))}
-            }
-            print('file=' + str(file))
-            file_groups[str(doc.id)] = file
+                        file_groups[str(doc.id)] = [file]
+        else:
+            for doc in documents:
+                source_path = origin_filename = None
+                if document_type == 'account_cards':
+                    if doc.source_dict and len(doc.source_dict) > 0:
+                        if '.doc' in doc.source:
+                            for source in doc.source_dict:
+                                if '.doc' in source['path']:
+                                    source_path = source['path']
+                                    origin_filename = source['origin_filename']
+                                    break
+                        else:
+                            source_path = doc.source_dict[0]['path']
+                            origin_filename = doc.source_dict[0]['origin_filename']
+                else:
+                    source_path = doc.source.path if hasattr(doc, 'source') and hasattr(doc.source,
+                                                                                        'path') else f'uploaded_files/{doc.source}' if 'uploaded_files/' not in doc.source else doc.source  # doc.source if hasattr(doc, 'source') else f'uploaded_files/{doc.source.name}'
+                    source_path = source_path.replace('/app/uploaded_files/', 'uploaded_files/')
+                    origin_filename = doc.origin_filename
+                file = {
+                    'path': source_path,
+                    'origin_filename': origin_filename,
+                    'processed': 'False',
+                    'pages': {'processed': '0', 'all': pages_count.get(str(doc.id), pages_count.get(source_path, 0))}
+                }
+                print('file=' + str(file))
+                file_groups[str(doc.id)] = file
 
-    progress_json['file_groups'] = file_groups
+        progress_json['file_groups'] = file_groups
 
     progress_update(progress_recorder, task_id, progress_json,
                     CONVERTATION_PART + PROCESSING_PART * (total_processed[0] / sum(pages_count.values())), ALL_PARTS)
@@ -134,8 +149,12 @@ def process_documents(
                 continue
 
             if document_type in ['scientific_reports', 'acts', 'tech_reports']:
+                if progress_json['file_groups'][str(doc.id)][i]['processed'] == 'True':
+                    continue
                 progress_json['file_groups'][str(doc.id)][i]['processed'] = 'Processing'
             else:
+                if progress_json['file_groups'][str(doc.id)]['processed'] == 'True':
+                    continue
                 progress_json['file_groups'][str(doc.id)]['processed'] = 'Processing'
 
             # Вызов функции обработки
@@ -184,5 +203,6 @@ def process_documents(
                             ALL_PARTS)
             i += 1
 
+    progress_json['status'] = 'success'
     progress_json['time_ended'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return progress_json

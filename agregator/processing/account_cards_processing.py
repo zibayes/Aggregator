@@ -28,7 +28,9 @@ from agregator.processing.files_saving import load_raw_account_cards
 from agregator.hash import calculate_file_hash
 from agregator.models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
 from agregator.redis_config import redis_client
-from agregator.celery_task_template import process_documents
+from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
+    PROCESSING_PART, \
+    ALL_PARTS
 from agregator.processing.geo_utils import calculate_polygons_area, dms_to_decimal, normalize_coordinates
 from agregator.processing.batch_kml_utils import KMLParser
 
@@ -689,7 +691,7 @@ def process_all_tables_universal(nested_tables: List[List[List[str]]]) -> Dict[s
     return coordinates
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, acks_late=True, max_retries=3)
 def process_account_cards(self, account_cards_ids, user_id):
     return process_documents(self, account_cards_ids, user_id, 'account_cards', model_class=ObjectAccountCard,
                              load_function=load_raw_account_cards,
@@ -705,33 +707,15 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
     coordinates = {}
 
     account_cards = ObjectAccountCard.objects.all()
+    file_hash = calculate_file_hash(file)
     for account_card in account_cards:
         if account_card.source and account_card.id != account_card_id and os.path.isfile(account_card.source):
-            file_hash = calculate_file_hash(file)
             account_card_hash = calculate_file_hash(account_card.source)
             if file_hash == account_card_hash:
                 raise FileExistsError(
                     f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(account_card_id)]['origin_filename']}")
 
     current_account_card = ObjectAccountCard.objects.get(id=account_card_id)
-
-    '''
-    extracted_images = []
-    current_part = 0
-    time_on_start = datetime.now()
-    for page_number in range(len(document)):
-        pages_processed = total_processed[0] + page_number
-        progress_json['file_groups'][str(act_id)][source_index]['pages']['processed'] = page_number
-        expected_time = ((datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1)) * (sum(
-            pages_count.values()) - pages_processed)
-        total_seconds = int(expected_time.total_seconds())
-        hours, remainder = divmod(total_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        progress_json['expected_time'] = f"{hours:02}:{minutes:02}:{seconds:02}"
-        redis_client.set(task_id, json.dumps(progress_json))
-        progress_recorder.set_progress(pages_processed, sum(pages_count.values()),
-                                       progress_json)
-    '''
 
     # folder = file[:file.rfind(".")]
     folder = file[:file.rfind("/") + 1] + 'Изображения'
@@ -741,6 +725,11 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
     try:
         if file.endswith(('.doc', '.docx')):
             doc = Document(file)
+            pages_processed = total_processed[0] + pages_count.get(current_account_card.source, 0)
+            progress_json['expected_time'] = get_expected_time(time_on_start, pages_processed, pages_count)
+            progress_update(progress_recorder, task_id, progress_json,
+                            CONVERTATION_PART + PROCESSING_PART * (pages_processed / sum(pages_count.values())),
+                            ALL_PARTS)
 
             text = []
             for paragraph in doc.paragraphs:
@@ -894,6 +883,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                                                         sorted(coordinates['Каталог координат'])}
 
             calculate_polygons_area(coordinates)
+            total_processed[0] += pages_count.get(current_account_card.source, 0)
 
 
 
@@ -903,6 +893,12 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
             image_blocks = []  # список найденных изображений для привязки подписей
             caption_blocks = []  # список подписей
             for page_number in range(len(doc)):
+                pages_processed = total_processed[0] + page_number
+                progress_json['expected_time'] = get_expected_time(time_on_start, pages_processed, pages_count)
+                progress_update(progress_recorder, task_id, progress_json,
+                                CONVERTATION_PART + PROCESSING_PART * (pages_processed / sum(pages_count.values())),
+                                ALL_PARTS)
+
                 page = doc.load_page(page_number)
                 pix = page.get_pixmap(dpi=300)
                 pil_img = Image.open(io.BytesIO(pix.tobytes("png")))
@@ -1155,6 +1151,8 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
             # Вычисление площади полигона
             if 'Каталог координат' in coordinates:
                 calculate_polygons_area(coordinates)
+            total_processed[0] += len(doc)
+            doc.close()
 
 
     except Exception:

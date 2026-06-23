@@ -91,6 +91,8 @@ DATE_WORDS2_PATTERN = re.compile(r'«?\d+»?\s*[А-Яа-яёЁ]+\s*\d+\s*г\.*',
 MONTH_PATTERN = re.compile(r'[а-яА-ЯёЁ]+')
 YEAR_PATTERN = re.compile(r'(\d+)\s*г\.*', re.IGNORECASE)
 DATE_WORDS_PATTERN = re.compile(r'«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+\s*г\.*', re.IGNORECASE)
+DATE_DOTS_CLEAR_PATTERN = re.compile(r'(\d+)\.(\d{2})\.(\d{4})', re.IGNORECASE)
+SPACE_CHARS_PATTERN = re.compile(r'\s')
 
 
 def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_type, current_part, table_info):
@@ -121,15 +123,12 @@ def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_
             date = None
     if date and interval_type != 'words':
         date = date.replace('по ', '').replace(' ', '')
-        year = date[date.rfind('.') + 1:]
-        if 'г' in year:
-            year = year[:year.rfind('г')]
-        table_info['ГОД'] = year
-        index = date.rfind(' ')
-        table_info['Дата окончания проведения ГИКЭ'] = date[
-                                                       :index if index != -1 else len(
-                                                           date)].replace(
-            'г', '')
+        date = SPACE_CHARS_PATTERN.sub('', date)
+        date = DATE_DOTS_CLEAR_PATTERN.search(date)
+        if date:
+            year = date.group(3)
+            table_info['ГОД'] = year
+            table_info['Дата окончания проведения ГИКЭ'] = date.group(0)
         if full_time_interval:
             is_continue = True
     else:

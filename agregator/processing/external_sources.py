@@ -99,7 +99,7 @@ def create_note_file(output_path: str, order_text: str = None) -> None:
         logger.error(f"Ошибка при создании файла примечания в {output_path}: {e}")
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, acks_late=True, max_retries=3)
 @handle_interrupts
 def external_sources_processing(self, task_state, start_date, end_date, start_page, end_page, select_text,
                                 select_enrich, select_image,
@@ -605,7 +605,7 @@ def tables_to_dataframes(tables):
     return dataframes
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, acks_late=True, max_retries=3)
 def process_voan_list(self, progress_key=None):
     """Обработка перечня выявленных объектов культурного наследия"""
     try:
@@ -716,7 +716,7 @@ def process_voan_list(self, progress_key=None):
         }
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, acks_late=True, max_retries=3)
 def process_oan_list(self, progress_key=None):
     """Обработка перечня объектов археологического наследия"""
     try:

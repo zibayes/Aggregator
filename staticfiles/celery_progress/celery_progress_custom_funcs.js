@@ -143,7 +143,7 @@ function onProgressCustom(progressBarElement, progressBarMessageElement, progres
             text = 'Статус: ' + status + ' <strong>' +
                 report_types[description.file_types] + '</strong>'
             if (description.status === 'ocr') {
-                text = text + ' (' + description.ocr + ')';
+                text = text + ' - ' + description.ocr;
             }
             progressBarMessageElement.innerHTML = text;
             let expected_time = ''

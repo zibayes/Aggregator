@@ -36,7 +36,8 @@ from torchvision import transforms as T
 from .files_saving import load_raw_open_lists
 from agregator.hash import calculate_file_hash
 from agregator.models import OpenLists
-from agregator.redis_config import redis_client
+from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
+    PROCESSING_PART, ALL_PARTS
 from agregator.celery_task_template import process_documents
 
 # ------------------- ЛОГГИРОВАНИЕ -------------------
@@ -808,7 +809,7 @@ def detect_regions(pil_image: Image.Image, confidence_threshold: float = CONFIDE
 # ------------------------------------------------------------------
 # Основная функция OCR с использованием модели
 # ------------------------------------------------------------------
-@shared_task(bind=True)
+@shared_task(bind=True, acks_late=True, max_retries=3)
 def process_open_lists(self, open_lists_ids, user_id):
     return process_documents(self, open_lists_ids, user_id, 'open_lists', load_function=load_raw_open_lists,
                              process_function=open_list_ocr)
@@ -830,16 +831,10 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
     logger.info(f"PDF содержит {len(document)} страниц")
     for page_number in range(len(document)):
         pages_processed = total_processed[0] + page_number
-        progress_json['file_groups'][str(open_list_id)]['pages']['processed'] = page_number
-        expected_time = ((datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1)) * (sum(
-            pages_count.values()) - pages_processed)
-        total_seconds = int(expected_time.total_seconds())
-        hours, remainder = divmod(total_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        progress_json['expected_time'] = f"{hours:02}:{minutes:02}:{seconds:02}"
-        redis_client.set(task_id, json.dumps(progress_json))
-        progress_recorder.set_progress(pages_processed, sum(pages_count.values()),
-                                       progress_json)
+        progress_json['expected_time'] = get_expected_time(time_on_start, pages_processed, pages_count)
+        progress_update(progress_recorder, task_id, progress_json,
+                        CONVERTATION_PART + PROCESSING_PART * (pages_processed / sum(pages_count.values())),
+                        ALL_PARTS)
 
         logger.info(f"Обработка страницы {page_number + 1}/{len(document)}")
         page = document.load_page(page_number)

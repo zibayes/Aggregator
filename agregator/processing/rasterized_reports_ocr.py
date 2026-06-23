@@ -85,6 +85,7 @@ def add_pdf_text_layer_ocr(input_path: str, output_path: str, progress_recorder_
                 force_ocr=True,
                 optimize=0,
                 plugins=PLUGIN_PATH,
+                invalidate_digital_signatures=True
             )
         except Exception as e:
             with state_lock:

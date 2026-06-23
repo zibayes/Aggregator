@@ -18,13 +18,13 @@ from celery import shared_task
 
 from agregator.decorators import profiled
 from agregator.processing.files_saving import load_raw_reports
-from agregator.hash import calculate_file_hash
+from agregator.hash import has_duplicates_in_db
 from agregator.processing.images_extraction import extract_images_with_captions, insert_supplement_links, \
     SUPPLEMENT_CONTENT
 from agregator.models import Act
-from agregator.redis_config import redis_client
-from agregator.celery_task_template import process_documents, progress_update, CONVERTATION_PART, PROCESSING_PART, \
-    ALL_PARTS
+from agregator.redis_config import get_progress_json
+from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
+    PROCESSING_PART, ALL_PARTS
 from agregator.processing.coordinates_tables import search_coords_in_text
 from agregator.processing.batch_registry_utils import RegistryManager
 from agregator.processing.batch_kml_utils import KMLParser
@@ -48,16 +48,16 @@ def choose_pdf_file() -> str:
         return file_path
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, acks_late=True, max_retries=3)
 @profiled(enabled=True)
 def process_acts(self, acts_ids, user_id, select_text, select_enrich, select_image, select_coord):
-    progress_json = None
+    progress_json = get_progress_json(self.request.id)
     try:
         progress_json = process_documents(self, acts_ids, user_id, 'acts', model_class=Act,
                                           load_function=load_raw_reports,
                                           select_text=select_text, select_enrich=select_enrich,
                                           select_image=select_image, select_coord=select_coord,
-                                          process_function=extract_text_and_images)
+                                          process_function=extract_text_and_images, progress_json=progress_json)
     except Exception as e:
         logger.error(f'Критическая ошибка при обработке актов {acts_ids}: {e}')
         logger.error(traceback.format_exc())
@@ -68,14 +68,19 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                             progress_json, act_id, source_index, task_id, user_id, is_public, select_text,
                             select_enrich, select_image,
                             select_coord):
-    use_kml = False
-    start_time = time.time()
     logger.info(f"ОБРАБАТЫВАЕТСЯ АКТ: {file}")
+    start_time = time.time()
+    has_duplicates, duplicate_id = has_duplicates_in_db(Act, file, act_id)
+    if has_duplicates:
+        raise FileExistsError(
+            f"Такой файл уже загружен в систему (act.id = {duplicate_id}): {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
+    logger.info(f"После проверки хеша: {round((time.time() - start_time), 2)} секунд")
+
+    use_kml = False
     supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
     # coordinates = copy.deepcopy(COORDINATES_SAMPLE)
     coordinates = {}
     pdf_file = file  # pdf_file = 'uploaded_files/' + file
-    file_hash = calculate_file_hash(pdf_file)
 
     current_act = Act.objects.get(id=act_id)
     source_info = current_act.source_dict[source_index]
@@ -85,20 +90,6 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         logger.info(f"Файл был организован: {source_info.get('original_path')} -> {file}")
     else:
         logger.info(f"Файл не требовал организации: {file}")
-
-    acts = Act.objects.all()
-    for act in acts:
-        if act.source_dict is not None:
-            for source in act.source_dict:
-                if act.id != act_id:
-                    act_hash = source['file_hash']
-                    source_path = source['path']
-                    if not act_hash and os.path.isfile(source_path):
-                        act_hash = calculate_file_hash(source_path)
-                    if file_hash == act_hash:
-                        raise FileExistsError(
-                            f"Такой файл уже загружен в систему (act.id = {act.id}): {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
-    logger.info(f"После проверки хеша: {round((time.time() - start_time), 2)} секунд")
 
     # Открываем PDF-файл
     if not os.path.exists(pdf_file):
@@ -216,13 +207,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                     F"--- Старт страницы {page_number}/{len(document)} / Время выполнения: {round((time.time() - start_time), 2)} секунд ---")
                 pages_processed = total_processed[0] + page_number
                 progress_json['file_groups'][str(act_id)][source_index]['pages']['processed'] = page_number
-                expected_time = ((datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1)) * (
-                        sum(
-                            pages_count.values()) - pages_processed)
-                total_seconds = int(expected_time.total_seconds())
-                hours, remainder = divmod(total_seconds, 3600)
-                minutes, seconds = divmod(remainder, 60)
-                progress_json['expected_time'] = f"{hours:02}:{minutes:02}:{seconds:02}"
+                progress_json['expected_time'] = get_expected_time(time_on_start, pages_processed, pages_count)
                 progress_update(progress_recorder, task_id, progress_json,
                                 CONVERTATION_PART + PROCESSING_PART * (pages_processed / sum(pages_count.values())),
                                 ALL_PARTS)

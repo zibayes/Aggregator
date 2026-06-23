@@ -12,7 +12,8 @@ from agregator.processing.files_saving import load_raw_commercial_offers
 from agregator.hash import calculate_file_hash
 from agregator.models import CommercialOffers
 from agregator.redis_config import redis_client
-from agregator.celery_task_template import process_documents
+from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
+    PROCESSING_PART, ALL_PARTS
 from agregator.processing.coordinates_tables import extract_tables_from_pdf, analyze_coordinates_in_tables_from_pdf, \
     extract_coordinates_from_docx_table, extract_coordinates_xlsx, format_coordinates
 
@@ -26,7 +27,7 @@ def choose_file() -> str:
         return file_path
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, acks_late=True, max_retries=3)
 def process_commercial_offers(self, commercial_offers_ids, user_id):
     return process_documents(self, commercial_offers_ids, user_id, 'commercial_offers', model_class=CommercialOffers,
                              load_function=load_raw_commercial_offers,
@@ -49,23 +50,11 @@ def extract_coordinates(file, progress_recorder, pages_count, total_processed,
 
     current_commercial_offer = CommercialOffers.objects.get(id=commercial_offer_id)
 
-    '''
-    extracted_images = []
-    current_part = 0
-    time_on_start = datetime.now()
-    for page_number in range(len(document)):
-        pages_processed = total_processed[0] + page_number
-        progress_json['file_groups'][str(act_id)][source_index]['pages']['processed'] = page_number
-        expected_time = ((datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1)) * (sum(
-            pages_count.values()) - pages_processed)
-        total_seconds = int(expected_time.total_seconds())
-        hours, remainder = divmod(total_seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-        progress_json['expected_time'] = f"{hours:02}:{minutes:02}:{seconds:02}"
-        redis_client.set(task_id, json.dumps(progress_json))
-        progress_recorder.set_progress(pages_processed, sum(pages_count.values()),
-                                       progress_json)
-    '''
+    pages_processed = total_processed[0] + pages_count.get(current_commercial_offer.source, 0)
+    progress_json['expected_time'] = get_expected_time(time_on_start, pages_processed, pages_count)
+    progress_update(progress_recorder, task_id, progress_json,
+                    CONVERTATION_PART + PROCESSING_PART * (pages_processed / sum(pages_count.values())),
+                    ALL_PARTS)
 
     folder = file[:file.rfind(".")]
     if not os.path.exists(folder):

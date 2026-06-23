@@ -17,12 +17,14 @@ import logging
 
 from agregator.processing.coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
 from agregator.processing.files_saving import load_raw_reports
-from agregator.hash import calculate_file_hash
+from agregator.hash import has_duplicates_in_db
 from agregator.processing.images_extraction import extract_images_with_captions, insert_supplement_links, \
     SUPPLEMENT_CONTENT
 from agregator.models import TechReport
-from agregator.redis_config import redis_client
-from agregator.celery_task_template import process_documents
+from agregator.redis_config import get_progress_json
+from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
+    PROCESSING_PART, \
+    ALL_PARTS
 
 logger = logging.getLogger(__name__)
 
@@ -34,16 +36,16 @@ def choose_file() -> str:
         return file_path
 
 
-@shared_task(bind=True)
+@shared_task(bind=True, acks_late=True, max_retries=3)
 def process_tech_reports(self, reports_ids, user_id, select_text, select_enrich, select_image, select_coord):
-    progress_json = None
+    progress_json = get_progress_json(self.request.id)
     try:
         progress_json = process_documents(self, reports_ids, user_id, 'tech_reports', model_class=TechReport,
                                           load_function=load_raw_reports,
                                           select_text=select_text, select_enrich=select_enrich,
                                           select_image=select_image,
                                           select_coord=select_coord,
-                                          process_function=extract_text_and_images)
+                                          process_function=extract_text_and_images, progress_json=progress_json)
     except Exception as e:
         logger.error(f'Критическая ошибка при обработке научно-технических отчётов {reports_ids}: {e}')
         logger.error(traceback.format_exc())
@@ -54,6 +56,11 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                             report_id,
                             source_index, task_id, user_id, is_public, select_text, select_enrich, select_image,
                             select_coord):
+    has_duplicates, duplicate_id = has_duplicates_in_db(TechReport, file, report_id)
+    if has_duplicates:
+        raise FileExistsError(
+            f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(report_id)][source_index]['origin_filename']}")
+
     if current_report.supplement:
         supplement_content = current_report.supplement_dict
     else:
@@ -62,17 +69,6 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
         coordinates = current_report.coordinates_dict
     else:
         coordinates = copy.deepcopy(COORDINATES_SAMPLE)
-    reports = TechReport.objects.all()
-    for report in reports:
-        if report.source_dict is not None:
-            for source in report.source_dict:
-                source_path = source['path']
-                if report_id != report.id and os.path.isfile(source_path):
-                    file_hash = calculate_file_hash(file)
-                    report_hash = calculate_file_hash(source_path)
-                    if file_hash == report_hash:
-                        raise FileExistsError(
-                            f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(report_id)][source_index]['origin_filename']}")
 
     document = fitz.open(file)
 
@@ -101,15 +97,10 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
         for page_number in range(len(document)):
             pages_processed = total_processed[0] + page_number
             progress_json['file_groups'][str(report_id)][source_index]['pages']['processed'] = page_number
-            expected_time = (datetime.now() - time_on_start) / (pages_processed if pages_processed > 0 else 1) * (sum(
-                pages_count.values()) - pages_processed)
-            total_seconds = int(expected_time.total_seconds())
-            hours, remainder = divmod(total_seconds, 3600)
-            minutes, seconds = divmod(remainder, 60)
-            progress_json['expected_time'] = f"{hours:02}:{minutes:02}:{seconds:02}"
-            redis_client.set(task_id, json.dumps(progress_json))
-            progress_recorder.set_progress(pages_processed, sum(pages_count.values()),
-                                           progress_json)
+            progress_json['expected_time'] = get_expected_time(time_on_start, pages_processed, pages_count)
+            progress_update(progress_recorder, task_id, progress_json,
+                            CONVERTATION_PART + PROCESSING_PART * (pages_processed / sum(pages_count.values())),
+                            ALL_PARTS)
 
             page = document[page_number]
             text = page.get_text()
