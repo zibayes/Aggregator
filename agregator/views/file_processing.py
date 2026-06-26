@@ -370,6 +370,7 @@ def doc_reprocess(request, pk):
         tasks_id = get_user_tasks(user.id, ('act', 'scientific_report', 'tech_report'))
         form = UploadReportsForm()
         select_text = select_enrich = select_image = select_coord = False
+        is_reprocess = True
         if 'select_text' in request.POST:
             select_text = True
         if 'select_enrich' in request.POST:
@@ -379,15 +380,16 @@ def doc_reprocess(request, pk):
         if 'select_coord' in request.POST:
             select_coord = True
         if report_type == 'act':
-            task = process_acts.apply_async(([pk], user.id, select_text, select_enrich, select_image, select_coord),
-                                            link_error=error_handler.s(report_type))
+            task = process_acts.apply_async(
+                ([pk], user.id, select_text, select_enrich, select_image, select_coord, is_reprocess),
+                link_error=error_handler.s(report_type))
         elif report_type == 'scientific_report':
             task = process_scientific_reports.apply_async(
-                ([pk], user.id, select_text, select_enrich, select_image, select_coord),
+                ([pk], user.id, select_text, select_enrich, select_image, select_coord, is_reprocess),
                 link_error=error_handler.s(report_type))
         elif report_type == 'tech_report':
             task = process_tech_reports.apply_async(
-                ([pk], user.id, select_text, select_enrich, select_image, select_coord),
+                ([pk], user.id, select_text, select_enrich, select_image, select_coord, is_reprocess),
                 link_error=error_handler.s(report_type))
         else:
             return HttpResponse("Некорректный тип отчёта", status=404)

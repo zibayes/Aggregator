@@ -1,9 +1,15 @@
+import json
+import traceback
 from pathlib import Path
 
 from django.apps import AppConfig
 from django.db.models.signals import post_migrate
 from django.dispatch import receiver
 from celery import current_app
+from agregator.redis_config import redis_client
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class AgregatorConfig(AppConfig):
@@ -20,8 +26,37 @@ class AgregatorConfig(AppConfig):
         self.connect_model_signals()
         # Создаем папки при запуске
         self.create_folders()
+        # Возобновление обработки при перезапуске сервера
+        self.recover_tasks()
 
         # self.revoke_all_tasks()
+
+    def recover_tasks(self):
+        r = redis_client
+        task_ids = r.hvals('unacked')
+
+        for task_id in task_ids:
+            logger.info(f'task_id = {task_id}')
+            try:
+                progress_json = redis_client.get(json.loads(task_id)[0]['headers']['id'])
+                if progress_json is not None:
+                    progress_json = json.loads(progress_json)
+                    logger.info(f'TASK IS IN WORK')
+                    current_app.send_task(
+                        progress_json['task_name'],
+                        args=progress_json['args'],
+                        kwargs=progress_json['kwargs'],
+                        task_id=progress_json['task_id']
+                    )
+                else:
+                    logger.info(f'TASK NOT FOUND')
+            except Exception as e:
+                logger.error(f'Ошибка при возобновлении задачи: {e}')
+                logger.error(traceback.format_exc())
+                continue
+
+        # После перезапуска можно очистить unacked
+        r.delete('unacked', 'unacked_index')
 
     def revoke_all_tasks(self):
         app = current_app
@@ -46,7 +81,7 @@ class AgregatorConfig(AppConfig):
     @receiver(post_migrate)
     def load_geojson_data(sender, **kwargs):
         if sender.name == 'agregator':
-            print("Сигнал post_migrate получен")
+            logger.info("Сигнал post_migrate получен")
             from .processing.coordinates_extraction import save_geojson_polygons_to_db
             save_geojson_polygons_to_db()
 
@@ -66,12 +101,12 @@ class AgregatorConfig(AppConfig):
             post_save.connect(auto_create_links, sender=model)
             post_delete.connect(auto_delete_links, sender=model)
 
-        print("Сигналы для автоматических ссылок подключены")
+        logger.info("Сигналы для автоматических ссылок подключены")
 
     @receiver(post_migrate)
     def create_links_for_existing(sender, **kwargs):
         if sender.name == 'agregator':
-            print("Создание ссылок для существующих объектов...")
+            logger.info("Создание ссылок для существующих объектов...")
             from agregator.processing.links import create_links_for_all_existing
             create_links_for_all_existing()
 

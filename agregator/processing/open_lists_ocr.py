@@ -39,6 +39,7 @@ from agregator.models import OpenLists
 from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
     PROCESSING_PART, ALL_PARTS
 from agregator.celery_task_template import process_documents
+from agregator.redis_config import get_progress_json, create_progress_json
 
 # ------------------- ЛОГГИРОВАНИЕ -------------------
 import logging
@@ -810,13 +811,24 @@ def detect_regions(pil_image: Image.Image, confidence_threshold: float = CONFIDE
 # Основная функция OCR с использованием модели
 # ------------------------------------------------------------------
 @shared_task(bind=True, acks_late=True, max_retries=3)
-def process_open_lists(self, open_lists_ids, user_id):
-    return process_documents(self, open_lists_ids, user_id, 'open_lists', load_function=load_raw_open_lists,
-                             process_function=open_list_ocr)
+def process_open_lists(self, open_lists_ids, user_id, is_reprocess=False):
+    document_type = 'open_lists'
+    progress_json = get_progress_json(self.request.id)
+    if progress_json is None:
+        progress_json = create_progress_json(
+            user_id,
+            document_type,
+            task_id=self.request.id,
+            task_name=self.name,
+            args=[open_lists_ids, user_id, is_reprocess],
+            kwargs={}
+        )
+    return process_documents(self, open_lists_ids, user_id, document_type, load_function=load_raw_open_lists,
+                             process_function=open_list_ocr, progress_json=progress_json, is_reprocess=is_reprocess)
 
 
 def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
-                  open_list_id, progress_json, task_id, time_on_start):
+                  open_list_id, progress_json, task_id, time_on_start, is_reprocess):
     logger.info(f"Начало обработки open_list_id={open_list_id}, pdf_path={pdf_path}")
     open_lists = OpenLists.objects.all()
     for open_list in open_lists:

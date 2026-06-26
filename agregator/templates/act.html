@@ -23,6 +23,14 @@
 <br>
 <br>
 {% endfor %}
+{% if report.upload_source.link %}
+<a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px;"
+   href="{{ report.upload_source.link }}">
+    Исходник: {{ report.upload_source.source }}
+</a>
+<br>
+<br>
+{% endif %}
 {% endblock %}
 
 {% block report_actions %}

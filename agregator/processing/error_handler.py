@@ -20,7 +20,7 @@ def error_handler(model, task, exception, exception_desc):
     raise type(exception)({"error_text": str(exception), "progress_json": progress_json}) from exception
 
 
-def delete_instances_on_task_revoke(task_id):
+def delete_instances_on_task_revoke(task_id, raw_delete=False):
     progress_json = get_progress_json(task_id)
     if progress_json is None:
         return None
@@ -37,6 +37,8 @@ def delete_instances_on_task_revoke(task_id):
                     if source['processed'] != 'True':
                         report = model.objects.filter(id=report_id).first()
                         if report:
+                            if raw_delete:
+                                report._raw_delete = True
                             report.delete()
                         deleted_report = True
                         break
@@ -46,6 +48,8 @@ def delete_instances_on_task_revoke(task_id):
             for object_id, source in progress_json['file_groups'].items():
                 if source['processed'] != 'True':
                     model_object = model.objects.filter(id=object_id).first()
+                    if raw_delete:
+                        model_object._raw_delete = True
                     if model_object:
                         model_object.delete()
     return progress_json

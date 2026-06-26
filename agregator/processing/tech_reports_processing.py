@@ -21,7 +21,7 @@ from agregator.hash import has_duplicates_in_db
 from agregator.processing.images_extraction import extract_images_with_captions, insert_supplement_links, \
     SUPPLEMENT_CONTENT
 from agregator.models import TechReport
-from agregator.redis_config import get_progress_json
+from agregator.redis_config import get_progress_json, create_progress_json
 from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
     PROCESSING_PART, \
     ALL_PARTS
@@ -37,15 +37,27 @@ def choose_file() -> str:
 
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
-def process_tech_reports(self, reports_ids, user_id, select_text, select_enrich, select_image, select_coord):
+def process_tech_reports(self, reports_ids, user_id, select_text, select_enrich, select_image, select_coord,
+                         is_reprocess=False):
+    document_type = 'tech_reports'
     progress_json = get_progress_json(self.request.id)
+    if progress_json is None:
+        progress_json = create_progress_json(
+            user_id,
+            document_type,
+            task_id=self.request.id,
+            task_name=self.name,
+            args=[reports_ids, user_id, select_text, select_enrich, select_image, select_coord, is_reprocess],
+            kwargs={}
+        )
     try:
-        progress_json = process_documents(self, reports_ids, user_id, 'tech_reports', model_class=TechReport,
+        progress_json = process_documents(self, reports_ids, user_id, document_type, model_class=TechReport,
                                           load_function=load_raw_reports,
                                           select_text=select_text, select_enrich=select_enrich,
                                           select_image=select_image,
                                           select_coord=select_coord,
-                                          process_function=extract_text_and_images, progress_json=progress_json)
+                                          process_function=extract_text_and_images, progress_json=progress_json,
+                                          is_reprocess=is_reprocess)
     except Exception as e:
         logger.error(f'Критическая ошибка при обработке научно-технических отчётов {reports_ids}: {e}')
         logger.error(traceback.format_exc())
@@ -55,11 +67,12 @@ def process_tech_reports(self, reports_ids, user_id, select_text, select_enrich,
 def extract_text_and_images(current_report, file, progress_recorder, pages_count, total_processed, progress_json,
                             report_id,
                             source_index, task_id, user_id, is_public, select_text, select_enrich, select_image,
-                            select_coord):
-    has_duplicates, duplicate_id = has_duplicates_in_db(TechReport, file, report_id)
-    if has_duplicates:
-        raise FileExistsError(
-            f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(report_id)][source_index]['origin_filename']}")
+                            select_coord, is_reprocess):
+    if is_reprocess is False:
+        has_duplicates, duplicate_id = has_duplicates_in_db(TechReport, file, report_id)
+        if has_duplicates:
+            raise FileExistsError(
+                f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(report_id)][source_index]['origin_filename']}")
 
     if current_report.supplement:
         supplement_content = current_report.supplement_dict

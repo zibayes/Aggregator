@@ -5,6 +5,7 @@ from datetime import datetime
 from celery_progress.backend import ProgressRecorder
 
 from .redis_config import redis_client
+from agregator.processing.error_handler import delete_instances_on_task_revoke
 import logging
 
 logger = logging.getLogger(__name__)
@@ -43,6 +44,7 @@ def process_documents(
         select_image=None,
         select_coord=None,
         progress_json=None,
+        is_reprocess=False,
         additional_params=None
 ):
     """
@@ -62,21 +64,19 @@ def process_documents(
         select_coord: флаг извлечения координат
         additional_params: дополнительные параметры для process_function
     """
-    if progress_json is None:
-        progress_json = {
-            'user_id': user_id,
-            'file_types': document_type,
-            'time_started': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            'status': 'convertation'
-        }
-    elif 'status' in progress_json and progress_json['status'] == 'success':
-        return progress_json
+    task_id = self.request.id
+    logger.info(f'task_id = {task_id}')
+
+    if 'status' in progress_json:
+        if progress_json['status'] == 'success':
+            return progress_json
+        elif progress_json['status'] == 'convertation':
+            delete_instances_on_task_revoke(task_id, raw_delete=True)
 
     progress_recorder = ProgressRecorder(self)
     progress_recorder.set_progress(0, ALL_PARTS, progress_json)
 
-    task_id = self.request.id
-    logger.info(f'task_id = {task_id}')
+    progress_json['status'] = 'convertation'
 
     # Загрузка документов
     if document_type in ['scientific_reports', 'acts', 'tech_reports']:
@@ -165,19 +165,21 @@ def process_documents(
                         process_function(
                             path, progress_recorder, pages_count, total_processed,
                             progress_json, doc.id, i, task_id, user_id,
-                            getattr(doc, 'is_public', False), select_text, select_enrich, select_image, select_coord
+                            getattr(doc, 'is_public', False), select_text, select_enrich, select_image, select_coord,
+                            is_reprocess
                         )
                     elif document_type in ['commercial_offers', 'account_cards', 'open_lists', 'geo_objects']:
                         time_on_start = datetime.now()
                         process_function(
                             path, progress_recorder, pages_count, total_processed,
-                            doc.id, progress_json, task_id, time_on_start
+                            doc.id, progress_json, task_id, time_on_start, is_reprocess
                         )
                     else:
                         process_function(
                             doc, path, progress_recorder, pages_count, total_processed,
                             progress_json, doc.id, i, task_id, user_id,
-                            getattr(doc, 'is_public', False), select_text, select_enrich, select_image, select_coord
+                            getattr(doc, 'is_public', False), select_text, select_enrich, select_image, select_coord,
+                            is_reprocess
                         )
                 else:
                     raise Exception('NO PROCESS_FUNCTION PASSED AS ARGUMENT')

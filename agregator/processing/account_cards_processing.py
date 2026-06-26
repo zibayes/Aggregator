@@ -33,6 +33,7 @@ from agregator.celery_task_template import process_documents, progress_update, g
     ALL_PARTS
 from agregator.processing.geo_utils import calculate_polygons_area, dms_to_decimal, normalize_coordinates
 from agregator.processing.batch_kml_utils import KMLParser
+from agregator.redis_config import get_progress_json, create_progress_json
 
 logger = logging.getLogger(__name__)
 pytesseract.pytesseract.tesseract_cmd = '/usr/bin/tesseract'  # 'C:/Program Files/Tesseract-OCR/tesseract.exe'
@@ -692,28 +693,41 @@ def process_all_tables_universal(nested_tables: List[List[List[str]]]) -> Dict[s
 
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
-def process_account_cards(self, account_cards_ids, user_id):
-    return process_documents(self, account_cards_ids, user_id, 'account_cards', model_class=ObjectAccountCard,
+def process_account_cards(self, account_cards_ids, user_id, is_reprocess=False):
+    document_type = 'account_cards'
+    progress_json = get_progress_json(self.request.id)
+    if progress_json is None:
+        progress_json = create_progress_json(
+            user_id,
+            document_type,
+            task_id=self.request.id,
+            task_name=self.name,
+            args=[account_cards_ids, user_id, is_reprocess],
+            kwargs={}
+        )
+    return process_documents(self, account_cards_ids, user_id, document_type, model_class=ObjectAccountCard,
                              load_function=load_raw_account_cards,
-                             process_function=extract_text_tables_and_images)
+                             process_function=extract_text_tables_and_images, progress_json=progress_json,
+                             is_reprocess=is_reprocess)
 
 
 def extract_text_tables_and_images(file, progress_recorder, pages_count, total_processed,
-                                   account_card_id, progress_json, task_id, time_on_start):
+                                   account_card_id, progress_json, task_id, time_on_start, is_reprocess):
     supplement_content = {
         "address": [],
         "description": [],
     }
     coordinates = {}
 
-    account_cards = ObjectAccountCard.objects.all()
-    file_hash = calculate_file_hash(file)
-    for account_card in account_cards:
-        if account_card.source and account_card.id != account_card_id and os.path.isfile(account_card.source):
-            account_card_hash = calculate_file_hash(account_card.source)
-            if file_hash == account_card_hash:
-                raise FileExistsError(
-                    f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(account_card_id)]['origin_filename']}")
+    if is_reprocess is False:
+        account_cards = ObjectAccountCard.objects.all()
+        file_hash = calculate_file_hash(file)
+        for account_card in account_cards:
+            if account_card.source and account_card.id != account_card_id and os.path.isfile(account_card.source):
+                account_card_hash = calculate_file_hash(account_card.source)
+                if file_hash == account_card_hash:
+                    raise FileExistsError(
+                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(account_card_id)]['origin_filename']}")
 
     current_account_card = ObjectAccountCard.objects.get(id=account_card_id)
 

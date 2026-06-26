@@ -3,33 +3,6 @@ import re
 import regex
 import pdfplumber
 
-act_parts = ['Акт', r'(\d\.\s*)?Дата начала\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*',
-             r'(\d\.\s*)?Дата окончания\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*',  # проведения экспертизы
-             r'(\d\.\s*)?Место проведения (экспертизы)?[\s:\-–-]*',
-             r'(\d\.\s*)?Заказчик экспертизы[\s:\-–-]*',
-             r'(\d\.\s*)?(Сведения об)? эксперт[еах]+[\s:\-–-]*',
-             r'(\d\.\s*)?Отношени[яе]+ к заказчику', r'(\d\.\s*)?Цель экспертизы[\s:\-–-]*',
-             r'(\d\.\s*)?Объект .*?(экспертизы)?[\s:\-–-]*',  # Объект экспертизы:*
-             r'Перечень документов, представленных\s*(на)?\s*(экспертизу)?[\s:\-–-]*',
-             r'Сведения о проведенных исследованиях',
-             r'Факты и сведения, выявленные .*\n*.*исследований',
-             # 'Факты и сведения, выявленные и установленные в результате проведенных исследований', 'Координаты',
-             r'Перечень[а-яА-ЯёЁ \n,]*литературы',
-             # 'Перечень документов и материалов, собранных и полученных при проведении '
-             #              'экспертизы, а также использованной для нее специальной, технической и '
-             #              'справочной литературы', 'Обоснования вывода экспертизы',
-             'Вывод экспертизы', 'Перечень приложений']
-act_sub_parts = ['Характеристика объекта']
-act_parts_info = {i: '' for i in act_parts}
-object_info = ''
-place_info = ''
-table_columns = ['ГОД', 'Дата окончания проведения ГИКЭ', 'Вид ГИКЭ',
-                 'Номер (если имеется) и наименование Акта ГИКЭ',
-                 'Место проведения экспертизы',  # 'Муниципальный район или муниципальный округ'
-                 'Заказчик работ (*если не указан, то заказчик экспертизы)',
-                 'Площадь, протяжённость и/или др. параменты объекта', 'Эксперт (физ. или юр.лицо)',
-                 'Исполнитель полевых работ (юр. лицо)', 'ОЛ', 'Заключение. Выявленые объекты.',
-                 'Объекты расположенные в непосредственной близости. Для границ']
 months = {'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04', 'мая': '05', 'июня': '06',
           'июля': '07',
           'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12', }
@@ -58,7 +31,7 @@ def extract_act_name(text, current_section_idx, text_file, page_number, table_in
     text_file.write(
         f"--- АКТ --- (стр. {page_number + 1}):\n{text_to_write}\n")
     current_section_idx += 1
-    if '№' not in text_to_write and 'б/н' not in text_to_write.lower():
+    if all(x not in text_to_write.lower() for x in ['№', 'б/н', 'n']):
         text_to_write += " б/н"
     if obj:
         exploration_object = True
@@ -69,107 +42,170 @@ def extract_act_name(text, current_section_idx, text_file, page_number, table_in
     return current_section_idx, exploration_object
 
 
-FULL_TIME_INTERVAL_PATTERN_VAR_1 = re.compile(r'период с \d{2}.\d{2}.\d{4}\s+[г.\s]*по\s+(\d{2}.\d{2}.\d{4})\s*[г\.]*',
-                                              re.IGNORECASE)
+FULL_TIME_INTERVAL_PATTERN_VAR_1 = re.compile(
+    r'период с (\d{2}\.\d{2}\.\d{2,4})\s+[г.\s]*по\s+(\d{2}\.\d{2}\.\d{2,4})\s*[г\.]*',
+    re.IGNORECASE)  # r'период с \d{2}.\d{2}.\d{4}\s+[г.\s]*по\s+(\d{2}.\d{2}.\d{4})\s*[г\.]*'
 FULL_TIME_INTERVAL_PATTERN_VAR_2 = re.compile(
-    r'период с «*\d+»* [А-Яа-яёЁ]+ \d+ г\.*.*\s+по\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)[\sг\.]*', re.IGNORECASE)
+    r'период с («*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)\s*[\sг\.]*.*\s+по\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)[\sг\.]*',
+    re.IGNORECASE)  # r'период с «*\d+»* [А-Яа-яёЁ]+ \d+ г\.*.*\s+по\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)[\sг\.]*'
 
 
-def extract_start_date(text_to_write):
+def extract_start_date(text_to_write, table_info):
     full_time_interval = FULL_TIME_INTERVAL_PATTERN_VAR_1.search(text_to_write)
     # период с \d+.\d+.\d+\s+г.\s+по\s+\d+.\d+.\d+\s+г.
     if not full_time_interval:
         full_time_interval = FULL_TIME_INTERVAL_PATTERN_VAR_2.search(text_to_write)
-        interval_type = 'words'
+        if not full_time_interval:
+            interval_type = None
+            date, _ = extract_date(text_to_write)
+            if date is not None:
+                text_to_write = date
+        else:
+            interval_type = 'words'
+            text_to_write, _ = extract_date(full_time_interval.group(1))
+            date, year = extract_date(full_time_interval.group(2))
+            table_info['Дата окончания проведения ГИКЭ'] = date
+            table_info['ГОД'] = year
     else:
         interval_type = 'dots'
-    return full_time_interval, interval_type
+        text_to_write = full_time_interval.group(1)
+        date, year = extract_date(full_time_interval.group(2))
+        table_info['Дата окончания проведения ГИКЭ'] = date
+        table_info['ГОД'] = year
+    return full_time_interval, interval_type, text_to_write
 
 
-DATE_DOTS_PATTERN = re.compile(r'\d+\s*\d+\s*\.\d{2}\s*\d*\.\d{4}\s*\d* *г*', re.IGNORECASE)
-DATE_WORDS2_PATTERN = re.compile(r'«?\d+»?\s*[А-Яа-яёЁ]+\s*\d+\s*г\.*', re.IGNORECASE)
+DATE_DOTS_PATTERN = re.compile(r'\d+\s*\d+\s*\.\s*\d{2}\s*\d*\.\s*\d{2,4}', re.IGNORECASE)
+DATE_WORDS_PATTERN = re.compile(r'«?\d+»?\s*[А-Яа-яёЁ]+\s*\d+\s*г\.*', re.IGNORECASE)
 MONTH_PATTERN = re.compile(r'[а-яА-ЯёЁ]+')
-YEAR_PATTERN = re.compile(r'(\d+)\s*г\.*', re.IGNORECASE)
-DATE_WORDS_PATTERN = re.compile(r'«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+\s*г\.*', re.IGNORECASE)
+YEAR_PATTERN = re.compile(r'.\d{2}\s*.\s*(\d{2,4})\s*г?\.?', re.IGNORECASE)
 DATE_DOTS_CLEAR_PATTERN = re.compile(r'(\d+)\.(\d{2})\.(\d{4})', re.IGNORECASE)
 SPACE_CHARS_PATTERN = re.compile(r'\s')
 
 
+def date_from_words_to_dots(date):
+    date = date.replace('«', '').replace('»', '')
+    date = date[:date.rfind(' ')]
+    month = MONTH_PATTERN.search(date)
+    if month:
+        month = month.group(0)
+    else:
+        month = ''
+    date = date.replace(month, '').replace('  ', '.' + months[month] + '.')
+    day = date[:date.find('.')]
+    if len(day) < 2:
+        date = '0' + date
+    return date
+
+
+def extract_date(text_to_write, is_words=False):
+    date = DATE_DOTS_PATTERN.search(text_to_write)
+    year = None
+    if not date:
+        date = DATE_WORDS_PATTERN.search(text_to_write)
+        if date:
+            date = date_from_words_to_dots(date.group(0))
+    if date:
+        date = date.group(0) if not isinstance(date, str) else date
+        year = YEAR_PATTERN.search(date)
+        if year:
+            year = year.group(1)
+        else:
+            year = None
+    else:
+        date = None
+    return date, year
+
+
 def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_type, current_part, table_info):
     is_continue = False
-    start_date = pattern.search(text)  # Дата начала
-    if start_date:
-        text_to_write = text[start_date.end():]
-    if full_time_interval and interval_type == 'dots':
-        date = full_time_interval
-        current_part += 2
-        if date:
-            date = date.group(1)
-    else:
-        date = DATE_DOTS_PATTERN.findall(text_to_write)
-        if date:
-            if len(date) > 1:
-                date = date[1]
-            else:
-                date = date[0]
-        date_words = DATE_WORDS_PATTERN.findall(text_to_write)  # TODO: rework?
-        if date_words:
-            if len(date_words) > 1:
-                date_words = date_words[1]
-            else:
-                date_words = date_words[0]
-        if date and date_words and (text_to_write.find(date) > text_to_write.find(
-                date_words) or 'Постнов' in text_to_write):  # TODO: people style?
-            date = None
-    if date and interval_type != 'words':
-        date = date.replace('по ', '').replace(' ', '')
-        date = SPACE_CHARS_PATTERN.sub('', date)
-        date = DATE_DOTS_CLEAR_PATTERN.search(date)
-        if date:
-            year = date.group(3)
-            table_info['ГОД'] = year
-            table_info['Дата окончания проведения ГИКЭ'] = date.group(0)
-        if full_time_interval:
-            is_continue = True
-    else:
-        date = FULL_TIME_INTERVAL_PATTERN_VAR_2.search(text_to_write)
-        if date:
+    date = None
+    if interval_type is None:
+        date, year = extract_date(text_to_write)
+        if year is not None:
+            table_info['ГОД'] = SPACE_CHARS_PATTERN.sub('', year)
+        if date is not None:
+            table_info['Дата окончания проведения ГИКЭ'] = SPACE_CHARS_PATTERN.sub('', date)
+    if date is None:
+        start_date = pattern.search(text)
+        if start_date:
+            text_to_write = text[start_date.end():]
+        if full_time_interval and interval_type == 'dots':
+            date = full_time_interval
             current_part += 2
-            text_to_write = date.group(1)
+            if date:
+                date = date.group(2)
+        elif full_time_interval and interval_type == 'words':
+            date = DATE_DOTS_PATTERN.findall(text_to_write)
+            if not date:
+                date = DATE_WORDS_PATTERN.findall(text)
+            if date:
+                if len(date) > 1:
+                    date = date[1]
+                else:
+                    date = date[0]
+            date_words = DATE_WORDS_PATTERN.findall(text_to_write)
+            if date_words:
+                if len(date_words) > 1:
+                    date_words = date_words[1]
+                else:
+                    date_words = date_words[0]
+            if date and date_words and (text_to_write.find(date) > text_to_write.find(
+                    date_words) or 'Постнов' in text_to_write):  # TODO: people style?
+                date = None
 
-        date = DATE_WORDS2_PATTERN.findall(text_to_write)
-        if date:
-            if len(date) > 1:
-                date = date[1]
+        if date and interval_type != 'words':
+            date = date.replace('по ', '').replace(' ', '')
+            date = SPACE_CHARS_PATTERN.sub('', date)
+            date = DATE_DOTS_CLEAR_PATTERN.search(date)
+            if date:
+                year = date.group(3)
+                table_info['ГОД'] = year
+                table_info['Дата окончания проведения ГИКЭ'] = date.group(0)
+            if full_time_interval:
+                is_continue = True
+        else:
+            date = FULL_TIME_INTERVAL_PATTERN_VAR_2.search(text_to_write)
+            if date:
+                current_part += 2
+                text_to_write = date.group(2)
+            # elif interval_type != 'words':
+            #    text_to_write = text
+
+            date = DATE_WORDS_PATTERN.findall(text_to_write)
+            if date:
+                if len(date) > 1:
+                    date = date[1]
+                else:
+                    date = date[0]
             else:
-                date = date[0]
-        else:
-            date = DATE_WORDS_PATTERN.findall(text, re.IGNORECASE)
-            if len(date) > 1:
-                date = date[1].replace('  ', ' ')
-            elif len(date) > 0:
-                date = date[0].replace('  ', ' ')
+                date = DATE_WORDS_PATTERN.findall(text, re.IGNORECASE)
+                if len(date) > 1:
+                    date = date[1].replace('  ', ' ')
+                elif len(date) > 0:
+                    date = date[0].replace('  ', ' ')
+            if date:
+                date = date_from_words_to_dots(date)
             else:
-                return current_part, is_continue
-        date = date.replace('«', '').replace('»', '')
-        date = date[:date.rfind(' ')]
-        month = MONTH_PATTERN.search(date)
-        if month:
-            month = month.group(0)
-        else:
-            month = ''
-        date = date.replace(month, '').replace('  ', '.' + months[month] + '.')
-        day = date[:date.find('.')]
-        if len(day) < 2:
-            date = '0' + date
-        table_info['Дата окончания проведения ГИКЭ'] = date
-        year = date[date.rfind('.') + 1:]  # YEAR_PATTERN.search(date)
-        if year:
-            table_info['ГОД'] = year
-        if full_time_interval:
-            is_continue = True
-        else:
-            pass
+                date = DATE_DOTS_PATTERN.findall(text_to_write)
+                if not date:
+                    date = DATE_DOTS_PATTERN.findall(text)
+                if date:
+                    if len(date) > 1:
+                        date = date[1]
+                    else:
+                        date = date[0]
+            if date:
+                year = YEAR_PATTERN.search(date)
+                if year:
+                    year = year.group(1)
+                table_info['ГОД'] = SPACE_CHARS_PATTERN.sub('', year)
+                table_info['Дата окончания проведения ГИКЭ'] = date
+
+            if full_time_interval:
+                is_continue = True
+            else:
+                pass
     return current_part, is_continue
 
 
@@ -244,7 +280,7 @@ RE_EXPERT_NAME_BEFORE_COMMA_EDU = re.compile(r'[А-Яа-яёЁ]+\s*[А-Яа-яё
                                              re.IGNORECASE)
 
 
-def extract_expert(text_to_write, several_experts, full_name, table_info, document, page_number):
+def extract_expert(text_to_write, several_experts, full_name, table_info, document, page_number, broken_structure):
     if RE_EXPERT_MULTI_START.search(text_to_write) or several_experts:
         names = []
         if not full_name:
@@ -298,7 +334,31 @@ def extract_expert(text_to_write, several_experts, full_name, table_info, docume
                     for table in page_tables:
                         if len(table) >= 5 and table[4][0] == 'ФИО эксперта':
                             table_info['Эксперт (физ. или юр.лицо)'] = page_tables[0][4][1]
-    return several_experts, full_name
+    return several_experts, full_name, broken_structure
+
+
+RE_BROKEN_STRUCTURE = re.compile(
+    r'(\d+\s*\d+\s*\.\s*\d{2}\s*\d*\.\s*\d{2,4}|«?\d+»?\s*[А-Яа-яёЁ]+\s*\d+).*?\s*(\d+\s*\d+\s*\.\s*\d{2}\s*\d*\.\s*\d{2,4}|«?\d+»?\s*[А-Яа-яёЁ]+\s*\d+).*\s+(.+)\s+([а-яёА-ЯЁ\s]*«[а-яёА-ЯЁ\s]+»)\s+([А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+\s+[А-ЯЁ][а-яё]+)')
+
+
+def broken_structure_process(text, table_info):
+    match = RE_BROKEN_STRUCTURE.search(text)
+    print(f'broken_structure_process: {match}')
+    print(f'table_info: {table_info}')
+    if match:
+        if 'Дата окончания проведения ГИКЭ' not in table_info or 'ГОД' not in table_info or \
+                not table_info['Дата окончания проведения ГИКЭ'] or not table_info['ГОД']:
+            date, year = extract_date(match.group(2))
+            table_info['Дата окончания проведения ГИКЭ'] = date
+            table_info['ГОД'] = year
+        if 'Место проведения экспертизы' not in table_info or not table_info['Место проведения экспертизы']:
+            table_info['Место проведения экспертизы'] = match.group(3)
+        if 'Заказчик работ (*если не указан, то заказчик экспертизы)' not in table_info or not table_info[
+            'Заказчик работ (*если не указан, то заказчик экспертизы)']:
+            table_info[
+                'Заказчик работ (*если не указан, то заказчик экспертизы)'] = match.group(4)
+        if 'Эксперт (физ. или юр.лицо)' not in table_info or not table_info['Эксперт (физ. или юр.лицо)']:
+            table_info['Эксперт (физ. или юр.лицо)'] = match.group(5)
 
 
 RE_OBJECT_ZEMLI = re.compile(r'земли', re.IGNORECASE)

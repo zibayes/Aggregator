@@ -16,6 +16,7 @@ from agregator.celery_task_template import process_documents, progress_update, g
     PROCESSING_PART, ALL_PARTS
 from agregator.processing.coordinates_tables import extract_tables_from_pdf, analyze_coordinates_in_tables_from_pdf, \
     extract_coordinates_from_docx_table, extract_coordinates_xlsx, format_coordinates
+from agregator.redis_config import get_progress_json, create_progress_json
 
 logger = logging.getLogger(__name__)
 
@@ -28,25 +29,38 @@ def choose_file() -> str:
 
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
-def process_commercial_offers(self, commercial_offers_ids, user_id):
-    return process_documents(self, commercial_offers_ids, user_id, 'commercial_offers', model_class=CommercialOffers,
+def process_commercial_offers(self, commercial_offers_ids, user_id, is_reprocess=False):
+    document_type = 'commercial_offers'
+    progress_json = get_progress_json(self.request.id)
+    if progress_json is None:
+        progress_json = create_progress_json(
+            user_id,
+            document_type,
+            task_id=self.request.id,
+            task_name=self.name,
+            args=[commercial_offers_ids, user_id, is_reprocess],
+            kwargs={}
+        )
+    return process_documents(self, commercial_offers_ids, user_id, document_type, model_class=CommercialOffers,
                              load_function=load_raw_commercial_offers,
-                             process_function=extract_coordinates)
+                             process_function=extract_coordinates, progress_json=progress_json,
+                             is_reprocess=is_reprocess)
 
 
 def extract_coordinates(file, progress_recorder, pages_count, total_processed,
-                        commercial_offer_id, progress_json, task_id, time_on_start):
+                        commercial_offer_id, progress_json, task_id, time_on_start, is_reprocess):
     coordinates = {}
 
-    commercial_offers = CommercialOffers.objects.all()
-    for commercial_offer in commercial_offers:
-        if commercial_offer.source and commercial_offer.id != commercial_offer_id and os.path.isfile(
-                commercial_offer.source):
-            file_hash = calculate_file_hash(file)
-            open_list_hash = calculate_file_hash(commercial_offer.source)
-            if file_hash == open_list_hash:
-                raise FileExistsError(
-                    f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(commercial_offer_id)]['origin_filename']}")
+    if is_reprocess is False:
+        commercial_offers = CommercialOffers.objects.all()
+        for commercial_offer in commercial_offers:
+            if commercial_offer.source and commercial_offer.id != commercial_offer_id and os.path.isfile(
+                    commercial_offer.source):
+                file_hash = calculate_file_hash(file)
+                open_list_hash = calculate_file_hash(commercial_offer.source)
+                if file_hash == open_list_hash:
+                    raise FileExistsError(
+                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(commercial_offer_id)]['origin_filename']}")
 
     current_commercial_offer = CommercialOffers.objects.get(id=commercial_offer_id)
 

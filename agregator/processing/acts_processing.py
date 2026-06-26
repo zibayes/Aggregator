@@ -22,7 +22,7 @@ from agregator.hash import has_duplicates_in_db
 from agregator.processing.images_extraction import extract_images_with_captions, insert_supplement_links, \
     SUPPLEMENT_CONTENT
 from agregator.models import Act
-from agregator.redis_config import get_progress_json
+from agregator.redis_config import get_progress_json, create_progress_json
 from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
     PROCESSING_PART, ALL_PARTS
 from agregator.processing.coordinates_tables import search_coords_in_text
@@ -33,7 +33,7 @@ from agregator.processing.acts_regex_extractors import (extract_act_name, extrac
                                                         extract_expert, extract_object, get_gike_object_size,
                                                         extract_exp_facts,
                                                         extract_conclusion, extract_open_list, extract_voan,
-                                                        extract_executor)
+                                                        extract_executor, broken_structure_process)
 
 logger = logging.getLogger(__name__)
 
@@ -50,14 +50,25 @@ def choose_pdf_file() -> str:
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
 @profiled(enabled=True)
-def process_acts(self, acts_ids, user_id, select_text, select_enrich, select_image, select_coord):
+def process_acts(self, acts_ids, user_id, select_text, select_enrich, select_image, select_coord, is_reprocess=False):
+    document_type = 'acts'
     progress_json = get_progress_json(self.request.id)
+    if progress_json is None:
+        progress_json = create_progress_json(
+            user_id,
+            document_type,
+            task_id=self.request.id,
+            task_name=self.name,
+            args=[acts_ids, user_id, select_text, select_enrich, select_image, select_coord, is_reprocess],
+            kwargs={}
+        )
     try:
-        progress_json = process_documents(self, acts_ids, user_id, 'acts', model_class=Act,
+        progress_json = process_documents(self, acts_ids, user_id, document_type, model_class=Act,
                                           load_function=load_raw_reports,
                                           select_text=select_text, select_enrich=select_enrich,
                                           select_image=select_image, select_coord=select_coord,
-                                          process_function=extract_text_and_images, progress_json=progress_json)
+                                          process_function=extract_text_and_images, progress_json=progress_json,
+                                          is_reprocess=is_reprocess)
     except Exception as e:
         logger.error(f'Критическая ошибка при обработке актов {acts_ids}: {e}')
         logger.error(traceback.format_exc())
@@ -67,14 +78,16 @@ def process_acts(self, acts_ids, user_id, select_text, select_enrich, select_ima
 def extract_text_and_images(file, progress_recorder, pages_count, total_processed,
                             progress_json, act_id, source_index, task_id, user_id, is_public, select_text,
                             select_enrich, select_image,
-                            select_coord):
+                            select_coord, is_reprocess):
     logger.info(f"ОБРАБАТЫВАЕТСЯ АКТ: {file}")
     start_time = time.time()
-    has_duplicates, duplicate_id = has_duplicates_in_db(Act, file, act_id)
-    if has_duplicates:
-        raise FileExistsError(
-            f"Такой файл уже загружен в систему (act.id = {duplicate_id}): {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
-    logger.info(f"После проверки хеша: {round((time.time() - start_time), 2)} секунд")
+
+    if is_reprocess is False:
+        has_duplicates, duplicate_id = has_duplicates_in_db(Act, file, act_id)
+        if has_duplicates:
+            raise FileExistsError(
+                f"Такой файл уже загружен в систему (act.id = {duplicate_id}): {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
+        logger.info(f"После проверки хеша: {round((time.time() - start_time), 2)} секунд")
 
     use_kml = False
     supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
@@ -139,37 +152,35 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     # Разделы
     SECTIONS = OrderedDict([
         ('act', r'Акт'),
-        ('start_date', r'(\d\.\s*)?Дата\s*начала\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
-        ('end_date', r'(\d\.\s*)?Дата\s*окончания\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
-        ('place', r'(\d\.\s*)?Место проведения (экспертизы)?[\s:\-–-]*'),
+        ('start_date', r'(?<!\d)(\d\.\s*)?Дата\s*начала\s*(?!.*\s*окончания)(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
+        ('end_date', r'(?<!\d)(\d\.\s*)?(?<!начала и )Дата\s*окончания\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
+        ('place', r'(?<!\d)(\d\.\s*)?Место\s*проведения\s*(экспертизы)?[\s:\-–-]*'),
         ('customer', r'(\d\.\s*)?(Заказчик\s*экспертизы|Сведения\s*о\s*заказчике\s*экспертизы)[\s:\-–-]*'),
-        ('expert', r'(\d\.\s*)?(Сведения об)? эксперт[еах]+[\s:\-–-]*'),
+        ('expert', r'(\d\.\s*)?(Сведения\s*об)?\s*эксперт[еах]+[\s:\-–-]*'),
         ('relation', r'(\d\.\s*)?Отношени[яе]+\s*.*\s*к?\s*заказчик[у]?'),
         ('purpose', r'(\d\.\s*)?Цель\s*экспертизы[\s:\-–-]*'),
         ('object', r'(\d\.\s*)?Объект\s*.*?экспертизы[\s:\-–-]*'),
-        ('doc_list', r'Перечень документов, представленных\s*(на)?\s*(экспертизу)?[\s:\-–-]*'),
-        ('research_info', r'Сведения о проведенных исследованиях'),
-        ('facts', r'Факты и сведения, выявленные .*\n*.*исследований'),
+        ('doc_list', r'Перечень\s*документов,\s*представленных\s*(на)?\s*(экспертизу)?[\s:\-–-]*'),
+        ('research_info', r'Сведения\s*о\s*проведенных\s*исследованиях'),
+        ('facts', r'Факты\s*и\s*сведения,\s*выявленные\s*.*\n*.*исследований'),
         ('literature', r'Перечень[а-яА-ЯёЁ \n,]*литературы'),
-        ('conclusion', r'Вывод[ы]? экспертизы'),
-        ('appendix', r'Перечень приложений')
+        ('conclusion', r'Вывод[ы]?\s*экспертизы'),
+        ('appendix', r'Перечень\s*приложений')
     ])
     first_five_pages = '\n'.join([x.get_text() for x in document[:5]])
     print(f'SECTIONS = {SECTIONS}')
     SECTIONS = {**dict(sorted(list(SECTIONS.items())[:7],
-                              key=lambda x: re.search(x[1].replace(' ', r'\s*'), first_five_pages,
-                                                      re.IGNORECASE).start() if re.search(x[1], first_five_pages,
-                                                                                          re.IGNORECASE) else float(
+                              key=lambda x: re.search(x[1], first_five_pages, re.IGNORECASE).start() if re.search(x[1],
+                                                                                                                  first_five_pages,
+                                                                                                                  re.IGNORECASE) else float(
                                   'inf'))), **dict(list(SECTIONS.items())[7:])}
     print(f'after SECTIONS = {SECTIONS}')
 
     # Список имен секций в порядке следования (сохраняем порядок)
     SECTION_NAMES = list(SECTIONS.keys())
-    SECTION_PATTERNS = [re.compile(p.replace(' ', r'\s*'), re.IGNORECASE) for p in
-                        SECTIONS.values()]  # скомпилированные
+    SECTION_PATTERNS = [re.compile(pattern, re.IGNORECASE) for name, pattern in SECTIONS.items()]  # скомпилированные
     # Для обратного поиска по шаблону (если нужно) можно оставить словарь
-    SECTION_PATTERN_MAP = {name: re.compile(pattern.replace(' ', r'\s*'), re.IGNORECASE) for name, pattern in
-                           SECTIONS.items()}
+    SECTION_PATTERN_MAP = {name: re.compile(pattern, re.IGNORECASE) for name, pattern in SECTIONS.items()}
 
     act_parts_info = {i: '' for i in SECTION_NAMES}
     object_info = ''
@@ -192,6 +203,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     several_experts = False
     full_name = False
     full_text = None
+    full_time_interval = None
+    interval_type = None
     tables = []
     logger.info(f"После подготовки разделов: {round((time.time() - start_time), 2)} секунд")
 
@@ -233,14 +246,14 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
 
                         text_to_write = text[current_index:next_index.start() if next_index else len(text)]
                         text_to_write = '' if text_to_write is None else text_to_write
+
+                        if current_section_name == 'start_date':
+                            full_time_interval, interval_type, text_to_write = extract_start_date(text_to_write,
+                                                                                                  table_info)
+
                         text_file.write(
                             f"--- {current_section_name} --- (стр. {page_number + 1}):\n{text_to_write}\n")
                         act_parts_info[current_section_name] += text_to_write
-
-                        full_time_interval = None
-                        interval_type = None
-                        if current_section_name == 'start_date':
-                            full_time_interval, interval_type = extract_start_date(text_to_write)
 
                         if current_section_name == 'end_date' or full_time_interval:
                             current_section_idx, is_continue = extract_end_date(text, SECTION_PATTERN_MAP['start_date'],
@@ -259,8 +272,10 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                             extract_customer(broken_structure, SECTION_PATTERN_MAP['expert'], table_info, text,
                                              text_to_write)
                         elif current_section_name == 'expert':
-                            several_experts, full_name = extract_expert(text_to_write, several_experts, full_name,
-                                                                        table_info, document, page_number)
+                            several_experts, full_name, broken_structure = extract_expert(text_to_write,
+                                                                                          several_experts, full_name,
+                                                                                          table_info, document,
+                                                                                          page_number, broken_structure)
                         elif current_section_name == 'object':
                             object_info, exploration_object = extract_object(object_info, exploration_object, text,
                                                                              text_to_write, table_info, SQUARE_RESERVE)
@@ -273,6 +288,9 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                             text_reserve = extract_exp_facts(exploration_object, text_to_write, text, table_info,
                                                              SQUARE_RESERVE,
                                                              sectors_square, text_reserve)
+
+                        if broken_structure is True:
+                            broken_structure_process(text, table_info)
 
                         if current_section_idx > 10:
                             extract_conclusion(text_to_write, table_info, voan_reserve)

@@ -41,6 +41,7 @@ from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, I
 from agregator.processing.utils import clean_path_component
 from agregator.processing.external_acts_download_report import generate_download_report, generate_interrupted_report, \
     generate_final_report, generate_intermediate_report, handle_interrupts
+from agregator.processing.utils import get_unique_filename
 
 logger = logging.getLogger(__name__)
 
@@ -80,6 +81,8 @@ VOAN_REQUIRED_COLUMNS = {
     'obj_info': 'Сведения об историко-культурной ценности объекта',
     'doc': 'Документ о включении в перечень выявленных объектов'
 }
+
+ACTS_SAVING_PATH = Path('uploaded_files/Акты ГИКЭ/ООКН/')
 
 
 def create_note_file(output_path: str, order_text: str = None) -> None:
@@ -266,6 +269,30 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
             }
 
             try:
+                # Поиск ссылки
+                link = item.find('a', href=True)
+                if not link or '/upload/iblock/' not in link['href']:
+                    file_info.update({'status': 'пропущен', 'reason': 'Не найдена подходящая ссылка'})
+                    task_state.add_file_info(file_info)
+                    continue
+
+                origin_file = link['href'][link['href'].rfind('/') + 1:]
+                file = get_unique_filename(ACTS_SAVING_PATH, origin_file, [file for path, url, file in page_files])
+                file_lower = file.lower()
+
+                # Формируем URL
+                href = link['href'][:link['href'].rfind('/')]
+                params = urllib.parse.urlencode({'address': origin_file})
+                url = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace(
+                    '%29',
+                    ')')
+                url = f"https://ookn.ru{url}"
+
+                file_info.update({
+                    'filename': file,
+                    'url': url,
+                })
+
                 # Проверка исключений
                 if any(query in item.text for query in ACTS_QUERY_EXCLUDE):
                     file_info.update({'status': 'пропущен', 'reason': 'Исключение по фильтру'})
@@ -293,21 +320,11 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                         task_state.add_file_info(file_info)
                         continue
 
-                # Поиск ссылки
-                link = item.find('a', href=True)
-                if not link or '/upload/iblock/' not in link['href']:
-                    file_info.update({'status': 'пропущен', 'reason': 'Не найдена подходящая ссылка'})
-                    task_state.add_file_info(file_info)
-                    continue
-
                 if not ('акт' in link['href'].lower() or 'гикэ' in link['href'].lower()) and not (
                         'акт' in item.text.lower() or 'гикэ' in item.text.lower()):
                     file_info.update({'status': 'пропущен', 'reason': 'Не является актом ГИКЭ'})
                     task_state.add_file_info(file_info)
                     continue
-
-                file = link['href'][link['href'].rfind('/') + 1:]
-                file_lower = file.lower()
 
                 # Пропускаем уже скачанные или ненужные файлы
                 if file in downloaded_files:
@@ -325,14 +342,6 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                     task_state.add_file_info(file_info)
                     continue
 
-                # Формируем URL
-                href = link['href'][:link['href'].rfind('/')]
-                params = urllib.parse.urlencode({'address': file})
-                url = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace(
-                    '%29',
-                    ')')
-                url = f"https://ookn.ru{url}"
-
                 # Обновляем информацию о файле
                 file_info.update({
                     'filename': file,
@@ -343,8 +352,8 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                 task_state.add_file_info(file_info)
 
                 # Добавление файла в очередь
-                Path('uploaded_files/Акты ГИКЭ/ООКН/').mkdir(exist_ok=True)
-                path_to_download = f'uploaded_files/Акты ГИКЭ/ООКН/{file}'
+                ACTS_SAVING_PATH.mkdir(exist_ok=True)
+                path_to_download = f'{ACTS_SAVING_PATH}/{file}'
                 page_files.append((path_to_download, url, file))
 
             except Exception as e:

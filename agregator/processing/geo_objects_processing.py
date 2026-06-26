@@ -16,6 +16,7 @@ from agregator.hash import calculate_file_hash
 from agregator.models import GeoObject
 from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
     PROCESSING_PART, ALL_PARTS
+from agregator.redis_config import get_progress_json, create_progress_json
 
 COORDINATE_SYSTEMS = [
     r'wgs.*?\d+',
@@ -98,25 +99,38 @@ def parse_kml(file_path: str) -> dict:
 
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
-def process_geo_objects(self, geo_objects_ids, user_id):
-    return process_documents(self, geo_objects_ids, user_id, 'geo_objects', model_class=GeoObject,
+def process_geo_objects(self, geo_objects_ids, user_id, is_reprocess=False):
+    document_type = 'geo_objects'
+    progress_json = get_progress_json(self.request.id)
+    if progress_json is None:
+        progress_json = create_progress_json(
+            user_id,
+            document_type,
+            task_id=self.request.id,
+            task_name=self.name,
+            args=[geo_objects_ids, user_id, is_reprocess],
+            kwargs={}
+        )
+    return process_documents(self, geo_objects_ids, user_id, document_type, model_class=GeoObject,
                              load_function=load_raw_geo_objects,
-                             process_function=extract_coordinates)
+                             process_function=extract_coordinates, progress_json=progress_json,
+                             is_reprocess=is_reprocess)
 
 
 def extract_coordinates(file, progress_recorder, pages_count, total_processed,
-                        geo_object_id, progress_json, task_id, time_on_start):
+                        geo_object_id, progress_json, task_id, time_on_start, is_reprocess):
     coordinates = {}
 
-    geo_objects = GeoObject.objects.all()
-    for geo_object in geo_objects:
-        if geo_object.source and geo_object.id != geo_object_id and os.path.isfile(
-                geo_object.source):
-            file_hash = calculate_file_hash(file)
-            open_list_hash = calculate_file_hash(geo_object.source)
-            if file_hash == open_list_hash:
-                raise FileExistsError(
-                    f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(geo_object_id)]['origin_filename']}")
+    if is_reprocess is False:
+        geo_objects = GeoObject.objects.all()
+        for geo_object in geo_objects:
+            if geo_object.source and geo_object.id != geo_object_id and os.path.isfile(
+                    geo_object.source):
+                file_hash = calculate_file_hash(file)
+                open_list_hash = calculate_file_hash(geo_object.source)
+                if file_hash == open_list_hash:
+                    raise FileExistsError(
+                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(geo_object_id)]['origin_filename']}")
 
     current_geo_object = GeoObject.objects.get(id=geo_object_id)
 

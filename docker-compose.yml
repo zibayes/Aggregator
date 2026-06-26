@@ -96,6 +96,10 @@ services:
     image: redis:alpine
     ports:
       - "6379:6379"
+    volumes:
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+      - redis_data:/data                                   
+    command: redis-server /usr/local/etc/redis/redis.conf 
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 10s
@@ -190,3 +194,4 @@ volumes:
   postgres_data:
   postgres_data_test:
   app_init:
+  redis_data:

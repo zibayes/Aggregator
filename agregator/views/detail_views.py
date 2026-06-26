@@ -27,6 +27,7 @@ from django.urls import reverse
 def acts(request, pk):
     try:
         act = get_object_or_404(Act, id=pk)
+        act.upload_source = json.loads(act.upload_source)
     except Exception:
         raise Http404
     return render(request, 'act.html', {'report': act})
