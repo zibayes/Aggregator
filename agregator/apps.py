@@ -32,31 +32,35 @@ class AgregatorConfig(AppConfig):
         # self.revoke_all_tasks()
 
     def recover_tasks(self):
+        LOCK_NAME = "lock:recover_tasks"
+        LOCK_TIMEOUT = 60
         r = redis_client
-        task_ids = r.hvals('unacked')
 
-        for task_id in task_ids:
-            logger.info(f'task_id = {task_id}')
-            try:
-                progress_json = redis_client.get(json.loads(task_id)[0]['headers']['id'])
-                if progress_json is not None:
-                    progress_json = json.loads(progress_json)
-                    logger.info(f'TASK IS IN WORK')
-                    current_app.send_task(
-                        progress_json['task_name'],
-                        args=progress_json['args'],
-                        kwargs=progress_json['kwargs'],
-                        task_id=progress_json['task_id']
-                    )
-                else:
-                    logger.info(f'TASK NOT FOUND')
-            except Exception as e:
-                logger.error(f'Ошибка при возобновлении задачи: {e}')
-                logger.error(traceback.format_exc())
-                continue
+        with r.lock(LOCK_NAME, timeout=LOCK_TIMEOUT, blocking_timeout=5) as lock:
+            task_ids = r.hvals('unacked')
 
-        # После перезапуска можно очистить unacked
-        r.delete('unacked', 'unacked_index')
+            for task_id in task_ids:
+                logger.info(f'task_id = {task_id}')
+                try:
+                    progress_json = redis_client.get(json.loads(task_id)[0]['headers']['id'])
+                    if progress_json is not None:
+                        progress_json = json.loads(progress_json)
+                        logger.info(f'TASK IS IN WORK')
+                        current_app.send_task(
+                            progress_json['task_name'],
+                            args=progress_json['args'],
+                            kwargs=progress_json['kwargs'],
+                            task_id=progress_json['task_id']
+                        )
+                    else:
+                        logger.info(f'TASK NOT FOUND')
+                except Exception as e:
+                    logger.error(f'Ошибка при возобновлении задачи: {e}')
+                    logger.error(traceback.format_exc())
+                    continue
+
+            # После перезапуска можно очистить unacked
+            r.delete('unacked', 'unacked_index')
 
     def revoke_all_tasks(self):
         app = current_app
