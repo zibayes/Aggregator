@@ -27,6 +27,7 @@ rarfile==4.2
 PyJWT==2.10.1
 python-magic
 unrar
+py7zr
 xlrd
 django-filebrowser-no-grappelli==4.0.2
 supervisor

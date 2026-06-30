@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
-    User, UserTasks, Act, ScientificReport, TechReport, OpenLists,
+    User, UserTasks, DocumentFile, Act, ScientificReport, TechReport, OpenLists,
     ObjectAccountCard, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite,
     CommercialOffers, GeoObject, GeojsonData, Chat, Message
 )
@@ -32,6 +32,12 @@ admin.site.register(User, CustomUserAdmin)
 class UserTasksAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'task_id', 'files_type')
     search_fields = ('task_id', 'files_type', 'user__username')
+
+
+@admin.register(DocumentFile)
+class DocumentFileAdmin(admin.ModelAdmin):
+    list_display = ('id', 'path', 'file_type', 'file_hash', 'date_uploaded')
+    search_fields = ('path', 'file_type', 'file_hash')
 
 
 @admin.register(Act)

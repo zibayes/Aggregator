@@ -171,7 +171,7 @@ def process_coords_from_edit_page(request, entity) -> Optional[dict]:
         else:
             return None
         if hasattr(entity, 'source_dict'):
-            file_path = entity.source_dict[0]
+            file_path = entity.source_dict[0].path
         else:
             file_path = entity.source
         if '\\' in file_path:

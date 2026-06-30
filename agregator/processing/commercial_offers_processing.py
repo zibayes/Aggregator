@@ -9,7 +9,7 @@ from celery import shared_task
 from docx import Document
 
 from agregator.processing.files_saving import load_raw_commercial_offers
-from agregator.hash import calculate_file_hash
+from agregator.processing.hash_utils import check_duplicates
 from agregator.models import CommercialOffers
 from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
@@ -50,19 +50,10 @@ def process_commercial_offers(self, commercial_offers_ids, user_id, is_reprocess
 def extract_coordinates(file, progress_recorder, pages_count, total_processed,
                         commercial_offer_id, progress_json, task_id, time_on_start, is_reprocess):
     coordinates = {}
-
-    if is_reprocess is False:
-        commercial_offers = CommercialOffers.objects.all()
-        for commercial_offer in commercial_offers:
-            if commercial_offer.source and commercial_offer.id != commercial_offer_id and os.path.isfile(
-                    commercial_offer.source):
-                file_hash = calculate_file_hash(file)
-                open_list_hash = calculate_file_hash(commercial_offer.source)
-                if file_hash == open_list_hash:
-                    raise FileExistsError(
-                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(commercial_offer_id)]['origin_filename']}")
-
     current_commercial_offer = CommercialOffers.objects.get(id=commercial_offer_id)
+
+    check_duplicates(is_reprocess, file, progress_json['file_groups'][str(commercial_offer_id)]['origin_filename'],
+                     current_commercial_offer, delete_current=True)
 
     pages_processed = total_processed[0] + pages_count.get(current_commercial_offer.source, 0)
     progress_json['expected_time'] = get_expected_time(time_on_start, pages_processed, pages_count)

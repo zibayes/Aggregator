@@ -55,7 +55,7 @@ def auto_delete_links(sender, instance, **kwargs):
         try:
             source_path = None
             if hasattr(instance, 'source_dict') and instance.source_dict:
-                source_path = instance.source_dict[0]['path']
+                source_path = instance.source_dict[0].path
             elif hasattr(instance, 'source') and instance.source:
                 source_path = instance.source
 

@@ -19,9 +19,12 @@ from shapely.geometry import Polygon, LineString
 from shapely.geometry import shape, Point
 from shapely.ops import nearest_points
 from agregator.models import Act, ScientificReport, TechReport, OpenLists, ArchaeologicalHeritageSite, \
-    IdentifiedArchaeologicalHeritageSite, ObjectAccountCard
+    IdentifiedArchaeologicalHeritageSite, ObjectAccountCard, DocumentFile
 from django.http import Http404
 from django.urls import reverse
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def acts(request, pk):

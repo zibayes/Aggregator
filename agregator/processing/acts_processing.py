@@ -18,7 +18,7 @@ from celery import shared_task
 
 from agregator.decorators import profiled
 from agregator.processing.files_saving import load_raw_reports
-from agregator.hash import has_duplicates_in_db
+from agregator.processing.hash_utils import check_duplicates
 from agregator.processing.images_extraction import extract_images_with_captions, insert_supplement_links, \
     SUPPLEMENT_CONTENT
 from agregator.models import Act
@@ -81,13 +81,10 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                             select_coord, is_reprocess):
     logger.info(f"ОБРАБАТЫВАЕТСЯ АКТ: {file}")
     start_time = time.time()
+    current_act = Act.objects.get(id=act_id)
 
-    if is_reprocess is False:
-        has_duplicates, duplicate_id = has_duplicates_in_db(Act, file, act_id)
-        if has_duplicates:
-            raise FileExistsError(
-                f"Такой файл уже загружен в систему (act.id = {duplicate_id}): {progress_json['file_groups'][str(act_id)][source_index]['origin_filename']}")
-        logger.info(f"После проверки хеша: {round((time.time() - start_time), 2)} секунд")
+    check_duplicates(is_reprocess, file, progress_json['file_groups'][str(act_id)][source_index]['origin_filename'],
+                     current_act, delete_current=True)
 
     use_kml = False
     supplement_content = copy.deepcopy(SUPPLEMENT_CONTENT)
@@ -95,14 +92,15 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     coordinates = {}
     pdf_file = file  # pdf_file = 'uploaded_files/' + file
 
-    current_act = Act.objects.get(id=act_id)
     source_info = current_act.source_dict[source_index]
 
     # Логируем информацию об организации
+    '''
     if source_info.get('was_organized'):
         logger.info(f"Файл был организован: {source_info.get('original_path')} -> {file}")
     else:
         logger.info(f"Файл не требовал организации: {file}")
+    '''
 
     # Открываем PDF-файл
     if not os.path.exists(pdf_file):

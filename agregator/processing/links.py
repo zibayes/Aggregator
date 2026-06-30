@@ -53,11 +53,11 @@ def create_link_for_instance(instance):
             if hasattr(instance, 'source') and instance.source:
                 source_path = instance.source.path
         elif hasattr(instance, 'source_dict') and instance.source_dict:
-            source_path = instance.source_dict[0]['path']
+            source_path = instance.source_dict[0].path
         elif hasattr(instance, 'source') and instance.source:
             source_path = instance.source
         elif hasattr(instance, 'document_source_dict') and instance.document_source_dict:
-            source_path = instance.document_source_dict[0]['path']
+            source_path = instance.document_source_dict[0].path
 
         if source_path and os.path.exists(source_path):
             if not (instance.__class__.__name__ in ['ArchaeologicalHeritageSite',

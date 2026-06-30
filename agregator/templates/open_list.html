@@ -13,10 +13,14 @@
 
 {% block document_sources %}
 {% include 'includes/django_messages.html' %}
-<a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px; margin-top: 15px;"
-   href="/uploaded_files/{{ open_list.source }}">
-    Исходник: {{ open_list.origin_filename }}
+{% for source in open_list.source_dict %}
+<a class="btn btn-primary lang source-button" style="border-radius: 12px; margin-right:10px;"
+   href="/{{ source.path }}">
+    Исходник: {{ source.origin_filename }}
 </a>
+<br>
+<br>
+{% endfor %}
 {% endblock %}
 
 {% block document_actions %}

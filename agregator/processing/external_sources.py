@@ -13,12 +13,6 @@ from typing import List
 from urllib.parse import quote
 
 import pandas as pd
-# import patoolib
-import zipfile
-import rarfile
-
-rarfile.UNRAR_TOOL = '/usr/bin/unrar'  # /usr/bin/7z
-rarfile.PRIORITY = (rarfile.UNRAR_TOOL,)
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -37,11 +31,14 @@ from agregator.processing.account_cards_processing import connect_account_card_t
 from agregator.processing.acts_processing import process_acts
 from agregator.processing.error_handler import error_handler
 from .files_saving import raw_reports_save
-from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite
-from agregator.processing.utils import clean_path_component
+from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, \
+    DocumentFile
+from agregator.processing.utils import clean_path_component, get_file_size
+from agregator.processing.hash_utils import calculate_file_hash
 from agregator.processing.external_acts_download_report import generate_download_report, generate_interrupted_report, \
     generate_final_report, generate_intermediate_report, handle_interrupts
 from agregator.processing.utils import get_unique_filename
+from agregator.processing.archive_utils import unzip_rar, unzip_7z, unzip_zip, untar_tgz
 
 logger = logging.getLogger(__name__)
 
@@ -433,34 +430,11 @@ def get_downloaded_files_cache(admin_id):
         for act in acts:
             if act.upload_source_dict and act.upload_source_dict['source'] != 'Пользовательский файл':
                 for source in act.source_dict:
-                    if 'origin_filename' in source:
-                        downloaded_files.add(source['origin_filename'])
+                    if source.origin_filename:
+                        downloaded_files.add(source.origin_filename)
         cache.set(cache_key, downloaded_files, timeout=3600)  # 1 час
 
     return downloaded_files
-
-
-def fix_name(name):
-    for enc_from, enc_to in [('cp437', 'cp866'), ('cp437', 'cp1251')]:
-        try:
-            return name.encode(enc_from).decode(enc_to)
-        except:
-            continue
-    return name
-
-
-def unzip_zip(zip_path, extract_to):
-    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-        for file_info in zip_ref.infolist():
-            file_info.filename = fix_name(file_info.filename)
-            zip_ref.extract(file_info, extract_to)
-
-
-def unzip_rar(rar_path, extract_to):
-    with rarfile.RarFile(rar_path, 'r') as rar_ref:
-        for file_info in rar_ref.infolist():
-            file_info.filename = fix_name(file_info.filename)
-            rar_ref.extract(file_info, extract_to)
 
 
 def process_downloaded_files(files_data, admin, select_text, select_enrich, select_image, select_coord, task_state):
@@ -473,8 +447,10 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
         try:
             archive_files = []
             folder = None
+            path_to_download_lower = path_to_download.lower()
 
-            if path_to_download.lower().endswith(('.zip', '.rar')):
+            if path_to_download_lower.endswith(
+                    ('.zip', '.rar', '.7z', '.tar.gz', '.tgz', '.tar.xz', '.txz', '.tar.bz2', '.tbz2', '.tar')):
                 folder = path_to_download[:path_to_download.rfind('.')]
                 while folder.endswith('.'):
                     folder = folder[:-1]
@@ -482,10 +458,20 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
 
                 try:
                     # patoolib.extract_archive(path_to_download, outdir=folder)
-                    if path_to_download.lower().endswith('.rar'):
+                    if path_to_download_lower.endswith('.rar'):
                         unzip_rar(path_to_download, folder)
-                    elif path_to_download.lower().endswith('.zip'):
+                    elif path_to_download_lower.endswith('.zip'):
                         unzip_zip(path_to_download, folder)
+                    elif path_to_download_lower.endswith('.7z'):
+                        unzip_7z(path_to_download, folder)
+                    elif path_to_download_lower.endswith(('.tar.gz', '.tgz')):
+                        untar_tgz(path_to_download, folder, 'r:gz')
+                    elif path_to_download_lower.endswith(('.tar.xz', '.txz')):
+                        untar_tgz(path_to_download, folder, 'r:xz')
+                    elif path_to_download_lower.endswith(('.tar.bz2', '.tbz2')):
+                        untar_tgz(path_to_download, folder, 'r:bz2')
+                    elif path_to_download_lower.endswith('.tar'):
+                        untar_tgz(path_to_download, folder, 'r:')
 
                     # Используем ThreadPool для поиска файлов в архиве
                     with ThreadPoolExecutor(max_workers=5) as executor:
@@ -828,6 +814,14 @@ def process_oan_list(self, progress_key=None):
                         nested_folders = Path(folder)
                         nested_folders.mkdir(parents=True, exist_ok=True)
 
+                        folder_source = DocumentFile(
+                            document_id=archaeological_site.id,
+                            document_type='ArchaeologicalHeritageSite',
+                            file_type='folder',
+                            path=str(nested_folders),
+                            origin_filename=str(nested_folders).split('/')[-1],
+                        )
+                        folder_source.save()
                         archaeological_site.source = str(nested_folders)
                         external_orders_download(archaeological_site.document, archaeological_site.source,
                                                  document_source)
@@ -836,6 +830,8 @@ def process_oan_list(self, progress_key=None):
                         if not document_source:
                             create_note_file(archaeological_site.source, order_text)
 
+                        save_document_source(archaeological_site.id, 'ArchaeologicalHeritageSite', 'document',
+                                             document_source)
                         archaeological_site.document_source = document_source
                     else:
                         # Если объект уже существовал, но нет документов - скачиваем
@@ -847,6 +843,8 @@ def process_oan_list(self, progress_key=None):
                             if not document_source:
                                 create_note_file(archaeological_site.source, order_text)
 
+                            save_document_source(archaeological_site.id, 'ArchaeologicalHeritageSite', 'document',
+                                                 document_source)
                             archaeological_site.document_source = document_source
 
                         # Снимаем пометку исключения, если объект найден в новом перечне
@@ -940,6 +938,14 @@ def _process_oan_row(row, existing_sites_set):
             nested_folders = Path(folder)
             nested_folders.mkdir(parents=True, exist_ok=True)
 
+            folder_source = DocumentFile(
+                document_id=archaeological_site.id,
+                document_type='ArchaeologicalHeritageSite',
+                file_type='folder',
+                path=str(nested_folders),
+                origin_filename=str(nested_folders).split('/')[-1],
+            )
+            folder_source.save()
             archaeological_site.source = str(nested_folders)
 
             # Скачиваем документы
@@ -949,6 +955,7 @@ def _process_oan_row(row, existing_sites_set):
             if not document_source:
                 create_note_file(archaeological_site.source, order_text)
 
+            save_document_source(archaeological_site.id, 'ArchaeologicalHeritageSite', 'document', document_source)
             archaeological_site.document_source = document_source
             archaeological_site.save()
 
@@ -964,6 +971,7 @@ def _process_oan_row(row, existing_sites_set):
             if not document_source:
                 create_note_file(archaeological_site.source, order_text)
 
+            save_document_source(archaeological_site.id, 'ArchaeologicalHeritageSite', 'document', document_source)
             archaeological_site.document_source = document_source
             archaeological_site.save()
 
@@ -1076,6 +1084,14 @@ def _process_voan_row(row):
             folder = f'uploaded_files/Памятники/ВОАН/{address}/{clean_path_component(row[VOAN_REQUIRED_COLUMNS['name']])}'
             Path(folder).mkdir(parents=True, exist_ok=True)
 
+            folder_source = DocumentFile(
+                document_id=identified_site.id,
+                document_type='IdentifiedArchaeologicalHeritageSite',
+                file_type='folder',
+                path=str(folder),
+                origin_filename=str(folder).split('/')[-1],
+            )
+            folder_source.save()
             identified_site.source = folder
 
             # Скачиваем документы
@@ -1086,6 +1102,8 @@ def _process_voan_row(row):
                 # Передаем текст приказа из таблицы
                 create_note_file(folder, order_text)
 
+            save_document_source(identified_site.id, 'IdentifiedArchaeologicalHeritageSite', 'document',
+                                 document_source)
             identified_site.document_source = document_source
             identified_site.save()
             connect_account_card_to_heritage(identified_site.name)
@@ -1105,6 +1123,8 @@ def _process_voan_row(row):
                 if not document_source:
                     create_note_file(existing_site.source, order_text)
 
+                save_document_source(identified_site.id, 'IdentifiedArchaeologicalHeritageSite', 'document',
+                                     document_source)
                 existing_site.document_source = document_source
                 existing_site.save()
         return (identified_site.name, identified_site.address, identified_site.obj_info, identified_site.document)
@@ -1247,3 +1267,24 @@ def download_file(url, path_to_download):
     except Exception as e:
         logger.debug(f"Ошибка скачивания {url}: {e}")
         return False
+
+
+def save_document_source(obj_id, document_type, file_type, document_source):
+    for doc in document_source:
+        file_hash = file_size = None
+        origin_filename = doc['path']
+        if file_type != 'folder':
+            file_hash = calculate_file_hash(doc['path'])
+            file_size = get_file_size(doc['path'])
+        if '/' in doc['path']:
+            origin_filename = doc['path'].split('/')[-1]
+        doc_source = DocumentFile(
+            document_id=obj_id,
+            document_type=document_type,
+            file_type=file_type,
+            path=doc['path'],
+            origin_filename=origin_filename,
+            file_hash=file_hash,
+            file_size=file_size,
+        )
+        doc_source.save()

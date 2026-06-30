@@ -5,8 +5,14 @@ from django.contrib.auth.models import AbstractUser, Group, Permission
 from archeology.settings import AUTH_USER_MODEL
 from django.core.files.storage import default_storage
 from django_celery_results.models import TaskResult
+from django.db.models.query import QuerySet
+from agregator.hash import calculate_file_hash
+from agregator.processing.utils import get_file_size
 import os
 import shutil
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def to_json(value):
@@ -63,13 +69,26 @@ def delete_files_from_json_field(field_value):
         except (json.JSONDecodeError, TypeError):
             return
     if isinstance(field_value, list) and len(field_value) > 0:
-        path = field_value[0].get('path')
-        if path:
-            delete_files(path)
+        if isinstance(field_value[0], dict):
+            path = field_value[0].get('path')
+            if path:
+                delete_files(path)
     elif isinstance(field_value, dict):
         path = field_value.get('path')
         if path:
             delete_files(path)
+    elif isinstance(field_value, QuerySet) and len(field_value) > 0 and isinstance(field_value[0], DocumentFile):
+        for source in field_value:
+            delete_files(source.path)
+            source.delete()
+
+
+def delete_document_file_instances(source_dict):
+    logger.info('DELETEEEEE!!!')
+    if isinstance(source_dict, QuerySet) and len(source_dict) > 0 and isinstance(source_dict[0], DocumentFile):
+        for source in source_dict:
+            logger.info(F'DELETEEEEE!!! {source}')
+            source.delete()
 
 
 # Модель для пользователей
@@ -133,6 +152,46 @@ class UserTasks(models.Model):
         return from_json(self.upload_source)
 
 
+# Модель для файлов документов
+class DocumentFile(models.Model):
+    DOCUMENT_TYPES = (
+        ('Act', 'Акт'),
+        ('ScientificReport', 'Научный отчёт'),
+        ('TechReport', 'Научно-технический отчёт'),
+        ('OpenLists', 'Открытый лист'),
+        ('ObjectAccountCard', 'Учётная карта'),
+        ('ArchaeologicalHeritageSite', 'ОАН'),
+        ('IdentifiedArchaeologicalHeritageSite', 'ВОАН'),
+        ('CommercialOffers', 'Коммерческое предложение'),
+        ('GeoObject', 'Географический объект'),
+    )
+    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES)
+    document_id = models.PositiveIntegerField()
+
+    file_type = models.CharField(max_length=50, null=True, blank=True)  # main, supplement, map, etc.
+    path = models.TextField()
+    origin_filename = models.CharField(max_length=255, null=True)
+    file_hash = models.CharField(max_length=64, null=True, blank=True)
+    file_size = models.CharField(max_length=20, null=True, blank=True)
+    date_uploaded = models.DateTimeField(auto_now_add=True)
+
+    metadata = models.JSONField(default=dict, null=True, blank=True)
+
+    def __str__(self):
+        return f"DocumentFile {self.id} / {self.document_type} = {self.document_id}"
+
+    def save(self, *args, **kwargs):
+        if self.file_type != 'folder':
+            self.file_hash = calculate_file_hash(self.path)
+            self.file_size = get_file_size(self.path)
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = "Исходный файл"
+        verbose_name_plural = "Исходные файлы"
+        db_table = 'document_files'
+
+
 # Модель для актов
 class Act(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
@@ -155,6 +214,7 @@ class Act(models.Model):
     conclusion = models.TextField(blank=True)
     border_objects = models.TextField(blank=True)
     source = models.JSONField(null=True, blank=True)
+    source_files = None
 
     act = models.TextField(blank=True)
     start_date = models.TextField(blank=True)
@@ -182,16 +242,19 @@ class Act(models.Model):
 
     def save(self, *args, **kwargs):
         self.upload_source = to_json(self.upload_source)
-        self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
         self.coordinates = to_json(self.coordinates)
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
+        logger.info(f'has attr: {hasattr(self, '_raw_delete')}')
+        if hasattr(self, '_raw_delete'):
+            logger.info(f'_raw_delete: {self._raw_delete}')
         if hasattr(self, '_raw_delete') and self._raw_delete:
+            delete_document_file_instances(self.source_dict)
             super().delete(*args, **kwargs)
         else:
-            delete_files_from_json_field(self.source)
+            delete_files_from_json_field(self.source_dict)
             super().delete(*args, **kwargs)
 
     @property
@@ -200,7 +263,10 @@ class Act(models.Model):
 
     @property
     def source_dict(self):
-        return from_json(self.source)
+        if self.source_files is None:
+            self.source_files = DocumentFile.objects.filter(document_type='Act', document_id=self.id)
+        return self.source_files
+        # return from_json(self.source)
 
     @property
     def supplement_dict(self):
@@ -233,6 +299,7 @@ class ScientificReport(models.Model):
     results = models.TextField(blank=True)
     conclusion = models.TextField(blank=True)
     source = models.JSONField(null=True, blank=True)
+    source_files = None
     content = models.JSONField(null=True, blank=True)
     supplement = models.JSONField(null=True, blank=True)
     coordinates = models.JSONField(null=True, blank=True)
@@ -247,7 +314,6 @@ class ScientificReport(models.Model):
 
     def save(self, *args, **kwargs):
         self.upload_source = to_json(self.upload_source)
-        self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
         self.content = to_json(self.content)
         self.coordinates = to_json(self.coordinates)
@@ -255,9 +321,10 @@ class ScientificReport(models.Model):
 
     def delete(self, *args, **kwargs):
         if hasattr(self, '_raw_delete') and self._raw_delete:
+            delete_document_file_instances(self.source_dict)
             super().delete(*args, **kwargs)
         else:
-            delete_files_from_json_field(self.source)
+            delete_files_from_json_field(self.source_dict)
             super().delete(*args, **kwargs)
 
     @property
@@ -266,7 +333,10 @@ class ScientificReport(models.Model):
 
     @property
     def source_dict(self):
-        return from_json(self.source)
+        if self.source_files is None:
+            self.source_files = DocumentFile.objects.filter(document_type='ScientificReport', document_id=self.id)
+        return self.source_files
+        # return from_json(self.source)
 
     @property
     def supplement_dict(self):
@@ -303,6 +373,7 @@ class TechReport(models.Model):
     results = models.TextField(blank=True)
     conclusion = models.TextField(blank=True)
     source = models.JSONField(null=True, blank=True)
+    source_files = None
     content = models.JSONField(null=True, blank=True)
     supplement = models.JSONField(null=True, blank=True)
     coordinates = models.JSONField(null=True, blank=True)
@@ -317,7 +388,6 @@ class TechReport(models.Model):
 
     def save(self, *args, **kwargs):
         self.upload_source = to_json(self.upload_source)
-        self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
         self.content = to_json(self.content)
         self.coordinates = to_json(self.coordinates)
@@ -325,9 +395,10 @@ class TechReport(models.Model):
 
     def delete(self, *args, **kwargs):
         if hasattr(self, '_raw_delete') and self._raw_delete:
+            delete_document_file_instances(self.source_dict)
             super().delete(*args, **kwargs)
         else:
-            delete_files_from_json_field(self.source)
+            delete_files_from_json_field(self.source_dict)
             super().delete(*args, **kwargs)
 
     @property
@@ -336,7 +407,10 @@ class TechReport(models.Model):
 
     @property
     def source_dict(self):
-        return from_json(self.source)
+        if self.source_files is None:
+            self.source_files = DocumentFile.objects.filter(document_type='TechReport', document_id=self.id)
+        return self.source_files
+        # return from_json(self.source)
 
     @property
     def supplement_dict(self):
@@ -368,6 +442,7 @@ class OpenLists(models.Model):
     start_date = models.TextField(blank=True)
     end_date = models.TextField(blank=True)
     source = models.FileField(upload_to='Открытые листы/', max_length=255)
+    source_files = None
 
     def __str__(self):
         return f"Open list {self.id}"
@@ -383,14 +458,21 @@ class OpenLists(models.Model):
 
     def delete(self, *args, **kwargs):
         if hasattr(self, '_raw_delete') and self._raw_delete:
+            delete_document_file_instances(self.source_dict)
             super().delete(*args, **kwargs)
         else:
-            delete_files_from_json_field(self.source)
+            delete_files_from_json_field(self.source_dict)
             super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
         return from_json(self.upload_source)
+
+    @property
+    def source_dict(self):
+        if self.source_files is None:
+            self.source_files = DocumentFile.objects.filter(document_type='OpenLists', document_id=self.id)
+        return self.source_files
 
 
 class ObjectAccountCard(models.Model):
@@ -414,6 +496,7 @@ class ObjectAccountCard(models.Model):
     supplement = models.JSONField(null=True, blank=True)
     coordinates = models.JSONField(null=True, blank=True)
     source = models.TextField(null=True, blank=True)
+    source_files = None
 
     def __str__(self):
         return f"Object Account Card {self.id} by {self.user.username}"
@@ -425,16 +508,16 @@ class ObjectAccountCard(models.Model):
 
     def save(self, *args, **kwargs):
         self.upload_source = to_json(self.upload_source)
-        self.source = to_json(self.source)
         self.supplement = to_json(self.supplement)
         self.coordinates = to_json(self.coordinates)
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
         if hasattr(self, '_raw_delete') and self._raw_delete:
+            delete_document_file_instances(self.source_dict)
             super().delete(*args, **kwargs)
         else:
-            delete_files_from_json_field(self.source)
+            delete_files_from_json_field(self.source_dict)
             super().delete(*args, **kwargs)
 
     @property
@@ -443,7 +526,9 @@ class ObjectAccountCard(models.Model):
 
     @property
     def source_dict(self):
-        return from_json(self.source)
+        if self.source_files is None:
+            self.source_files = DocumentFile.objects.filter(document_type='ObjectAccountCard', document_id=self.id)
+        return self.source_files
 
     @property
     def supplement_dict(self):
@@ -465,10 +550,11 @@ class ArchaeologicalHeritageSite(models.Model):
     is_excluded = models.BooleanField(default=False)
     source = models.TextField(null=True, blank=True)
     document_source = models.JSONField(null=True, blank=True)
+    source_files = None
 
     class Meta:
-        verbose_name = "Археологический объект культурного наследия"
-        verbose_name_plural = "Археологические объекты культурного наследия"
+        verbose_name = "Объект археологического наследия"
+        verbose_name_plural = "Объекты археологического наследия"
         db_table = 'archaeological_heritage_sites'
 
     def __str__(self):
@@ -480,16 +566,22 @@ class ArchaeologicalHeritageSite(models.Model):
 
     def delete(self, *args, **kwargs):
         if hasattr(self, '_raw_delete') and self._raw_delete:
+            delete_document_file_instances(self.document_source_dict)
             super().delete(*args, **kwargs)
         else:
-            delete_files_from_json_field(self.document_source)
+            delete_files_from_json_field(self.document_source_dict)
             if self.source and len(self.source) > 0:
                 delete_files(self.source)
             super().delete(*args, **kwargs)
 
     @property
     def document_source_dict(self):
-        return from_json(self.document_source)
+        if self.source_files is None:
+            self.source_files = DocumentFile.objects.filter(document_type='ArchaeologicalHeritageSite',
+                                                            document_id=self.id,
+                                                            file_type='document')
+        return self.source_files
+        # return from_json(self.document_source)
 
 
 class IdentifiedArchaeologicalHeritageSite(models.Model):
@@ -503,10 +595,11 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
     is_excluded = models.BooleanField(default=False)
     source = models.TextField(null=True, blank=True)
     document_source = models.JSONField(null=True, blank=True)
+    source_files = None
 
     class Meta:
-        verbose_name = "Выявленный археологический объект культурного наследия"
-        verbose_name_plural = "Выявленные археологические объекты культурного наследия"
+        verbose_name = "Выявленный объект археологического наследия"
+        verbose_name_plural = "Выявленные объекты археологического наследия"
         db_table = 'identified_archaeological_heritage_sites'
 
     def __str__(self):
@@ -518,16 +611,22 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
 
     def delete(self, *args, **kwargs):
         if hasattr(self, '_raw_delete') and self._raw_delete:
+            delete_document_file_instances(self.document_source_dict)
             super().delete(*args, **kwargs)
         else:
-            delete_files_from_json_field(self.document_source)
+            delete_files_from_json_field(self.document_source_dict)
             if self.source and len(self.source) > 0:
                 delete_files(self.source)
             super().delete(*args, **kwargs)
 
     @property
     def document_source_dict(self):
-        return from_json(self.document_source)
+        if self.source_files is None:
+            self.source_files = DocumentFile.objects.filter(document_type='ArchaeologicalHeritageSite',
+                                                            document_id=self.id,
+                                                            file_type='document')
+        return self.source_files
+        # return from_json(self.document_source)
 
 
 class CommercialOffers(models.Model):
@@ -541,6 +640,7 @@ class CommercialOffers(models.Model):
 
     coordinates = models.JSONField(null=True, blank=True)
     source = models.TextField(null=True, blank=True)
+    source_files = None
 
     def __str__(self):
         return f"Commercial Offer {self.id} by {self.user.username}"
@@ -557,11 +657,17 @@ class CommercialOffers(models.Model):
 
     def delete(self, *args, **kwargs):
         if hasattr(self, '_raw_delete') and self._raw_delete:
+            delete_document_file_instances(self.source_dict)
             super().delete(*args, **kwargs)
         else:
-            if self.source and len(self.source) > 0:
-                delete_files(self.source)
+            delete_files_from_json_field(self.source_dict)
             super().delete(*args, **kwargs)
+
+    @property
+    def source_dict(self):
+        if self.source_files is None:
+            self.source_files = DocumentFile.objects.filter(document_type='Act', document_id=self.id)
+        return self.source_files
 
     @property
     def upload_source_dict(self):
@@ -585,6 +691,7 @@ class GeoObject(models.Model):
     type = models.CharField(max_length=255, null=True, blank=True)
     coordinates = models.JSONField(null=True, blank=True)
     source = models.TextField(null=True, blank=True)
+    source_files = None
 
     class Meta:
         verbose_name = "Географический объект"
@@ -601,11 +708,17 @@ class GeoObject(models.Model):
 
     def delete(self, *args, **kwargs):
         if hasattr(self, '_raw_delete') and self._raw_delete:
+            delete_document_file_instances(self.source_dict)
             super().delete(*args, **kwargs)
         else:
-            if self.source and len(self.source) > 0:
-                delete_files(self.source)
+            delete_files_from_json_field(self.source_dict)
             super().delete(*args, **kwargs)
+
+    @property
+    def source_dict(self):
+        if self.source_files is None:
+            self.source_files = DocumentFile.objects.filter(document_type='Act', document_id=self.id)
+        return self.source_files
 
     @property
     def upload_source_dict(self):

@@ -25,9 +25,8 @@ import logging
 from typing import Dict, List, Optional, Tuple, Any
 
 from agregator.processing.files_saving import load_raw_account_cards
-from agregator.hash import calculate_file_hash
+from agregator.processing.hash_utils import check_duplicates
 from agregator.models import ObjectAccountCard, IdentifiedArchaeologicalHeritageSite, ArchaeologicalHeritageSite
-from agregator.redis_config import redis_client
 from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
     PROCESSING_PART, \
     ALL_PARTS
@@ -718,18 +717,10 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
         "description": [],
     }
     coordinates = {}
-
-    if is_reprocess is False:
-        account_cards = ObjectAccountCard.objects.all()
-        file_hash = calculate_file_hash(file)
-        for account_card in account_cards:
-            if account_card.source and account_card.id != account_card_id and os.path.isfile(account_card.source):
-                account_card_hash = calculate_file_hash(account_card.source)
-                if file_hash == account_card_hash:
-                    raise FileExistsError(
-                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(account_card_id)]['origin_filename']}")
-
     current_account_card = ObjectAccountCard.objects.get(id=account_card_id)
+
+    check_duplicates(is_reprocess, file, progress_json['file_groups'][str(account_card_id)]['origin_filename'],
+                     current_account_card, delete_current=True)
 
     # folder = file[:file.rfind(".")]
     folder = file[:file.rfind("/") + 1] + 'Изображения'

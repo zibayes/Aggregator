@@ -34,7 +34,7 @@ import torchvision
 from torchvision import transforms as T
 
 from .files_saving import load_raw_open_lists
-from agregator.hash import calculate_file_hash
+from agregator.processing.hash_utils import check_duplicates
 from agregator.models import OpenLists
 from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
     PROCESSING_PART, ALL_PARTS
@@ -830,14 +830,10 @@ def process_open_lists(self, open_lists_ids, user_id, is_reprocess=False):
 def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
                   open_list_id, progress_json, task_id, time_on_start, is_reprocess):
     logger.info(f"Начало обработки open_list_id={open_list_id}, pdf_path={pdf_path}")
-    open_lists = OpenLists.objects.all()
-    for open_list in open_lists:
-        if open_list.source and open_list.id != open_list_id and os.path.isfile(open_list.source.path):
-            file_hash = calculate_file_hash(pdf_path)
-            open_list_hash = calculate_file_hash('uploaded_files/' + open_list.source.name)
-            if file_hash == open_list_hash:
-                raise FileExistsError(
-                    f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(open_list_id)]['origin_filename']}")
+    open_list = OpenLists.objects.get(id=open_list_id)
+
+    check_duplicates(is_reprocess, pdf_path, progress_json['file_groups'][str(open_list_id)]['origin_filename'],
+                     open_list, delete_current=True)
 
     document = fitz.open(pdf_path)
     logger.info(f"PDF содержит {len(document)} страниц")
@@ -1014,7 +1010,6 @@ def open_list_ocr(pdf_path, progress_recorder, pages_count, total_processed,
                 logger.info(f"Конец срока: {list_data['Конец срока']}")
 
         # Сохраняем результаты в базу
-        open_list = OpenLists.objects.get(id=open_list_id)
         open_list.number = list_data['Номер листа']
         open_list.holder = list_data['Держатель']
         open_list.object = list_data['Объект']

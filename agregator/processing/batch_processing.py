@@ -2,18 +2,21 @@ import os
 import concurrent.futures
 import logging
 import time
+
+from fsspec.implementations.http import file_size
+
 import redis
 from pathlib import Path
 import json
-import hashlib
 from collections import defaultdict
 from agregator.redis_config import REDIS_HOST, REDIS_PORT, REDIS_DB
 from agregator.hash import calculate_file_hash
-from agregator.models import Act, ScientificReport, TechReport, ObjectAccountCard
-from agregator.processing.hash_utils import check_file_hash_in_sources
+from agregator.models import Act, ScientificReport, TechReport, ObjectAccountCard, DocumentFile
+from agregator.processing.hash_utils import has_duplicates_in_db
 from agregator.processing.batch_file_organizer import FileOrganizer
 from agregator.processing.batch_registry_utils import RegistryManager
 from agregator.processing.batch_kml_utils import KMLParser
+from agregator.processing.utils import get_file_size
 
 logger = logging.getLogger(__name__)
 
@@ -200,9 +203,9 @@ def create_act_from_existing_file(file_info, user, is_public=False):
         logger.info(f"Организация файла ПЕРЕД обработкой: {original_path}")
 
         # Проверяем дубликат по хешу (уже по новому пути)
-        is_duplicate, file_hash = check_file_hash_in_sources(original_path, Act)
+        is_duplicate, dup_id, file_hash = has_duplicates_in_db(original_path)
         if is_duplicate:
-            logger.info(f"Файл уже существует в БД: {file_info['path']}")
+            logger.info(f"Файл уже существует в БД (dup_id={dup_id}): {file_info['path']}")
             return None
 
         # ИСПОЛЬЗУЕМ СУЩЕСТВУЮЩИЙ FILEORGANIZER
@@ -227,6 +230,14 @@ def create_act_from_existing_file(file_info, user, is_public=False):
         act.save()
 
         # Создаем source с хешем и информацией об организации
+        new_entry = DocumentFile(
+            document_id=act.id,
+            document_type='Act',
+            file_type='all',
+            path=original_path,
+            origin_filename=file_info['name'],
+        )
+        new_entry.save()
         source_content = [{
             'type': 'all',
             'path': file_info['path'],  # новый путь после организации
@@ -266,14 +277,10 @@ def create_account_card_from_existing_file(file_info, user, is_public=False):
         logger.info(f"Обработка файла: {original_path}, папка: {folder}")
 
         # 1. Проверка дубликата по хешу (глобально)
-        is_duplicate, file_hash = check_file_hash_in_sources(original_path, ObjectAccountCard)
+        is_duplicate, dup_id, file_hash = has_duplicates_in_db(original_path)
         if is_duplicate:
-            logger.info(f"Файл уже существует в БД: {original_path}")
+            logger.info(f"Файл уже существует в БД (dup_id={dup_id}): {file_info['path']}")
             return None
-
-        # Если хеш не был вычислен внутри check_file_hash_in_sources, вычисляем явно
-        if file_hash is None:
-            file_hash = calculate_file_hash(original_path)
 
         # 2. Поиск учётной карты, привязанной к этой папке
         target_card = None
@@ -282,12 +289,11 @@ def create_account_card_from_existing_file(file_info, user, is_public=False):
         for card in cards:
             try:
                 for item in card.source_dict:
-                    if isinstance(item, dict) and 'path' in item:
-                        item_folder = os.path.dirname(item['path'])
-                        if item_folder == folder:
-                            target_card = card
-                            logger.info(f"Найдена карта {card.id} для папки {folder}")
-                            break
+                    item_folder = os.path.dirname(item.path)
+                    if item_folder == folder:
+                        target_card = card
+                        logger.info(f"Найдена карта {card.id} для папки {folder}")
+                        break
                 if target_card:
                     break
             except (json.JSONDecodeError, TypeError) as e:
@@ -296,15 +302,14 @@ def create_account_card_from_existing_file(file_info, user, is_public=False):
 
         # 3. Если карта найдена — добавляем файл к ней
         if target_card:
-            new_entry = {
-                'path': original_path,
-                'original_path': original_path,
-                'origin_filename': file_info['name'],
-                'file_hash': file_hash,
-            }
-            source_dict = target_card.source_dict
-            source_dict.append(new_entry)
-            target_card.source = source_dict
+            new_entry = DocumentFile(
+                document_id=target_card.id,
+                document_type='ObjectAccountCard',
+                file_type='all',
+                path=original_path,
+                origin_filename=file_info['name'],
+            )
+            new_entry.save()
 
             target_card.save()
             logger.info(f"Файл добавлен к существующей карте {target_card.id}: {original_path}")
@@ -318,6 +323,14 @@ def create_account_card_from_existing_file(file_info, user, is_public=False):
         )
         account_card.save()
 
+        new_entry = DocumentFile(
+            document_id=account_card.id,
+            document_type='ObjectAccountCard',
+            file_type='all',
+            path=original_path,
+            origin_filename=file_info['name'],
+        )
+        new_entry.save()
         source_content = [{
             'type': 'all',
             'path': original_path,

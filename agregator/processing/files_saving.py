@@ -16,7 +16,7 @@ import logging
 
 from agregator.decorators import profiled
 from agregator.models import Act, ScientificReport, TechReport, OpenLists, ObjectAccountCard, CommercialOffers, \
-    GeoObject
+    GeoObject, DocumentFile
 from agregator.processing.rasterized_reports_ocr import report_rasterization_check_and_process
 from agregator.celery_task_template import progress_update, PROCESSING_PART, ALL_PARTS, CONVERTATION_PART
 from agregator.hash import calculate_file_hash
@@ -258,7 +258,15 @@ def raw_open_lists_save(uploaded_files, user_id, is_public, origin_filename=None
             with open(full_path + '/' + new_filename, 'wb+') as destination:
                 for chunk in file.chunks():
                     destination.write(chunk)
-        open_list.source = path + '/' + new_filename
+        document_source = DocumentFile(
+            document_id=open_list.id,
+            document_type='OpenLists',
+            file_type='all',
+            path=full_path + '/' + new_filename,
+            origin_filename=file.name,
+        )
+        document_source.save()
+        open_list.source = full_path + '/' + new_filename
         open_list.save()
         open_lists_ids.append(open_list.id)
     return open_lists_ids
@@ -272,19 +280,20 @@ def load_raw_open_lists(open_lists_ids, progress_recorder, progress_json, task_i
     progress_update(progress_recorder, task_id, progress_json, processed, ALL_PARTS)
     for open_list_id in open_lists_ids:
         open_list = OpenLists.objects.get(id=open_list_id)
-        folder = f'uploaded_files/'
 
-        if open_list.source.name.lower().endswith(('.png', '.jpg', '.bmp', '.tiff')):
-            new_filename = open_list.source.name[:open_list.source.name.rfind('.')] + '.pdf'
-            img = Image.open(folder + '/' + open_list.source.name)
-            if img.mode in ("RGBA", "P"):
-                img = img.convert("RGB")
-            img.save(folder + '/' + new_filename, save_all=True)
-            open_list.source = new_filename
-            open_list.save()
+        for source in open_list.source_dict:
+            if source.path.lower().endswith(('.png', '.jpg', '.bmp', '.tiff')):
+                new_filename = source.path[:source.path.rfind('.')] + '.pdf'
+                img = Image.open(source.path)
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                img.save(new_filename, save_all=True)
+                source.path = new_filename
+                source.save()
 
-        with fitz.open(folder + '/' + open_list.source.name) as pdf_doc:
-            pages_count[str(open_list.id)] = len(pdf_doc)
+            if source.path.lower().endswith('.pdf'):
+                with fitz.open(source.path) as pdf_doc:
+                    pages_count[str(open_list.id)] = len(pdf_doc)
         open_lists.append(open_list)
         processed += 1
         progress_update(progress_recorder, task_id, progress_json, (processed / total) * CONVERTATION_PART, ALL_PARTS)
@@ -351,20 +360,16 @@ def save_report_source(report, file, path, report_directory, report_id, source_c
 
     file_path = path + '/' + file.name
 
-    if index:
-        source_content.append({
-            'type': type,
-            'path': file_path,
-            'origin_filename': origin_name,
-            'file_hash': None
-        })
-    else:
-        source_content.append({
-            'type': 'all',
-            'path': file_path,
-            'origin_filename': origin_name,
-            'file_hash': None
-        })
+    if not index:
+        type = 'all'
+    document_source = DocumentFile(
+        document_id=report.id,
+        document_type=report.__class__.__name__,
+        file_type=type,
+        path=file_path,
+        origin_filename=origin_name,
+    )
+    document_source.save()
 
     with open(file_path, 'wb+') as destination:
         if upload_source:
@@ -383,34 +388,27 @@ def load_raw_reports(reports_ids, report_type, progress_recorder, progress_json,
     progress_update(progress_recorder, task_id, progress_json, processed, ALL_PARTS)
     for report_id in reports_ids:
         report = report_type.objects.get(id=report_id)
-        report.source = report.source_dict
         i = 0
         for source in report.source_dict:
-            if source['path'].lower().endswith(('.doc', '.docx')):
-                new_filename = source['path'][:source['path'].rfind('.')] + '.pdf'
-                in_file = os.path.abspath(source['path'])
+            if source.path.lower().endswith(('.doc', '.docx')):
+                new_filename = source.path[:source.path.rfind('.')] + '.pdf'
+                in_file = os.path.abspath(source.path)
                 out_file = os.path.abspath(new_filename)
 
                 convert_document(in_file, out_file, 'pdf')
-                source['path'] = new_filename
-                report.source[i]['path'] = new_filename
+                source.path = new_filename
                 report.save()
-            path = os.path.abspath(source['path'])
-            with fitz.open(path) as pdf_doc:
-                pages_count[source['path']] = len(pdf_doc)
-            try:
-                report_rasterization_check_and_process(path, (progress_recorder, task_id, progress_json,
-                                                              processed / total * CONVERTATION_PART, ALL_PARTS))
-            except Exception as e:
-                logger.error(f'Ошибка OCR: {e}')
-                logger.error(traceback.format_exc())
-
-            try:
-                file_hash = calculate_file_hash(source['path'])
-            except Exception as e:
-                logger.error(f"Ошибка при вычислении хеша файла {source['path']}: {e}")
-                file_hash = None
-            source['file_hash'] = file_hash
+            path = os.path.abspath(source.path)
+            if source.path.lower().endswith('.pdf'):
+                with fitz.open(path) as pdf_doc:
+                    pages_count[source.path] = len(pdf_doc)
+                try:
+                    report_rasterization_check_and_process(path, (progress_recorder, task_id, progress_json,
+                                                                  processed / total * CONVERTATION_PART, ALL_PARTS))
+                except Exception as e:
+                    logger.error(f'Ошибка OCR: {e}')
+                    logger.error(traceback.format_exc())
+            source.save()
 
             i += 1
         report.save()
@@ -442,12 +440,14 @@ def raw_account_cards_save(uploaded_files, user_id, is_public, upload_source=Non
         source_content = []
         file_path = path + '/' + file.name
 
-        source_content.append({
-            'type': 'all',
-            'path': file_path,
-            'origin_filename': file.name,
-            'file_hash': None
-        })
+        document_source = DocumentFile(
+            document_id=account_card.id,
+            document_type=account_card.__class__.__name__,
+            file_type='all',
+            path=file_path,
+            origin_filename=file.name,
+        )
+        document_source.save()
         account_card.source = source_content
 
         account_card.save()
@@ -462,15 +462,12 @@ def load_raw_account_cards(account_cards_ids, progress_recorder, progress_json, 
     progress_update(progress_recorder, task_id, progress_json, processed, ALL_PARTS)
     for account_card_id in account_cards_ids:
         account_card = ObjectAccountCard.objects.get(id=account_card_id)
-        source_str = str(account_card.source)
-        account_card.source = account_card.source_dict
-        i = 0
-        current_dict = account_card.source_dict
-        for source in current_dict:
-            if source['path'].lower().endswith(('.doc', '.docx')):
-                in_file = os.path.abspath(source['path'])
-                if source['path'].lower().endswith('.doc') and '.docx' not in source_str:
-                    new_filename = source['path'][:source['path'].rfind('.')] + '.docx'
+        for source in account_card.source_dict:
+            if source.path.lower().endswith(('.doc', '.docx')):
+                in_file = os.path.abspath(source.path)
+                if source.path.lower().endswith('.doc') and all(
+                        '.docx' not in source_all.path for source_all in account_card.source_dict):
+                    new_filename = source.path[:source.path.rfind('.')] + '.docx'
                     account_card.source.append(copy.deepcopy(source))
                     account_card.source[-1]['path'] = new_filename
                     account_card.source[-1]['origin_filename'] = account_card.source[-1]['origin_filename'][
@@ -478,16 +475,11 @@ def load_raw_account_cards(account_cards_ids, progress_recorder, progress_json, 
                                                                      '.')] + '.docx'
                     out_file = os.path.abspath(new_filename)
                     convert_document(in_file, out_file, 'docx')
-                pages_count[source['path']] = get_page_count(in_file)
-            elif source['path'].lower().endswith('.pdf'):
-                with fitz.open(source['path']) as pdf_doc:
-                    pages_count[source['path']] = len(pdf_doc)
-            try:
-                file_hash = calculate_file_hash(source['path'])
-            except Exception as e:
-                logger.error(f"Ошибка при вычислении хеша файла {source['path']}: {e}")
-                file_hash = None
-            source['file_hash'] = file_hash
+                pages_count[source.path] = get_page_count(in_file)
+            elif source.path.lower().endswith('.pdf'):
+                with fitz.open(source.path) as pdf_doc:
+                    pages_count[source.path] = len(pdf_doc)
+            source.save()
         processed += 1
         progress_update(progress_recorder, task_id, progress_json, processed / total * CONVERTATION_PART, ALL_PARTS)
         account_card.save()
@@ -515,6 +507,14 @@ def raw_commercial_offers_save(uploaded_files, user_id, is_public, upload_source
                 for chunk in file.chunks():
                     destination.write(chunk)
         commercial_offer.source = path + '/' + file.name
+        document_source = DocumentFile(
+            document_id=commercial_offer.id,
+            document_type=commercial_offer.__class__.__name__,
+            file_type='all',
+            path=path + '/' + file.name,
+            origin_filename=file.name,
+        )
+        document_source.save()
         commercial_offer.save()
     return commercial_offers_ids
 
@@ -527,29 +527,30 @@ def load_raw_commercial_offers(commercial_offers_ids, progress_recorder, progres
     progress_update(progress_recorder, task_id, progress_json, processed, ALL_PARTS)
     for commercial_offer_id in commercial_offers_ids:
         commercial_offer = CommercialOffers.objects.get(id=commercial_offer_id)
-        i = 0
-        if commercial_offer.source.lower().endswith(('.doc', '.docx', '.odt')):
-            in_file = os.path.abspath(commercial_offer.source)
-            if commercial_offer.source.lower().endswith(('.doc', '.odt')):
-                new_filename = commercial_offer.source[:commercial_offer.source.rfind('.')] + '.docx'
-                commercial_offer.source = new_filename
-                out_file = os.path.abspath(new_filename)
-                convert_document(in_file, out_file, 'docx')
-            pages_count[commercial_offer.source] = get_page_count(in_file)
-        elif commercial_offer.source.lower().endswith('.pdf'):
-            with fitz.open(commercial_offer.source) as pdf_doc:
-                pages_count[commercial_offer.source] = len(pdf_doc)
-        elif commercial_offer.source.lower().endswith(('.xlsx', '.xls')):
-            new_filename = commercial_offer.source[
-                           :commercial_offer.source.rfind('.')] + '.xlsx' if commercial_offer.source.lower().endswith(
-                '.xls') else commercial_offer.source
-            if commercial_offer.source.lower().endswith('.xls'):
-                df = pd.read_excel(commercial_offer.source, engine='xlrd')
-                df.to_excel(new_filename, index=False, engine='openpyxl')
-            elif commercial_offer.source.lower().endswith('.xlsx'):
-                df = pd.read_excel(commercial_offer.source, engine='openpyxl')
-            commercial_offer.source = new_filename
-            pages_count[commercial_offer.source] = len(df)
+        for source in commercial_offer.source_dict:
+            if source.path.lower().endswith(('.doc', '.docx', '.odt')):
+                in_file = os.path.abspath(source.path)
+                if source.path.lower().endswith(('.doc', '.odt')):
+                    new_filename = source.path[:source.path.rfind('.')] + '.docx'
+                    source.path = new_filename
+                    out_file = os.path.abspath(new_filename)
+                    convert_document(in_file, out_file, 'docx')
+                pages_count[source.path] = get_page_count(in_file)
+            elif source.path.lower().endswith('.pdf'):
+                with fitz.open(source.path) as pdf_doc:
+                    pages_count[source.path] = len(pdf_doc)
+            elif source.path.lower().endswith(('.xlsx', '.xls')):
+                new_filename = source.path[
+                               :source.path.rfind('.')] + '.xlsx' if source.path.lower().endswith(
+                    '.xls') else source.path
+                if source.path.lower().endswith('.xls'):
+                    df = pd.read_excel(source.path, engine='xlrd')
+                    df.to_excel(new_filename, index=False, engine='openpyxl')
+                elif source.path.lower().endswith('.xlsx'):
+                    df = pd.read_excel(source.path, engine='openpyxl')
+                source.path = new_filename
+                pages_count[source.path] = len(df)
+                source.save()
         processed += 1
         progress_update(progress_recorder, task_id, progress_json, processed / total * CONVERTATION_PART, ALL_PARTS)
         commercial_offer.save()
@@ -577,6 +578,14 @@ def raw_geo_objects_save(uploaded_files, user_id, is_public, upload_source=None)
                 for chunk in file.chunks():
                     destination.write(chunk)
         geo_object.source = path + '/' + file.name
+        document_source = DocumentFile(
+            document_id=geo_object.id,
+            document_type=geo_object.__class__.__name__,
+            file_type='all',
+            path=path + '/' + file.name,
+            origin_filename=file.name,
+        )
+        document_source.save()
         geo_object.save()
     return account_cards_ids
 
@@ -590,7 +599,8 @@ def load_raw_geo_objects(geo_objects_ids, progress_recorder, progress_json, task
     for geo_object_id in geo_objects_ids:
         geo_object = GeoObject.objects.get(id=geo_object_id)
         geo_object.save()
-        pages_count[geo_object.source] = 1
+        if len(geo_object.source_dict) > 0:
+            pages_count[geo_object.source_dict[0]] = 1
         geo_objects.append(geo_object)
         processed += 1
         progress_update(progress_recorder, task_id, progress_json, processed / total * CONVERTATION_PART, ALL_PARTS)

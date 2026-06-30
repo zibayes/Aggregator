@@ -93,9 +93,8 @@ def process_documents(
         if document_type in ['scientific_reports', 'acts', 'tech_reports']:
             for doc in documents:
                 for source in doc.source_dict:
-                    file = source.copy()
-                    file['processed'] = 'False'
-                    file['pages'] = {'processed': '0', 'all': pages_count[source['path']]}
+                    file = {'path': source.path, 'type': source.file_type, 'origin_filename': source.origin_filename,
+                            'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[source.path]}}
                     print('file=' + str(file))
                     if str(doc.id) in file_groups:
                         file_groups[str(doc.id)].append(file)
@@ -104,22 +103,9 @@ def process_documents(
         else:
             for doc in documents:
                 source_path = origin_filename = None
-                if document_type == 'account_cards':
-                    if doc.source_dict and len(doc.source_dict) > 0:
-                        if '.doc' in doc.source:
-                            for source in doc.source_dict:
-                                if '.doc' in source['path']:
-                                    source_path = source['path']
-                                    origin_filename = source['origin_filename']
-                                    break
-                        else:
-                            source_path = doc.source_dict[0]['path']
-                            origin_filename = doc.source_dict[0]['origin_filename']
-                else:
-                    source_path = doc.source.path if hasattr(doc, 'source') and hasattr(doc.source,
-                                                                                        'path') else f'uploaded_files/{doc.source}' if 'uploaded_files/' not in doc.source else doc.source  # doc.source if hasattr(doc, 'source') else f'uploaded_files/{doc.source.name}'
-                    source_path = source_path.replace('/app/uploaded_files/', 'uploaded_files/')
-                    origin_filename = doc.origin_filename
+                if doc.source_dict and len(doc.source_dict) > 0:
+                    source_path = doc.source_dict[0].path
+                    origin_filename = doc.source_dict[0].origin_filename
                 file = {
                     'path': source_path,
                     'origin_filename': origin_filename,

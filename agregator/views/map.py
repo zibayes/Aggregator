@@ -80,12 +80,12 @@ def get_report_name(report, report_type):
     """Вспомогательная функция для извлечения имени отчёта"""
     if report_type in ('act', 'scientific_report', 'tech_report'):
         if report.source_dict and len(report.source_dict) > 0:
-            return report.source_dict[0]['origin_filename']
+            return report.source_dict[0].origin_filename
         else:
             return getattr(report, 'origin_filename', 'Неизвестный файл')
     elif report_type == 'account_card':
         if report.source_dict and len(report.source_dict) > 0:
-            return report.source_dict[0]['origin_filename']
+            return report.source_dict[0].origin_filename
         else:
             return 'Учётная карта'
     else:
@@ -100,17 +100,17 @@ def interactive_map(request):
     for act in acts:
         all_coordinates['Акты'][
             act.id] = {'coordinates': act.coordinates_dict,
-                       'report_name': act.source_dict[0]['origin_filename'] if act.source_dict and len(
+                       'report_name': act.source_dict[0].origin_filename if act.source_dict and len(
                            act.source_dict) > 0 else 'Неизвестный файл'}
     for report in scientific_reports:
         all_coordinates['Научные отчёты'][report.id] = {'coordinates': report.coordinates_dict,
-                                                        'report_name': report.source_dict[0][
-                                                            'origin_filename'] if report.source_dict and len(
+                                                        'report_name': report.source_dict[
+                                                            0].origin_filename if report.source_dict and len(
                                                             report.source_dict) > 0 else 'Неизвестный файл'}
     for report in tech_report:
         all_coordinates['Научно-технические отчёты'][report.id] = {'coordinates': report.coordinates_dict,
-                                                                   'report_name': report.source_dict[0][
-                                                                       'origin_filename'] if report.source_dict and len(
+                                                                   'report_name': report.source_dict[
+                                                                       0].origin_filename if report.source_dict and len(
                                                                        report.source_dict) > 0 else 'Неизвестный файл'}
     return render(request, 'interactive_map.html', {'all_coordinates': all_coordinates})
 
@@ -131,12 +131,12 @@ def download_all_coordinates(request):
 
         # Собираем координаты из всех отчетов
         for act in acts:
-            all_coordinates['Акты'][act.source_dict[0]['origin_filename']] = act.coordinates_dict
+            all_coordinates['Акты'][act.source_dict[0].origin_filename] = act.coordinates_dict
         for report in scientific_reports:
-            all_coordinates['Научные отчёты'][report.source_dict[0]['origin_filename']] = report.coordinates_dict
+            all_coordinates['Научные отчёты'][report.source_dict[0].origin_filename] = report.coordinates_dict
         for report in tech_reports:
             all_coordinates['Научно-технические отчёты'][
-                report.source_dict[0]['origin_filename']] = report.coordinates_dict
+                report.source_dict[0].origin_filename] = report.coordinates_dict
 
         # Фильтруем по выбранным в запросе
         for report_type, reports in all_coordinates.items():
@@ -233,7 +233,7 @@ def map(request, report_type, pk):
     if report_type == 'account_card':
         report = get_object_or_404(ObjectAccountCard, id=pk)
         if report.source_dict and len(report.source_dict) > 0:
-            report_name = report.source_dict[0]['origin_filename']
+            report_name = report.source_dict[0].origin_filename
         else:
             report_name = 'Учётная карта'
     elif report_type == 'commercial_offer':
@@ -252,7 +252,7 @@ def map(request, report_type, pk):
         else:
             return HttpResponse("Некорректный тип отчёта", status=404)
 
-        report_name = report.source_dict[0]['origin_filename'] if report.source_dict and len(
+        report_name = report.source_dict[0].origin_filename if report.source_dict and len(
             report.source_dict) > 0 else report.origin_filename if hasattr(report,
                                                                            'origin_filename') else 'Неизвестный файл'
     coordinates = report.coordinates_dict if report else {}

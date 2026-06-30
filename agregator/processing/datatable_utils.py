@@ -6,6 +6,8 @@ import json
 import sys
 import logging
 
+from agregator.models import *
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,7 +31,7 @@ class DataTableServerSide:
 
         # Параметры сортировки
         order_column_index = data.get('order[0][column]', '0')
-        order_direction = data.get('order[0][dir]', 'asc')
+        order_direction = data.get('order[0][dir]', 'desc')  # asc
 
         # Параметры поиска по колонкам
         column_search = {}
@@ -67,6 +69,9 @@ class DataTableServerSide:
         for column in self.columns_config:
             if column.get('searchable', True):
                 field_name = column['field']
+                field_name = 'source' if field_name == 'original_document' and not isinstance(queryset.model,
+                                                                                              (GeoObject,
+                                                                                               CommercialOffers)) else field_name
                 if '__' in field_name:
                     search_filters |= Q(**{f"{field_name}__icontains": search_value})
                 else:
@@ -99,6 +104,7 @@ class DataTableServerSide:
         # ФИЛЬТРАЦИЯ ПО ХРАНИЛИЩУ - ВАЖНО!
         storage_type = custom_search.get('storage_type')
         logger.info(f"STORAGE TYPE: {storage_type}")
+        logger.info(f'queryset.model = {queryset.model}')
 
         if hasattr(queryset.model, 'is_public'):
             if storage_type == 'private':
@@ -124,141 +130,156 @@ class DataTableServerSide:
 
         logger.info(f"Queryset count after storage filter: {queryset.count()}")
 
-        # ФИЛЬТРЫ ДЛЯ УЧЁТНЫХ КАРТ
-        if custom_search.get('name'):
-            queryset = queryset.filter(name__icontains=custom_search['name'])
-        if custom_search.get('creation_time'):
-            queryset = queryset.filter(creation_time__icontains=custom_search['creation_time'])
-        if custom_search.get('address'):
-            queryset = queryset.filter(address__icontains=custom_search['address'])
-        if custom_search.get('object_type'):
-            queryset = queryset.filter(object_type__icontains=custom_search['object_type'])
-        if custom_search.get('general_classification'):
-            queryset = queryset.filter(general_classification__icontains=custom_search['general_classification'])
-        if custom_search.get('description'):
-            queryset = queryset.filter(description__icontains=custom_search['description'])
-        if custom_search.get('usage'):
-            queryset = queryset.filter(usage__icontains=custom_search['usage'])
-        if custom_search.get('discovery_info'):
-            queryset = queryset.filter(discovery_info__icontains=custom_search['discovery_info'])
-        if custom_search.get('compiler'):
-            queryset = queryset.filter(compiler__icontains=custom_search['compiler'])
-        if custom_search.get('compile_date'):
-            queryset = queryset.filter(compile_date__icontains=custom_search['compile_date'])
-
-        # Фильтры для открытых листов
-        if custom_search.get('number'):
-            queryset = queryset.filter(number__icontains=custom_search['number'])
-        if custom_search.get('holder'):
-            queryset = queryset.filter(holder__icontains=custom_search['holder'])
-        if custom_search.get('object'):
-            queryset = queryset.filter(object__icontains=custom_search['object'])
-        if custom_search.get('works'):
-            queryset = queryset.filter(works__icontains=custom_search['works'])
-        if custom_search.get('start_date'):
-            queryset = queryset.filter(start_date__icontains=custom_search['start_date'])
-        if custom_search.get('end_date'):
-            queryset = queryset.filter(end_date__icontains=custom_search['end_date'])
-
-        # Фильтры для научных отчетов
-        if custom_search.get('name'):
-            queryset = queryset.filter(name__icontains=custom_search['name'])
-        if custom_search.get('organization'):
-            queryset = queryset.filter(organization__icontains=custom_search['organization'])
-        if custom_search.get('author'):
-            queryset = queryset.filter(author__icontains=custom_search['author'])
-        if custom_search.get('writing_date'):
-            queryset = queryset.filter(writing_date__icontains=custom_search['writing_date'])
-        if custom_search.get('upload_source'):
-            queryset = queryset.filter(upload_source__icontains=custom_search['upload_source'])
-
-        # Фильтры по актам
-        if custom_search.get('year'):
-            queryset = queryset.filter(year__icontains=custom_search['year'])
-        if custom_search.get('finish_date'):
-            queryset = queryset.filter(finish_date__icontains=custom_search['finish_date'])
-        if custom_search.get('type'):
-            queryset = queryset.filter(type__icontains=custom_search['type'])
-        if custom_search.get('name_number'):
-            queryset = queryset.filter(name_number__icontains=custom_search['name_number'])
-        if custom_search.get('place'):
-            queryset = queryset.filter(place__icontains=custom_search['place'])
-        if custom_search.get('customer'):
-            queryset = queryset.filter(customer__icontains=custom_search['customer'])
-        if custom_search.get('area'):
-            queryset = queryset.filter(area__icontains=custom_search['area'])
-        if custom_search.get('expert'):
-            queryset = queryset.filter(expert__icontains=custom_search['expert'])
-        if custom_search.get('executioner'):
-            queryset = queryset.filter(executioner__icontains=custom_search['executioner'])
-        if custom_search.get('open_list'):
-            queryset = queryset.filter(open_list__icontains=custom_search['open_list'])
-        if custom_search.get('conclusion'):
-            queryset = queryset.filter(conclusion__icontains=custom_search['conclusion'])
-        if custom_search.get('border_objects'):
-            queryset = queryset.filter(border_objects__icontains=custom_search['border_objects'])
         if custom_search.get('owner'):
             queryset = queryset.filter(user__username__icontains=custom_search['owner'])
         if custom_search.get('source'):
-            queryset = queryset.filter(upload_source__icontains=custom_search['source'])
+            queryset = queryset.filter(source__icontains=custom_search['source'])
+        if custom_search.get('upload_source'):
+            queryset = queryset.filter(upload_source__icontains=custom_search['upload_source'])
         if custom_search.get('date_uploaded'):
             queryset = queryset.filter(date_uploaded__icontains=custom_search['date_uploaded'])
 
-        # Применяем текстовые фильтры
-        if custom_search.get('doc_name'):
-            queryset = queryset.filter(doc_name__icontains=custom_search['doc_name'])
-            logger.info(f"DEBUG: After doc_name filter: {queryset.count()} records")
-        if custom_search.get('district'):
-            queryset = queryset.filter(district__icontains=custom_search['district'])
-            logger.info(f"DEBUG: After district filter: {queryset.count()} records")
-        if custom_search.get('document'):
-            queryset = queryset.filter(document__icontains=custom_search['document'])
-            logger.info(f"DEBUG: After document filter: {queryset.count()} records")
-        if custom_search.get('register_num'):
-            queryset = queryset.filter(register_num__icontains=custom_search['register_num'])
-            logger.info(f"DEBUG: After register_num filter: {queryset.count()} records")
+        if isinstance(queryset.model, ObjectAccountCard):
+            if custom_search.get('name'):
+                queryset = queryset.filter(name__icontains=custom_search['name'])
+            if custom_search.get('creation_time'):
+                queryset = queryset.filter(creation_time__icontains=custom_search['creation_time'])
+            if custom_search.get('address'):
+                queryset = queryset.filter(address__icontains=custom_search['address'])
+            if custom_search.get('object_type'):
+                queryset = queryset.filter(object_type__icontains=custom_search['object_type'])
+            if custom_search.get('general_classification'):
+                queryset = queryset.filter(general_classification__icontains=custom_search['general_classification'])
+            if custom_search.get('description'):
+                queryset = queryset.filter(description__icontains=custom_search['description'])
+            if custom_search.get('usage'):
+                queryset = queryset.filter(usage__icontains=custom_search['usage'])
+            if custom_search.get('discovery_info'):
+                queryset = queryset.filter(discovery_info__icontains=custom_search['discovery_info'])
+            if custom_search.get('compiler'):
+                queryset = queryset.filter(compiler__icontains=custom_search['compiler'])
+            if custom_search.get('compile_date'):
+                queryset = queryset.filter(compile_date__icontains=custom_search['compile_date'])
 
-        # Фильтры по account_card
-        if custom_search.get('creation_time'):
-            queryset = queryset.filter(account_card__creation_time__icontains=custom_search['creation_time'])
-            logger.info(f"DEBUG: After creation_time filter: {queryset.count()} records")
-        if custom_search.get('address'):
-            queryset = queryset.filter(account_card__address__icontains=custom_search['address'])
-            logger.info(f"DEBUG: After address filter: {queryset.count()} records")
-        if custom_search.get('object_type'):
-            queryset = queryset.filter(account_card__object_type__icontains=custom_search['object_type'])
-            logger.info(f"DEBUG: After object_type filter: {queryset.count()} records")
-        if custom_search.get('general_classification'):
-            queryset = queryset.filter(
-                account_card__general_classification__icontains=custom_search['general_classification'])
-            logger.info(f"DEBUG: After general_classification filter: {queryset.count()} records")
-        if custom_search.get('description'):
-            queryset = queryset.filter(account_card__description__icontains=custom_search['description'])
-            logger.info(f"DEBUG: After description filter: {queryset.count()} records")
-        if custom_search.get('usage'):
-            queryset = queryset.filter(account_card__usage__icontains=custom_search['usage'])
-            logger.info(f"DEBUG: After usage filter: {queryset.count()} records")
-        if custom_search.get('discovery_info'):
-            queryset = queryset.filter(account_card__discovery_info__icontains=custom_search['discovery_info'])
-            logger.info(f"DEBUG: After discovery_info filter: {queryset.count()} records")
-        if custom_search.get('compiler'):
-            queryset = queryset.filter(account_card__compiler__icontains=custom_search['compiler'])
-            logger.info(f"DEBUG: After compiler filter: {queryset.count()} records")
-        if custom_search.get('owner'):
-            queryset = queryset.filter(account_card__user__username__icontains=custom_search['owner'])
-            logger.info(f"DEBUG: After owner filter: {queryset.count()} records")
+        elif isinstance(queryset.model, OpenLists):
+            if custom_search.get('number'):
+                queryset = queryset.filter(number__icontains=custom_search['number'])
+            if custom_search.get('holder'):
+                queryset = queryset.filter(holder__icontains=custom_search['holder'])
+            if custom_search.get('object'):
+                queryset = queryset.filter(object__icontains=custom_search['object'])
+            if custom_search.get('works'):
+                queryset = queryset.filter(works__icontains=custom_search['works'])
+            if custom_search.get('start_date'):
+                queryset = queryset.filter(start_date__icontains=custom_search['start_date'])
+            if custom_search.get('end_date'):
+                queryset = queryset.filter(end_date__icontains=custom_search['end_date'])
 
-        # Специальные фильтры
-        if custom_search.get('account_card_filter') == 'available':
-            queryset = queryset.filter(account_card__isnull=False)
-            logger.info(f"DEBUG: After account_card available filter: {queryset.count()} records")
-        elif custom_search.get('account_card_filter') == 'not_available':
-            queryset = queryset.filter(account_card__isnull=True)
-            logger.info(f"DEBUG: After account_card not_available filter: {queryset.count()} records")
+        elif isinstance(queryset.model, (ScientificReport, TechReport)):
+            if custom_search.get('name'):
+                queryset = queryset.filter(name__icontains=custom_search['name'])
+            if custom_search.get('organization'):
+                queryset = queryset.filter(organization__icontains=custom_search['organization'])
+            if custom_search.get('author'):
+                queryset = queryset.filter(author__icontains=custom_search['author'])
+            if custom_search.get('writing_date'):
+                queryset = queryset.filter(writing_date__icontains=custom_search['writing_date'])
 
-        if not custom_search.get('show_excluded', True):
-            queryset = queryset.filter(is_excluded=False)
-            logger.info(f"DEBUG: After show_excluded filter: {queryset.count()} records")
+        elif isinstance(queryset.model, Act):
+            if custom_search.get('year'):
+                queryset = queryset.filter(year__icontains=custom_search['year'])
+            if custom_search.get('finish_date'):
+                queryset = queryset.filter(finish_date__icontains=custom_search['finish_date'])
+            if custom_search.get('type'):
+                queryset = queryset.filter(type__icontains=custom_search['type'])
+            if custom_search.get('name_number'):
+                queryset = queryset.filter(name_number__icontains=custom_search['name_number'])
+            if custom_search.get('place'):
+                queryset = queryset.filter(place__icontains=custom_search['place'])
+            if custom_search.get('customer'):
+                queryset = queryset.filter(customer__icontains=custom_search['customer'])
+            if custom_search.get('area'):
+                queryset = queryset.filter(area__icontains=custom_search['area'])
+            if custom_search.get('expert'):
+                queryset = queryset.filter(expert__icontains=custom_search['expert'])
+            if custom_search.get('executioner'):
+                queryset = queryset.filter(executioner__icontains=custom_search['executioner'])
+            if custom_search.get('open_list'):
+                queryset = queryset.filter(open_list__icontains=custom_search['open_list'])
+            if custom_search.get('conclusion'):
+                queryset = queryset.filter(conclusion__icontains=custom_search['conclusion'])
+            if custom_search.get('border_objects'):
+                queryset = queryset.filter(border_objects__icontains=custom_search['border_objects'])
+
+        if isinstance(queryset.model, ArchaeologicalHeritageSite):
+            if custom_search.get('doc_name'):
+                queryset = queryset.filter(doc_name__icontains=custom_search['doc_name'])
+                logger.info(f"DEBUG: After doc_name filter: {queryset.count()} records")
+            if custom_search.get('district'):
+                queryset = queryset.filter(district__icontains=custom_search['district'])
+                logger.info(f"DEBUG: After district filter: {queryset.count()} records")
+            if custom_search.get('document'):
+                queryset = queryset.filter(document__icontains=custom_search['document'])
+                logger.info(f"DEBUG: After document filter: {queryset.count()} records")
+            if custom_search.get('register_num'):
+                queryset = queryset.filter(register_num__icontains=custom_search['register_num'])
+                logger.info(f"DEBUG: After register_num filter: {queryset.count()} records")
+
+        if isinstance(queryset.model, IdentifiedArchaeologicalHeritageSite):
+            if custom_search.get('name'):
+                queryset = queryset.filter(name__icontains=custom_search['name'])
+                logger.info(f"DEBUG: After name filter: {queryset.count()} records")
+            if custom_search.get('address'):
+                queryset = queryset.filter(address__icontains=custom_search['address'])
+                logger.info(f"DEBUG: After address filter: {queryset.count()} records")
+            if custom_search.get('obj_info'):
+                queryset = queryset.filter(obj_info__icontains=custom_search['obj_info'])
+                logger.info(f"DEBUG: After obj_info filter: {queryset.count()} records")
+            if custom_search.get('document'):
+                queryset = queryset.filter(document__icontains=custom_search['document'])
+                logger.info(f"DEBUG: After document filter: {queryset.count()} records")
+
+        if isinstance(queryset.model, (ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite)):
+            if custom_search.get('creation_time'):
+                queryset = queryset.filter(account_card__creation_time__icontains=custom_search['creation_time'])
+                logger.info(f"DEBUG: After creation_time filter: {queryset.count()} records")
+            if custom_search.get('address'):
+                queryset = queryset.filter(account_card__address__icontains=custom_search['address'])
+                logger.info(f"DEBUG: After address filter: {queryset.count()} records")
+            if custom_search.get('object_type'):
+                queryset = queryset.filter(account_card__object_type__icontains=custom_search['object_type'])
+                logger.info(f"DEBUG: After object_type filter: {queryset.count()} records")
+            if custom_search.get('general_classification'):
+                queryset = queryset.filter(
+                    account_card__general_classification__icontains=custom_search['general_classification'])
+                logger.info(f"DEBUG: After general_classification filter: {queryset.count()} records")
+            if custom_search.get('description'):
+                queryset = queryset.filter(account_card__description__icontains=custom_search['description'])
+                logger.info(f"DEBUG: After description filter: {queryset.count()} records")
+            if custom_search.get('usage'):
+                queryset = queryset.filter(account_card__usage__icontains=custom_search['usage'])
+                logger.info(f"DEBUG: After usage filter: {queryset.count()} records")
+            if custom_search.get('discovery_info'):
+                queryset = queryset.filter(account_card__discovery_info__icontains=custom_search['discovery_info'])
+                logger.info(f"DEBUG: After discovery_info filter: {queryset.count()} records")
+            if custom_search.get('compiler'):
+                queryset = queryset.filter(account_card__compiler__icontains=custom_search['compiler'])
+                logger.info(f"DEBUG: After compiler filter: {queryset.count()} records")
+            if custom_search.get('owner'):
+                queryset = queryset.filter(account_card__user__username__icontains=custom_search['owner'])
+                logger.info(f"DEBUG: After owner filter: {queryset.count()} records")
+
+            # Специальные фильтры
+            if custom_search.get('account_card_filter') == 'available':
+                queryset = queryset.filter(account_card__isnull=False)
+                logger.info(f"DEBUG: After account_card available filter: {queryset.count()} records")
+            elif custom_search.get('account_card_filter') == 'not_available':
+                queryset = queryset.filter(account_card__isnull=True)
+                logger.info(f"DEBUG: After account_card not_available filter: {queryset.count()} records")
+
+            if not custom_search.get('show_excluded', True):
+                queryset = queryset.filter(is_excluded=False)
+                logger.info(f"DEBUG: After show_excluded filter: {queryset.count()} records")
 
         logger.info(f"=== FINAL QUERYSET COUNT: {queryset.count()} ===")
         return queryset
@@ -271,6 +292,9 @@ class DataTableServerSide:
                 column_config = self.columns_config[col_index]
                 if column_config.get('orderable', True):
                     field_name = column_config['field']
+                    field_name = 'source' if field_name == 'original_document' and not isinstance(queryset.model,
+                                                                                                  (GeoObject,
+                                                                                                   CommercialOffers)) else field_name
                     if order_direction == 'desc':
                         field_name = f"-{field_name}"
                     return queryset.order_by(field_name)

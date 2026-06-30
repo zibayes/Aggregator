@@ -17,7 +17,7 @@ import logging
 
 from agregator.processing.coordinates_extraction import extract_coordinates, COORDINATES_SAMPLE
 from agregator.processing.files_saving import load_raw_reports
-from agregator.hash import has_duplicates_in_db
+from agregator.processing.hash_utils import check_duplicates
 from agregator.processing.images_extraction import extract_images_with_captions, insert_supplement_links, \
     SUPPLEMENT_CONTENT
 from agregator.models import TechReport
@@ -68,11 +68,8 @@ def extract_text_and_images(current_report, file, progress_recorder, pages_count
                             report_id,
                             source_index, task_id, user_id, is_public, select_text, select_enrich, select_image,
                             select_coord, is_reprocess):
-    if is_reprocess is False:
-        has_duplicates, duplicate_id = has_duplicates_in_db(TechReport, file, report_id)
-        if has_duplicates:
-            raise FileExistsError(
-                f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(report_id)][source_index]['origin_filename']}")
+    check_duplicates(is_reprocess, file, progress_json['file_groups'][str(report_id)][source_index]['origin_filename'],
+                     current_report, delete_current=True)
 
     if current_report.supplement:
         supplement_content = current_report.supplement_dict

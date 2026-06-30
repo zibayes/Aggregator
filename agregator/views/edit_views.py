@@ -67,11 +67,9 @@ def acts_delete(request, pk):
     act_instance = get_object_or_404(Act, id=pk)
     if request.method == 'POST':
         delete_files_flag = request.POST.get('delete_files') == 'on'
-        if delete_files_flag:
-            act_instance.delete()
-        else:
+        if not delete_files_flag:
             act_instance._raw_delete = True
-            super(Act, act_instance).delete()
+        act_instance.delete()
     return redirect(f'acts_register')
 
 
@@ -117,11 +115,9 @@ def scientific_reports_delete(request, pk):
     report_instance = get_object_or_404(ScientificReport, id=pk)
     if request.method == 'POST':
         delete_files_flag = request.POST.get('delete_files') == 'on'
-        if delete_files_flag:
-            report_instance.delete()
-        else:
+        if not delete_files_flag:
             report_instance._raw_delete = True
-            super(ScientificReport, report_instance).delete()
+        report_instance.delete()
     return redirect(f'scientific_reports_register')
 
 
@@ -166,11 +162,9 @@ def tech_reports_delete(request, pk):
     report_instance = get_object_or_404(TechReport, id=pk)
     if request.method == 'POST':
         delete_files_flag = request.POST.get('delete_files') == 'on'
-        if delete_files_flag:
-            report_instance.delete()
-        else:
+        if not delete_files_flag:
             report_instance._raw_delete = True
-            super(TechReport, report_instance).delete()
+        report_instance.delete()
     return redirect(f'tech_reports_register')
 
 
@@ -207,11 +201,9 @@ def open_lists_delete(request, pk):
     list_instance = get_object_or_404(OpenLists, id=pk)
     if request.method == 'POST':
         delete_files_flag = request.POST.get('delete_files') == 'on'
-        if delete_files_flag:
-            list_instance.delete()
-        else:
+        if not delete_files_flag:
             list_instance._raw_delete = True
-            super(OpenLists, list_instance).delete()
+        list_instance.delete()
     return redirect(f'open_lists_register')
 
 
@@ -273,11 +265,9 @@ def archaeological_heritage_sites_delete(request, pk):
     oan = get_object_or_404(ArchaeologicalHeritageSite, id=pk)
     if request.method == 'POST':
         delete_files_flag = request.POST.get('delete_files') == 'on'
-        if delete_files_flag:
-            oan.delete()
-        else:
+        if not delete_files_flag:
             oan._raw_delete = True
-            super(ArchaeologicalHeritageSite, oan).delete()
+        oan.delete()
     return redirect(f'archaeological_heritage_sites_register')
 
 
@@ -287,11 +277,9 @@ def identified_archaeological_heritage_sites_delete(request, pk):
     voan = get_object_or_404(IdentifiedArchaeologicalHeritageSite, id=pk)
     if request.method == 'POST':
         delete_files_flag = request.POST.get('delete_files') == 'on'
-        if delete_files_flag:
-            voan.delete()
-        else:
+        if not delete_files_flag:
             voan._raw_delete = True
-            super(IdentifiedArchaeologicalHeritageSite, voan).delete()
+        voan.delete()
     return redirect(f'identified_archaeological_heritage_sites_register')
 
 
@@ -333,11 +321,9 @@ def account_cards_delete(request, pk):
     account_card_instance = get_object_or_404(ObjectAccountCard, id=pk)
     if request.method == 'POST':
         delete_files_flag = request.POST.get('delete_files') == 'on'
-        if delete_files_flag:
-            account_card_instance.delete()
-        else:
+        if not delete_files_flag:
             account_card_instance._raw_delete = True
-            super(ObjectAccountCard, account_card_instance).delete()
+        account_card_instance.delete()
     return redirect(f'account_cards_register')
 
 
@@ -369,11 +355,9 @@ def commercial_offers_delete(request, pk):
     commercial_offer_instance = get_object_or_404(CommercialOffers, id=pk)
     if request.method == 'POST':
         delete_files_flag = request.POST.get('delete_files') == 'on'
-        if delete_files_flag:
-            commercial_offer_instance.delete()
-        else:
+        if not delete_files_flag:
             commercial_offer_instance._raw_delete = True
-            super(CommercialOffers, commercial_offer_instance).delete()
+        commercial_offer_instance.delete()
     return redirect(f'commercial_offers_register')
 
 
@@ -405,9 +389,7 @@ def geo_objects_delete(request, pk):
     geo_object = get_object_or_404(GeoObject, id=pk)
     if request.method == 'POST':
         delete_files_flag = request.POST.get('delete_files') == 'on'
-        if delete_files_flag:
-            geo_object.delete()
-        else:
+        if not delete_files_flag:
             geo_object._raw_delete = True
-            super(GeoObject, geo_object).delete()
+        geo_object.delete()
     return redirect(f'geo_objects_register')

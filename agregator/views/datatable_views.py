@@ -1,9 +1,14 @@
+import traceback
+
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.apps import apps
 from agregator.processing.datatable_utils import DataTableServerSide
 import json
 import html
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 @csrf_exempt
@@ -38,6 +43,10 @@ def universal_datatable(request, register_type):
                     {'field': 'account_card__user__username', 'searchable': True, 'orderable': True},
                     {'field': 'account_card__date_uploaded', 'searchable': True, 'orderable': True},
                     {'field': 'account_card__upload_source', 'searchable': True, 'orderable': True},
+                    {'field': 'formalized_document', 'searchable': False, 'orderable': False},
+                    # Для колонки "Формализованный документ"
+                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'actions', 'searchable': False, 'orderable': False},  # Для колонки "Редактирование"
                 ],
                 'name_field': 'doc_name',
                 'edit_url': 'archaeological_heritage_sites_edit',
@@ -65,6 +74,10 @@ def universal_datatable(request, register_type):
                     {'field': 'account_card__user__username', 'searchable': True, 'orderable': True},
                     {'field': 'account_card__date_uploaded', 'searchable': True, 'orderable': True},
                     {'field': 'account_card__upload_source', 'searchable': True, 'orderable': True},
+                    {'field': 'formalized_document', 'searchable': False, 'orderable': False},
+                    # Для колонки "Формализованный документ"
+                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'actions', 'searchable': False, 'orderable': False},  # Для колонки "Редактирование"
                 ],
                 'name_field': 'name',
                 'edit_url': 'identified_archaeological_heritage_sites_edit',
@@ -89,6 +102,10 @@ def universal_datatable(request, register_type):
                     {'field': 'user__username', 'searchable': True, 'orderable': True},
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
+                    {'field': 'formalized_document', 'searchable': False, 'orderable': False},
+                    # Для колонки "Формализованный документ"
+                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'actions', 'searchable': False, 'orderable': False},  # Для колонки "Редактирование"
                 ],
                 'name_field': 'name_number',
                 'edit_url': 'acts_edit',
@@ -106,6 +123,9 @@ def universal_datatable(request, register_type):
                     {'field': 'user__username', 'searchable': True, 'orderable': True},
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
+                    {'field': 'formalized_document', 'searchable': False, 'orderable': False},
+                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'actions', 'searchable': False, 'orderable': False},
                 ],
                 'name_field': 'name',
                 'edit_url': 'scientific_reports_edit',
@@ -123,6 +143,9 @@ def universal_datatable(request, register_type):
                     {'field': 'user__username', 'searchable': True, 'orderable': True},
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
+                    {'field': 'formalized_document', 'searchable': False, 'orderable': False},
+                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'actions', 'searchable': False, 'orderable': False},
                 ],
                 'name_field': 'name',
                 'edit_url': 'tech_reports_edit',
@@ -141,6 +164,9 @@ def universal_datatable(request, register_type):
                     {'field': 'user__username', 'searchable': True, 'orderable': True},
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
+                    {'field': 'formalized_document', 'searchable': False, 'orderable': False},
+                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'actions', 'searchable': False, 'orderable': False},
                 ],
                 'name_field': 'number',
                 'edit_url': 'open_lists_edit',
@@ -163,6 +189,9 @@ def universal_datatable(request, register_type):
                     {'field': 'user__username', 'searchable': True, 'orderable': True},
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
+                    {'field': 'formalized_document', 'searchable': False, 'orderable': False},
+                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'actions', 'searchable': False, 'orderable': False},
                 ],
                 'name_field': 'name',
                 'edit_url': 'account_cards_edit',
@@ -176,8 +205,8 @@ def universal_datatable(request, register_type):
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'user__username', 'searchable': True, 'orderable': True},
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
-                    {'field': 'id', 'searchable': False, 'orderable': False},  # Для колонки "Координаты"
-                    {'field': 'id', 'searchable': False, 'orderable': False},  # Для колонки "Редактирование"
+                    {'field': 'coordinates', 'searchable': False, 'orderable': False},
+                    {'field': 'actions', 'searchable': False, 'orderable': False},
                 ],
                 'name_field': 'origin_filename',
                 'edit_url': 'commercial_offers_edit',
@@ -191,8 +220,8 @@ def universal_datatable(request, register_type):
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'user__username', 'searchable': True, 'orderable': True},
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
-                    {'field': 'id', 'searchable': False, 'orderable': False},  # Для колонки "Координаты"
-                    {'field': 'id', 'searchable': False, 'orderable': False},  # Для колонки "Редактирование"
+                    {'field': 'coordinates', 'searchable': False, 'orderable': False},
+                    {'field': 'actions', 'searchable': False, 'orderable': False},
                 ],
                 'name_field': 'origin_filename',
                 'edit_url': 'geo_objects_edit',
@@ -277,23 +306,14 @@ def format_heritage_site_data(site, site_type, config):
     """Форматирование данных для археологических памятников"""
     account_card = site.account_card
 
-    # Наименование (разные поля для разных типов)
-    name_value = getattr(site, config['name_field'])
-    name_cell = name_value
-    if account_card and hasattr(account_card, 'id'):
-        name_cell = f'<a href="/account_cards/{account_card.id}" target="_blank">{name_value}</a>'
-
-    # Документ
-    document_cell = site.document
-    if hasattr(site, 'document_source_dict') and site.document_source_dict:
-        doc_path = site.document_source_dict[0].get('path', '')
-        if doc_path:
-            document_cell = f'<a href="/{doc_path}" target="_blank">{site.document}</a>'
-
     # Исключён
     is_excluded_cell = 'Да' if site.is_excluded else 'Нет'
 
-    # Данные из account_card
+    name_value = getattr(site, config['name_field'])
+    name_cell = name_value
+    document_cell = site.document
+    owner_cell = source_cell = card_date_uploaded = ''
+    formalized_doc_cell = original_doc_cell = actions_cell = ''
     card_data = {
         'creation_time': account_card.creation_time if account_card else '',
         'address': account_card.address if account_card else '',
@@ -306,70 +326,75 @@ def format_heritage_site_data(site, site_type, config):
         'compile_date': account_card.compile_date if account_card else '',
     }
 
-    # Владелец документа
-    owner_cell = ''
-    if account_card and account_card.user:
-        avatar_url = account_card.user.avatar.url if account_card.user.avatar else '/static/images/default-avatar.png'
-        owner_cell = f'''
-        <a href="/users/{account_card.user.id}" target="_blank">
-            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
-            {account_card.user.username}
-        </a>
-        '''
+    try:
+        if account_card and hasattr(account_card, 'id'):
+            name_cell = f'<a href="/account_cards/{account_card.id}" target="_blank">{name_value}</a>'
 
-    # Дата загрузки учётной карты
-    card_date_uploaded = ''
-    if account_card and account_card.date_uploaded:
-        card_date_uploaded = account_card.date_uploaded.strftime('%Y-%m-%d %H:%M')
+        if hasattr(site, 'document_source_dict') and site.document_source_dict:
+            doc_path = site.document_source_dict[0].path
+            if doc_path:
+                document_cell = f'<a href="/{doc_path}" target="_blank">{site.document}</a>'
 
-    # Источник
-    source_cell = ''
-    if account_card and hasattr(account_card, 'upload_source_dict'):
-        source_dict = account_card.upload_source_dict
-        if source_dict and source_dict.get('link'):
-            source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
-        elif source_dict:
-            source_cell = source_dict.get('source', '')
+        if account_card and account_card.user:
+            avatar_url = account_card.user.avatar.url if account_card.user.avatar else '/static/images/default-avatar.png'
+            owner_cell = f'''
+            <a href="/users/{account_card.user.id}" target="_blank">
+                <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+                {account_card.user.username}
+            </a>
+            '''
 
-    # Формализованный документ
-    formalized_doc_cell = f'''
-    <a href="/{config["view_url"]}/{site.id}/">
-        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;" {'' if getattr(site, 'coordinates_dict', True) else 'disabled'}>
-            Просмотр памятника
-        </button>
-    </a>
-    '''
+        if account_card and account_card.date_uploaded:
+            card_date_uploaded = account_card.date_uploaded.strftime('%Y-%m-%d %H:%M')
 
-    if account_card:
-        formalized_doc_cell += f'''
-        <a href="/account_cards/{account_card.id}/">
-            <button type="button" class="btn btn-secondary" style="border-radius: 12px; margin-bottom: 8px;">
-                Просмотр учётной карты
+        if account_card and hasattr(account_card, 'upload_source_dict'):
+            source_dict = account_card.upload_source_dict
+            if source_dict and source_dict.get('link'):
+                source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
+            elif source_dict:
+                source_cell = source_dict.get('source', '')
+
+        # Формализованный документ
+        formalized_doc_cell = f'''
+        <a href="/{config["view_url"]}/{site.id}/">
+            <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;" {'' if getattr(site, 'coordinates_dict', True) else 'disabled'}>
+                Просмотр памятника
             </button>
         </a>
         '''
 
-    # Исходный документ
-    original_doc_cell = ''
-    if hasattr(account_card, 'source_dict') and account_card.source_dict:
-        for source in account_card.source_dict:
-            if source.get('path'):
-                original_doc_cell += f'<a href="/{source['path']}" target="_blank">{source['origin_filename']}</a>'
+        if account_card:
+            formalized_doc_cell += f'''
+            <a href="/account_cards/{account_card.id}/">
+                <button type="button" class="btn btn-secondary" style="border-radius: 12px; margin-bottom: 8px;">
+                    Просмотр учётной карты
+                </button>
+            </a>
+            '''
 
-    # Кнопки действий
-    actions_cell = f'''
-    <td>
-        <a href="/{config["edit_url"]}/{site.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
-            Редактировать
-        </a>
-        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({site.id}, '{html.escape(json.dumps(name_value))}', '{config["delete_modal_id"]}')">
-            Удалить
-        </button>
-    </td>
-    '''
+        # Исходный документ
+        original_doc_cell = ''
+        if hasattr(account_card, 'source_dict') and account_card.source_dict:
+            for source in account_card.source_dict:
+                if source.path:
+                    original_doc_cell += f'<a href="/{source.path}" target="_blank">{source.origin_filename}</a><br>'
 
-    # БАЗОВЫЕ ДАННЫЕ
+        # Кнопки действий
+        actions_cell = f'''
+        <td>
+            <a href="/{config["edit_url"]}/{site.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+                Редактировать
+            </a>
+            <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                    onclick="openDeleteModal({site.id}, '{html.escape(json.dumps(name_value))}', '{config["delete_modal_id"]}')">
+                Удалить
+            </button>
+        </td>
+        '''
+    except Exception as e:
+        logger.error(f'Ошибка обработки DataTable: {e}')
+        logger.error(traceback.format_exc())
+
     base_data = [
         card_data['creation_time'],
         card_data['address'],
@@ -415,12 +440,7 @@ def format_act_data(act, config):
     year = act.year or ''
     finish_date = act.finish_date if act.finish_date else ''
     type_cell = act.type or ''
-
-    # Наименование и номер
     name_number_cell = act.name_number or ''
-    if hasattr(act, 'id'):
-        name_number_cell = f'<a href="/acts/{act.id}/" target="_blank">{act.name_number}</a>'
-
     place = act.place or ''
     customer = act.customer or ''
     area = act.area or ''
@@ -429,58 +449,58 @@ def format_act_data(act, config):
     open_list = act.open_list or ''
     conclusion = act.conclusion or ''
     border_objects = act.border_objects or ''
-
-    # Владелец документа
     owner_cell = ''
-    if act.user:
-        avatar_url = act.user.avatar.url if act.user.avatar else '/static/images/default-avatar.png'
-        owner_cell = f'''
-        <a href="/users/{act.user.id}" target="_blank">
-            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
-            {act.user.username}
+    source_cell = ''
+    date_uploaded = act.date_uploaded.strftime('%Y-%m-%d %H:%M') if act.date_uploaded else ''
+    formalized_doc_cell = original_doc_cell = actions_cell = ''
+
+    try:
+        if hasattr(act, 'id'):
+            name_number_cell = f'<a href="/acts/{act.id}/" target="_blank">{act.name_number}</a>'
+
+        if act.user:
+            avatar_url = act.user.avatar.url if act.user.avatar else '/static/images/default-avatar.png'
+            owner_cell = f'''
+            <a href="/users/{act.user.id}" target="_blank">
+                <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+                {act.user.username}
+            </a>
+            '''
+
+        if hasattr(act, 'upload_source_dict'):
+            source_dict = act.upload_source_dict
+            if source_dict and source_dict.get('link'):
+                source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
+            elif source_dict:
+                source_cell = source_dict.get('source', '')
+
+        formalized_doc_cell = f'''
+        <a href="/acts/{act.id}/">
+            <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
+                Просмотр акта
+            </button>
         </a>
         '''
 
-    # Источник
-    source_cell = ''
-    if hasattr(act, 'upload_source_dict'):
-        source_dict = act.upload_source_dict
-        if source_dict and source_dict.get('link'):
-            source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
-        elif source_dict:
-            source_cell = source_dict.get('source', '')
+        if hasattr(act, 'source_dict') and act.source_dict:
+            for source in act.source_dict:
+                if source.path:
+                    original_doc_cell += f'<a href="/{source.path}" target="_blank">{source.origin_filename or "Документ"}</a><br>'
 
-    # Дата загрузки
-    date_uploaded = act.date_uploaded.strftime('%Y-%m-%d %H:%M') if act.date_uploaded else ''
-
-    # Формализованный документ
-    formalized_doc_cell = f'''
-    <a href="/acts/{act.id}/">
-        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
-            Просмотр акта
-        </button>
-    </a>
-    '''
-
-    # Исходный документ
-    original_doc_cell = ''
-    if hasattr(act, 'source_dict') and act.source_dict:
-        for source in act.source_dict:
-            if source.get('path'):
-                original_doc_cell += f'<a href="/{source["path"]}" target="_blank">{source.get("origin_filename", "Документ")}</a><br>'
-
-    # Кнопки действий
-    actions_cell = f'''
-    <td>
-        <a href="/acts_edit/{act.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
-            Редактировать
-        </a>
-        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({act.id}, {html.escape(json.dumps(act.name_number or 'Акт'))}, 'delete_act')">
-            Удалить
-        </button>
-    </td>
-    '''
+        actions_cell = f'''
+        <td>
+            <a href="/acts_edit/{act.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+                Редактировать
+            </a>
+            <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                    onclick="openDeleteModal({act.id}, {html.escape(json.dumps(act.name_number or 'Акт'))}, 'delete_act')">
+                Удалить
+            </button>
+        </td>
+        '''
+    except Exception as e:
+        logger.error(f'Ошибка обработки DataTable: {e}')
+        logger.error(traceback.format_exc())
 
     return [
         year,
@@ -530,58 +550,56 @@ def format_scientific_report_data(report, config):
     author = report.author or ''
     open_list = report.open_list or ''
     writing_date = report.writing_date.strftime('%d.%m.%Y') if report.writing_date else ''
+    owner_cell = source_cell = ''
+    date_uploaded = report.date_uploaded.strftime('%Y-%m-%d %H:%M') if report.date_uploaded else ''
+    formalized_doc_cell = original_doc_cell = actions_cell = ''
 
-    # Владелец документа
-    owner_cell = ''
-    if report.user:
-        avatar_url = report.user.avatar.url if report.user.avatar else '/static/images/default-avatar.png'
-        owner_cell = f'''
-        <a href="/users/{report.user.id}" target="_blank">
-            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
-            {report.user.username}
+    try:
+        if report.user:
+            avatar_url = report.user.avatar.url if report.user.avatar else '/static/images/default-avatar.png'
+            owner_cell = f'''
+            <a href="/users/{report.user.id}" target="_blank">
+                <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+                {report.user.username}
+            </a>
+            '''
+
+        if hasattr(report, 'upload_source_dict'):
+            source_dict = report.upload_source_dict
+            if source_dict and source_dict.get('link'):
+                source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
+            elif source_dict:
+                source_cell = source_dict.get('source', '')
+
+        # Формализованный документ
+        formalized_doc_cell = f'''
+        <a href="/{config["view_url"]}/{report.id}/">
+            <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
+                Просмотр отчёта
+            </button>
         </a>
         '''
 
-    # Источник
-    source_cell = ''
-    if hasattr(report, 'upload_source_dict'):
-        source_dict = report.upload_source_dict
-        if source_dict and source_dict.get('link'):
-            source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
-        elif source_dict:
-            source_cell = source_dict.get('source', '')
+        if hasattr(report, 'source_dict') and report.source_dict:
+            for source in report.source_dict:
+                if source.path:
+                    original_doc_cell += f'<a href="/{source.path}" target="_blank">{source.origin_filename or "Документ"}</a><br>'
 
-    # Дата загрузки
-    date_uploaded = report.date_uploaded.strftime('%Y-%m-%d %H:%M') if report.date_uploaded else ''
-
-    # Формализованный документ
-    formalized_doc_cell = f'''
-    <a href="/{config["view_url"]}/{report.id}/">
-        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
-            Просмотр отчёта
-        </button>
-    </a>
-    '''
-
-    # Исходный документ
-    original_doc_cell = ''
-    if hasattr(report, 'source_dict') and report.source_dict:
-        for source in report.source_dict:
-            if source.get('path'):
-                original_doc_cell += f'<a href="/{source["path"]}" target="_blank">{source.get("origin_filename", "Документ")}</a><br>'
-
-    # Кнопки действий
-    actions_cell = f'''
-    <td>
-        <a href="/{config["edit_url"]}/{report.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
-            Редактировать
-        </a>
-        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({report.id}, '{html.escape(json.dumps(name)) if name else "Научный отчет"}', '{config["delete_modal_id"]}')">
-            Удалить
-        </button>
-    </td>
-    '''
+        # Кнопки действий
+        actions_cell = f'''
+        <td>
+            <a href="/{config["edit_url"]}/{report.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+                Редактировать
+            </a>
+            <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                    onclick="openDeleteModal({report.id}, '{html.escape(json.dumps(name)) if name else "Научный отчет"}', '{config["delete_modal_id"]}')">
+                Удалить
+            </button>
+        </td>
+        '''
+    except Exception as e:
+        logger.error(f'Ошибка обработки DataTable: {e}')
+        logger.error(traceback.format_exc())
 
     return [
         name_cell,
@@ -615,58 +633,56 @@ def format_tech_report_data(tech_report, config):
     author = tech_report.author or ''
     open_list = tech_report.open_list or ''
     writing_date = tech_report.writing_date if tech_report.writing_date else ''
+    owner_cell = source_cell = ''
+    date_uploaded = tech_report.date_uploaded.strftime('%Y-%m-%d %H:%M') if tech_report.date_uploaded else ''
+    original_doc_cell = formalized_doc_cell = actions_cell = ''
 
-    # Владелец документа
-    owner_cell = ''
-    if tech_report.user:
-        avatar_url = tech_report.user.avatar.url if tech_report.user.avatar else '/static/images/default-avatar.png'
-        owner_cell = f'''
-        <a href="/users/{tech_report.user.id}" target="_blank">
-            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
-            {tech_report.user.username}
+    try:
+        if tech_report.user:
+            avatar_url = tech_report.user.avatar.url if tech_report.user.avatar else '/static/images/default-avatar.png'
+            owner_cell = f'''
+            <a href="/users/{tech_report.user.id}" target="_blank">
+                <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+                {tech_report.user.username}
+            </a>
+            '''
+
+        if hasattr(tech_report, 'upload_source_dict'):
+            source_dict = tech_report.upload_source_dict
+            if source_dict and source_dict.get('link'):
+                source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
+            elif source_dict:
+                source_cell = source_dict.get('source', '')
+
+        # Формализованный документ
+        formalized_doc_cell = f'''
+        <a href="/{config["view_url"]}/{tech_report.id}/">
+            <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
+                Просмотр отчёта
+            </button>
         </a>
         '''
 
-    # Источник
-    source_cell = ''
-    if hasattr(tech_report, 'upload_source_dict'):
-        source_dict = tech_report.upload_source_dict
-        if source_dict and source_dict.get('link'):
-            source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
-        elif source_dict:
-            source_cell = source_dict.get('source', '')
+        if hasattr(tech_report, 'source_dict') and tech_report.source_dict:
+            for source in tech_report.source_dict:
+                if source.path:
+                    original_doc_cell += f'<a href="/{source.path}" target="_blank">{source.origin_filename or "Документ"}</a><br>'
 
-    # Дата загрузки
-    date_uploaded = tech_report.date_uploaded.strftime('%Y-%m-%d %H:%M') if tech_report.date_uploaded else ''
-
-    # Формализованный документ
-    formalized_doc_cell = f'''
-    <a href="/{config["view_url"]}/{tech_report.id}/">
-        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
-            Просмотр отчёта
-        </button>
-    </a>
-    '''
-
-    # Исходный документ
-    original_doc_cell = ''
-    if hasattr(tech_report, 'source_dict') and tech_report.source_dict:
-        for source in tech_report.source_dict:
-            if source.get('path'):
-                original_doc_cell += f'<a href="/{source["path"]}" target="_blank">{source.get("origin_filename", "Документ")}</a><br>'
-
-    # Кнопки действий
-    actions_cell = f'''
-    <td>
-        <a href="/tech_reports_edit/{tech_report.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
-            Редактировать
-        </a>
-        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({tech_report.id}, '{html.escape(json.dumps(tech_report.name)) if tech_report.name else "Отчёт"}', 'delete_tech_report')">
-            Удалить
-        </button>
-    </td>
-    '''
+        # Кнопки действий
+        actions_cell = f'''
+        <td>
+            <a href="/tech_reports_edit/{tech_report.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+                Редактировать
+            </a>
+            <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                    onclick="openDeleteModal({tech_report.id}, '{html.escape(json.dumps(tech_report.name)) if tech_report.name else "Отчёт"}', 'delete_tech_report')">
+                Удалить
+            </button>
+        </td>
+        '''
+    except Exception as e:
+        logger.error(f'Ошибка обработки DataTable: {e}')
+        logger.error(traceback.format_exc())
 
     return [
         name_cell,
@@ -701,58 +717,54 @@ def format_open_list_data(open_list, config):
     works = open_list.works or ''
     start_date = open_list.start_date if open_list.start_date else ''
     end_date = open_list.end_date if open_list.end_date else ''
+    owner_cell = source_cell = ''
+    date_uploaded = open_list.date_uploaded.strftime('%Y-%m-%d %H:%M') if open_list.date_uploaded else ''
+    formalized_doc_cell = original_doc_cell = actions_cell = ''
 
-    # Владелец документа
-    owner_cell = ''
-    if open_list.user:
-        avatar_url = open_list.user.avatar.url if open_list.user.avatar else '/static/images/default-avatar.png'
-        owner_cell = f'''
-        <a href="/users/{open_list.user.id}" target="_blank">
-            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
-            {open_list.user.username}
+    try:
+        if open_list.user:
+            avatar_url = open_list.user.avatar.url if open_list.user.avatar else '/static/images/default-avatar.png'
+            owner_cell = f'''
+            <a href="/users/{open_list.user.id}" target="_blank">
+                <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+                {open_list.user.username}
+            </a>
+            '''
+
+        if hasattr(open_list, 'upload_source_dict'):
+            source_dict = open_list.upload_source_dict
+            if source_dict and source_dict.get('link'):
+                source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
+            elif source_dict:
+                source_cell = source_dict.get('source', '')
+
+        formalized_doc_cell = f'''
+        <a href="/open_lists/{open_list.id}/">
+            <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
+                Просмотр открытого листа
+            </button>
         </a>
         '''
 
-    # Источник
-    source_cell = ''
-    if hasattr(open_list, 'upload_source_dict'):
-        source_dict = open_list.upload_source_dict
-        if source_dict and source_dict.get('link'):
-            source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
-        elif source_dict:
-            source_cell = source_dict.get('source', '')
+        if hasattr(open_list, 'source_dict') and open_list.source_dict:
+            for source in open_list.source_dict:
+                if source.path:
+                    original_doc_cell += f'<a href="/{source.path}" target="_blank">{source.origin_filename or "Документ"}</a><br>'
 
-    # Дата загрузки
-    date_uploaded = open_list.date_uploaded.strftime('%Y-%m-%d %H:%M') if open_list.date_uploaded else ''
-
-    # Формализованный документ
-    formalized_doc_cell = f'''
-    <a href="/open_lists/{open_list.id}/">
-        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
-            Просмотр открытого листа
-        </button>
-    </a>
-    '''
-
-    # Исходный документ
-    original_doc_cell = ''
-    if hasattr(open_list, 'source_dict') and open_list.source_dict:
-        for source in open_list.source_dict:
-            if source.get('path'):
-                original_doc_cell += f'<a href="/{source["path"]}" target="_blank">{source.get("origin_filename", "Документ")}</a><br>'
-
-    # Кнопки действий
-    actions_cell = f'''
-    <td>
-        <a href="/open_lists_edit/{open_list.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
-            Редактировать
-        </a>
-        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({open_list.id}, '{html.escape(json.dumps(open_list.number)) if open_list.number else "Открытый лист"}', 'delete_open_list')">
-            Удалить
-        </button>
-    </td>
-    '''
+        actions_cell = f'''
+        <td>
+            <a href="/open_lists_edit/{open_list.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+                Редактировать
+            </a>
+            <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                    onclick="openDeleteModal({open_list.id}, '{html.escape(json.dumps(open_list.number)) if open_list.number else "Открытый лист"}', 'delete_open_list')">
+                Удалить
+            </button>
+        </td>
+        '''
+    except Exception as e:
+        logger.error(f'Ошибка обработки DataTable: {e}')
+        logger.error(traceback.format_exc())
 
     return [
         number_cell,
@@ -792,58 +804,54 @@ def format_account_card_data(account_card, config):
     discovery_info = account_card.discovery_info or ''
     compiler = account_card.compiler or ''
     compile_date = account_card.compile_date if account_card.compile_date else ''
+    owner_cell = source_cell = ''
+    date_uploaded = account_card.date_uploaded.strftime('%Y-%m-%d %H:%M') if account_card.date_uploaded else ''
+    formalized_doc_cell = original_doc_cell = actions_cell = ''
 
-    # Владелец документа
-    owner_cell = ''
-    if account_card.user:
-        avatar_url = account_card.user.avatar.url if account_card.user.avatar else '/static/images/default-avatar.png'
-        owner_cell = f'''
-        <a href="/users/{account_card.user.id}" target="_blank">
-            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
-            {account_card.user.username}
+    try:
+        if account_card.user:
+            avatar_url = account_card.user.avatar.url if account_card.user.avatar else '/static/images/default-avatar.png'
+            owner_cell = f'''
+            <a href="/users/{account_card.user.id}" target="_blank">
+                <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+                {account_card.user.username}
+            </a>
+            '''
+
+        if hasattr(account_card, 'upload_source_dict'):
+            source_dict = account_card.upload_source_dict
+            if source_dict and source_dict.get('link'):
+                source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
+            elif source_dict:
+                source_cell = source_dict.get('source', '')
+
+        formalized_doc_cell = f'''
+        <a href="/account_cards/{account_card.id}/">
+            <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
+                Просмотр учётной карты
+            </button>
         </a>
         '''
 
-    # Дата загрузки
-    date_uploaded = account_card.date_uploaded.strftime('%Y-%m-%d %H:%M') if account_card.date_uploaded else ''
+        if hasattr(account_card, 'source_dict') and account_card.source_dict:
+            for source in account_card.source_dict:
+                if source.path:
+                    original_doc_cell += f'<a href="/{source.path}" target="_blank">{source.origin_filename or "Документ"}</a><br>'
 
-    # Источник
-    source_cell = ''
-    if hasattr(account_card, 'upload_source_dict'):
-        source_dict = account_card.upload_source_dict
-        if source_dict and source_dict.get('link'):
-            source_cell = f'<a href="{source_dict["link"]}" target="_blank">{source_dict["source"]}</a>'
-        elif source_dict:
-            source_cell = source_dict.get('source', '')
-
-    # Формализованный документ
-    formalized_doc_cell = f'''
-    <a href="/account_cards/{account_card.id}/">
-        <button type="button" class="btn btn-primary" style="border-radius: 12px; margin-bottom: 8px;">
-            Просмотр учётной карты
-        </button>
-    </a>
-    '''
-
-    # Исходный документ
-    original_doc_cell = ''
-    if hasattr(account_card, 'source_dict') and account_card.source_dict:
-        for source in account_card.source_dict:
-            if source.get('path'):
-                original_doc_cell += f'<a href="/{source["path"]}" target="_blank">{source.get("origin_filename", "Документ")}</a><br>'
-
-    # Кнопки действий
-    actions_cell = f'''
-    <td>
-        <a href="/account_cards_edit/{account_card.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
-            Редактировать
-        </a>
-        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({account_card.id}, '{html.escape(json.dumps(account_card.name)) if account_card.name else "Учётная карта"}', 'delete_account_card')">
-            Удалить
-        </button>
-    </td>
-    '''
+        actions_cell = f'''
+        <td>
+            <a href="/account_cards_edit/{account_card.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+                Редактировать
+            </a>
+            <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                    onclick="openDeleteModal({account_card.id}, '{html.escape(json.dumps(account_card.name)) if account_card.name else "Учётная карта"}', 'delete_account_card')">
+                Удалить
+            </button>
+        </td>
+        '''
+    except Exception as e:
+        logger.error(f'Ошибка обработки DataTable: {e}')
+        logger.error(traceback.format_exc())
 
     return [
         name_cell,
@@ -872,53 +880,49 @@ def account_cards_datatable(request):
 
 def format_commercial_offer_data(commercial_offer, config):
     """Форматирование данных для коммерческих предложений"""
-
-    # Исходный документ
     origin_filename = commercial_offer.origin_filename or ''
     source_path = commercial_offer.source
     first_cell = f'<a href="/{source_path}">{origin_filename}</a>' if source_path else origin_filename
+    source_cell = owner_cell = ''
+    date_uploaded = commercial_offer.date_uploaded.strftime('%Y-%m-%d %H:%M') if commercial_offer.date_uploaded else ''
+    coordinates_cell = actions_cell = ''
 
-    # Источник
-    source_cell = ''
-    if hasattr(commercial_offer, 'upload_source_dict'):
-        source_dict = commercial_offer.upload_source_dict
-        source_cell = source_dict.get('source', '') if source_dict else ''
+    try:
+        if hasattr(commercial_offer, 'upload_source_dict'):
+            source_dict = commercial_offer.upload_source_dict
+            source_cell = source_dict.get('source', '') if source_dict else ''
 
-    # Владелец документа
-    owner_cell = ''
-    if commercial_offer.user:
-        avatar_url = commercial_offer.user.avatar.url if commercial_offer.user.avatar else '/static/images/default-avatar.png'
-        owner_cell = f'''
-        <a href="/users/{commercial_offer.user.id}" target="_blank">
-            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
-            {commercial_offer.user.username}
+        if commercial_offer.user:
+            avatar_url = commercial_offer.user.avatar.url if commercial_offer.user.avatar else '/static/images/default-avatar.png'
+            owner_cell = f'''
+            <a href="/users/{commercial_offer.user.id}" target="_blank">
+                <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+                {commercial_offer.user.username}
+            </a>
+            '''
+
+        coordinates_cell = f'''
+        <a href="/{config["view_url"]}/{commercial_offer.id}/">
+            <button type="button" class="btn btn-primary" style="border-radius: 12px;">
+                Просмотр
+            </button>
         </a>
         '''
 
-    # Дата загрузки
-    date_uploaded = commercial_offer.date_uploaded.strftime('%Y-%m-%d %H:%M') if commercial_offer.date_uploaded else ''
-
-    # Координаты (кнопка просмотра)
-    coordinates_cell = f'''
-    <a href="/{config["view_url"]}/{commercial_offer.id}/">
-        <button type="button" class="btn btn-primary" style="border-radius: 12px;">
-            Просмотр
-        </button>
-    </a>
-    '''
-
-    # Кнопки действий
-    actions_cell = f'''
-    <td>
-        <a href="/{config["edit_url"]}/{commercial_offer.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
-            Редактировать
-        </a>
-        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({commercial_offer.id}, '{html.escape(json.dumps(origin_filename))}', '{config["delete_modal_id"]}')">
-            Удалить
-        </button>
-    </td>
-    '''
+        actions_cell = f'''
+        <td>
+            <a href="/{config["edit_url"]}/{commercial_offer.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+                Редактировать
+            </a>
+            <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                    onclick="openDeleteModal({commercial_offer.id}, '{html.escape(json.dumps(origin_filename))}', '{config["delete_modal_id"]}')">
+                Удалить
+            </button>
+        </td>
+        '''
+    except Exception as e:
+        logger.error(f'Ошибка обработки DataTable: {e}')
+        logger.error(traceback.format_exc())
 
     return [
         first_cell,
@@ -932,53 +936,49 @@ def format_commercial_offer_data(commercial_offer, config):
 
 def format_geo_object_data(geo_object, config):
     """Форматирование данных для географических объектов"""
-
-    # Исходный документ
     origin_filename = geo_object.origin_filename or ''
     source_path = geo_object.source
     first_cell = f'<a href="/{source_path}">{origin_filename}</a>' if source_path else origin_filename
+    source_cell = owner_cell = ''
+    date_uploaded = geo_object.date_uploaded.strftime('%Y-%m-%d %H:%M') if geo_object.date_uploaded else ''
+    coordinates_cell = actions_cell = ''
 
-    # Источник
-    source_cell = ''
-    if hasattr(geo_object, 'upload_source_dict'):
-        source_dict = geo_object.upload_source_dict
-        source_cell = source_dict.get('source', '') if source_dict else ''
+    try:
+        if hasattr(geo_object, 'upload_source_dict'):
+            source_dict = geo_object.upload_source_dict
+            source_cell = source_dict.get('source', '') if source_dict else ''
 
-    # Владелец документа
-    owner_cell = ''
-    if geo_object.user:
-        avatar_url = geo_object.user.avatar.url if geo_object.user.avatar else '/static/images/default-avatar.png'
-        owner_cell = f'''
-        <a href="/users/{geo_object.user.id}" target="_blank">
-            <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
-            {geo_object.user.username}
+        if geo_object.user:
+            avatar_url = geo_object.user.avatar.url if geo_object.user.avatar else '/static/images/default-avatar.png'
+            owner_cell = f'''
+            <a href="/users/{geo_object.user.id}" target="_blank">
+                <img src="{avatar_url}" class="rounded-circle" height="25" width="25" style="object-fit: cover;" alt=""/>
+                {geo_object.user.username}
+            </a>
+            '''
+
+        coordinates_cell = f'''
+        <a href="/{config["view_url"]}/{geo_object.id}/">
+            <button type="button" class="btn btn-primary" style="border-radius: 12px;">
+                Просмотр
+            </button>
         </a>
         '''
 
-    # Дата загрузки
-    date_uploaded = geo_object.date_uploaded.strftime('%Y-%m-%d %H:%M') if geo_object.date_uploaded else ''
-
-    # Координаты (кнопка просмотра)
-    coordinates_cell = f'''
-    <a href="/{config["view_url"]}/{geo_object.id}/">
-        <button type="button" class="btn btn-primary" style="border-radius: 12px;">
-            Просмотр
-        </button>
-    </a>
-    '''
-
-    # Кнопки действий
-    actions_cell = f'''
-    <td>
-        <a href="/{config["edit_url"]}/{geo_object.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
-            Редактировать
-        </a>
-        <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
-                onclick="openDeleteModal({geo_object.id}, '{html.escape(json.dumps(origin_filename))}', '{config["delete_modal_id"]}')">
-            Удалить
-        </button>
-    </td>
-    '''
+        actions_cell = f'''
+        <td>
+            <a href="/{config["edit_url"]}/{geo_object.id}/" class="btn btn-primary" style="border-radius: 12px; margin-right: 10px;">
+                Редактировать
+            </a>
+            <button type="button" class="btn btn-danger" style="margin-top: 8px;" 
+                    onclick="openDeleteModal({geo_object.id}, '{html.escape(json.dumps(origin_filename))}', '{config["delete_modal_id"]}')">
+                Удалить
+            </button>
+        </td>
+        '''
+    except Exception as e:
+        logger.error(f'Ошибка обработки DataTable: {e}')
+        logger.error(traceback.format_exc())
 
     return [
         first_cell,

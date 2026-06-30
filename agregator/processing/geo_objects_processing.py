@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 from celery import shared_task
 
 from agregator.processing.files_saving import load_raw_geo_objects
-from agregator.hash import calculate_file_hash
+from agregator.processing.hash_utils import check_duplicates
 from agregator.models import GeoObject
 from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
     PROCESSING_PART, ALL_PARTS
@@ -120,19 +120,10 @@ def process_geo_objects(self, geo_objects_ids, user_id, is_reprocess=False):
 def extract_coordinates(file, progress_recorder, pages_count, total_processed,
                         geo_object_id, progress_json, task_id, time_on_start, is_reprocess):
     coordinates = {}
-
-    if is_reprocess is False:
-        geo_objects = GeoObject.objects.all()
-        for geo_object in geo_objects:
-            if geo_object.source and geo_object.id != geo_object_id and os.path.isfile(
-                    geo_object.source):
-                file_hash = calculate_file_hash(file)
-                open_list_hash = calculate_file_hash(geo_object.source)
-                if file_hash == open_list_hash:
-                    raise FileExistsError(
-                        f"Такой файл уже загружен в систему: {progress_json['file_groups'][str(geo_object_id)]['origin_filename']}")
-
     current_geo_object = GeoObject.objects.get(id=geo_object_id)
+
+    check_duplicates(is_reprocess, file, progress_json['file_groups'][str(geo_object_id)]['origin_filename'],
+                     current_geo_object, delete_current=True)
 
     pages_processed = total_processed[0] + pages_count.get(current_geo_object.source, 0)
     progress_json['expected_time'] = get_expected_time(time_on_start, pages_processed, pages_count)

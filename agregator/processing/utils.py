@@ -1,6 +1,23 @@
 import re
 from pathlib import Path
-from typing import List
+from typing import List, Optional
+import os
+
+
+def human_readable_size(size_in_bytes):
+    for unit in ['байт', 'КБ', 'МБ', 'ГБ']:
+        if size_in_bytes < 1024:
+            return f"{size_in_bytes:.2f} {unit}"
+        size_in_bytes = round(size_in_bytes / 1024, 2)
+    return f"{size_in_bytes:.2f} ТБ"
+
+
+def get_file_size(file_path: str) -> Optional[str]:
+    if os.path.isfile(file_path):
+        size_in_bytes = os.path.getsize(file_path)
+    else:
+        return None
+    return human_readable_size(size_in_bytes)
 
 
 def clean_path_component(name):

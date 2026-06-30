@@ -39,6 +39,22 @@ CREATE TABLE user_tasks
     upload_source json         NULL              -- ссылка на источник загрузки
 );
 
+-- Файлы документов
+CREATE TABLE document_files (
+    id              SERIAL PRIMARY KEY,
+    document_type   VARCHAR(50) NOT NULL,   -- название таблицы: 'act', 'scientific_report', 'tech_report', 'open_list', 'account_card', 'archaeological_site', ...
+    document_id     INTEGER NOT NULL,       -- идентификатор (первичный ключ)
+
+    file_type       VARCHAR(50),            -- ип файла: 'main', 'supplement', 'open_list', 'illustration', 'source', 'document' и т.п.
+    path       TEXT NOT NULL,          -- путь на сервере
+    origin_filename   VARCHAR(255) NOT NULL,  -- исходное имя файла
+    file_hash       VARCHAR(64),            -- хеш файла
+    file_size       VARCHAR(20),                 -- вес файла
+    date_uploaded   TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- дата загрузки файла на сервер
+
+    metadata        JSONB,                  -- метаданные
+);
+
 -- Акты
 CREATE TABLE acts
 (
