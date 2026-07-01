@@ -231,7 +231,8 @@
                 upload_source: $('#filterUploadSource').val(),
                 origin_filename: $('#filterOriginalDocument').val(),
                 account_card_filter: $('#account_card_filter').val(),
-                show_excluded: $('#showExcluded').is(':checked')
+                show_excluded: $('#showExcluded').is(':checked'),
+                show_my_docs: $('#showMyDocs').is(':checked'),
             };
         },
         columns: [
@@ -265,7 +266,7 @@
                 '#filterCardDateUploaded', '#filterUploadSource', '#filterOriginalDocument'
             ],
             "changeFilters": [
-                '#account_card_filter', '#showExcluded'
+                '#account_card_filter', '#showExcluded', '#showMyDocs'
             ]
         }
     };

@@ -150,7 +150,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     # Разделы
     SECTIONS = OrderedDict([
         ('act', r'Акт'),
-        ('start_date', r'(?<!\d)(\d\.\s*)?Дата\s*начала\s*(?!.*\s*окончания)(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
+        ('start_date', r'(?<!\d)(\d\.\s*)?Дата\s*начала\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
+        # (?<!\d)(\d\.\s*)?Дата\s*начала\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*
         ('end_date', r'(?<!\d)(\d\.\s*)?(?<!начала и )Дата\s*окончания\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
         ('place', r'(?<!\d)(\d\.\s*)?Место\s*проведения\s*(экспертизы)?[\s:\-–-]*'),
         ('customer', r'(\d\.\s*)?(Заказчик\s*экспертизы|Сведения\s*о\s*заказчике\s*экспертизы)[\s:\-–-]*'),
@@ -204,6 +205,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     full_time_interval = None
     interval_type = None
     tables = []
+    is_continue_counter = 0
     logger.info(f"После подготовки разделов: {round((time.time() - start_time), 2)} секунд")
 
     # Создаем или очищаем текстовый файл
@@ -257,9 +259,12 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                             current_section_idx, is_continue = extract_end_date(text, SECTION_PATTERN_MAP['start_date'],
                                                                                 text_to_write, full_time_interval,
                                                                                 interval_type, current_section_idx,
-                                                                                table_info)
+                                                                                table_info, current_section_name)
+                            if current_section_idx >= len(SECTIONS):
+                                current_section_idx = len(SECTIONS) - 1
                             current_section_name = SECTION_NAMES[current_section_idx]
-                            if is_continue:
+                            if is_continue and is_continue_counter < 5:
+                                is_continue_counter += 1
                                 continue
 
                         elif current_section_name == 'place':

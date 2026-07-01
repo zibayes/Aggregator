@@ -94,6 +94,7 @@
                     upload_source: $('#filterUploadSource').val(),
                     date_uploaded: $('#filterDateUploaded').val(),
                     origin_filename: $('#filterOriginalDocument').val(),
+                    show_my_docs: $('#showMyDocs').is(':checked'),
                 };
                 console.log('Commercial Offers filters:', filters);
                 return filters;
@@ -105,7 +106,13 @@
                 { "data": 3, "name": "date_uploaded", "orderable": true, "searchable": true, "title": "Дата загрузки" },
                 { "data": 4, "name": "coordinates", "orderable": false, "searchable": false, "title": "Координаты" },
                 { "data": 5, "name": "actions", "orderable": false, "searchable": false, "title": "Редактирование" }
-            ]
+            ],
+            filterConfigs: {
+                "textFilters": [
+                    '#filterOwner', '#filterUploadSource', '#filterDateUploaded', '#filterOriginalDocument'
+                ],
+                "changeFilters": ['#showMyDocs']
+            }
         };
 
         // Инициализируем DataTable

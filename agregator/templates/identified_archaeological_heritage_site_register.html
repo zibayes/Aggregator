@@ -260,6 +260,7 @@
                         account_card_filter: $('#account_card_filter').val(),
                         show_excluded: $('#showExcluded').is(':checked'),
                         origin_filename: $('#filterOriginalDocument').val(),
+                        show_my_docs: $('#showMyDocs').is(':checked'),
                     });
                 },
                 "dataSrc": "data",
@@ -300,7 +301,7 @@
                     '#filterOwner', '#filterCardDateUploaded', '#filterUploadSource', '#filterOriginalDocument'
                 ],
                 "changeFilters": [
-                    '#account_card_filter', '#showExcluded'
+                    '#account_card_filter', '#showExcluded', '#showMyDocs'
                 ]
             }
         };

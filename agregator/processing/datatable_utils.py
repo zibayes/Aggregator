@@ -1,4 +1,5 @@
 import time
+import traceback
 
 from django.db.models import Q, Exists, OuterRef
 from django.http import JsonResponse
@@ -112,6 +113,10 @@ class DataTableServerSide:
                             file_condition = self.get_file_filter(search_value)
                             if file_condition:
                                 queryset = queryset.filter(file_condition).distinct()
+                        elif field_name == 'upload_source' and isinstance(queryset.model,
+                                                                          (ArchaeologicalHeritageSite,
+                                                                           IdentifiedArchaeologicalHeritageSite)):
+                            queryset = queryset.filter(**{f"account_card__{field_name}__icontains": search_value})
                         else:
                             queryset = queryset.filter(**{f"{field_name}__icontains": search_value})
         return queryset
@@ -157,16 +162,24 @@ class DataTableServerSide:
 
         if custom_search.get('owner'):
             queryset = queryset.filter(user__username__icontains=custom_search['owner'])
+        if custom_search.get('show_my_docs'):
+            if queryset.model.__name__ in ('ArchaeologicalHeritageSite', 'IdentifiedArchaeologicalHeritageSite'):
+                queryset = queryset.filter(account_card__user=self.request.user)
+            else:
+                queryset = queryset.filter(user=self.request.user)
         if custom_search.get('origin_filename'):
             file_condition = self.get_file_filter(custom_search['origin_filename'])
             if file_condition:
                 queryset = queryset.filter(file_condition).distinct()
         if custom_search.get('upload_source'):
-            queryset = queryset.filter(upload_source__icontains=custom_search['upload_source'])
+            if queryset.model.__name__ in ('ArchaeologicalHeritageSite', 'IdentifiedArchaeologicalHeritageSite'):
+                queryset = queryset.filter(account_card__upload_source__icontains=custom_search['upload_source'])
+            else:
+                queryset = queryset.filter(upload_source__icontains=custom_search['upload_source'])
         if custom_search.get('date_uploaded'):
             queryset = queryset.filter(date_uploaded__icontains=custom_search['date_uploaded'])
 
-        if isinstance(queryset.model, ObjectAccountCard):
+        if queryset.model.__name__ == 'ObjectAccountCard':
             if custom_search.get('name'):
                 queryset = queryset.filter(name__icontains=custom_search['name'])
             if custom_search.get('creation_time'):
@@ -188,7 +201,7 @@ class DataTableServerSide:
             if custom_search.get('compile_date'):
                 queryset = queryset.filter(compile_date__icontains=custom_search['compile_date'])
 
-        elif isinstance(queryset.model, OpenLists):
+        elif queryset.model.__name__ == 'OpenLists':
             if custom_search.get('number'):
                 queryset = queryset.filter(number__icontains=custom_search['number'])
             if custom_search.get('holder'):
@@ -202,7 +215,7 @@ class DataTableServerSide:
             if custom_search.get('end_date'):
                 queryset = queryset.filter(end_date__icontains=custom_search['end_date'])
 
-        elif isinstance(queryset.model, (ScientificReport, TechReport)):
+        elif queryset.model.__name__ in ('ScientificReport', 'TechReport'):
             if custom_search.get('name'):
                 queryset = queryset.filter(name__icontains=custom_search['name'])
             if custom_search.get('organization'):
@@ -212,7 +225,7 @@ class DataTableServerSide:
             if custom_search.get('writing_date'):
                 queryset = queryset.filter(writing_date__icontains=custom_search['writing_date'])
 
-        elif isinstance(queryset.model, Act):
+        elif queryset.model.__name__ == 'Act':
             if custom_search.get('year'):
                 queryset = queryset.filter(year__icontains=custom_search['year'])
             if custom_search.get('finish_date'):
@@ -238,7 +251,7 @@ class DataTableServerSide:
             if custom_search.get('border_objects'):
                 queryset = queryset.filter(border_objects__icontains=custom_search['border_objects'])
 
-        if isinstance(queryset.model, ArchaeologicalHeritageSite):
+        if queryset.model.__name__ == 'ArchaeologicalHeritageSite':
             if custom_search.get('doc_name'):
                 queryset = queryset.filter(doc_name__icontains=custom_search['doc_name'])
                 logger.info(f"DEBUG: After doc_name filter: {queryset.count()} records")
@@ -252,7 +265,7 @@ class DataTableServerSide:
                 queryset = queryset.filter(register_num__icontains=custom_search['register_num'])
                 logger.info(f"DEBUG: After register_num filter: {queryset.count()} records")
 
-        if isinstance(queryset.model, IdentifiedArchaeologicalHeritageSite):
+        if queryset.model.__name__ == 'IdentifiedArchaeologicalHeritageSite':
             if custom_search.get('name'):
                 queryset = queryset.filter(name__icontains=custom_search['name'])
                 logger.info(f"DEBUG: After name filter: {queryset.count()} records")
@@ -266,7 +279,7 @@ class DataTableServerSide:
                 queryset = queryset.filter(document__icontains=custom_search['document'])
                 logger.info(f"DEBUG: After document filter: {queryset.count()} records")
 
-        if isinstance(queryset.model, (ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite)):
+        if queryset.model.__name__ in ('ArchaeologicalHeritageSite', 'IdentifiedArchaeologicalHeritageSite'):
             if custom_search.get('creation_time'):
                 queryset = queryset.filter(account_card__creation_time__icontains=custom_search['creation_time'])
                 logger.info(f"DEBUG: After creation_time filter: {queryset.count()} records")
@@ -328,41 +341,47 @@ class DataTableServerSide:
 
     def get_response(self, data_formatter):
         """Генерирует ответ для DataTables"""
-        start_time = time.time()
-        logger.info(f"Начало запроса DataTables: {round((time.time() - start_time), 2)} секунд")
         params = self.get_parameters()
-        logger.info(f"После получения параметров DataTables: {round((time.time() - start_time), 2)} секунд")
+        total_records = filtered_records = 0
+        data = ''
+        try:
+            start_time = time.time()
+            logger.info(f"Начало запроса DataTables: {round((time.time() - start_time), 2)} секунд")
+            logger.info(f"После получения параметров DataTables: {round((time.time() - start_time), 2)} секунд")
 
-        # ПРИНУДИТЕЛЬНАЯ ОТЛАДКА
-        import sys
-        logger.info(f"=== DATATABLE DEBUG ===")
-        logger.info(f"Total records in queryset: {self.queryset.count()}")
+            # ПРИНУДИТЕЛЬНАЯ ОТЛАДКА
+            import sys
+            logger.info(f"=== DATATABLE DEBUG ===")
+            logger.info(f"Total records in queryset: {self.queryset.count()}")
 
-        # Применяем фильтрацию и сортировку
-        filtered_queryset = self.apply_global_search(self.queryset, params['search_value'])
-        logger.info(f"After global search: {filtered_queryset.count()}")
+            # Применяем фильтрацию и сортировку
+            filtered_queryset = self.apply_global_search(self.queryset, params['search_value'])
+            logger.info(f"After global search: {filtered_queryset.count()}")
 
-        filtered_queryset = self.apply_column_search(filtered_queryset, params['column_search'])
-        logger.info(f"After column search: {filtered_queryset.count()}")
+            filtered_queryset = self.apply_column_search(filtered_queryset, params['column_search'])
+            logger.info(f"After column search: {filtered_queryset.count()}")
 
-        filtered_queryset = self.apply_custom_search(filtered_queryset, params['custom_search'])
-        logger.info(f"After custom search: {filtered_queryset.count()}")
+            filtered_queryset = self.apply_custom_search(filtered_queryset, params['custom_search'])
+            logger.info(f"After custom search: {filtered_queryset.count()}")
 
-        filtered_queryset = self.apply_ordering(filtered_queryset, params['order_column_index'],
-                                                params['order_direction'])
+            filtered_queryset = self.apply_ordering(filtered_queryset, params['order_column_index'],
+                                                    params['order_direction'])
 
-        # Получаем итоговые данные
-        total_records = self.queryset.count()
-        filtered_records = filtered_queryset.count()
+            # Получаем итоговые данные
+            total_records = self.queryset.count()
+            filtered_records = filtered_queryset.count()
 
-        logger.info(f"Final - Total: {total_records}, Filtered: {filtered_records}")
+            logger.info(f"Final - Total: {total_records}, Filtered: {filtered_records}")
 
-        # Пагинация
-        paginated_queryset = filtered_queryset[params['start']:params['start'] + params['length']]
+            # Пагинация
+            paginated_queryset = filtered_queryset[params['start']:params['start'] + params['length']]
 
-        # Форматируем данные
-        data = [data_formatter(obj) for obj in paginated_queryset]
-        logger.info(f"Отправка результатов DataTables: {round((time.time() - start_time), 2)} секунд")
+            # Форматируем данные
+            data = [data_formatter(obj) for obj in paginated_queryset]
+            logger.info(f"Отправка результатов DataTables: {round((time.time() - start_time), 2)} секунд")
+        except Exception as e:
+            logger.error(f"DataTables error: {e}")
+            logger.error(traceback.format_exc())
         return JsonResponse({
             'draw': params['draw'],
             'recordsTotal': total_records,

@@ -2,11 +2,13 @@ import math
 import re
 import regex
 import pdfplumber
+from datetime import datetime
 
 months = {'января': '01', 'февраля': '02', 'марта': '03', 'апреля': '04', 'мая': '05', 'июня': '06',
           'июля': '07',
           'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12', }
 
+RE_ACT_HEADER_NUM = re.compile(r'А\s*К\s*Т *(?!.*(?:государственной|электр.+подпис.+))№ *[\S\d\/\-– ]*', re.I)
 RE_ACT_HEADER = re.compile(r'А\s*К\s*Т *(?!.*(?:государственной|электр.+подпис.+))№? *[\S\d\/\-– ]*',
                            re.I)  # А *К *Т *№* *\d*/*\d*(?!.*подписан).*
 RE_ACT_SECTION = re.compile(r'Акт', re.I)
@@ -15,11 +17,13 @@ RE_ACT_OBJECT = re.compile(r'«[\s\S]+?»', re.I)
 
 
 def extract_act_name(text, current_section_idx, text_file, page_number, table_info, exploration_object):
-    act = RE_ACT_HEADER.search(text)
+    act = RE_ACT_HEADER_NUM.search(text)
     # А *К *Т *№* *\d*/*\d*\n*(?!.*подписан).*\n*.*
     # А *К *Т № \d+/*\d*\n*.*
     text_to_write = ''
     obj = None
+    if not act:
+        act = RE_ACT_HEADER.search(text)
     if act:
         text_to_write = act.group(0)
         obj = RE_ACT_OBJECT.search(text)
@@ -48,6 +52,12 @@ FULL_TIME_INTERVAL_PATTERN_VAR_1 = re.compile(
 FULL_TIME_INTERVAL_PATTERN_VAR_2 = re.compile(
     r'период с («*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)\s*[\sг\.]*.*\s+по\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)[\sг\.]*',
     re.IGNORECASE)  # r'период с «*\d+»* [А-Яа-яёЁ]+ \d+ г\.*.*\s+по\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)[\sг\.]*'
+
+
+def compare_dates_is_first_later(date1, date2):
+    date1 = datetime.strptime(date1, "%d.%m.%Y")
+    date2 = datetime.strptime(date2, "%d.%m.%Y")
+    return date1 > date2
 
 
 def extract_start_date(text_to_write, table_info):
@@ -117,14 +127,17 @@ def extract_date(text_to_write, is_words=False):
     return date, year
 
 
-def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_type, current_part, table_info):
+def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_type, current_part, table_info,
+                     current_section_name):
     is_continue = False
     date = None
     if interval_type is None:
         date, year = extract_date(text_to_write)
-        if year is not None:
-            table_info['ГОД'] = SPACE_CHARS_PATTERN.sub('', year)
-        if date is not None:
+        if year is not None and ('ГОД' not in table_info or int(year) > int(table_info['ГОД'])):
+            table_info['ГОД'] = year
+        if date is not None and (
+                'Дата окончания проведения ГИКЭ' not in table_info or compare_dates_is_first_later(date, table_info[
+            'Дата окончания проведения ГИКЭ'])):
             table_info['Дата окончания проведения ГИКЭ'] = SPACE_CHARS_PATTERN.sub('', date)
     if date is None:
         start_date = pattern.search(text)
@@ -132,7 +145,6 @@ def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_
             text_to_write = text[start_date.end():]
         if full_time_interval and interval_type == 'dots':
             date = full_time_interval
-            current_part += 2
             if date:
                 date = date.group(2)
         elif full_time_interval and interval_type == 'words':
@@ -163,6 +175,8 @@ def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_
                 table_info['ГОД'] = year
                 table_info['Дата окончания проведения ГИКЭ'] = date.group(0)
             if full_time_interval:
+                if current_section_name == 'start_date':
+                    current_part += 2
                 is_continue = True
         else:
             date = FULL_TIME_INTERVAL_PATTERN_VAR_2.search(text_to_write)
@@ -203,6 +217,8 @@ def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_
                 table_info['Дата окончания проведения ГИКЭ'] = date
 
             if full_time_interval:
+                if current_section_name == 'start_date':
+                    current_part += 2
                 is_continue = True
             else:
                 pass

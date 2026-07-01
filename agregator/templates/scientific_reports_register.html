@@ -140,6 +140,7 @@
                 upload_source: $('#filterUploadSource').val(),
                 date_uploaded: $('#filterDateUploaded').val(),
                 origin_filename: $('#filterOriginalDocument').val(),
+                show_my_docs: $('#showMyDocs').is(':checked'),
             };
         },
         columns: [
@@ -160,7 +161,7 @@
                 '#filterName', '#filterOrganization', '#filterAuthor', '#filterOpenList',
                 '#filterWritingDate', '#filterOwner', '#filterUploadSource', '#filterDateUploaded', '#filterOriginalDocument'
             ],
-            "changeFilters": []
+            "changeFilters": ['#showMyDocs']
         }
     };
 

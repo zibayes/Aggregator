@@ -146,6 +146,7 @@
                     upload_source: $('#filterUploadSource').val(),
                     date_uploaded: $('#filterDateUploaded').val(),
                     origin_filename: $('#filterOriginalDocument').val(),
+                    show_my_docs: $('#showMyDocs').is(':checked'),
                 };
                 console.log('Open Lists filters:', filters);
                 return filters;
@@ -163,7 +164,14 @@
                 { "data": 9, "name": "formalized_document", "orderable": false, "searchable": false, "title": "Формализованный документ" },
                 { "data": 10, "name": "origin_filename", "orderable": true, "searchable": false, "title": "Исходный документ" },
                 { "data": 11, "name": "actions", "orderable": false, "searchable": false, "title": "Редактирование" }
-            ]
+            ],
+            filterConfigs: {
+                "textFilters": [
+                    '#filterNumber', '#filterHolder', '#filterObject', '#filterWorks', '#filterStartDate',
+                    '#filterEndDate''#filterOwner', '#filterUploadSource', '#filterDateUploaded', '#filterOriginalDocument'
+                ],
+                "changeFilters": ['#showMyDocs']
+            }
         };
 
         // Инициализируем DataTable
