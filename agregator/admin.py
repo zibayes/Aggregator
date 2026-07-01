@@ -63,16 +63,16 @@ class TechReportAdmin(admin.ModelAdmin):
 
 @admin.register(OpenLists)
 class OpenListsAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'origin_filename', 'date_uploaded', 'is_processing', 'is_public')
+    list_display = ('id', 'user', 'date_uploaded', 'is_processing', 'is_public')
     list_filter = ('is_processing', 'is_public')
-    search_fields = ('origin_filename', 'user__username')
+    search_fields = ('user__username',)
 
 
 @admin.register(ObjectAccountCard)
 class ObjectAccountCardAdmin(admin.ModelAdmin):
     list_display = ('id', 'user', 'name', 'date_uploaded', 'is_processing', 'is_public')
     list_filter = ('is_processing', 'is_public')
-    search_fields = ('name', 'origin_filename', 'user__username')
+    search_fields = ('name', 'user__username')
 
 
 @admin.register(ArchaeologicalHeritageSite)
@@ -91,9 +91,9 @@ class IdentifiedArchaeologicalHeritageSiteAdmin(admin.ModelAdmin):
 
 @admin.register(CommercialOffers)
 class CommercialOffersAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'origin_filename', 'date_uploaded', 'is_processing', 'is_public')
+    list_display = ('id', 'user', 'date_uploaded', 'is_processing', 'is_public')
     list_filter = ('is_processing', 'is_public')
-    search_fields = ('origin_filename', 'user__username')
+    search_fields = ('user__username',)
 
 
 @admin.register(GeoObject)

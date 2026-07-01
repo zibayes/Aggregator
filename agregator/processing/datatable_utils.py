@@ -1,6 +1,6 @@
 import time
 
-from django.db.models import Q
+from django.db.models import Q, Exists, OuterRef
 from django.http import JsonResponse
 import json
 import sys
@@ -16,6 +16,21 @@ class DataTableServerSide:
         self.request = request
         self.queryset = queryset
         self.columns_config = columns_config
+
+    def get_file_filter(self, search_value, field_name='origin_filename'):
+        """
+        Создаёт условие Exists для фильтрации по файлам.
+        """
+        doc_type = self.queryset.model.__name__
+        if doc_type is None:
+            return Q()  # пустое условие, если модель не поддерживает файлы
+        return Exists(
+            DocumentFile.objects.filter(
+                document_type=doc_type,
+                document_id=OuterRef('id'),
+                **{f'{field_name}__icontains': search_value}
+            )
+        )
 
     def get_parameters(self):
         """Извлекает параметры от DataTables из POST данных"""
@@ -69,15 +84,20 @@ class DataTableServerSide:
         for column in self.columns_config:
             if column.get('searchable', True):
                 field_name = column['field']
-                field_name = 'source' if field_name == 'original_document' and not isinstance(queryset.model,
-                                                                                              (GeoObject,
-                                                                                               CommercialOffers)) else field_name
+                if field_name == 'origin_filename':
+                    continue
                 if '__' in field_name:
                     search_filters |= Q(**{f"{field_name}__icontains": search_value})
                 else:
                     search_filters |= Q(**{f"{field_name}__icontains": search_value})
 
-        return queryset.filter(search_filters)
+        file_condition = self.get_file_filter(search_value)
+        if file_condition:
+            search_filters |= file_condition
+        if search_filters:
+            return queryset.filter(search_filters)
+
+        return queryset
 
     def apply_column_search(self, queryset, column_search):
         """Применяет поиск по конкретным колонкам"""
@@ -88,7 +108,12 @@ class DataTableServerSide:
                     column_config = self.columns_config[col_index]
                     if column_config.get('searchable', True) and search_value:
                         field_name = column_config['field']
-                        queryset = queryset.filter(**{f"{field_name}__icontains": search_value})
+                        if field_name == 'origin_filename':
+                            file_condition = self.get_file_filter(search_value)
+                            if file_condition:
+                                queryset = queryset.filter(file_condition).distinct()
+                        else:
+                            queryset = queryset.filter(**{f"{field_name}__icontains": search_value})
         return queryset
 
     def apply_custom_search(self, queryset, custom_search):
@@ -132,8 +157,10 @@ class DataTableServerSide:
 
         if custom_search.get('owner'):
             queryset = queryset.filter(user__username__icontains=custom_search['owner'])
-        if custom_search.get('source'):
-            queryset = queryset.filter(source__icontains=custom_search['source'])
+        if custom_search.get('origin_filename'):
+            file_condition = self.get_file_filter(custom_search['origin_filename'])
+            if file_condition:
+                queryset = queryset.filter(file_condition).distinct()
         if custom_search.get('upload_source'):
             queryset = queryset.filter(upload_source__icontains=custom_search['upload_source'])
         if custom_search.get('date_uploaded'):
@@ -292,9 +319,8 @@ class DataTableServerSide:
                 column_config = self.columns_config[col_index]
                 if column_config.get('orderable', True):
                     field_name = column_config['field']
-                    field_name = 'source' if field_name == 'original_document' and not isinstance(queryset.model,
-                                                                                                  (GeoObject,
-                                                                                                   CommercialOffers)) else field_name
+                    if field_name == 'origin_filename':
+                        return queryset
                     if order_direction == 'desc':
                         field_name = f"-{field_name}"
                     return queryset.order_by(field_name)

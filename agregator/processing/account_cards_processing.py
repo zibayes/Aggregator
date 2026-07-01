@@ -722,6 +722,8 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
     check_duplicates(is_reprocess, file, progress_json['file_groups'][str(account_card_id)]['origin_filename'],
                      current_account_card, delete_current=True)
 
+    pages_count_key = current_account_card.source_dict[0].path if len(current_account_card.source_dict) > 0 else None
+
     # folder = file[:file.rfind(".")]
     folder = file[:file.rfind("/") + 1] + 'Изображения'
     if not os.path.exists(folder):
@@ -730,7 +732,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
     try:
         if file.endswith(('.doc', '.docx')):
             doc = Document(file)
-            pages_processed = total_processed[0] + pages_count.get(current_account_card.source, 0)
+            pages_processed = total_processed[0] + pages_count.get(pages_count_key, 0)
             progress_json['expected_time'] = get_expected_time(time_on_start, pages_processed, pages_count)
             progress_update(progress_recorder, task_id, progress_json,
                             CONVERTATION_PART + PROCESSING_PART * (pages_processed / sum(pages_count.values())),
@@ -888,7 +890,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
                                                         sorted(coordinates['Каталог координат'])}
 
             calculate_polygons_area(coordinates)
-            total_processed[0] += pages_count.get(current_account_card.source, 0)
+            total_processed[0] += pages_count.get(pages_count_key, 0)
 
 
 
@@ -1215,37 +1217,33 @@ def connect_account_card_to_heritage(object_name, progress_json=None):
         account_card = account_card[0]
         heritage = heritage[0]
 
-        folder_to_move = account_card.source[:account_card.source.rfind('/')]
-        destination_path = os.path.join(heritage.source, os.path.basename(folder_to_move))
-        new_destination = destination_path[:destination_path.rfind('/') + 1] + 'Учётная карта'
-        if os.path.exists(new_destination):
-            return
+        if len(account_card.source_dict) > 0:
+            first_source = account_card.source_dict[0]
+            folder_to_move = first_source[:first_source.rfind('/')]
+            destination_path = os.path.join(heritage.source, os.path.basename(folder_to_move))
+            new_destination = destination_path[:destination_path.rfind('/') + 1] + 'Учётная карта'
+            if os.path.exists(new_destination):
+                return
 
-        heritage.account_card_id = account_card.id
-        heritage.save()
+            heritage.account_card_id = account_card.id
+            heritage.save()
 
-        shutil.move(folder_to_move, destination_path)
-        os.rename(destination_path, new_destination)
-        account_card.source = new_destination + account_card.source[account_card.source.rfind('/'):]
-        account_card_supplement = copy.deepcopy(account_card.supplement_dict)
-        for category, images in account_card_supplement.items():
-            for i in range(len(images)):
-                image_name = account_card_supplement[category][i]['source']
-                account_card_supplement[category][i]['source'] = new_destination + '/Изображения' + image_name[
-                                                                                                    image_name.rfind(
-                                                                                                        '/'):]
-        folder = account_card.source[:account_card.source.rfind('/') + 1]
-        new_source = folder + account_card.origin_filename[
-                              :account_card.origin_filename.rfind('.')] + account_card.source[
-                                                                          account_card.source.rfind(
-                                                                              '.'):]
-
-        os.rename(account_card.source, new_source)
-        account_card.source = new_source
-        account_card.supplement = account_card_supplement
-        account_card.save()
-        if progress_json is not None:
-            progress_json['file_groups'][str(account_card.id)]['path'] = account_card.source
+            shutil.move(folder_to_move, destination_path)
+            os.rename(destination_path, new_destination)
+            for source in heritage.source_dict:
+                source.path = new_destination + source.path[source.path.rfind('/'):]
+                source.save()
+            account_card_supplement = copy.deepcopy(account_card.supplement_dict)
+            for category, images in account_card_supplement.items():
+                for i in range(len(images)):
+                    image_name = account_card_supplement[category][i]['source']
+                    account_card_supplement[category][i]['source'] = new_destination + '/Изображения' + image_name[
+                                                                                                        image_name.rfind(
+                                                                                                            '/'):]
+            account_card.supplement = account_card_supplement
+            account_card.save()
+            if progress_json is not None:
+                progress_json['file_groups'][str(account_card.id)]['path'] = account_card.source
 
 
 def extract_coordinates_from_table_image(table_img: np.ndarray) -> Dict[str, List[float]]:

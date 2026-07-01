@@ -75,13 +75,17 @@
     <label for="filterOwner" class="form-label">Владелец документа</label>
     <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
 </div>
-<div class="mb-3" id="filterSourceContainer">
-    <label for="filterSource" class="form-label">Источник</label>
-    <input type="text" class="form-control" id="filterSource" placeholder="Введите источник">
+<div class="mb-3" id="filterUploadSourceContainer">
+    <label for="filterUploadSource" class="form-label">Источник</label>
+    <input type="text" class="form-control" id="filterUploadSource" placeholder="Введите источник">
 </div>
 <div class="mb-3" id="filterDateUploadedContainer">
     <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
     <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
+</div>
+<div class="mb-3" id="filterOriginalDocumentContainer">
+    <label for="filterOriginalDocument" class="form-label">Исходный документ</label>
+    <input type="text" class="form-control" id="filterOriginalDocument" placeholder="Введите исходный документ">
 </div>
 {% endblock %}
 
@@ -170,8 +174,9 @@
                     compiler: $('#filterCompiler').val(),
                     compile_date: $('#filterCompileDate').val(),
                     owner: $('#filterOwner').val(),
-                    source: $('#filterSource').val(),
-                    date_uploaded: $('#filterDateUploaded').val()
+                    upload_source: $('#filterUploadSource').val(),
+                    date_uploaded: $('#filterDateUploaded').val(),
+                    origin_filename: $('#filterOriginalDocument').val(),
                 };
                 console.log('Account Cards filters:', filters);
                 return filters;
@@ -191,7 +196,7 @@
                 { "data": 11, "name": "date_uploaded", "orderable": true, "searchable": true, "title": "Дата загрузки" },
                 { "data": 12, "name": "source", "orderable": true, "searchable": true, "title": "Источник" },
                 { "data": 13, "name": "formalized_document", "orderable": false, "searchable": false, "title": "Формализованный документ" },
-                { "data": 14, "name": "original_document", "orderable": true, "searchable": true, "title": "Исходный документ" },
+                { "data": 14, "name": "origin_filename", "orderable": true, "searchable": false, "title": "Исходный документ" },
                 { "data": 15, "name": "actions", "orderable": false, "searchable": false, "title": "Редактирование" }
             ]
         };

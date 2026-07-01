@@ -55,6 +55,10 @@
     <label for="filterDateUploaded" class="form-label">Дата загрузки</label>
     <input type="text" class="form-control" id="filterDateUploaded" placeholder="Введите дату загрузки">
 </div>
+<div class="mb-3" id="filterOriginalDocumentContainer">
+    <label for="filterOriginalDocument" class="form-label">Исходный документ</label>
+    <input type="text" class="form-control" id="filterOriginalDocument" placeholder="Введите исходный документ">
+</div>
 {% endblock %}
 
 {% block download_link %}
@@ -134,7 +138,8 @@
                 writing_date: $('#filterWritingDate').val(),
                 owner: $('#filterOwner').val(),
                 upload_source: $('#filterUploadSource').val(),
-                date_uploaded: $('#filterDateUploaded').val()
+                date_uploaded: $('#filterDateUploaded').val(),
+                origin_filename: $('#filterOriginalDocument').val(),
             };
         },
         columns: [
@@ -147,13 +152,13 @@
             { "data": 6, "name": "upload_source", "orderable": true, "searchable": true },
             { "data": 7, "name": "date_uploaded", "orderable": true, "searchable": true },
             { "data": 8, "name": "formalized_document", "orderable": false, "searchable": false },
-            { "data": 9, "name": "original_document", "orderable": true, "searchable": true },
+            { "data": 9, "name": "origin_filename", "orderable": false, "searchable": true },
             { "data": 10, "name": "actions", "orderable": false, "searchable": false }
         ],
         filterConfigs: {
             "textFilters": [
                 '#filterName', '#filterOrganization', '#filterAuthor', '#filterOpenList',
-                '#filterWritingDate', '#filterOwner', '#filterUploadSource', '#filterDateUploaded'
+                '#filterWritingDate', '#filterOwner', '#filterUploadSource', '#filterDateUploaded', '#filterOriginalDocument'
             ],
             "changeFilters": []
         }

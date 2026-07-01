@@ -213,7 +213,6 @@ class Act(models.Model):
     open_list = models.TextField(blank=True)
     conclusion = models.TextField(blank=True)
     border_objects = models.TextField(blank=True)
-    source = models.JSONField(null=True, blank=True)
     source_files = None
 
     act = models.TextField(blank=True)
@@ -266,7 +265,6 @@ class Act(models.Model):
         if self.source_files is None:
             self.source_files = DocumentFile.objects.filter(document_type='Act', document_id=self.id)
         return self.source_files
-        # return from_json(self.source)
 
     @property
     def supplement_dict(self):
@@ -298,7 +296,6 @@ class ScientificReport(models.Model):
     research_history = models.TextField(blank=True)
     results = models.TextField(blank=True)
     conclusion = models.TextField(blank=True)
-    source = models.JSONField(null=True, blank=True)
     source_files = None
     content = models.JSONField(null=True, blank=True)
     supplement = models.JSONField(null=True, blank=True)
@@ -336,7 +333,6 @@ class ScientificReport(models.Model):
         if self.source_files is None:
             self.source_files = DocumentFile.objects.filter(document_type='ScientificReport', document_id=self.id)
         return self.source_files
-        # return from_json(self.source)
 
     @property
     def supplement_dict(self):
@@ -372,7 +368,6 @@ class TechReport(models.Model):
     research_history = models.TextField(blank=True)
     results = models.TextField(blank=True)
     conclusion = models.TextField(blank=True)
-    source = models.JSONField(null=True, blank=True)
     source_files = None
     content = models.JSONField(null=True, blank=True)
     supplement = models.JSONField(null=True, blank=True)
@@ -410,7 +405,6 @@ class TechReport(models.Model):
         if self.source_files is None:
             self.source_files = DocumentFile.objects.filter(document_type='TechReport', document_id=self.id)
         return self.source_files
-        # return from_json(self.source)
 
     @property
     def supplement_dict(self):
@@ -429,7 +423,6 @@ class TechReport(models.Model):
 class OpenLists(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)
 
-    origin_filename = models.TextField()
     date_uploaded = models.DateTimeField(auto_now_add=True)
     upload_source = models.JSONField(null=True, blank=True)
     is_processing = models.BooleanField(default=True)
@@ -441,7 +434,6 @@ class OpenLists(models.Model):
     works = models.TextField(blank=True)
     start_date = models.TextField(blank=True)
     end_date = models.TextField(blank=True)
-    source = models.FileField(upload_to='Открытые листы/', max_length=255)
     source_files = None
 
     def __str__(self):
@@ -495,7 +487,6 @@ class ObjectAccountCard(models.Model):
     compile_date = models.TextField()
     supplement = models.JSONField(null=True, blank=True)
     coordinates = models.JSONField(null=True, blank=True)
-    source = models.TextField(null=True, blank=True)
     source_files = None
 
     def __str__(self):
@@ -549,7 +540,6 @@ class ArchaeologicalHeritageSite(models.Model):
     register_num = models.TextField(null=True, blank=True)
     is_excluded = models.BooleanField(default=False)
     source = models.TextField(null=True, blank=True)
-    document_source = models.JSONField(null=True, blank=True)
     source_files = None
 
     class Meta:
@@ -561,7 +551,6 @@ class ArchaeologicalHeritageSite(models.Model):
         return self.doc_name or f"ОАН {self.id}"
 
     def save(self, *args, **kwargs):
-        self.document_source = to_json(self.document_source)
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -594,7 +583,6 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
     document = models.TextField(null=True, blank=True)
     is_excluded = models.BooleanField(default=False)
     source = models.TextField(null=True, blank=True)
-    document_source = models.JSONField(null=True, blank=True)
     source_files = None
 
     class Meta:
@@ -606,7 +594,6 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
         return self.name or f"ВОАН {self.id}"
 
     def save(self, *args, **kwargs):
-        self.document_source = to_json(self.document_source)
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
@@ -626,7 +613,6 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
                                                             document_id=self.id,
                                                             file_type='document')
         return self.source_files
-        # return from_json(self.document_source)
 
 
 class CommercialOffers(models.Model):
@@ -636,10 +622,8 @@ class CommercialOffers(models.Model):
     upload_source = models.JSONField(null=True, blank=True)
     is_processing = models.BooleanField(default=True)
     is_public = models.BooleanField(default=True)
-    origin_filename = models.TextField()
 
     coordinates = models.JSONField(null=True, blank=True)
-    source = models.TextField(null=True, blank=True)
     source_files = None
 
     def __str__(self):
@@ -685,12 +669,10 @@ class GeoObject(models.Model):
     upload_source = models.JSONField(null=True, blank=True)
     is_processing = models.BooleanField(default=True)
     is_public = models.BooleanField(default=True)
-    origin_filename = models.TextField()
 
     name = models.CharField(max_length=255, null=True, blank=True)
     type = models.CharField(max_length=255, null=True, blank=True)
     coordinates = models.JSONField(null=True, blank=True)
-    source = models.TextField(null=True, blank=True)
     source_files = None
 
     class Meta:

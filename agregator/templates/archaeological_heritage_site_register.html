@@ -91,6 +91,19 @@
     <label for="filterOwner" class="form-label">Владелец документа</label>
     <input type="text" class="form-control" id="filterOwner" placeholder="Введите владельца документа">
 </div>
+<div class="mb-3" id="filterCardDateUploadedContainer">
+    <label for="filterCardDateUploaded" class="form-label">Дата загрузки учетной карты</label>
+    <input type="text" class="form-control" id="filterCardDateUploaded"
+           placeholder="Введите дату загрузки учетной карты">
+</div>
+<div class="mb-3" id="filterUploadSourceContainer">
+    <label for="filterUploadSource" class="form-label">Источник</label>
+    <input type="text" class="form-control" id="filterUploadSource" placeholder="Введите источник">
+</div>
+<div class="mb-3" id="filterOriginalDocumentContainer">
+    <label for="filterOriginalDocument" class="form-label">Исходный документ</label>
+    <input type="text" class="form-control" id="filterOriginalDocument" placeholder="Введите исходный документ">
+</div>
 
 <!-- Специальные фильтры -->
 <div class="mb-3">
@@ -214,6 +227,9 @@
                 discovery_info: $('#filterDiscoveryInfo').val(),
                 compiler: $('#filterCompiler').val(),
                 owner: $('#filterOwner').val(),
+                card_date_uploaded: $('#filterCardDateUploaded').val(),
+                upload_source: $('#filterUploadSource').val(),
+                origin_filename: $('#filterOriginalDocument').val(),
                 account_card_filter: $('#account_card_filter').val(),
                 show_excluded: $('#showExcluded').is(':checked')
             };
@@ -238,14 +254,15 @@
             { "data": 16, "name": "card_date_uploaded", "orderable": true, "searchable": true },
             { "data": 17, "name": "source", "orderable": true, "searchable": true },
             { "data": 18, "name": "formalized_document", "orderable": false, "searchable": false },
-            { "data": 19, "name": "original_document", "orderable": true, "searchable": true },
+            { "data": 19, "name": "origin_filename", "orderable": false, "searchable": true },
             { "data": 20, "name": "actions", "orderable": false, "searchable": false }
         ],
         filterConfigs: {
             "textFilters": [
                 '#filterDocName', '#filterDistrict', '#filterDocument', '#filterRegisterNum',
                 '#filterCreationTime', '#filterAddress', '#filterObjectType', '#filterGeneralClassification',
-                '#filterDescription', '#filterUsage', '#filterDiscoveryInfo', '#filterCompiler', '#filterOwner'
+                '#filterDescription', '#filterUsage', '#filterDiscoveryInfo', '#filterCompiler', '#filterOwner',
+                '#filterCardDateUploaded', '#filterUploadSource', '#filterOriginalDocument'
             ],
             "changeFilters": [
                 '#account_card_filter', '#showExcluded'

@@ -45,7 +45,7 @@ def universal_datatable(request, register_type):
                     {'field': 'account_card__upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'formalized_document', 'searchable': False, 'orderable': False},
                     # Для колонки "Формализованный документ"
-                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'origin_filename', 'searchable': True, 'orderable': False},
                     {'field': 'actions', 'searchable': False, 'orderable': False},  # Для колонки "Редактирование"
                 ],
                 'name_field': 'doc_name',
@@ -76,7 +76,7 @@ def universal_datatable(request, register_type):
                     {'field': 'account_card__upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'formalized_document', 'searchable': False, 'orderable': False},
                     # Для колонки "Формализованный документ"
-                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'origin_filename', 'searchable': True, 'orderable': False},
                     {'field': 'actions', 'searchable': False, 'orderable': False},  # Для колонки "Редактирование"
                 ],
                 'name_field': 'name',
@@ -104,7 +104,7 @@ def universal_datatable(request, register_type):
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
                     {'field': 'formalized_document', 'searchable': False, 'orderable': False},
                     # Для колонки "Формализованный документ"
-                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'origin_filename', 'searchable': True, 'orderable': False},
                     {'field': 'actions', 'searchable': False, 'orderable': False},  # Для колонки "Редактирование"
                 ],
                 'name_field': 'name_number',
@@ -124,7 +124,7 @@ def universal_datatable(request, register_type):
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
                     {'field': 'formalized_document', 'searchable': False, 'orderable': False},
-                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'origin_filename', 'searchable': True, 'orderable': False},
                     {'field': 'actions', 'searchable': False, 'orderable': False},
                 ],
                 'name_field': 'name',
@@ -144,7 +144,7 @@ def universal_datatable(request, register_type):
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
                     {'field': 'formalized_document', 'searchable': False, 'orderable': False},
-                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'origin_filename', 'searchable': True, 'orderable': False},
                     {'field': 'actions', 'searchable': False, 'orderable': False},
                 ],
                 'name_field': 'name',
@@ -165,7 +165,7 @@ def universal_datatable(request, register_type):
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
                     {'field': 'formalized_document', 'searchable': False, 'orderable': False},
-                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'origin_filename', 'searchable': True, 'orderable': False},
                     {'field': 'actions', 'searchable': False, 'orderable': False},
                 ],
                 'name_field': 'number',
@@ -190,7 +190,7 @@ def universal_datatable(request, register_type):
                     {'field': 'date_uploaded', 'searchable': True, 'orderable': True},
                     {'field': 'upload_source', 'searchable': True, 'orderable': True},
                     {'field': 'formalized_document', 'searchable': False, 'orderable': False},
-                    {'field': 'original_document', 'searchable': True, 'orderable': True},
+                    {'field': 'origin_filename', 'searchable': True, 'orderable': False},
                     {'field': 'actions', 'searchable': False, 'orderable': False},
                 ],
                 'name_field': 'name',

@@ -78,7 +78,6 @@ CREATE TABLE acts
     open_list      text                     NULL, -- открытый лист
     conclusion     text                     NULL, -- заключение экспертизы
     border_objects text                     NULL, -- близлижайшие объекты, для обозначения границ экспертизы
-    source         json                     NULL, -- путь к файлам отчёта на сервере
 
     act            text                     NULL, -- название акта
     start_date     text                     NULL, -- дата начала проведения экспертизы
@@ -121,7 +120,6 @@ CREATE TABLE scientific_reports
     research_history text                     NULL, -- история исследования
     results          text                     NULL, -- результаты экспертизы
     conclusion       text                     NULL, -- заключение экспертизы
-    source           json                     NULL, -- путь к файлам отчёта на сервере
     content          json                     NULL, -- содержание отчёта
     supplement       json                     NULL, -- приложение к отчёту (иллюстрации)
     coordinates      json                     NULL  -- координаты точек фотофиксации, шурфов, каталога и выписок из ЕГРН
@@ -150,7 +148,6 @@ CREATE TABLE tech_reports
     research_history text                     NULL, -- история исследования
     results          text                     NULL, -- результаты экспертизы
     conclusion       text                     NULL, -- заключение экспертизы
-    source           json                     NULL, -- путь к файлам отчёта на сервере
     content          json                     NULL, -- содержание отчёта
     supplement       json                     NULL, -- приложение к отчёту (иллюстрации)
     coordinates      json                     NULL  -- координаты точек фотофиксации, шурфов, каталога и выписок из ЕГРН
@@ -162,7 +159,6 @@ CREATE TABLE open_lists
     id              serial PRIMARY KEY,            -- идентификатор (первичный ключ)
     user_id         integer REFERENCES users (id), -- идентификатор пользователя (внешний ключ)
 
-    origin_filename VARCHAR(255)             NULL, -- исходное имя файла отчёта
     date_uploaded   TIMESTAMP WITH TIME ZONE NULL, -- дата загрузки отчёта на сервер
     upload_source   json                     NULL, -- источник загрузки
     is_processing   BOOLEAN DEFAULT TRUE,          -- находится ли отчёт в процессе обработки
@@ -174,7 +170,6 @@ CREATE TABLE open_lists
     works           text                     NULL, -- работы, которые разрешены для проведения на указанном объекте
     start_date      text                     NULL, -- дата начала действия документа
     end_date        text                     NULL, -- дата окончания действия документа
-    source          text                     NULL  -- путь к файлам открытого листа на сервере
 );
 
 -- Учётные карты
@@ -187,7 +182,6 @@ CREATE TABLE object_account_cards
     upload_source          json                     NULL, -- источник загрузки
     is_processing          BOOLEAN DEFAULT TRUE,          -- находится ли учётная карта в процессе обработки
     is_public              BOOLEAN DEFAULT TRUE,          -- находится ли учётная карта в открытом доступе
-    origin_filename        VARCHAR(255)             NULL, -- исходное имя файла учётной карты
 
     name                   text                     NULL, -- I. Наименование объекта
     creation_time          text                     NULL, -- II. Время создания (возникновения) объекта
@@ -201,7 +195,6 @@ CREATE TABLE object_account_cards
     compile_date           text                     NULL, -- Дата составления учетной карты
     supplement             json                     NULL, -- приложение к учётной карте (иллюстрации)
     coordinates            json                     NULL, -- каталог координат
-    source                 json                     NULL  -- путь к файлам учётной карты а на сервере
 );
 
 -- ПАМЯТНИКИ
@@ -220,7 +213,6 @@ CREATE TABLE archaeological_heritage_sites
     register_num    text                     NULL,                -- Регистрационный номер в едином государственном реестре объектов культурного наследия с реквизитами приказа Министерства культуры РФ о регистрации объекта, вид объекта (памятник, ансамбль)
     is_excluded     BOOLEAN DEFAULT FALSE,                        -- Является ли объект исключенным из списка
     source          text                     NULL,                -- путь к файлам ОАН а на сервере
-    document_source json                     NULL                 -- путь к файлу приказа о постановке на гос. охрану
 );
 
 -- Перечень выявленных объектов культурного наследия
@@ -237,7 +229,6 @@ CREATE TABLE identified_archaeological_heritage_sites
     document        text                     NULL,                -- Документ о включении в перечень выявленных объектов
     is_excluded     BOOLEAN DEFAULT FALSE,                        -- Является ли объект исключенным из списка
     source          text                     NULL,                -- путь к файлам ВОАН а на сервере
-    document_source json                     NULL                 -- путь к файлу приказа о постановке на гос. охрану
 );
 
 -- Коммерческие предложения
@@ -250,10 +241,8 @@ CREATE TABLE commercial_offers
     upload_source   json                     NULL, -- источник загрузки
     is_processing   BOOLEAN DEFAULT TRUE,          -- находится ли коммерческое предложение в процессе обработки
     is_public       BOOLEAN DEFAULT TRUE,          -- находится ли коммерческое предложение в открытом доступе
-    origin_filename VARCHAR(255)             NULL, -- исходное имя файла коммерческого предложения
 
     coordinates     json                     NULL, -- каталог координат
-    source          text                     NULL  -- путь к файлам коммерческого предложения а на сервере
 );
 
 -- Географический объект
@@ -266,12 +255,10 @@ CREATE TABLE geo_object
     upload_source   json                     NULL, -- источник загрузки
     is_processing   BOOLEAN DEFAULT TRUE,          -- находится ли коммерческое предложение в процессе обработки
     is_public       BOOLEAN DEFAULT TRUE,          -- находится ли коммерческое предложение в открытом доступе
-    origin_filename VARCHAR(255)             NULL, -- исходное имя файла коммерческого предложения
 
     name            VARCHAR(255),                  -- название объекта
     type            VARCHAR(255),                  -- тип объекта
     coordinates     json                     NULL, -- каталог координат
-    source          text                     NULL  -- путь к файлам географического объекта а на сервере
 );
 
 -- GeoJSON данные
