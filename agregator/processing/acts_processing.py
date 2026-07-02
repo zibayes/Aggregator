@@ -33,7 +33,8 @@ from agregator.processing.acts_regex_extractors import (extract_act_name, extrac
                                                         extract_expert, extract_object, get_gike_object_size,
                                                         extract_exp_facts,
                                                         extract_conclusion, extract_open_list, extract_voan,
-                                                        extract_executor, broken_structure_process)
+                                                        extract_executor, broken_structure_process,
+                                                        replace_encoded_parts)
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +150,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
 
     # Разделы
     SECTIONS = OrderedDict([
-        ('act', r'Акт'),
+        ('act', r'А\s*к\s*т'),
         ('start_date', r'(?<!\d)(\d\.\s*)?Дата\s*начала\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
         # (?<!\d)(\d\.\s*)?Дата\s*начала\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*
         ('end_date', r'(?<!\d)(\d\.\s*)?(?<!начала и )Дата\s*окончания\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
@@ -166,7 +167,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         ('conclusion', r'Вывод[ы]?\s*экспертизы'),
         ('appendix', r'Перечень\s*приложений')
     ])
-    first_five_pages = '\n'.join([x.get_text() for x in document[:5]])
+    first_five_pages = replace_encoded_parts('\n'.join([x.get_text() for x in document[:5]]))
     print(f'SECTIONS = {SECTIONS}')
     SECTIONS = {**dict(sorted(list(SECTIONS.items())[:7],
                               key=lambda x: re.search(x[1], first_five_pages, re.IGNORECASE).start() if re.search(x[1],
@@ -226,7 +227,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                                 ALL_PARTS)
                 page = document[page_number]
                 # Извлечение текста
-                text = page.get_text()
+                text = replace_encoded_parts(page.get_text())
 
                 if current_section_name == 'act':
                     current_section_idx, exploration_object = extract_act_name(text, current_section_idx, text_file,
@@ -263,6 +264,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                             if current_section_idx >= len(SECTIONS):
                                 current_section_idx = len(SECTIONS) - 1
                             current_section_name = SECTION_NAMES[current_section_idx]
+                            full_time_interval = None
                             if is_continue and is_continue_counter < 5:
                                 is_continue_counter += 1
                                 continue

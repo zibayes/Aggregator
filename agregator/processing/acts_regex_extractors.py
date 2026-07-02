@@ -47,10 +47,10 @@ def extract_act_name(text, current_section_idx, text_file, page_number, table_in
 
 
 FULL_TIME_INTERVAL_PATTERN_VAR_1 = re.compile(
-    r'период с (\d{2}\.\d{2}\.\d{2,4})\s+[г.\s]*по\s+(\d{2}\.\d{2}\.\d{2,4})\s*[г\.]*',
+    r'период\s+с\s+(\d{2}\.\d{2}\.\d{2,4})\s+[г.\s]*по\s+(\d{2}\.\d{2}\.\d{2,4})\s*[г\.]*',
     re.IGNORECASE)  # r'период с \d{2}.\d{2}.\d{4}\s+[г.\s]*по\s+(\d{2}.\d{2}.\d{4})\s*[г\.]*'
 FULL_TIME_INTERVAL_PATTERN_VAR_2 = re.compile(
-    r'период с («*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)\s*[\sг\.]*.*\s+по\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)[\sг\.]*',
+    r'период\s+с\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)\s*[\sгода\.]*.*\s+по\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)[\sгода\.]*',
     re.IGNORECASE)  # r'период с «*\d+»* [А-Яа-яёЁ]+ \d+ г\.*.*\s+по\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)[\sг\.]*'
 
 
@@ -86,7 +86,7 @@ def extract_start_date(text_to_write, table_info):
 
 
 DATE_DOTS_PATTERN = re.compile(r'\d+\s*\d+\s*\.\s*\d{2}\s*\d*\.\s*\d{2,4}', re.IGNORECASE)
-DATE_WORDS_PATTERN = re.compile(r'«?\d+»?\s*[А-Яа-яёЁ]+\s*\d+\s*г\.*', re.IGNORECASE)
+DATE_WORDS_PATTERN = re.compile(r'«?\d+»?\s*[А-Яа-яёЁ]+\s*\d+\s*г?\.*', re.IGNORECASE)
 MONTH_PATTERN = re.compile(r'[а-яА-ЯёЁ]+')
 YEAR_PATTERN = re.compile(r'.\d{2}\s*.\s*(\d{2,4})\s*г?\.?', re.IGNORECASE)
 DATE_DOTS_CLEAR_PATTERN = re.compile(r'(\d+)\.(\d{2})\.(\d{4})', re.IGNORECASE)
@@ -95,7 +95,6 @@ SPACE_CHARS_PATTERN = re.compile(r'\s')
 
 def date_from_words_to_dots(date):
     date = date.replace('«', '').replace('»', '')
-    date = date[:date.rfind(' ')]
     month = MONTH_PATTERN.search(date)
     if month:
         month = month.group(0)
@@ -117,6 +116,7 @@ def extract_date(text_to_write, is_words=False):
             date = date_from_words_to_dots(date.group(0))
     if date:
         date = date.group(0) if not isinstance(date, str) else date
+        date = date.replace('г.', '').replace('г', '')
         year = YEAR_PATTERN.search(date)
         if year:
             year = year.group(1)
@@ -139,7 +139,7 @@ def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_
                 'Дата окончания проведения ГИКЭ' not in table_info or compare_dates_is_first_later(date, table_info[
             'Дата окончания проведения ГИКЭ'])):
             table_info['Дата окончания проведения ГИКЭ'] = SPACE_CHARS_PATTERN.sub('', date)
-    if date is None:
+    if date is None and 'Дата окончания проведения ГИКЭ' not in table_info:
         start_date = pattern.search(text)
         if start_date:
             text_to_write = text[start_date.end():]
@@ -213,7 +213,7 @@ def extract_end_date(text, pattern, text_to_write, full_time_interval, interval_
                 year = YEAR_PATTERN.search(date)
                 if year:
                     year = year.group(1)
-                table_info['ГОД'] = SPACE_CHARS_PATTERN.sub('', year)
+                    table_info['ГОД'] = SPACE_CHARS_PATTERN.sub('', year)
                 table_info['Дата окончания проведения ГИКЭ'] = date
 
             if full_time_interval:
@@ -408,7 +408,10 @@ def extract_object(object_info, exploration_object, text, text_to_write, table_i
     if not exp_object:
         exp_object = RE_OBJECT_QUOTES_GREEDY.search(text_to_write)
     if exp_object and 'Номер (если имеется) и наименование Акта ГИКЭ' in table_info and not exploration_object:
-        table_info['Номер (если имеется) и наименование Акта ГИКЭ'] += ' ' + exp_object.group(0)
+        if 'Номер (если имеется) и наименование Акта ГИКЭ' in table_info:
+            table_info['Номер (если имеется) и наименование Акта ГИКЭ'] += ' ' + exp_object.group(0)
+        else:
+            table_info['Номер (если имеется) и наименование Акта ГИКЭ'] = 'Акт б/н ' + exp_object.group(0)
         exploration_object = True
     return object_info, exploration_object
 
@@ -819,3 +822,32 @@ def extract_executor(text, table_info):
             res = executor.group(0)
             executor = res[RE_EXECUTOR_ORG_PREFIX.search(res).end():]
             table_info['Исполнитель полевых работ (юр. лицо)'] = executor
+
+
+ENCODED_MAP = {
+    r'АК& 7': 'АКТ №',
+    r'Д4F4 =4G4?4 ?D>6545=<O M>E?5DF<7O': 'Дата начала проведения экспертизы',
+    r'Д4F4 >>>=G4=<O ?D>6545=<O M>E?5DF<7O': 'Дата окончания проведения экспертизы',
+    r'М5EF> ?D>6545=<O M>E?5DF<7O': 'Место проведения экспертизы',
+    r'З4>47G<> M>E?5DF<7O': 'Заказчик экспертизы',
+    r'%6545=<O >5 M>E?5DF5': 'Сведения об эксперте',
+    r'ОF=>L5=<O > 74>47G<>G': 'Отношения к заказчику',
+    r'&5?L M>E?5DF<7O': 'Цель экспертизы',
+    r'О5N5>F M>E?5DF<7O': 'Объект экспертизы',
+    r'П5D5G5=L 4>>G<5=F>6, ?D54EF46?5==OE': 'Перечень документов, представленных',
+    r'%6545=<O >5 >5EF>OF5?LEF64E': 'Сведения об обстоятельствах',
+    r'%6545=<O > ?D>6545==OE <EE?54>64=<OE': 'Сведения о проведенных исследованиях',
+    r'$4>FO < E6545=<O, 6OO6?5==O5': 'Факты и сведения, выявленные',
+    r'ВO6>4 M>E?5DF<7O': 'Вывод экспертизы',
+    r'П5D5G5=L ?D<?>65=<=': 'Перечень приложений',
+    r', GDD 7': 'Шурф №',
+}
+ENCODED_MAP = {re.compile(re.escape(pattern), re.IGNORECASE): name for pattern, name in ENCODED_MAP.items()}
+CONTROL_CHARS = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f]')
+
+
+def replace_encoded_parts(text):
+    text = CONTROL_CHARS.sub(' ', text)
+    for pattern, name in ENCODED_MAP.items():
+        text = pattern.sub(name, text)
+    return text
