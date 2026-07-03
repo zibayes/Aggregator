@@ -23,7 +23,7 @@ def get_file_size(file_path: str) -> Optional[str]:
 def clean_path_component(name):
     # Удаляем недопустимые символы для Windows
     # return re.sub(r'[<>:"/\\|?*]', '', name)
-    return re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9 ,«»\.\(\)\-\–]', '', name).strip(' .')
+    return re.sub(r'[^a-zA-Zа-яА-ЯёЁ0-9 ,«»\.\(\)\-\–:]', '', name).strip(' .')
 
 
 def get_unique_filename(directory: Path, filename: str, except_list: List[str] = []) -> str:

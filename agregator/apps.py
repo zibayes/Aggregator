@@ -35,9 +35,12 @@ class AgregatorConfig(AppConfig):
         LOCK_NAME = "lock:recover_tasks"
         LOCK_TIMEOUT = 60
         r = redis_client
+        logger.info(f'recover_tasks!')
 
         with r.lock(LOCK_NAME, timeout=LOCK_TIMEOUT, blocking_timeout=5) as lock:
             task_ids = r.hvals('unacked')
+            logger.info(f'redis locked!')
+            logger.info(f'task_ids = {task_ids}')
 
             for task_id in task_ids:
                 logger.info(f'task_id = {task_id}')

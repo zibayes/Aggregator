@@ -1,5 +1,6 @@
 import copy
 import os
+import random
 import re
 import shutil
 import ssl
@@ -45,14 +46,18 @@ logger = logging.getLogger(__name__)
 session = requests.Session()
 retry_strategy = Retry(
     total=3,
-    backoff_factor=0.1,
-    status_forcelist=[429, 500, 502, 503, 504],
+    backoff_factor=0.5,
+    status_forcelist=[500, 502, 503, 504],  # 429
 )
 adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=100, pool_maxsize=100)
 session.mount("http://", adapter)
 session.mount("https://", adapter)
+session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 (email: 4y6y7q3v5bbt@mail.ru)'
+})
 document_cache = {}
 download_lock = threading.Lock()
+MAX_WORKERS = 5
 
 ORDER_TEXT_PATTERN = re.compile(r'\D+?(?= от )', re.IGNORECASE | re.MULTILINE)
 ORDER_NUMBER_PATTERN = re.compile(r'№\s+\d+-*\d*', re.IGNORECASE | re.MULTILINE)
@@ -81,6 +86,106 @@ VOAN_REQUIRED_COLUMNS = {
 
 ACTS_SAVING_PATH = Path('uploaded_files/Акты ГИКЭ/ООКН/')
 
+OAN_DISTRICT_MAPPING = {
+    'Абанский': 'Абанский район',
+    'Ачинский': 'Ачинский район',
+    'Балахтинский': 'Балахтинский район',
+    'Берёзовский': 'Берёзовский район',
+    'Бирилюсский': 'Бирилюсский район',
+    'Боготольский': 'Боготольский район',
+    'Богучанский': 'Богучанский район',
+    'Большемуртинский': 'Большемуртинский район',
+    'Большеулуйский': 'Большеулуйский район',
+    'г. Ачинск': 'г. Ачинск',
+    'город Дивногорск': 'г. Дивногорск',
+    'г. Канск': 'г. Канск',
+    'город Красноярск': 'г. Красноярск',
+    'г. Сосновоборск': 'г. Сосновоборск',
+    'Емельяновский район': 'Емельяновский район',
+    'Енисейский район': 'Енисейский район',
+    'Ермаковский район': 'Ермаковский район',
+    'Идринский район': 'Идринский район',
+    'Иланский район': 'Иланский район',
+    'Ирбейский район': 'Ирбейский район',
+    'Казачинский район': 'Казачинский район',
+    'Канский район': 'Канский район',
+    'Каратузский район': 'Каратузский район',
+    'Кежемский район': 'Кежемский район',
+    'Краснотуранский район': 'Краснотуранский район',
+    'Курагинский район': 'Курагинский район',
+    'Минусинский район': 'Минусинский район',
+    'Мотыгинский район': 'Мотыгинский район',
+    'Назаровский район': 'Назаровский район',
+    'Нижнеингашский район': 'Нижнеингашский район',
+    'Новосёловский район': 'Новосёловский район',
+    'Саянский район': 'Саянский район',
+    'Сухобузимский район': 'Сухобузимский район',
+    'Тасеевский район': 'Тасеевский район',
+    'Туруханский район': 'Туруханский район',
+    'Ужурский': 'Ужурский район',
+    'Шарыповский': 'Шарыповский район',
+    'Шушенский район': 'Шушенский район',
+    'Эвенкийский район': 'Эвенкийский район',
+}
+
+VOAN_DISTRICT_MAPPING = {
+    'Абанский': 'Абанский район',
+    'Ачинский': 'Ачинский район',
+    'Балахтинский район': 'Балахтинский район',
+    'Берёзовский': 'Берёзовский район',
+    'Боготольский': 'Боготольский район',
+    'Богучанский': 'Богучанский район',
+    'Большемуртинский район': 'Большемуртинский район',
+    'Большеулуйский': 'Большеулуйский район',
+    'г. Ачинск': 'г. Ачинск',
+    'г. Дивногорск': 'г. Дивногорск',
+    'г. Енисейск': 'г. Енисейск',
+    'г. Заозёрный': 'г. Заозёрный',
+    'г. Канск': 'г. Канск',
+    'город Красноярск': 'г. Красноярск',
+    'г. Красноярск': 'г. Красноярск',
+    'г. Лесосибирск': 'г. Лесосибирск',
+    'г. Минусинск': 'г. Минусинск',
+    'г. Назарово': 'г. Назарово',
+    'г. Норильск': 'г. Норильск',
+    'г. Шарыпово': 'г. Шарыпово',
+    'Дзержинский район': 'Дзержинский район',
+    'Емельяновский': 'Емельяновский район',
+    'Енисейский район': 'Енисейский район',
+    'Ермаковский район': 'Ермаковский район',
+    'ЗАТО г. Железногорск': 'ЗАТО г. Железногорск',
+    'ЗАТО г. Зеленогорск': 'ЗАТО г. Зеленогорск',
+    'Идринский район': 'Идринский район',
+    'Иланский район': 'Иланский район',
+    'Ирбейский район': 'Ирбейский район',
+    'Казачинский район': 'Казачинский район',
+    'Канский': 'Канский район',
+    'Каратузский район': 'Каратузский район',
+    'Кежемский район': 'Кежемский район',
+    'Козульский район': 'Козульский район',
+    'Краснотуранский район': 'Краснотуранский район',
+    'Курагинский': 'Курагинский район',
+    'Манский': 'Манский район',
+    'Минусинский район': 'Минусинский район',
+    'Мотыгинский район': 'Мотыгинский район',
+    'Назаровский район': 'Назаровский район',
+    'Нижнеингашский район': 'Нижнеингашский район',
+    'Новосёловский район': 'Новосёловский район',
+    'Партизанский район': 'Партизанский район',
+    'Рыбинский район': 'Рыбинский район',
+    'Саянский район': 'Саянский район',
+    'Северо-Енисейский район': 'Северо-Енисейский район',
+    'Сухобузимский район': 'Сухобузимский район',
+    'Таймырский Долгано-Ненецкий': 'Таймырский Долгано-Ненецкий район',
+    'Тасеевский район': 'Тасеевский район',
+    'Туруханский': 'Туруханский район',
+    'Ужурский': 'Ужурский район',
+    'Уярский': 'Уярский район',
+    'Шарыповский': 'Шарыповский район',
+    'Шушенский район': 'Шушенский район',
+    'Эвенкийский район': 'Эвенкийский район',
+}
+
 
 def create_note_file(output_path: str, order_text: str = None) -> None:
     """Создает файл Примечание.txt в указанной папке"""
@@ -97,6 +202,7 @@ def create_note_file(output_path: str, order_text: str = None) -> None:
             logger.info(f"Текст приказа в примечании: {order_text[:100]}...")  # Логируем первые 100 символов
     except Exception as e:
         logger.error(f"Ошибка при создании файла примечания в {output_path}: {e}")
+        logger.error(traceback.format_exc())
 
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
@@ -143,6 +249,7 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
         response = ssl_session.get("https://ookn.ru/experts/", timeout=30)
     except requests.RequestException as e:
         logger.error(f"Ошибка при подключении: {e}")
+        logger.error(traceback.format_exc())
         return {
             'current': 0,
             'total': 1,
@@ -233,6 +340,7 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
             response.raise_for_status()
         except requests.RequestException as e:
             logger.error(f"Ошибка при получении страницы {page}: {e}")
+            logger.error(traceback.format_exc())
             continue
 
         soup = BeautifulSoup(response.text, features="html.parser")
@@ -355,6 +463,7 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
 
             except Exception as e:
                 logger.error(f"Ошибка при обработке элемента: {e}")
+                logger.error(traceback.format_exc())
                 file_info.update({'status': 'ошибка', 'reason': f'Ошибка обработки: {str(e)}'})
                 task_state.add_file_info(file_info)
                 continue
@@ -365,7 +474,7 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
 
         # Параллельное скачивание файлов с одной страницы
         if page_files:
-            with ThreadPoolExecutor(max_workers=10) as executor:
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
                 future_to_file = {
                     executor.submit(download_file, url, path): (path, url, file)
                     for path, url, file in page_files
@@ -391,6 +500,7 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                                     break
                     except Exception as e:
                         logger.error(f"Ошибка при скачивании файла: {e}")
+                        logger.error(traceback.format_exc())
                         # Обновляем статус на ошибку
                         for info in task_state.data['files_info']:
                             if info.get('filename') == file and info.get('page') == page:
@@ -409,6 +519,7 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
         # Снова генерируем промежуточный отчет после обработки файлов страницы
         logger.info(f"🔄 ГЕНЕРАЦИЯ ПРОМЕЖУТОЧНОГО ОТЧЕТА ПОСЛЕ ОБРАБОТКИ ФАЙЛОВ СТРАНИЦЫ {page}")
         generate_intermediate_report(task_state.get_data())
+        time.sleep(random.uniform(2, 5))  # Задержка для снижения нагрузки на сайт ООКН
 
     logger.info("✅ СКАНИРОВАНИЕ ЗАВЕРШЕНО")
     return {
@@ -474,7 +585,7 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
                         untar_tgz(path_to_download, folder, 'r:')
 
                     # Используем ThreadPool для поиска файлов в архиве
-                    with ThreadPoolExecutor(max_workers=5) as executor:
+                    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
                         future_to_file = {
                             executor.submit(find_pdf_files, root, files): (root, files)
                             for root, dirs, files in os.walk(folder)
@@ -487,6 +598,7 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
                                 archive_files.extend(pdf_files)
                             except Exception as e:
                                 logger.error(f"Ошибка при поиске PDF в {root}: {e}")
+                                logger.error(traceback.format_exc())
                                 for info in task_state.data['files_info']:
                                     if info.get('filename') == original_filename:
                                         info.update({'status': 'ошибка', 'reason': f'Ошибка скачивания: {str(e)}'})
@@ -529,6 +641,7 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
 
         except Exception as e:
             logger.error(f"Ошибка при обработке файла {path_to_download}: {e}")
+            logger.error(traceback.format_exc())
             processed_acts[original_filename] = None
             for info in task_state.data['files_info']:
                 if info.get('filename') == original_filename:
@@ -603,6 +716,8 @@ def tables_to_dataframes(tables):
 @shared_task(bind=True, acks_late=True, max_retries=3)
 def process_voan_list(self, progress_key=None):
     """Обработка перечня выявленных объектов культурного наследия"""
+    current_folder = f'uploaded_files/Памятники/ВОАН/'
+    Path(current_folder).mkdir(parents=True, exist_ok=True)
     try:
         # Шаг 1: Получение данных с сайта
         try:
@@ -610,6 +725,7 @@ def process_voan_list(self, progress_key=None):
             r.raise_for_status()
         except Exception as e:
             logger.error(f"Ошибка подключения к сайту ООКН: {e}")
+            logger.error(traceback.format_exc())
             return {
                 'current': 0,
                 'total': 1,
@@ -639,6 +755,7 @@ def process_voan_list(self, progress_key=None):
 
         if not file_path:
             logger.error("Файл перечня ВОАН не найден")
+            logger.error(traceback.format_exc())
             return {
                 'current': 0,
                 'total': 1,
@@ -703,6 +820,7 @@ def process_voan_list(self, progress_key=None):
 
     except Exception as e:
         logger.error(f"Ошибка в процессе обработки ВОАН: {e}")
+        logger.error(traceback.format_exc())
         return {
             'current': 0,
             'total': 1,
@@ -714,6 +832,8 @@ def process_voan_list(self, progress_key=None):
 @shared_task(bind=True, acks_late=True, max_retries=3)
 def process_oan_list(self, progress_key=None):
     """Обработка перечня объектов археологического наследия"""
+    current_folder = f'uploaded_files/Памятники/ОАН/'
+    Path(current_folder).mkdir(parents=True, exist_ok=True)
     try:
         # Шаг 1: Получение данных с сайта
         try:
@@ -721,6 +841,7 @@ def process_oan_list(self, progress_key=None):
             r.raise_for_status()
         except Exception as e:
             logger.error(f"Ошибка подключения к сайту ООКН для ОАН: {e}")
+            logger.error(traceback.format_exc())
             return {
                 'current': 0,
                 'total': 1,
@@ -750,6 +871,7 @@ def process_oan_list(self, progress_key=None):
 
         if not file_path:
             logger.error("Файл перечня ОАН не найден")
+            logger.error(traceback.format_exc())
             return {
                 'current': 0,
                 'total': 1,
@@ -763,6 +885,7 @@ def process_oan_list(self, progress_key=None):
 
         if not dataframes:
             logger.error("Не удалось извлечь таблицы из файла ОАН")
+            logger.error(traceback.format_exc())
             return {
                 'current': 0,
                 'total': 1,
@@ -810,7 +933,12 @@ def process_oan_list(self, progress_key=None):
 
                     # Если объект создан впервые, создаем папку и скачиваем документы
                     if created:
-                        folder = f'uploaded_files/Памятники/ОАН/{row[OAN_REQUIRED_COLUMNS['place']]}/{clean_path_component(row[OAN_REQUIRED_COLUMNS['name']])}'
+                        district_folder = row[OAN_REQUIRED_COLUMNS['place']]
+                        for pattern, name in OAN_DISTRICT_MAPPING.items():
+                            if pattern in district_folder:
+                                district_folder = name
+                                break
+                        folder = f'uploaded_files/Памятники/ОАН/{district_folder}/{clean_path_component(row[OAN_REQUIRED_COLUMNS['name']])}'
                         nested_folders = Path(folder)
                         nested_folders.mkdir(parents=True, exist_ok=True)
 
@@ -866,6 +994,7 @@ def process_oan_list(self, progress_key=None):
 
                 except Exception as row_error:
                     logger.error(f"Ошибка обработки строки {index} в таблице {i + 1}: {row_error}")
+                    logger.error(traceback.format_exc())
                     continue
 
                 # Обновляем прогресс
@@ -903,6 +1032,7 @@ def process_oan_list(self, progress_key=None):
 
     except Exception as e:
         logger.error(f"Ошибка в процессе обработки ОАН: {e}")
+        logger.error(traceback.format_exc())
         return {
             'current': 0,
             'total': 1,
@@ -934,7 +1064,12 @@ def _process_oan_row(row, existing_sites_set):
 
         # Если объект новый - создаем структуру папок и скачиваем документы
         if created:
-            folder = f'uploaded_files/Памятники/ОАН/{row["Район местонахождения/местонахождение"]}/{clean_path_component(row[OAN_REQUIRED_COLUMNS['name']])}'
+            district_folder = row[OAN_REQUIRED_COLUMNS['place']]
+            for pattern, name in OAN_DISTRICT_MAPPING.items():
+                if pattern in district_folder:
+                    district_folder = name
+                    break
+            folder = f'uploaded_files/Памятники/ОАН/{district_folder}/{clean_path_component(row[OAN_REQUIRED_COLUMNS['name']])}'
             nested_folders = Path(folder)
             nested_folders.mkdir(parents=True, exist_ok=True)
 
@@ -989,6 +1124,7 @@ def _process_oan_row(row, existing_sites_set):
 
     except Exception as e:
         logger.error(f"Ошибка обработки строки ОАН: {e}")
+        logger.error(traceback.format_exc())
         return False
 
 
@@ -1015,6 +1151,7 @@ def _clean_old_files(current_lists, prefix):
 
     except Exception as e:
         logger.error(f"Ошибка при очистке файлов: {e}")
+        logger.error(traceback.format_exc())
 
 
 def _download_file(href, title, current_lists):
@@ -1048,14 +1185,19 @@ def _process_voan_row(row):
     """Обработка одной строки данных ВОАН"""
     try:
         address = row[VOAN_REQUIRED_COLUMNS['address']]
+        logger.info(f'address = {address}')
         if isinstance(address, str):
             address = address.strip()
+            logger.info(f'address_str = {address}')
         elif isinstance(address, pd.Series):
+            logger.info(f'address_series = {address}')
             if len(address) > 1 and isinstance(address.iloc[1], str) and address.iloc[1].strip() != row[
                 VOAN_REQUIRED_COLUMNS['name']]:
+                logger.info(f'address.iloc[1] = {address}')
                 address = address.iloc[1].strip()
             elif len(address) > 0 and isinstance(address.iloc[0], str) and address.iloc[0].strip() != row[
                 VOAN_REQUIRED_COLUMNS['name']]:
+                logger.info(f'address.iloc[0] = {address}')
                 address = address.iloc[0].strip()
             else:
                 address = ''
@@ -1073,15 +1215,21 @@ def _process_voan_row(row):
         logger.info(f"📄 Текст приказа ВОАН из таблицы: {order_text}")
 
         # Проверяем существование
-        site_exists = IdentifiedArchaeologicalHeritageSite.objects.filter(
+        identified_site, created = IdentifiedArchaeologicalHeritageSite.objects.get_or_create(
             name=identified_site.name,
             address=identified_site.address,
             obj_info=identified_site.obj_info,
             document=identified_site.document,
-        ).exists()
+        )
 
-        if not site_exists:
-            folder = f'uploaded_files/Памятники/ВОАН/{address}/{clean_path_component(row[VOAN_REQUIRED_COLUMNS['name']])}'
+        if created:
+            district_folder = address
+            for pattern, name in VOAN_DISTRICT_MAPPING.items():
+                if pattern in district_folder:
+                    district_folder = name
+                    break
+            folder = f'uploaded_files/Памятники/ВОАН/{district_folder}/{clean_path_component(row[VOAN_REQUIRED_COLUMNS['name']])}'
+            logger.info(folder)
             Path(folder).mkdir(parents=True, exist_ok=True)
 
             folder_source = DocumentFile(
@@ -1092,7 +1240,8 @@ def _process_voan_row(row):
                 origin_filename=str(folder).split('/')[-1],
             )
             folder_source.save()
-            identified_site.source = folder
+            identified_site.source = str(folder)
+            logger.info(f'identified_site.source = {identified_site.source}')
 
             # Скачиваем документы
             external_orders_download(identified_site.document, folder, document_source)
@@ -1107,30 +1256,24 @@ def _process_voan_row(row):
             identified_site.document_source = document_source
             identified_site.save()
             connect_account_card_to_heritage(identified_site.name)
-        else:
-            # Обновляем существующий
-            existing_site = IdentifiedArchaeologicalHeritageSite.objects.get(
-                name=identified_site.name,
-                address=identified_site.address,
-                obj_info=identified_site.obj_info,
-                document=identified_site.document,
-            )
-            if not existing_site.document_source_dict:
-                # Скачиваем документы
-                external_orders_download(existing_site.document, existing_site.source, document_source)
+        elif not identified_site.document_source_dict:
+            # Скачиваем документы
+            logger.info(f'existing_site.source = {identified_site.source}')
+            external_orders_download(identified_site.document, identified_site.source, document_source)
 
-                # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
-                if not document_source:
-                    create_note_file(existing_site.source, order_text)
+            # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
+            if not document_source:
+                create_note_file(identified_site.source, order_text)
 
-                save_document_source(identified_site.id, 'IdentifiedArchaeologicalHeritageSite', 'document',
-                                     document_source)
-                existing_site.document_source = document_source
-                existing_site.save()
+            save_document_source(identified_site.id, 'IdentifiedArchaeologicalHeritageSite', 'document',
+                                 document_source)
+            identified_site.document_source = document_source
+            identified_site.save()
         return (identified_site.name, identified_site.address, identified_site.obj_info, identified_site.document)
 
     except Exception as e:
         logger.error(f"Ошибка обработки строки ВОАН: {e}")
+        logger.error(traceback.format_exc())
         return None
 
 
@@ -1142,7 +1285,7 @@ def external_orders_download(query: str, output_path: str, document_source: List
     if cache_key in document_cache:
         document_source.extend(document_cache[cache_key])
         for doc in document_source:
-            if os.path.isdir(output_path) and os.path.isfile(doc['path']):
+            if output_path is not None and os.path.isdir(output_path) and os.path.isfile(doc['path']):
                 path_to_download = output_path + doc['path'][doc['path'].rfind('/'):]
                 shutil.copy(doc['path'], path_to_download)
         return
@@ -1228,6 +1371,8 @@ def external_orders_download(query: str, output_path: str, document_source: List
                         ')')
                     url = f"https://ookn.ru{href}"
 
+                    logger.info(f'output_path = {output_path}')
+                    logger.info(f'file = {file}')
                     path_to_download = os.path.join(output_path, file)
                     if os.path.exists(path_to_download) and path_to_download not in [source['path'] for source in
                                                                                      document_source]:
@@ -1235,7 +1380,7 @@ def external_orders_download(query: str, output_path: str, document_source: List
                         continue
                     download_tasks.append((url, path_to_download))
 
-            with ThreadPoolExecutor(max_workers=10) as executor:
+            with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
                 future_to_url = {
                     executor.submit(download_file, url, path): (url, path)
                     for url, path in download_tasks
@@ -1258,15 +1403,29 @@ def external_orders_download(query: str, output_path: str, document_source: List
 
 
 def download_file(url, path_to_download):
-    try:
-        with session.get(url, verify=False, timeout=30) as response:
-            response.raise_for_status()
-            with open(path_to_download, 'wb') as out_file:
-                out_file.write(response.content)
-            return True
-    except Exception as e:
-        logger.debug(f"Ошибка скачивания {url}: {e}")
-        return False
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            with session.get(url, verify=False, timeout=30) as response:
+                if response.status_code == 429:
+                    # Сервер просит подождать – берём паузу из заголовка Retry-After
+                    retry_after = int(response.headers.get('Retry-After', 30))
+                    logger.warning(f"Получен 429, ждём {retry_after} сек")
+                    time.sleep(retry_after)
+                    continue
+                response.raise_for_status()
+                with open(path_to_download, 'wb') as out_file:
+                    out_file.write(response.content)
+                return True
+        except requests.exceptions.RetryError as e:
+            logger.error(f"Превышено число повторных попыток: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Ошибка скачивания {url}: {e}")
+            logger.error(traceback.format_exc())
+            # Экспоненциальная задержка перед повторной попыткой
+            time.sleep(2 ** attempt)
+    return False
 
 
 def save_document_source(obj_id, document_type, file_type, document_source):

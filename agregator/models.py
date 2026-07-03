@@ -609,7 +609,7 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
     @property
     def document_source_dict(self):
         if self.source_files is None:
-            self.source_files = DocumentFile.objects.filter(document_type='ArchaeologicalHeritageSite',
+            self.source_files = DocumentFile.objects.filter(document_type='IdentifiedArchaeologicalHeritageSite',
                                                             document_id=self.id,
                                                             file_type='document')
         return self.source_files

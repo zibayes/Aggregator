@@ -3,6 +3,7 @@ import traceback
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.apps import apps
+from django.utils.timezone import localtime
 from agregator.processing.datatable_utils import DataTableServerSide
 import json
 import html
@@ -345,7 +346,7 @@ def format_heritage_site_data(site, site_type, config):
             '''
 
         if account_card and account_card.date_uploaded:
-            card_date_uploaded = account_card.date_uploaded.strftime('%Y-%m-%d %H:%M')
+            card_date_uploaded = localtime(account_card.date_uploaded).strftime('%Y-%m-%d %H:%M')
 
         if account_card and hasattr(account_card, 'upload_source_dict'):
             source_dict = account_card.upload_source_dict
@@ -420,7 +421,7 @@ def format_heritage_site_data(site, site_type, config):
             site.district,
             document_cell,
             site.register_num,
-            site.date_uploaded.strftime('%Y-%m-%d %H:%M') if site.date_uploaded else '',
+            localtime(site.date_uploaded).strftime('%Y-%m-%d %H:%M') if site.date_uploaded else '',
             is_excluded_cell,
         ] + base_data
     else:  # identified
@@ -429,7 +430,7 @@ def format_heritage_site_data(site, site_type, config):
             site.address,
             site.obj_info,
             document_cell,
-            site.date_uploaded.strftime('%Y-%m-%d %H:%M') if site.date_uploaded else '',
+            localtime(site.date_uploaded).strftime('%Y-%m-%d %H:%M') if site.date_uploaded else '',
             is_excluded_cell,
         ] + base_data
 
@@ -451,7 +452,7 @@ def format_act_data(act, config):
     border_objects = act.border_objects or ''
     owner_cell = ''
     source_cell = ''
-    date_uploaded = act.date_uploaded.strftime('%Y-%m-%d %H:%M') if act.date_uploaded else ''
+    date_uploaded = localtime(act.date_uploaded).strftime('%Y-%m-%d %H:%M') if act.date_uploaded else ''
     formalized_doc_cell = original_doc_cell = actions_cell = ''
 
     try:
@@ -551,7 +552,7 @@ def format_scientific_report_data(report, config):
     open_list = report.open_list or ''
     writing_date = report.writing_date.strftime('%d.%m.%Y') if report.writing_date else ''
     owner_cell = source_cell = ''
-    date_uploaded = report.date_uploaded.strftime('%Y-%m-%d %H:%M') if report.date_uploaded else ''
+    date_uploaded = localtime(report.date_uploaded).strftime('%Y-%m-%d %H:%M') if report.date_uploaded else ''
     formalized_doc_cell = original_doc_cell = actions_cell = ''
 
     try:
@@ -634,7 +635,7 @@ def format_tech_report_data(tech_report, config):
     open_list = tech_report.open_list or ''
     writing_date = tech_report.writing_date if tech_report.writing_date else ''
     owner_cell = source_cell = ''
-    date_uploaded = tech_report.date_uploaded.strftime('%Y-%m-%d %H:%M') if tech_report.date_uploaded else ''
+    date_uploaded = localtime(tech_report.date_uploaded).strftime('%Y-%m-%d %H:%M') if tech_report.date_uploaded else ''
     original_doc_cell = formalized_doc_cell = actions_cell = ''
 
     try:
@@ -718,7 +719,7 @@ def format_open_list_data(open_list, config):
     start_date = open_list.start_date if open_list.start_date else ''
     end_date = open_list.end_date if open_list.end_date else ''
     owner_cell = source_cell = ''
-    date_uploaded = open_list.date_uploaded.strftime('%Y-%m-%d %H:%M') if open_list.date_uploaded else ''
+    date_uploaded = localtime(open_list.date_uploaded).strftime('%Y-%m-%d %H:%M') if open_list.date_uploaded else ''
     formalized_doc_cell = original_doc_cell = actions_cell = ''
 
     try:
@@ -805,7 +806,8 @@ def format_account_card_data(account_card, config):
     compiler = account_card.compiler or ''
     compile_date = account_card.compile_date if account_card.compile_date else ''
     owner_cell = source_cell = ''
-    date_uploaded = account_card.date_uploaded.strftime('%Y-%m-%d %H:%M') if account_card.date_uploaded else ''
+    date_uploaded = localtime(account_card.date_uploaded).strftime(
+        '%Y-%m-%d %H:%M') if account_card.date_uploaded else ''
     formalized_doc_cell = original_doc_cell = actions_cell = ''
 
     try:
@@ -884,7 +886,8 @@ def format_commercial_offer_data(commercial_offer, config):
     source_path = commercial_offer.source
     first_cell = f'<a href="/{source_path}">{origin_filename}</a>' if source_path else origin_filename
     source_cell = owner_cell = ''
-    date_uploaded = commercial_offer.date_uploaded.strftime('%Y-%m-%d %H:%M') if commercial_offer.date_uploaded else ''
+    date_uploaded = localtime(commercial_offer.date_uploaded).strftime(
+        '%Y-%m-%d %H:%M') if commercial_offer.date_uploaded else ''
     coordinates_cell = actions_cell = ''
 
     try:
@@ -940,7 +943,7 @@ def format_geo_object_data(geo_object, config):
     source_path = geo_object.source
     first_cell = f'<a href="/{source_path}">{origin_filename}</a>' if source_path else origin_filename
     source_cell = owner_cell = ''
-    date_uploaded = geo_object.date_uploaded.strftime('%Y-%m-%d %H:%M') if geo_object.date_uploaded else ''
+    date_uploaded = localtime(geo_object.date_uploaded).strftime('%Y-%m-%d %H:%M') if geo_object.date_uploaded else ''
     coordinates_cell = actions_cell = ''
 
     try:
