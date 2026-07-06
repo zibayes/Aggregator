@@ -195,6 +195,9 @@ CREATE TABLE object_account_cards
     compile_date           text                     NULL, -- Дата составления учетной карты
     supplement             json                     NULL, -- приложение к учётной карте (иллюстрации)
     coordinates            json                     NULL, -- каталог координат
+
+    heritage_type   VARCHAR(50) NULL,   -- название таблицы: 'archaeological_heritage_sites', 'identified_archaeological_heritage_sites'
+    heritage_id     INTEGER NULL,       -- идентификатор (первичный ключ) - привязка учётки к памятнику
 );
 
 -- ПАМЯТНИКИ
@@ -203,7 +206,6 @@ CREATE TABLE object_account_cards
 CREATE TABLE archaeological_heritage_sites
 (
     id              serial PRIMARY KEY,                           -- идентификатор (первичный ключ)
-    account_card_id integer REFERENCES object_account_cards (id), -- идентификатор учётной карты (внешний ключ)
 
     date_uploaded   TIMESTAMP WITH TIME ZONE NULL,                -- дата загрузки на сервер
 
@@ -219,7 +221,6 @@ CREATE TABLE archaeological_heritage_sites
 CREATE TABLE identified_archaeological_heritage_sites
 (
     id              serial PRIMARY KEY,                           -- идентификатор (первичный ключ)
-    account_card_id integer REFERENCES object_account_cards (id), -- идентификатор учётной карты (внешний ключ)
 
     date_uploaded   TIMESTAMP WITH TIME ZONE NULL,                -- дата загрузки на сервер
 

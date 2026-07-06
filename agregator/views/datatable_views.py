@@ -4,10 +4,14 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from django.apps import apps
 from django.utils.timezone import localtime
+from django.db.models import Q, Exists, OuterRef
+
+from agregator.models import ObjectAccountCard
 from agregator.processing.datatable_utils import DataTableServerSide
 import json
 import html
 import logging
+import traceback
 
 logger = logging.getLogger(__name__)
 
@@ -253,7 +257,17 @@ def universal_datatable(request, register_type):
 
         # Базовый queryset с оптимизацией
         if register_type in ['archaeological', 'identified']:
-            queryset = Model.objects.select_related('account_card', 'account_card__user').all()
+            queryset = Model.objects.all()  # .select_related('account_card', 'account_card__user')
+            '''
+            Model.objects.filter(
+                Exists(
+                    ObjectAccountCard.objects.filter(
+                        heritage_type=config['model'],  # тип памятника
+                        heritage_id=OuterRef('id'),  # связываем с id памятника
+                    )
+                )
+            )
+            '''
         else:
             queryset = Model.objects.select_related('user').all()
 
@@ -290,10 +304,8 @@ def universal_datatable(request, register_type):
         datatable = DataTableServerSide(request, queryset, config['columns'])
         return datatable.get_response(format_data)
     except Exception as e:
-        import traceback
-
-        print(f"Error in universal_datatable: {e}")
-        print(traceback.format_exc())
+        logger.info(f"Error in universal_datatable: {e}")
+        logger.info(traceback.format_exc())
         return JsonResponse({
             'draw': 1,
             'recordsTotal': 0,

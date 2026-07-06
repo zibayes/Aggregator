@@ -714,7 +714,7 @@ def tables_to_dataframes(tables):
 
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
-def process_voan_list(self, progress_key=None):
+def process_voan_list(self, orders_download=False, progress_key=None):
     """Обработка перечня выявленных объектов культурного наследия"""
     current_folder = f'uploaded_files/Памятники/ВОАН/'
     Path(current_folder).mkdir(parents=True, exist_ok=True)
@@ -784,7 +784,7 @@ def process_voan_list(self, progress_key=None):
 
             for index, row in df.iterrows():
                 # Обработка каждой строки и добавление в множество новых объектов
-                site_key = _process_voan_row(row)
+                site_key = _process_voan_row(row, orders_download)
                 if site_key:
                     new_sites_set.add(site_key)
 
@@ -830,7 +830,7 @@ def process_voan_list(self, progress_key=None):
 
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
-def process_oan_list(self, progress_key=None):
+def process_oan_list(self, orders_download=False, progress_key=None):
     """Обработка перечня объектов археологического наследия"""
     current_folder = f'uploaded_files/Памятники/ОАН/'
     Path(current_folder).mkdir(parents=True, exist_ok=True)
@@ -942,6 +942,7 @@ def process_oan_list(self, progress_key=None):
                         nested_folders = Path(folder)
                         nested_folders.mkdir(parents=True, exist_ok=True)
 
+                        '''
                         folder_source = DocumentFile(
                             document_id=archaeological_site.id,
                             document_type='ArchaeologicalHeritageSite',
@@ -950,9 +951,11 @@ def process_oan_list(self, progress_key=None):
                             origin_filename=str(nested_folders).split('/')[-1],
                         )
                         folder_source.save()
+                        '''
                         archaeological_site.source = str(nested_folders)
-                        external_orders_download(archaeological_site.document, archaeological_site.source,
-                                                 document_source)
+                        if orders_download:
+                            external_orders_download(archaeological_site.document, archaeological_site.source,
+                                                     document_source)
 
                         # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
                         if not document_source:
@@ -964,19 +967,17 @@ def process_oan_list(self, progress_key=None):
                     else:
                         # Если объект уже существовал, но нет документов - скачиваем
                         if not archaeological_site.document_source_dict:
-                            external_orders_download(archaeological_site.document, archaeological_site.source,
+                            if orders_download:
+                                external_orders_download(archaeological_site.document, archaeological_site.source,
+                                                         document_source)
+
+                                # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
+                                if not document_source:
+                                    create_note_file(archaeological_site.source, order_text)
+
+                                save_document_source(archaeological_site.id, 'ArchaeologicalHeritageSite', 'document',
                                                      document_source)
-
-                            # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
-                            if not document_source:
-                                create_note_file(archaeological_site.source, order_text)
-
-                            save_document_source(archaeological_site.id, 'ArchaeologicalHeritageSite', 'document',
-                                                 document_source)
-                            archaeological_site.document_source = document_source
-
-                        # Снимаем пометку исключения, если объект найден в новом перечне
-                        archaeological_site.is_excluded = False
+                                archaeological_site.document_source = document_source
 
                     archaeological_site.save()
 
@@ -1073,6 +1074,7 @@ def _process_oan_row(row, existing_sites_set):
             nested_folders = Path(folder)
             nested_folders.mkdir(parents=True, exist_ok=True)
 
+            '''
             folder_source = DocumentFile(
                 document_id=archaeological_site.id,
                 document_type='ArchaeologicalHeritageSite',
@@ -1081,6 +1083,7 @@ def _process_oan_row(row, existing_sites_set):
                 origin_filename=str(nested_folders).split('/')[-1],
             )
             folder_source.save()
+            '''
             archaeological_site.source = str(nested_folders)
 
             # Скачиваем документы
@@ -1181,7 +1184,7 @@ def _download_file(href, title, current_lists):
     return path_to_download
 
 
-def _process_voan_row(row):
+def _process_voan_row(row, orders_download):
     """Обработка одной строки данных ВОАН"""
     try:
         address = row[VOAN_REQUIRED_COLUMNS['address']]
@@ -1232,6 +1235,7 @@ def _process_voan_row(row):
             logger.info(folder)
             Path(folder).mkdir(parents=True, exist_ok=True)
 
+            '''
             folder_source = DocumentFile(
                 document_id=identified_site.id,
                 document_type='IdentifiedArchaeologicalHeritageSite',
@@ -1240,11 +1244,13 @@ def _process_voan_row(row):
                 origin_filename=str(folder).split('/')[-1],
             )
             folder_source.save()
+            '''
             identified_site.source = str(folder)
             logger.info(f'identified_site.source = {identified_site.source}')
 
             # Скачиваем документы
-            external_orders_download(identified_site.document, folder, document_source)
+            if orders_download:
+                external_orders_download(identified_site.document, folder, document_source)
 
             # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
             if not document_source:
@@ -1259,7 +1265,8 @@ def _process_voan_row(row):
         elif not identified_site.document_source_dict:
             # Скачиваем документы
             logger.info(f'existing_site.source = {identified_site.source}')
-            external_orders_download(identified_site.document, identified_site.source, document_source)
+            if orders_download:
+                external_orders_download(identified_site.document, identified_site.source, document_source)
 
             # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
             if not document_source:
@@ -1288,6 +1295,7 @@ def external_orders_download(query: str, output_path: str, document_source: List
             if output_path is not None and os.path.isdir(output_path) and os.path.isfile(doc['path']):
                 path_to_download = output_path + doc['path'][doc['path'].rfind('/'):]
                 shutil.copy(doc['path'], path_to_download)
+                doc['path'] = path_to_download
         return
 
     order_text = ORDER_TEXT_PATTERN.search(query)

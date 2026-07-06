@@ -8,6 +8,7 @@ from django_celery_results.models import TaskResult
 from django.db.models.query import QuerySet
 from agregator.hash import calculate_file_hash
 from agregator.processing.utils import get_file_size
+from django.apps import apps
 import os
 import shutil
 import logging
@@ -489,6 +490,14 @@ class ObjectAccountCard(models.Model):
     coordinates = models.JSONField(null=True, blank=True)
     source_files = None
 
+    HERITAGE_TYPES = (
+        ('ArchaeologicalHeritageSite', 'ОАН'),
+        ('IdentifiedArchaeologicalHeritageSite', 'ВОАН'),
+    )
+    heritage_type = models.CharField(null=True, blank=True, max_length=50, choices=HERITAGE_TYPES)
+    heritage_id = models.PositiveIntegerField(null=True, blank=True)
+    heritage_instance = None
+
     def __str__(self):
         return f"Object Account Card {self.id} by {self.user.username}"
 
@@ -529,10 +538,16 @@ class ObjectAccountCard(models.Model):
     def coordinates_dict(self):
         return from_json(self.coordinates)
 
+    @property
+    def heritage(self):
+        if not self.heritage_instance:
+            Model = apps.get_model('agregator', self.heritage_type)
+            self.heritage_instance = Model.objects.filter(id=self.heritage_id).first()
+        return self.heritage_instance
+
 
 class ArchaeologicalHeritageSite(models.Model):
-    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.SET_NULL, null=True,
-                                     blank=True)  # , on_delete=models.CASCADE
+    account_card_instance = None
     date_uploaded = models.DateTimeField(auto_now_add=True)
     doc_name = models.TextField(null=True, blank=True)
     district = models.TextField(null=True, blank=True)
@@ -570,12 +585,18 @@ class ArchaeologicalHeritageSite(models.Model):
                                                             document_id=self.id,
                                                             file_type='document')
         return self.source_files
-        # return from_json(self.document_source)
+
+    @property
+    def account_card(self):
+        if not self.account_card_instance:
+            self.account_card_instance = ObjectAccountCard.objects.filter(heritage_type='ArchaeologicalHeritageSite',
+                                                                          heritage_id=self.id).order_by(
+                '-creation_time').first()
+        return self.account_card_instance
 
 
 class IdentifiedArchaeologicalHeritageSite(models.Model):
-    account_card = models.ForeignKey(ObjectAccountCard, on_delete=models.SET_NULL, null=True,
-                                     blank=True)  # , on_delete=models.CASCADE
+    account_card_instance = None
     date_uploaded = models.DateTimeField(auto_now_add=True)
     name = models.TextField(null=True, blank=True)
     address = models.TextField(null=True, blank=True)
@@ -613,6 +634,14 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
                                                             document_id=self.id,
                                                             file_type='document')
         return self.source_files
+
+    @property
+    def account_card(self):
+        if not self.account_card_instance:
+            self.account_card_instance = ObjectAccountCard.objects.filter(
+                heritage_type='IdentifiedArchaeologicalHeritageSite',
+                heritage_id=self.id).order_by('-creation_time').first()
+        return self.account_card_instance
 
 
 class CommercialOffers(models.Model):

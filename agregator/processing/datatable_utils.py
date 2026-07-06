@@ -82,19 +82,33 @@ class DataTableServerSide:
             return queryset
 
         search_filters = Q()
+        account_card_q = Q()
+
         for column in self.columns_config:
             if column.get('searchable', True):
                 field_name = column['field']
-                if field_name == 'origin_filename':
+                if 'origin_filename' in field_name:
                     continue
-                if '__' in field_name:
-                    search_filters |= Q(**{f"{field_name}__icontains": search_value})
+                if field_name.startswith('account_card__'):
+                    card_field = field_name.split('__', 1)[1]
+                    account_card_q |= Q(**{f"{card_field}__icontains": search_value})
                 else:
                     search_filters |= Q(**{f"{field_name}__icontains": search_value})
 
         file_condition = self.get_file_filter(search_value)
         if file_condition:
             search_filters |= file_condition
+
+        if account_card_q:
+            doc_type = self.queryset.model.__name__
+            account_card_exists = Exists(
+                ObjectAccountCard.objects.filter(
+                    heritage_type=doc_type,
+                    heritage_id=OuterRef('id')
+                ).filter(account_card_q)
+            )
+            search_filters |= account_card_exists
+
         if search_filters:
             return queryset.filter(search_filters)
 
@@ -113,9 +127,8 @@ class DataTableServerSide:
                             file_condition = self.get_file_filter(search_value)
                             if file_condition:
                                 queryset = queryset.filter(file_condition).distinct()
-                        elif field_name == 'upload_source' and isinstance(queryset.model,
-                                                                          (ArchaeologicalHeritageSite,
-                                                                           IdentifiedArchaeologicalHeritageSite)):
+                        elif field_name == 'upload_source' and queryset.model.__name__ in ('ArchaeologicalHeritageSite',
+                                                                                           'IdentifiedArchaeologicalHeritageSite'):
                             queryset = queryset.filter(**{f"account_card__{field_name}__icontains": search_value})
                         else:
                             queryset = queryset.filter(**{f"{field_name}__icontains": search_value})
@@ -162,20 +175,24 @@ class DataTableServerSide:
 
         if custom_search.get('owner'):
             queryset = queryset.filter(user__username__icontains=custom_search['owner'])
+        '''
         if custom_search.get('show_my_docs'):
             if queryset.model.__name__ in ('ArchaeologicalHeritageSite', 'IdentifiedArchaeologicalHeritageSite'):
                 queryset = queryset.filter(account_card__user=self.request.user)
             else:
                 queryset = queryset.filter(user=self.request.user)
+        '''
         if custom_search.get('origin_filename'):
             file_condition = self.get_file_filter(custom_search['origin_filename'])
             if file_condition:
                 queryset = queryset.filter(file_condition).distinct()
+        '''
         if custom_search.get('upload_source'):
             if queryset.model.__name__ in ('ArchaeologicalHeritageSite', 'IdentifiedArchaeologicalHeritageSite'):
                 queryset = queryset.filter(account_card__upload_source__icontains=custom_search['upload_source'])
             else:
                 queryset = queryset.filter(upload_source__icontains=custom_search['upload_source'])
+        '''
         if custom_search.get('date_uploaded'):
             queryset = queryset.filter(date_uploaded__icontains=custom_search['date_uploaded'])
 
@@ -280,6 +297,7 @@ class DataTableServerSide:
                 logger.info(f"DEBUG: After document filter: {queryset.count()} records")
 
         if queryset.model.__name__ in ('ArchaeologicalHeritageSite', 'IdentifiedArchaeologicalHeritageSite'):
+            '''
             if custom_search.get('creation_time'):
                 queryset = queryset.filter(account_card__creation_time__icontains=custom_search['creation_time'])
                 logger.info(f"DEBUG: After creation_time filter: {queryset.count()} records")
@@ -316,6 +334,7 @@ class DataTableServerSide:
             elif custom_search.get('account_card_filter') == 'not_available':
                 queryset = queryset.filter(account_card__isnull=True)
                 logger.info(f"DEBUG: After account_card not_available filter: {queryset.count()} records")
+            '''
 
             if not custom_search.get('show_excluded', True):
                 queryset = queryset.filter(is_excluded=False)
@@ -352,17 +371,17 @@ class DataTableServerSide:
             # ПРИНУДИТЕЛЬНАЯ ОТЛАДКА
             import sys
             logger.info(f"=== DATATABLE DEBUG ===")
-            logger.info(f"Total records in queryset: {self.queryset.count()}")
+            # logger.info(f"Total records in queryset: {self.queryset.count()}")
 
             # Применяем фильтрацию и сортировку
             filtered_queryset = self.apply_global_search(self.queryset, params['search_value'])
-            logger.info(f"After global search: {filtered_queryset.count()}")
+            # logger.info(f"After global search: {filtered_queryset.count()}")
 
-            filtered_queryset = self.apply_column_search(filtered_queryset, params['column_search'])
-            logger.info(f"After column search: {filtered_queryset.count()}")
+            # filtered_queryset = self.apply_column_search(filtered_queryset, params['column_search'])
+            # logger.info(f"After column search: {filtered_queryset.count()}")
 
             filtered_queryset = self.apply_custom_search(filtered_queryset, params['custom_search'])
-            logger.info(f"After custom search: {filtered_queryset.count()}")
+            # logger.info(f"After custom search: {filtered_queryset.count()}")
 
             filtered_queryset = self.apply_ordering(filtered_queryset, params['order_column_index'],
                                                     params['order_direction'])

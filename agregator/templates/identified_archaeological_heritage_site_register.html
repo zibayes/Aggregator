@@ -216,6 +216,8 @@
     {% csrf_token %}
     <div class="container mt-1">
         <div class="controls" style="display: flex; justify-content: flex-end; width: 100%;">
+            <label style="margin-right:10px;"><input type="checkbox" name="ordersDownload" checked>
+                Загружать файлы приказов</label>
             <button class="btn btn-primary lang" type="submit" style="border-radius: 12px; margin-right:10px;"
             >Обновить перечень
             </button>

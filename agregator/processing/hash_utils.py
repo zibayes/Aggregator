@@ -28,9 +28,12 @@ def check_duplicates(is_reprocess, file, filename, instance, delete_current=Fals
                 f"Такой файл уже загружен в систему ({class_name}.id={duplicate_id}): {filename}")
 
 
-def has_duplicates_in_db(file: str, document_type: str, doc_id: int) -> tuple:
+def has_duplicates_in_db(file: str, document_type: str = None, doc_id: int = None) -> tuple:
     file_hash = calculate_file_hash(file)
-    obj = DocumentFile.objects.filter(file_hash=file_hash).exclude(document_type=document_type, document_id=doc_id)
+    if document_type is None or doc_id is None:
+        obj = DocumentFile.objects.filter(file_hash=file_hash)
+    else:
+        obj = DocumentFile.objects.filter(file_hash=file_hash).exclude(document_type=document_type, document_id=doc_id)
     if len(obj) == 0:
         return False, None, file_hash
     return True, obj, file_hash

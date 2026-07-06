@@ -200,9 +200,9 @@ def tech_reports_register(request):
 def archaeological_heritage_sites_register(request):
     is_processing, scan_task_id, active_scan_task = get_scan_task(
         'agregator.processing.external_sources.process_oan_list')
-
+    orders_download = True if 'ordersDownload' in request.POST else False
     if request.method == 'POST' and scan_task_id is None:
-        scan_task = process_oan_list.delay()
+        scan_task = process_oan_list.delay(orders_download)
         scan_task_id = scan_task.id
         is_processing = True
     return render(request, 'archaeological_heritage_site_register.html',
@@ -213,9 +213,9 @@ def archaeological_heritage_sites_register(request):
 def identified_archaeological_heritage_sites_register(request):
     is_processing, scan_task_id, active_scan_task = get_scan_task(
         'agregator.processing.external_sources.process_voan_list')
-
+    orders_download = True if 'ordersDownload' in request.POST else False
     if request.method == 'POST' and scan_task_id is None:
-        scan_task = process_voan_list.delay()
+        scan_task = process_voan_list.delay(orders_download)
         scan_task_id = scan_task.id
         is_processing = True
 

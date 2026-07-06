@@ -2,6 +2,7 @@ import os
 import concurrent.futures
 import logging
 import time
+from typing import re
 
 from fsspec.implementations.http import file_size
 
@@ -12,6 +13,7 @@ from collections import defaultdict
 from agregator.redis_config import REDIS_HOST, REDIS_PORT, REDIS_DB
 from agregator.hash import calculate_file_hash
 from agregator.models import Act, ScientificReport, TechReport, ObjectAccountCard, DocumentFile
+from django.db.models import Exists, OuterRef
 from agregator.processing.hash_utils import has_duplicates_in_db
 from agregator.processing.batch_file_organizer import FileOrganizer
 from agregator.processing.batch_registry_utils import RegistryManager
@@ -285,23 +287,18 @@ def create_account_card_from_existing_file(file_info, user, is_public=False):
         # 2. Поиск учётной карты, привязанной к этой папке
         target_card = None
         # Загружаем все карты, у которых source не пустой
-        cards = ObjectAccountCard.objects.exclude(source__isnull=True).exclude(source='').only('id', 'source')
-        for card in cards:
-            try:
-                for item in card.source_dict:
-                    item_folder = os.path.dirname(item.path)
-                    if item_folder == folder:
-                        target_card = card
-                        logger.info(f"Найдена карта {card.id} для папки {folder}")
-                        break
-                if target_card:
-                    break
-            except (json.JSONDecodeError, TypeError) as e:
-                logger.warning(f"Ошибка парсинга source карты {card.id}: {e}")
-                continue
+        target_cards = ObjectAccountCard.objects.filter(
+            Exists(
+                DocumentFile.objects.filter(
+                    document_type='ObjectAccountCard',  # тип документа (имя модели)
+                    document_id=OuterRef('id'),  # связываем с id карты
+                    path__regex=r'^' + re.escape(folder) + r'/[^/]+$'
+                )
+            )
+        ).only('id')
 
         # 3. Если карта найдена — добавляем файл к ней
-        if target_card:
+        for target_card in target_cards:
             new_entry = DocumentFile(
                 document_id=target_card.id,
                 document_type='ObjectAccountCard',
