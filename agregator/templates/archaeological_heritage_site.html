@@ -16,11 +16,14 @@
 
 {% block heritage_links %}
 {% include 'includes/django_messages.html' %}
-{% if archaeological_heritage_site.account_card_id %}
+{% if archaeological_heritage_site.all_account_cards %}
+{% for account_card in archaeological_heritage_site.all_account_cards %}
 <a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px; margin-bottom:8px;"
-   href="/account_cards/{{ archaeological_heritage_site.account_card_id }}">
-    Учётная карта
+   href="/account_cards/{{ account_card.id }}">
+    Учётная карта: {% if account_card.source_dict %}{{ account_card.source_dict.0.origin_filename }}{% else %}{{
+    account_card.compile_date }}{% endif %}
 </a>
+{% endfor %}
 {% endif %}
 
 {% if archaeological_heritage_site.document_source_dict %}
@@ -29,13 +32,8 @@
 <a class="btn btn-primary lang account-card-button" style="border-radius: 12px; margin-right:10px; margin-bottom:8px;"
    id="order-{{ forloop.counter }}"
    href="/{{ source.path }}">
-    {{ source.path }}
+    Приказ: {{ source.origin_filename }}
 </a>
-<script>
-    var path = "{{ source.path|escapejs }}";
-    var filename = path.substring(path.lastIndexOf('/') + 1);
-    document.getElementById('order-{{ forloop.counter }}').textContent = 'Приказ: ' + filename;
-</script>
 {% endfor %}
 <br>
 {% endif %}
@@ -44,7 +42,7 @@
 {% block heritage_actions %}
 {% if archaeological_heritage_site.user.id == user.id or user.is_superuser %}
 <!-- href="/admin/filebrowser/browse/?&dir={{ archaeological_heritage_site.source|cut:'uploaded_files/' }}" -->
-<a href="http://127.0.0.1:8080/index.php?explorer/&path=/var/www/html/data/{{ archaeological_heritage_site.source }}">
+<a href="http://127.0.0.1:8080/index.php?explorer/&path=/var/www/html/data/{{ archaeological_heritage_site.source|urlencode }}">
     <button type="button" class="btn btn-primary edit-button"
             style="border-radius: 12px; margin-right:10px; margin-top: 15px;">
         Открыть в файловом менеджере

@@ -288,6 +288,8 @@ STATICFILES_DIRS = [
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
+HERITAGES_LISTS_PATH = 'uploaded_files/Памятники/current_lists.txt'
+
 CELERY_BROKER_URL = REDIS_URL  # 'redis://redis:6379/0' / 'redis://localhost:6379/0'
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'

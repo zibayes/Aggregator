@@ -19,7 +19,7 @@ import requests
 from PIL import Image
 from celery import shared_task
 from celery_progress.backend import ProgressRecorder
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 from language_tool_python.utils import _4_bytes_encoded_positions, Match
 from skimage import filters
 from transliterate import translit

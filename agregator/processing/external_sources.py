@@ -27,19 +27,24 @@ import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
 from django.core.cache import cache
+from rapidfuzz import fuzz
 
 from agregator.processing.account_cards_processing import connect_account_card_to_heritage
 from agregator.processing.acts_processing import process_acts
 from agregator.processing.error_handler import error_handler
+from .batch_kml_utils import KMLParser
 from .files_saving import raw_reports_save
 from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, \
-    DocumentFile
+    DocumentFile, ObjectAccountCard
 from agregator.processing.utils import clean_path_component, get_file_size
 from agregator.processing.hash_utils import calculate_file_hash
 from agregator.processing.external_acts_download_report import generate_download_report, generate_interrupted_report, \
     generate_final_report, generate_intermediate_report, handle_interrupts
 from agregator.processing.utils import get_unique_filename
 from agregator.processing.archive_utils import unzip_rar, unzip_7z, unzip_zip, untar_tgz
+from agregator.processing.hash_utils import has_duplicates_in_db
+from agregator.views.utils import get_heritage_list_path
+from archeology.settings import HERITAGES_LISTS_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -95,14 +100,15 @@ OAN_DISTRICT_MAPPING = {
     'Боготольский': 'Боготольский район',
     'Богучанский': 'Богучанский район',
     'Большемуртинский': 'Большемуртинский район',
+    'Большемуртинско-Сухобузимский': 'Большемуртинско-Сухобузимский муниципальный округ',
     'Большеулуйский': 'Большеулуйский район',
     'г. Ачинск': 'г. Ачинск',
     'город Дивногорск': 'г. Дивногорск',
     'г. Канск': 'г. Канск',
     'город Красноярск': 'г. Красноярск',
     'г. Сосновоборск': 'г. Сосновоборск',
-    'Емельяновский район': 'Емельяновский район',
-    'Енисейский район': 'Енисейский район',
+    'Емельяновский': 'Емельяновский район',
+    'Енисейский': 'Енисейский район',
     'Ермаковский район': 'Ермаковский район',
     'Идринский район': 'Идринский район',
     'Иланский район': 'Иланский район',
@@ -124,7 +130,7 @@ OAN_DISTRICT_MAPPING = {
     'Туруханский район': 'Туруханский район',
     'Ужурский': 'Ужурский район',
     'Шарыповский': 'Шарыповский район',
-    'Шушенский район': 'Шушенский район',
+    'Шушенский': 'Шушенский район',
     'Эвенкийский район': 'Эвенкийский район',
 }
 
@@ -182,9 +188,19 @@ VOAN_DISTRICT_MAPPING = {
     'Ужурский': 'Ужурский район',
     'Уярский': 'Уярский район',
     'Шарыповский': 'Шарыповский район',
-    'Шушенский район': 'Шушенский район',
+    'Шушенский': 'Шушенский район',
     'Эвенкийский район': 'Эвенкийский район',
 }
+
+
+def get_admin():
+    try:
+        admin = User.objects.filter(is_superuser=True)[0]
+        return admin
+    except Exception as e:
+        logger.error(f"Админ не найден!: {e}")
+        logger.error(traceback.format_exc())
+    return None
 
 
 def create_note_file(output_path: str, order_text: str = None) -> None:
@@ -225,10 +241,7 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
 
     # Получаем данные один раз
     # admin = User.objects.get(is_superuser=True)
-    try:
-        admin = User.objects.filter(is_superuser=True)[0]
-    except User.DoesNotExist:
-        pass
+    admin = get_admin()
 
     # Создаем множество для быстрого поиска
     downloaded_files = get_downloaded_files_cache(admin.id)
@@ -714,7 +727,8 @@ def tables_to_dataframes(tables):
 
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
-def process_voan_list(self, orders_download=False, progress_key=None):
+def process_voan_list(self, orders_download=False, use_local_register=False, search_account_cards=False,
+                      progress_key=None):
     """Обработка перечня выявленных объектов культурного наследия"""
     current_folder = f'uploaded_files/Памятники/ВОАН/'
     Path(current_folder).mkdir(parents=True, exist_ok=True)
@@ -735,23 +749,24 @@ def process_voan_list(self, orders_download=False, progress_key=None):
 
         # Шаг 2: Парсинг
         soup = BeautifulSoup(r.text, 'html.parser')
-        current_lists = 'uploaded_files/Памятники/current_lists.txt'
-        Path('uploaded_files/Памятники/').mkdir(exist_ok=True)
 
-        # Шаг 3: Очистка старых файлов
-        _clean_old_files(current_lists, 'list_voan')
+        if use_local_register is True:
+            file_path = get_heritage_list_path('voan')
+        else:
+            # Шаг 3: Очистка старых файлов
+            _clean_old_files('list_voan')
 
-        # Шаг 4: Поиск и скачивание файла
-        file_path = None
-        for item in soup.find_all('p', class_='news-item'):
-            title = item.find('b').get_text(strip=True) if item.find('b') else ''
-            if title != 'Перечень выявленных объектов культурного наследия':
-                continue
+            # Шаг 4: Поиск и скачивание файла
+            file_path = None
+            for item in soup.find_all('p', class_='news-item'):
+                title = item.find('b').get_text(strip=True) if item.find('b') else ''
+                if title != 'Перечень выявленных объектов культурного наследия':
+                    continue
 
-            link = item.find('a', href=True)
-            if link and '/upload/iblock/' in link['href']:
-                file_path = _download_file(link['href'], title, current_lists)
-                break
+                link = item.find('a', href=True)
+                if link and '/upload/iblock/' in link['href']:
+                    file_path = _download_file(link['href'], title)
+                    break
 
         if not file_path:
             logger.error("Файл перечня ВОАН не найден")
@@ -784,7 +799,7 @@ def process_voan_list(self, orders_download=False, progress_key=None):
 
             for index, row in df.iterrows():
                 # Обработка каждой строки и добавление в множество новых объектов
-                site_key = _process_voan_row(row, orders_download)
+                site_key = _process_voan_row(row, orders_download, search_account_cards)
                 if site_key:
                     new_sites_set.add(site_key)
 
@@ -803,7 +818,7 @@ def process_voan_list(self, orders_download=False, progress_key=None):
         # Те объекты, которые есть в БД, но отсутствуют в новом перечне
         marked_excluded = 0
         for site in existing_sites:
-            site_key = (site.name, site.address, site.obj_info, site.document)
+            site_key = (site.name, site.document)
             if site_key not in new_sites_set:
                 site.is_excluded = True
                 site.save()
@@ -830,44 +845,47 @@ def process_voan_list(self, orders_download=False, progress_key=None):
 
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
-def process_oan_list(self, orders_download=False, progress_key=None):
+def process_oan_list(self, orders_download=False, use_local_register=False, search_account_cards=False,
+                     progress_key=None):
     """Обработка перечня объектов археологического наследия"""
+    heritage_type = 'ArchaeologicalHeritageSite'
     current_folder = f'uploaded_files/Памятники/ОАН/'
     Path(current_folder).mkdir(parents=True, exist_ok=True)
     try:
-        # Шаг 1: Получение данных с сайта
-        try:
-            r = requests.get("https://ookn.ru/gosohrana/", verify=False, timeout=30)
-            r.raise_for_status()
-        except Exception as e:
-            logger.error(f"Ошибка подключения к сайту ООКН для ОАН: {e}")
-            logger.error(traceback.format_exc())
-            return {
-                'current': 0,
-                'total': 1,
-                'type': 'page_progress',
-                'message': f'Ошибка подключения к сайту ООКН: {e}'
-            }
+        if use_local_register is True:
+            file_path = get_heritage_list_path('oan')
+        else:
+            # Шаг 1: Получение данных с сайта
+            try:
+                r = requests.get("https://ookn.ru/gosohrana/", verify=False, timeout=30)
+                r.raise_for_status()
+            except Exception as e:
+                logger.error(f"Ошибка подключения к сайту ООКН для ОАН: {e}")
+                logger.error(traceback.format_exc())
+                return {
+                    'current': 0,
+                    'total': 1,
+                    'type': 'page_progress',
+                    'message': f'Ошибка подключения к сайту ООКН: {e}'
+                }
 
-        # Шаг 2: Парсинг HTML
-        soup = BeautifulSoup(r.text, 'html.parser')
-        current_lists = 'uploaded_files/Памятники/current_lists.txt'
-        Path('uploaded_files/Памятники/').mkdir(exist_ok=True)
+            # Шаг 2: Парсинг HTML
+            soup = BeautifulSoup(r.text, 'html.parser')
 
-        # Шаг 3: Очистка старых файлов ОАН
-        _clean_old_files(current_lists, 'list_oan')
+            # Шаг 3: Очистка старых файлов ОАН
+            _clean_old_files('list_oan')
 
-        # Шаг 4: Поиск и скачивание файла перечня ОАН
-        file_path = None
-        for item in soup.find_all('p', class_='news-item'):
-            title = item.find('b').get_text(strip=True) if item.find('b') else ''
-            if title != 'Перечень объектов археологического наследия':
-                continue
+            # Шаг 4: Поиск и скачивание файла перечня ОАН
+            file_path = None
+            for item in soup.find_all('p', class_='news-item'):
+                title = item.find('b').get_text(strip=True) if item.find('b') else ''
+                if title != 'Перечень объектов археологического наследия':
+                    continue
 
-            link = item.find('a', href=True)
-            if link and '/upload/iblock/' in link['href']:
-                file_path = _download_file(link['href'], title, current_lists)
-                break
+                link = item.find('a', href=True)
+                if link and '/upload/iblock/' in link['href']:
+                    file_path = _download_file(link['href'], title)
+                    break
 
         if not file_path:
             logger.error("Файл перечня ОАН не найден")
@@ -906,7 +924,7 @@ def process_oan_list(self, orders_download=False, progress_key=None):
         for i, df in enumerate(dataframes):
             df.columns = df.columns.str.replace('\n', '', regex=True)
 
-            if not all(col in df.columns for col in OAN_REQUIRED_COLUMNS.values()):
+            if not all(col.strip() in df.columns for col in OAN_REQUIRED_COLUMNS.values()):
                 logger.warning(f"Таблица {i + 1} не содержит всех необходимых колонок для ОАН")
                 continue
 
@@ -932,15 +950,23 @@ def process_oan_list(self, orders_download=False, progress_key=None):
                     )
 
                     # Если объект создан впервые, создаем папку и скачиваем документы
-                    if created:
+                    if created:  #
                         district_folder = row[OAN_REQUIRED_COLUMNS['place']]
                         for pattern, name in OAN_DISTRICT_MAPPING.items():
                             if pattern in district_folder:
                                 district_folder = name
                                 break
-                        folder = f'uploaded_files/Памятники/ОАН/{district_folder}/{clean_path_component(row[OAN_REQUIRED_COLUMNS['name']])}'
+                        folder = get_full_path_to_heritage_on_disk('ОАН', district_folder, clean_path_component(row[
+                                                                                                                    OAN_REQUIRED_COLUMNS[
+                                                                                                                        'name']]))  # f'uploaded_files/Памятники/ОАН/{district_folder}/{clean_path_component(row[OAN_REQUIRED_COLUMNS['name']])}'
                         nested_folders = Path(folder)
+                        folder_exists = nested_folders.is_dir()
                         nested_folders.mkdir(parents=True, exist_ok=True)
+                        if not folder_exists:
+                            with open(os.path.join(nested_folders, "Файлы памятника не найдены.txt"), 'w',
+                                      encoding='utf-8') as note_file:
+                                note_file.write(
+                                    f"Исходные данные памятника:\n{row[OAN_REQUIRED_COLUMNS['place']]}\n{row[OAN_REQUIRED_COLUMNS['name']]}\n\nИспользованный путь:\n{folder}")
 
                         '''
                         folder_source = DocumentFile(
@@ -956,12 +982,14 @@ def process_oan_list(self, orders_download=False, progress_key=None):
                         if orders_download:
                             external_orders_download(archaeological_site.document, archaeological_site.source,
                                                      document_source)
+                        else:
+                            local_orders_search(archaeological_site.source, document_source)
 
                         # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
-                        if not document_source:
+                        if orders_download and not document_source:
                             create_note_file(archaeological_site.source, order_text)
 
-                        save_document_source(archaeological_site.id, 'ArchaeologicalHeritageSite', 'document',
+                        save_document_source(archaeological_site.id, heritage_type, 'document',
                                              document_source)
                         archaeological_site.document_source = document_source
                     else:
@@ -970,25 +998,31 @@ def process_oan_list(self, orders_download=False, progress_key=None):
                             if orders_download:
                                 external_orders_download(archaeological_site.document, archaeological_site.source,
                                                          document_source)
+                            else:
+                                local_orders_search(archaeological_site.source, document_source)
 
-                                # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
-                                if not document_source:
-                                    create_note_file(archaeological_site.source, order_text)
+                            # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
+                            if orders_download and not document_source:
+                                create_note_file(archaeological_site.source, order_text)
 
-                                save_document_source(archaeological_site.id, 'ArchaeologicalHeritageSite', 'document',
-                                                     document_source)
-                                archaeological_site.document_source = document_source
+                            save_document_source(archaeological_site.id, heritage_type, 'document',
+                                                 document_source)
+                            archaeological_site.document_source = document_source
 
                     archaeological_site.save()
 
                     # Связываем с учетной карточкой
-                    connect_account_card_to_heritage(archaeological_site.doc_name)
+                    # connect_account_card_to_heritage(archaeological_site.doc_name)
+                    if search_account_cards:
+                        admin = get_admin()
+                        account_cards_connection(archaeological_site.source, admin,
+                                                 archaeological_site.doc_name,
+                                                 heritage_type,
+                                                 archaeological_site.id)
 
                     # Добавляем в множество новых объектов
                     site_key = (
                         archaeological_site.doc_name,
-                        archaeological_site.district,
-                        archaeological_site.document,
                         archaeological_site.register_num
                     )
                     new_sites_set.add(site_key)
@@ -1014,7 +1048,7 @@ def process_oan_list(self, orders_download=False, progress_key=None):
         # Те объекты, которые есть в БД, но отсутствуют в новом перечне
         marked_excluded = 0
         for site in existing_sites:
-            site_key = (site.doc_name, site.district, site.document, site.register_num)
+            site_key = (site.doc_name, site.register_num)
             if site_key not in new_sites_set:
                 site.is_excluded = True
                 site.save()
@@ -1070,7 +1104,9 @@ def _process_oan_row(row, existing_sites_set):
                 if pattern in district_folder:
                     district_folder = name
                     break
-            folder = f'uploaded_files/Памятники/ОАН/{district_folder}/{clean_path_component(row[OAN_REQUIRED_COLUMNS['name']])}'
+            folder = get_full_path_to_heritage_on_disk('ОАН', district_folder,
+                                                       clean_path_component(row[OAN_REQUIRED_COLUMNS[
+                                                           'name']]))  # f'uploaded_files/Памятники/ОАН/{district_folder}/{clean_path_component(row[OAN_REQUIRED_COLUMNS['name']])}'
             nested_folders = Path(folder)
             nested_folders.mkdir(parents=True, exist_ok=True)
 
@@ -1131,10 +1167,10 @@ def _process_oan_row(row, existing_sites_set):
         return False
 
 
-def _clean_old_files(current_lists, prefix):
+def _clean_old_files(prefix):
     """Очистка старых файлов"""
     try:
-        with open(current_lists, 'a+', encoding='utf-8') as file:
+        with open(HERITAGES_LISTS_PATH, 'a+', encoding='utf-8') as file:
             file.seek(0)
             text = file.read()
             lines = [line for line in text.split('\n') if line.strip()]
@@ -1157,7 +1193,7 @@ def _clean_old_files(current_lists, prefix):
         logger.error(traceback.format_exc())
 
 
-def _download_file(href, title, current_lists):
+def _download_file(href, title):
     """Скачивание файла"""
     file_name = href[href.rfind('/') + 1:]
     file_encoded = file_name.replace(' ', '%20')
@@ -1175,7 +1211,7 @@ def _download_file(href, title, current_lists):
             out_file.write(response.read())
 
     # Запись в current_lists
-    with open(current_lists, 'a', encoding='utf-8') as file:
+    with open(HERITAGES_LISTS_PATH, 'a', encoding='utf-8') as file:
         if title == 'Перечень выявленных объектов культурного наследия':
             file.write(f'list_voan - {path_to_download}\n')
         elif title == 'Перечень объектов археологического наследия':
@@ -1184,8 +1220,9 @@ def _download_file(href, title, current_lists):
     return path_to_download
 
 
-def _process_voan_row(row, orders_download):
+def _process_voan_row(row, orders_download, search_account_cards):
     """Обработка одной строки данных ВОАН"""
+    heritage_type = 'IdentifiedArchaeologicalHeritageSite'
     try:
         address = row[VOAN_REQUIRED_COLUMNS['address']]
         logger.info(f'address = {address}')
@@ -1206,12 +1243,6 @@ def _process_voan_row(row, orders_download):
                 address = ''
 
         document_source = []
-        identified_site = IdentifiedArchaeologicalHeritageSite(
-            name=row[VOAN_REQUIRED_COLUMNS['name']],
-            address=address,
-            obj_info=row[VOAN_REQUIRED_COLUMNS['obj_info']],
-            document=row[VOAN_REQUIRED_COLUMNS['doc']],
-        )
 
         # Получаем текст приказа из таблицы
         order_text = row['Документ о включении в перечень выявленных объектов']
@@ -1219,10 +1250,10 @@ def _process_voan_row(row, orders_download):
 
         # Проверяем существование
         identified_site, created = IdentifiedArchaeologicalHeritageSite.objects.get_or_create(
-            name=identified_site.name,
-            address=identified_site.address,
-            obj_info=identified_site.obj_info,
-            document=identified_site.document,
+            name=row[VOAN_REQUIRED_COLUMNS['name']],
+            address=address,
+            obj_info=row[VOAN_REQUIRED_COLUMNS['obj_info']],
+            document=row[VOAN_REQUIRED_COLUMNS['doc']],
         )
 
         if created:
@@ -1231,9 +1262,18 @@ def _process_voan_row(row, orders_download):
                 if pattern in district_folder:
                     district_folder = name
                     break
-            folder = f'uploaded_files/Памятники/ВОАН/{district_folder}/{clean_path_component(row[VOAN_REQUIRED_COLUMNS['name']])}'
+            folder = get_full_path_to_heritage_on_disk('ВОАН', district_folder,
+                                                       clean_path_component(row[VOAN_REQUIRED_COLUMNS[
+                                                           'name']]))  # f'uploaded_files/Памятники/ВОАН/{district_folder}/{clean_path_component(row[VOAN_REQUIRED_COLUMNS['name']])}'
             logger.info(folder)
-            Path(folder).mkdir(parents=True, exist_ok=True)
+            folder_path = Path(folder)
+            folder_exists = folder_path.is_dir()
+            folder_path.mkdir(parents=True, exist_ok=True)
+            if not folder_exists:
+                with open(os.path.join(folder, "Файлы памятника не найдены.txt"), 'w',
+                          encoding='utf-8') as note_file:
+                    note_file.write(
+                        f"Исходные данные памятника:\n{row[OAN_REQUIRED_COLUMNS['place']]}\n{row[OAN_REQUIRED_COLUMNS['name']]}\n\nИспользованный путь:\n{folder}")
 
             '''
             folder_source = DocumentFile(
@@ -1246,42 +1286,151 @@ def _process_voan_row(row, orders_download):
             folder_source.save()
             '''
             identified_site.source = str(folder)
+        if not identified_site.document_source_dict:
+            # Скачиваем документы
             logger.info(f'identified_site.source = {identified_site.source}')
-
-            # Скачиваем документы
-            if orders_download:
-                external_orders_download(identified_site.document, folder, document_source)
-
-            # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
-            if not document_source:
-                # Передаем текст приказа из таблицы
-                create_note_file(folder, order_text)
-
-            save_document_source(identified_site.id, 'IdentifiedArchaeologicalHeritageSite', 'document',
-                                 document_source)
-            identified_site.document_source = document_source
-            identified_site.save()
-            connect_account_card_to_heritage(identified_site.name)
-        elif not identified_site.document_source_dict:
-            # Скачиваем документы
-            logger.info(f'existing_site.source = {identified_site.source}')
             if orders_download:
                 external_orders_download(identified_site.document, identified_site.source, document_source)
+            else:
+                local_orders_search(identified_site.source, document_source)
 
             # ДОБАВЛЯЕМ ПРОВЕРКУ: если документы не найдены, создаем файл примечания
-            if not document_source:
+            if orders_download and not document_source:
                 create_note_file(identified_site.source, order_text)
 
-            save_document_source(identified_site.id, 'IdentifiedArchaeologicalHeritageSite', 'document',
+            save_document_source(identified_site.id, heritage_type, 'document',
                                  document_source)
             identified_site.document_source = document_source
             identified_site.save()
-        return (identified_site.name, identified_site.address, identified_site.obj_info, identified_site.document)
+
+        if search_account_cards:
+            admin = get_admin()
+            account_cards_connection(identified_site.source, admin, identified_site.name, heritage_type,
+                                     identified_site.id)
+
+        return (identified_site.name, identified_site.document)
 
     except Exception as e:
         logger.error(f"Ошибка обработки строки ВОАН: {e}")
         logger.error(traceback.format_exc())
         return None
+
+
+def account_cards_connection(output_path: str, user, heritage_name: str, heritage_type: str, heritage_id: int) -> None:
+    account_cards_patterns = ['Паспорт *.pdf', 'УК *.pdf', 'УК *.doc', 'УК *.docx']
+    for ac_pattern in account_cards_patterns:
+        for file_path in Path(output_path).glob(f'{ac_pattern}', case_sensitive=False):  # rglob
+            file_path_str = str(file_path)
+            # Пропускаем временные и скрытые файлы
+            if file_path.name.startswith('~') or file_path.name.startswith('.'):
+                continue
+            has_duplicates, objects, _ = has_duplicates_in_db(file_path_str)
+            if has_duplicates:  # or len(ObjectAccountCard.objects.filter(name=heritage_name)) > 0
+                for obj in objects:
+                    if isinstance(obj.document, ObjectAccountCard) and (
+                            not obj.document.heritage_id or not obj.document.heritage_type):
+                        obj.document.heritage_id = heritage_id
+                        obj.document.heritage_type = heritage_type
+                        obj.document.save()
+                continue
+            account_card = ObjectAccountCard(
+                user=user,
+                is_public=True,
+                is_processing=False,
+                upload_source={'source': 'Пользовательский файл'},
+                name=heritage_name,
+                heritage_type=heritage_type,
+                heritage_id=heritage_id,
+            )
+            compile_date = re.search(r'\d{2}\.\d{2}\.\d{2,4}', file_path_str)
+            if compile_date:
+                account_card.compile_date = compile_date.group(0)
+
+            kml_path = KMLParser.find_kml_for_pdf(file_path_str, True, is_account_card=True)
+            if kml_path:
+                logger.info(f"📌 Найден KML файл: {kml_path}")
+
+                kml_coordinates = {}
+                try:
+                    if isinstance(kml_path, list):
+                        for path in kml_path:
+                            kml_coordinates.update(KMLParser.parse_kml_file(path))
+                    else:
+                        kml_coordinates = KMLParser.parse_kml_file(kml_path)
+                except Exception as e:
+                    logger.error(f"❌ Не удалось извлечь координаты из KML: {e}")
+
+                if kml_coordinates:
+                    account_card.coordinates = kml_coordinates
+
+            account_card.save()
+
+            new_entry = DocumentFile(
+                document_id=account_card.id,
+                document_type='ObjectAccountCard',
+                file_type='all',
+                path=file_path_str,
+                origin_filename=file_path_str.split('/')[-1],
+            )
+            new_entry.save()
+
+
+def local_orders_search(output_path: str, document_source: List) -> None:
+    patterns = ['приказ', 'решение', 'закон', 'постановление']
+    for pattern in patterns:
+        for file_path in Path(output_path).rglob(f'*{pattern}*', case_sensitive=False):
+            # Пропускаем временные и скрытые файлы
+            if file_path.name.startswith('~') or file_path.name.startswith('.'):
+                continue
+            document_source.append({'path': str(file_path)})
+
+
+def get_full_path_to_heritage_on_disk(heritage_type, district_folder, name_folder):
+    folder = f'uploaded_files/Памятники/{heritage_type}/'
+    logger.info(f'district_folder = {district_folder}')
+    found_exact = None
+    if not Path(folder + district_folder).is_dir():
+        found = [x.name for x in list(Path(folder).glob('*')) if x.is_dir()]
+        logger.info(f'found district_folder = {found}')
+        for threshold in [95, 90]:
+            found_exact = sorted([x for x in found if fuzz.ratio(x, district_folder) > threshold],
+                                 key=lambda x: fuzz.ratio(x, district_folder))
+            if len(found_exact) > 0:
+                logger.info(f'found_exact district_folder = {found_exact}')
+                district_folder = found_exact[0]
+                break
+    if not Path(folder + district_folder + '/' + name_folder).is_dir():
+        found = [x.name for x in list(Path(folder + district_folder).glob('*')) if x.is_dir()]
+        logger.info(f'found name_folder = {found}')
+        for threshold in [95, 90, 85]:
+            found_exact = sorted([x for x in found if ratio_with_digit_weight(x, name_folder) > threshold],
+                                 key=lambda x: ratio_with_digit_weight(x, name_folder))
+            if len(found_exact) > 0:
+                logger.info(f'found_exact name_folder = {found_exact}')
+                name_folder = found_exact[0]
+                break
+    nested_folders = Path(folder + district_folder + '/' + name_folder)
+    logger.info(f'nested_folders = {nested_folders}')
+    logger.info(f'nested_folders.is_dir() = {nested_folders.is_dir()}')
+    return folder + district_folder + '/' + name_folder
+
+
+def ratio_with_digit_weight(s1, s2, digit_weight=0.1):
+    # 1. Основное сравнение строк
+    base_score = fuzz.ratio(s1, s2)
+
+    # 2. Извлекаем цифровые последовательности
+    digits1 = re.findall(r'\d+', s1)
+    digits2 = re.findall(r'\d+', s2)
+    digit_score = 0
+    if digits1 and digits2:
+        # Сравниваем "строки цифр" (можно использовать и другие метрики)
+        digit_score = fuzz.ratio(''.join(digits1), ''.join(digits2))
+    elif not digits1 and not digits2:
+        digit_score = 1
+
+    # 3. Возвращаем взвешенный результат
+    return base_score * (1 - digit_weight) + digit_score * digit_weight
 
 
 def external_orders_download(query: str, output_path: str, document_source: List) -> None:

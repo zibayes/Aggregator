@@ -78,18 +78,9 @@ def api_interactive_map_coordinates(request):
 
 def get_report_name(report, report_type):
     """Вспомогательная функция для извлечения имени отчёта"""
-    if report_type in ('act', 'scientific_report', 'tech_report'):
-        if report.source_dict and len(report.source_dict) > 0:
-            return report.source_dict[0].origin_filename
-        else:
-            return getattr(report, 'origin_filename', 'Неизвестный файл')
-    elif report_type == 'account_card':
-        if report.source_dict and len(report.source_dict) > 0:
-            return report.source_dict[0].origin_filename
-        else:
-            return 'Учётная карта'
-    else:
-        return report.origin_filename
+    if report.source_dict and len(report.source_dict) > 0:
+        return report.source_dict[0].origin_filename
+    return report_type
 
 
 def interactive_map(request):
@@ -238,10 +229,16 @@ def map(request, report_type, pk):
             report_name = 'Учётная карта'
     elif report_type == 'commercial_offer':
         report = get_object_or_404(CommercialOffers, id=pk)
-        report_name = report.origin_filename
+        if report.source_dict and len(report.source_dict) > 0:
+            report_name = report.source_dict[0].origin_filename
+        else:
+            report_name = 'Коммерческое предложение'
     elif report_type == 'geo_object':
         report = get_object_or_404(GeoObject, id=pk)
-        report_name = report.origin_filename
+        if report.source_dict and len(report.source_dict) > 0:
+            report_name = report.source_dict[0].origin_filename
+        else:
+            report_name = 'Географический объект'
     else:
         if report_type == 'act':
             report = get_object_or_404(Act, id=pk)

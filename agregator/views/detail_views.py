@@ -85,8 +85,11 @@ def account_cards(request, pk):
 
     account_card.heritage_url = None
 
-    heritage = (IdentifiedArchaeologicalHeritageSite.objects.filter(account_card=account_card).first() or
-                ArchaeologicalHeritageSite.objects.filter(account_card=account_card).first())
+    heritage = None
+    if account_card.heritage_type == 'IdentifiedArchaeologicalHeritageSite':
+        heritage = IdentifiedArchaeologicalHeritageSite.objects.filter(id=account_card.heritage_id).first()
+    elif account_card.heritage_type == 'ArchaeologicalHeritageSite':
+        heritage = ArchaeologicalHeritageSite.objects.filter(id=account_card.heritage_id).first()
 
     if heritage:
         account_card.heritage_url = reverse(

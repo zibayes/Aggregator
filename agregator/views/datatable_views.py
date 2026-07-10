@@ -894,15 +894,19 @@ def account_cards_datatable(request):
 
 def format_commercial_offer_data(commercial_offer, config):
     """Форматирование данных для коммерческих предложений"""
-    origin_filename = commercial_offer.origin_filename or ''
-    source_path = commercial_offer.source
-    first_cell = f'<a href="/{source_path}">{origin_filename}</a>' if source_path else origin_filename
+    origin_filename = first_cell = ''
     source_cell = owner_cell = ''
     date_uploaded = localtime(commercial_offer.date_uploaded).strftime(
         '%Y-%m-%d %H:%M') if commercial_offer.date_uploaded else ''
     coordinates_cell = actions_cell = ''
 
     try:
+        if hasattr(commercial_offer, 'source_dict') and commercial_offer.source_dict:
+            for source in commercial_offer.source_dict:
+                if source.path:
+                    first_cell += f'<a href="/{source.path}" target="_blank">{source.origin_filename or "Документ"}</a><br>'
+                    origin_filename = source.origin_filename
+
         if hasattr(commercial_offer, 'upload_source_dict'):
             source_dict = commercial_offer.upload_source_dict
             source_cell = source_dict.get('source', '') if source_dict else ''
@@ -951,14 +955,18 @@ def format_commercial_offer_data(commercial_offer, config):
 
 def format_geo_object_data(geo_object, config):
     """Форматирование данных для географических объектов"""
-    origin_filename = geo_object.origin_filename or ''
-    source_path = geo_object.source
-    first_cell = f'<a href="/{source_path}">{origin_filename}</a>' if source_path else origin_filename
+    origin_filename = first_cell = ''
     source_cell = owner_cell = ''
     date_uploaded = localtime(geo_object.date_uploaded).strftime('%Y-%m-%d %H:%M') if geo_object.date_uploaded else ''
     coordinates_cell = actions_cell = ''
 
     try:
+        if hasattr(geo_object, 'source_dict') and geo_object.source_dict:
+            for source in geo_object.source_dict:
+                if source.path:
+                    first_cell += f'<a href="/{source.path}" target="_blank">{source.origin_filename or "Документ"}</a><br>'
+                    origin_filename = source.origin_filename
+
         if hasattr(geo_object, 'upload_source_dict'):
             source_dict = geo_object.upload_source_dict
             source_cell = source_dict.get('source', '') if source_dict else ''

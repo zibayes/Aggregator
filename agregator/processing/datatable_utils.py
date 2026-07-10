@@ -35,35 +35,37 @@ class DataTableServerSide:
 
     def get_parameters(self):
         """Извлекает параметры от DataTables из POST данных"""
-        if self.request.method == 'POST':
-            data = self.request.POST
-        else:
-            data = self.request.GET
+        draw = start = length = search_value = order_column_index = order_direction = column_search = custom_search = ''
+        try:
+            if self.request.method == 'POST':
+                data = self.request.POST
+            else:
+                data = self.request.GET
 
-        draw = int(data.get('draw', 1))
-        start = int(data.get('start', 0))
-        length = int(data.get('length', 25))
-        search_value = data.get('search[value]', '')
+            draw = int(data.get('draw', 1))
+            start = int(data.get('start', 0))
+            length = int(data.get('length', 25))
+            search_value = data.get('search[value]', '')
 
-        # Параметры сортировки
-        order_column_index = data.get('order[0][column]', '0')
-        order_direction = data.get('order[0][dir]', 'desc')  # asc
+            # Параметры сортировки
+            order_column_index = data.get('order[0][column]', '0')
+            order_direction = data.get('order[0][dir]', 'desc')  # asc
 
-        # Параметры поиска по колонкам
-        column_search = {}
-        for key, value in data.items():
-            if key.startswith('columns[') and key.endswith('][search][value]'):
-                col_index = key.split('[')[1].split(']')[0]
-                column_search[col_index] = value
+            # Параметры поиска по колонкам
+            column_search = {}
+            for key, value in data.items():
+                if key.startswith('columns[') and key.endswith('][search][value]'):
+                    col_index = key.split('[')[1].split(']')[0]
+                    column_search[col_index] = value
 
-        # Кастомные фильтры
-        custom_search = {}
-        custom_search_json = data.get('custom_search', '')
-        if custom_search_json:
-            try:
+            # Кастомные фильтры
+            custom_search = {}
+            custom_search_json = data.get('custom_search', '')
+            if custom_search_json:
                 custom_search = json.loads(custom_search_json)
-            except:
-                pass
+        except Exception as e:
+            logger.error(f"Get parameters error: {e}")
+            logger.error(traceback.format_exc())
 
         return {
             'draw': draw,
@@ -84,54 +86,63 @@ class DataTableServerSide:
         search_filters = Q()
         account_card_q = Q()
 
-        for column in self.columns_config:
-            if column.get('searchable', True):
-                field_name = column['field']
-                if 'origin_filename' in field_name:
-                    continue
-                if field_name.startswith('account_card__'):
-                    card_field = field_name.split('__', 1)[1]
-                    account_card_q |= Q(**{f"{card_field}__icontains": search_value})
-                else:
-                    search_filters |= Q(**{f"{field_name}__icontains": search_value})
+        try:
+            for column in self.columns_config:
+                if column.get('searchable', True):
+                    field_name = column['field']
+                    if 'origin_filename' in field_name:
+                        continue
+                    if field_name.startswith('account_card__'):
+                        card_field = field_name.split('__', 1)[1]
+                        account_card_q |= Q(**{f"{card_field}__icontains": search_value})
+                    else:
+                        search_filters |= Q(**{f"{field_name}__icontains": search_value})
 
-        file_condition = self.get_file_filter(search_value)
-        if file_condition:
-            search_filters |= file_condition
+            file_condition = self.get_file_filter(search_value)
+            if file_condition:
+                search_filters |= file_condition
 
-        if account_card_q:
-            doc_type = self.queryset.model.__name__
-            account_card_exists = Exists(
-                ObjectAccountCard.objects.filter(
-                    heritage_type=doc_type,
-                    heritage_id=OuterRef('id')
-                ).filter(account_card_q)
-            )
-            search_filters |= account_card_exists
+            if account_card_q:
+                doc_type = self.queryset.model.__name__
+                account_card_exists = Exists(
+                    ObjectAccountCard.objects.filter(
+                        heritage_type=doc_type,
+                        heritage_id=OuterRef('id')
+                    ).filter(account_card_q)
+                )
+                search_filters |= account_card_exists
 
-        if search_filters:
-            return queryset.filter(search_filters)
+            if search_filters:
+                return queryset.filter(search_filters)
+        except Exception as e:
+            logger.error(f"Global search error: {e}")
+            logger.error(traceback.format_exc())
 
         return queryset
 
     def apply_column_search(self, queryset, column_search):
         """Применяет поиск по конкретным колонкам"""
-        for col_index, search_value in column_search.items():
-            if search_value and col_index.isdigit():
-                col_index = int(col_index)
-                if col_index < len(self.columns_config):
-                    column_config = self.columns_config[col_index]
-                    if column_config.get('searchable', True) and search_value:
-                        field_name = column_config['field']
-                        if field_name == 'origin_filename':
-                            file_condition = self.get_file_filter(search_value)
-                            if file_condition:
-                                queryset = queryset.filter(file_condition).distinct()
-                        elif field_name == 'upload_source' and queryset.model.__name__ in ('ArchaeologicalHeritageSite',
-                                                                                           'IdentifiedArchaeologicalHeritageSite'):
-                            queryset = queryset.filter(**{f"account_card__{field_name}__icontains": search_value})
-                        else:
-                            queryset = queryset.filter(**{f"{field_name}__icontains": search_value})
+        try:
+            for col_index, search_value in column_search.items():
+                if search_value and col_index.isdigit():
+                    col_index = int(col_index)
+                    if col_index < len(self.columns_config):
+                        column_config = self.columns_config[col_index]
+                        if column_config.get('searchable', True) and search_value:
+                            field_name = column_config['field']
+                            if field_name == 'origin_filename':
+                                file_condition = self.get_file_filter(search_value)
+                                if file_condition:
+                                    queryset = queryset.filter(file_condition).distinct()
+                            elif field_name == 'upload_source' and queryset.model.__name__ in (
+                                    'ArchaeologicalHeritageSite',
+                                    'IdentifiedArchaeologicalHeritageSite'):
+                                queryset = queryset.filter(**{f"account_card__{field_name}__icontains": search_value})
+                            else:
+                                queryset = queryset.filter(**{f"{field_name}__icontains": search_value})
+        except Exception as e:
+            logger.error(f"Column search error: {e}")
+            logger.error(traceback.format_exc())
         return queryset
 
     def apply_custom_search(self, queryset, custom_search):

@@ -157,7 +157,7 @@ def discover_files(base_directory, extensions=None, limit=None):
         logger.error(f"Директория не существует: {base_directory}")
         return file_list
 
-    exclude_words = ['приказ', 'решение']
+    exclude_words = ['приказ', 'решение', 'закон', 'постановление']
 
     for extension in extensions:
         pattern = f"*{extension}"
@@ -383,16 +383,9 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000, use_cache=Tr
     # Сканируем файлы
     files = discover_files(directory, config['extensions'], limit=limit)
     logger.info(f"Найдено файлов: {len(files)}")
-
-    # Загружаем ВСЕ данные из БД - и пути, и хеши
-    existing_data = _preload_existing_data(config['model'])
-    existing_paths = existing_data['paths']
-    existing_hashes = existing_data['hashes']
-
     result_files = []
     existing_files = []
 
-    logger.debug(f'existing_paths: {existing_paths}')
     for file_info in files:
         file_info['path'] = file_info['path'].replace('/app/uploaded_files/', 'uploaded_files/')
         file_path = file_info['path']
@@ -401,13 +394,13 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000, use_cache=Tr
         logger.debug(f'abs_path: {abs_path}')
 
         # Простая проверка - есть ли такой путь в БД
-        exists_in_db = abs_path in existing_paths or file_path in existing_paths
+        exists_in_db, _, file_hash = has_duplicates_in_db(file_path)
 
         if exists_in_db:
             existing_files.append({
                 **file_info,
                 'exists_in_db': exists_in_db,
-                'file_hash': None,  # Хеш не вычисляем
+                'file_hash': file_hash,
                 'can_process': not exists_in_db,
                 'needs_organization': None,
                 'was_organized': False,
@@ -417,7 +410,7 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000, use_cache=Tr
             result_files.append({
                 **file_info,
                 'exists_in_db': exists_in_db,
-                'file_hash': None,  # Хеш не вычисляем
+                'file_hash': file_hash,
                 'can_process': not exists_in_db,
                 'needs_organization': None,
                 'was_organized': False,
@@ -440,10 +433,10 @@ def scan_and_prepare_batch(directory, file_type, user, limit=10000, use_cache=Tr
 
 def _preload_existing_data(model_class):
     """Загружаем все данные из БД - пути и хеши"""
-    records = model_class.objects.exclude(source__isnull=True).only('source')
     existing_paths = set()
     existing_hashes = set()
 
+    records = model_class.objects.exclude(source__isnull=True).only('source')
     for record in records.iterator(chunk_size=1000):
         if record.source:
             try:

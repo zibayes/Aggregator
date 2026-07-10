@@ -1,6 +1,7 @@
 # kml_parser.py
 import json
 import os
+import re
 import xml.etree.ElementTree as ET
 import zipfile
 from pathlib import Path
@@ -86,7 +87,7 @@ class KMLProcessor:
     def _process_element(self, element, folder_path: List[str], result: Dict[str, Any]):
         """Рекурсивно обрабатывает элементы KML"""
         tag = self._get_tag_without_namespace(element.tag)
-        logger.info(f'TAG PROCESSING KML: {tag}')
+        # logger.info(f'TAG PROCESSING KML: {tag}')
 
         if tag == 'Folder' or tag == 'Document':
             folder_name_elem = self._find_element(element, 'name')
@@ -342,7 +343,8 @@ class KMLParser:
         return coordinates
 
     @staticmethod
-    def find_kml_for_pdf(pdf_path: str, multiple_files: bool = False) -> Union[Optional[str], Optional[List[str]]]:
+    def find_kml_for_pdf(pdf_path: str, multiple_files: bool = False, is_account_card: bool = False) -> Union[
+        Optional[str], Optional[List[str]]]:
         """
         Находит KML/KMZ файл(ы) для PDF файла.
 
@@ -371,6 +373,23 @@ class KMLParser:
         ]
 
         found_files = set()
+
+        if is_account_card:
+            compile_date = re.search(r'\d{2}\.\d{2}\.\d{2,4}', str(pdf_path))
+            if compile_date:
+                compile_date = compile_date.group(0)
+            coordinates_patterns = ['Полигон', 'Центр']
+            for cp_pattern in coordinates_patterns:
+                files = list(Path(pdf_dir).rglob(f'{cp_pattern} *.km?', case_sensitive=False))
+                for file_path in files:
+                    if not multiple_files:
+                        return str(file_path)
+                    if len(files) == 1:
+                        found_files.add(str(file_path))
+                    else:
+                        if compile_date and re.search(compile_date, str(file_path)):
+                            found_files.add(str(file_path))
+            return list(found_files) if found_files else None
 
         # Вспомогательная функция для проверки и добавления
         def add_if_exists(path: Path):

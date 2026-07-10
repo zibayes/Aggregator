@@ -11,7 +11,7 @@ from tkinter import filedialog
 import torch
 import torchvision
 from torchvision import transforms as T
-from fuzzywuzzy import fuzz
+from rapidfuzz import fuzz
 
 import cv2
 import fitz
@@ -1166,7 +1166,7 @@ def extract_text_tables_and_images(file, progress_recorder, pages_count, total_p
         logger.error(f"ACCOUNT CARDS FATAL ERROR")
         logger.error(traceback.format_exc())
 
-    kml_path = KMLParser.find_kml_for_pdf(file, True)
+    kml_path = KMLParser.find_kml_for_pdf(file, True, is_account_card=True)
     if kml_path:
         logger.info(f"📌 Найден KML файл: {kml_path}")
 

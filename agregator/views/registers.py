@@ -26,6 +26,7 @@ from agregator.models import Act, OpenLists, ScientificReport, TechReport, Archa
 from agregator.processing.external_sources import process_oan_list, process_voan_list
 from agregator.processing.geo_utils import convert_to_wgs84
 from agregator.views import get_register_view, create_model_dataframe, generate_excel_report, get_scan_task
+from agregator.views.utils import get_heritage_list_path
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ def acts_register_download(request):
         'K': 26,
         'L': 27.29
     }
-    generate_excel_report(df_existing, table_path, column_widths)
+    generate_excel_report(df_existing, table_path, column_widths, is_acts_register=True)
     return redirect('/' + table_path)
 
 
@@ -201,8 +202,10 @@ def archaeological_heritage_sites_register(request):
     is_processing, scan_task_id, active_scan_task = get_scan_task(
         'agregator.processing.external_sources.process_oan_list')
     orders_download = True if 'ordersDownload' in request.POST else False
+    use_local_register = True if 'useLocalRegister' in request.POST else False
+    account_cards_connection = True if 'accountCardsConnection' in request.POST else False
     if request.method == 'POST' and scan_task_id is None:
-        scan_task = process_oan_list.delay(orders_download)
+        scan_task = process_oan_list.delay(orders_download, use_local_register, account_cards_connection)
         scan_task_id = scan_task.id
         is_processing = True
     return render(request, 'archaeological_heritage_site_register.html',
@@ -214,8 +217,10 @@ def identified_archaeological_heritage_sites_register(request):
     is_processing, scan_task_id, active_scan_task = get_scan_task(
         'agregator.processing.external_sources.process_voan_list')
     orders_download = True if 'ordersDownload' in request.POST else False
+    use_local_register = True if 'useLocalRegister' in request.POST else False
+    account_cards_connection = True if 'accountCardsConnection' in request.POST else False
     if request.method == 'POST' and scan_task_id is None:
-        scan_task = process_voan_list.delay(orders_download)
+        scan_task = process_voan_list.delay(orders_download, use_local_register, account_cards_connection)
         scan_task_id = scan_task.id
         is_processing = True
 
@@ -422,24 +427,14 @@ def geo_objects_register(request):
 
 
 def archaeological_heritage_sites_download(request):
-    current_lists = 'uploaded_files/Памятники/current_lists.txt'
-    link = None
-    with open(current_lists, 'r', encoding='utf-8') as file:
-        for line in file.readlines():
-            if 'list_oan - ' in line:
-                link = line.replace('list_oan - ', '').strip()
+    link = get_heritage_list_path('oan')
     if link is None:
         return redirect(request.META.get('HTTP_REFERER', '/'))
     return redirect('/' + quote(link))
 
 
 def identified_archaeological_heritage_sites_download(request):
-    current_lists = 'uploaded_files/Памятники/current_lists.txt'
-    link = None
-    with open(current_lists, 'r', encoding='utf-8') as file:
-        for line in file.readlines():
-            if 'list_voan - ' in line:
-                link = line.replace('list_voan - ', '').strip()
+    link = get_heritage_list_path('voan')
     if link is None:
         return redirect(request.META.get('HTTP_REFERER', '/'))
     return redirect('/' + quote(link))

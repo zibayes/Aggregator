@@ -36,7 +36,7 @@ class UserTasksAdmin(admin.ModelAdmin):
 
 @admin.register(DocumentFile)
 class DocumentFileAdmin(admin.ModelAdmin):
-    list_display = ('id', 'path', 'file_type', 'file_hash', 'date_uploaded')
+    list_display = ('id', 'path', 'document_type', 'document_id', 'file_type', 'file_hash', 'date_uploaded')
     search_fields = ('path', 'file_type', 'file_hash')
 
 

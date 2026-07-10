@@ -205,6 +205,62 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="registerUpdateModal" tabindex="-1" aria-labelledby="registerUpdateModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="registerUpdateModalLabel">Обновление перечня</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="/identified_archaeological_heritage_sites_register/">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="useLocalRegister" name="useLocalRegister">
+                        <label class="form-check-label" for="useLocalRegister">
+                            Использовать локальный перечень памятников
+                            <div class="tooltipcustom">
+                                <span>ℹ️</span>
+                                <span class="tooltiptext" style="width: 450px;">
+                                        Если поставить галочку, то перечень не будет скачиваться с сайта ООКН, а будет использоваться его последняя локальная копия на сервере
+                                    </span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="ordersDownload" name="ordersDownload"
+                               checked>
+                        <label class="form-check-label" for="ordersDownload">
+                            Загружать файлы приказов
+                            <div class="tooltipcustom">
+                                <span>ℹ️</span>
+                                <span class="tooltiptext" style="width: 450px;">
+                                        Если поставить галочку, то в папку каждого памятника будет скачиваться с сайта ООКН файл приказа о его постановлении на охрану. Без загрузки приказов обновление перечня будет происходить быстрее.
+                                    </span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="form-check mt-3">
+                        <input class="form-check-input" type="checkbox" id="accountCardsConnection"
+                               name="accountCardsConnection"
+                               checked>
+                        <label class="form-check-label" for="accountCardsConnection">
+                            Соотносить памятники с учётными картами
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Обновить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block storage_switch %}
@@ -212,18 +268,14 @@
 {% endblock %}
 
 {% block table_controls %}
-<form method="post" action="/identified_archaeological_heritage_sites_register/">
-    {% csrf_token %}
-    <div class="container mt-1">
-        <div class="controls" style="display: flex; justify-content: flex-end; width: 100%;">
-            <label style="margin-right:10px;"><input type="checkbox" name="ordersDownload" checked>
-                Загружать файлы приказов</label>
-            <button class="btn btn-primary lang" type="submit" style="border-radius: 12px; margin-right:10px;"
-            >Обновить перечень
-            </button>
-        </div>
+<div class="container mt-1">
+    <div class="controls" style="display: flex; justify-content: flex-end; width: 100%;">
+        <button class="btn btn-primary lang" type="button" style="border-radius: 12px; margin-right:10px;"
+                data-bs-target="#registerUpdateModal" data-bs-toggle="modal"
+        >Обновить перечень
+        </button>
     </div>
-</form>
+</div>
 {% endblock %}
 
 {% block external_scan_progress_bar %}

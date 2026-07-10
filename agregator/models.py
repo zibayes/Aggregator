@@ -168,6 +168,7 @@ class DocumentFile(models.Model):
     )
     document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES)
     document_id = models.PositiveIntegerField()
+    document_instance = None
 
     file_type = models.CharField(max_length=50, null=True, blank=True)  # main, supplement, map, etc.
     path = models.TextField()
@@ -186,6 +187,13 @@ class DocumentFile(models.Model):
             self.file_hash = calculate_file_hash(self.path)
             self.file_size = get_file_size(self.path)
         super().save(*args, **kwargs)
+
+    @property
+    def document(self):
+        if self.document_instance is None:
+            model = apps.get_model('agregator', self.document_type)
+            self.document_instance = model.objects.filter(id=self.document_id).first()
+        return self.document_instance
 
     class Meta:
         verbose_name = "Исходный файл"
@@ -548,6 +556,7 @@ class ObjectAccountCard(models.Model):
 
 class ArchaeologicalHeritageSite(models.Model):
     account_card_instance = None
+    account_cards_instances = None
     date_uploaded = models.DateTimeField(auto_now_add=True)
     doc_name = models.TextField(null=True, blank=True)
     district = models.TextField(null=True, blank=True)
@@ -591,12 +600,21 @@ class ArchaeologicalHeritageSite(models.Model):
         if not self.account_card_instance:
             self.account_card_instance = ObjectAccountCard.objects.filter(heritage_type='ArchaeologicalHeritageSite',
                                                                           heritage_id=self.id).order_by(
-                '-creation_time').first()
+                '-compile_date').first()
         return self.account_card_instance
+
+    @property
+    def all_account_cards(self):
+        if not self.account_cards_instances:
+            self.account_cards_instances = ObjectAccountCard.objects.filter(heritage_type='ArchaeologicalHeritageSite',
+                                                                            heritage_id=self.id).order_by(
+                '-compile_date')
+        return self.account_cards_instances
 
 
 class IdentifiedArchaeologicalHeritageSite(models.Model):
     account_card_instance = None
+    account_cards_instances = None
     date_uploaded = models.DateTimeField(auto_now_add=True)
     name = models.TextField(null=True, blank=True)
     address = models.TextField(null=True, blank=True)
@@ -640,8 +658,16 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
         if not self.account_card_instance:
             self.account_card_instance = ObjectAccountCard.objects.filter(
                 heritage_type='IdentifiedArchaeologicalHeritageSite',
-                heritage_id=self.id).order_by('-creation_time').first()
+                heritage_id=self.id).order_by('-compile_date').first()
         return self.account_card_instance
+
+    @property
+    def all_account_cards(self):
+        if not self.account_cards_instances:
+            self.account_cards_instances = ObjectAccountCard.objects.filter(
+                heritage_type='IdentifiedArchaeologicalHeritageSite',
+                heritage_id=self.id).order_by('-compile_date')
+        return self.account_cards_instances
 
 
 class CommercialOffers(models.Model):
@@ -679,7 +705,7 @@ class CommercialOffers(models.Model):
     @property
     def source_dict(self):
         if self.source_files is None:
-            self.source_files = DocumentFile.objects.filter(document_type='Act', document_id=self.id)
+            self.source_files = DocumentFile.objects.filter(document_type='CommercialOffers', document_id=self.id)
         return self.source_files
 
     @property
@@ -728,7 +754,7 @@ class GeoObject(models.Model):
     @property
     def source_dict(self):
         if self.source_files is None:
-            self.source_files = DocumentFile.objects.filter(document_type='Act', document_id=self.id)
+            self.source_files = DocumentFile.objects.filter(document_type='GeoObject', document_id=self.id)
         return self.source_files
 
     @property

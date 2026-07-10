@@ -56,11 +56,12 @@ def auto_delete_links(sender, instance, **kwargs):
             source_path = None
             if hasattr(instance, 'source_dict') and instance.source_dict:
                 source_path = instance.source_dict[0].path
+                link_dir = os.path.dirname(source_path)
             elif hasattr(instance, 'source') and instance.source:
                 source_path = instance.source
+                link_dir = source_path
 
             if source_path:
-                link_dir = os.path.dirname(source_path)
                 link_path = os.path.join(link_dir, f"{class_name}_{instance.id}.url")
                 if os.path.exists(link_path):
                     os.remove(link_path)

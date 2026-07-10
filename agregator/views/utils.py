@@ -5,6 +5,7 @@ import logging
 from agregator.redis_config import redis_client
 from agregator.models import UserTasks
 from agregator.processing.error_handler import error_handler
+from archeology.settings import HERITAGES_LISTS_PATH
 from django_celery_results.models import TaskResult
 from django.shortcuts import render
 import pandas as pd
@@ -55,7 +56,14 @@ def get_register_view(request, model, entity_name, public_only_fields=None, priv
     return render(request, template_name, {entity_name: items})
 
 
-def generate_excel_report(dataframe, file_path, column_widths=None, height_title=50, height_cell=80):
+def generate_excel_report(dataframe, file_path, column_widths=None, height_title=50, height_cell=80,
+                          is_acts_register=False):
+    if is_acts_register:
+        col_name = dataframe.columns[1]
+        dataframe[col_name] = pd.to_datetime(dataframe[col_name], format='%d.%m.%Y', errors='coerce')
+        dataframe = dataframe.sort_values(by=col_name, ascending=False)
+        dataframe[col_name] = dataframe[col_name].dt.strftime('%d.%m.%Y')
+
     with pd.ExcelWriter(file_path) as writer:
         dataframe.to_excel(writer, sheet_name="Sheet1", index=False)
 
@@ -69,6 +77,20 @@ def generate_excel_report(dataframe, file_path, column_widths=None, height_title
 
     # Применение стилей
     font = Font(name='Times New Roman', size=11, bold=False, italic=False)
+    alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+
+    # Проходим по всем ячейкам с данными
+    for row in ws.iter_rows(min_row=1, max_row=ws.max_row, min_col=1, max_col=ws.max_column):
+        for cell in row:
+            if cell.value is not None:
+                cell.font = font
+                cell.alignment = alignment
+
+    # Высота строк
+    for i in range(1, ws.max_row + 1):
+        ws.row_dimensions[i].height = height_title if i == 1 else height_cell
+
+    '''
     {k: setattr(DEFAULT_FONT, k, v) for k, v in font.__dict__.items()}
 
     for i in range(1, len(dataframe.values) + 2):
@@ -76,6 +98,7 @@ def generate_excel_report(dataframe, file_path, column_widths=None, height_title
         for cell in ws[i]:
             if cell.value:
                 cell.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    '''
 
     wb.save(file_path)
     return file_path
@@ -146,3 +169,12 @@ def get_user_tasks(user_id, file_types, upload_source=False):
     user_tasks = list(TaskResult.objects.filter(task_id__in=user_tasks).order_by('-date_created'))
     tasks_id = [x.task_id for x in user_tasks]
     return tasks_id
+
+
+def get_heritage_list_path(heritage_type):
+    link = None
+    with open(HERITAGES_LISTS_PATH, 'r', encoding='utf-8') as file:
+        for line in file.readlines():
+            if f'list_{heritage_type} - ' in line:
+                link = line.replace(f'list_{heritage_type} - ', '').strip()
+    return link

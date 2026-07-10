@@ -125,7 +125,7 @@ def extract_coordinates(file, progress_recorder, pages_count, total_processed,
     check_duplicates(is_reprocess, file, progress_json['file_groups'][str(geo_object_id)]['origin_filename'],
                      current_geo_object, delete_current=True)
 
-    pages_processed = total_processed[0] + pages_count.get(current_geo_object.source, 0)
+    pages_processed = total_processed[0] + pages_count.get(current_geo_object.source_dict[0].path, 0)
     progress_json['expected_time'] = get_expected_time(time_on_start, pages_processed, pages_count)
     progress_update(progress_recorder, task_id, progress_json,
                     CONVERTATION_PART + PROCESSING_PART * (pages_processed / sum(pages_count.values())),
