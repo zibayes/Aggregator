@@ -24,6 +24,8 @@ def delete_instances_on_task_revoke(task_id, raw_delete=False):
     progress_json = get_progress_json(task_id)
     if progress_json is None:
         return None
+    if 'is_reprocess' in progress_json and raw_delete is False:
+        raw_delete = progress_json['is_reprocess']
 
     model = progress_json['file_types']
     is_report = 'report' in model or 'act' in model

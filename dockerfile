@@ -5,6 +5,7 @@ FROM python:3.12 as system-deps
 
 RUN echo "deb http://deb.debian.org/debian bookworm main contrib non-free non-free-firmware" > /etc/apt/sources.list && \
     echo "deb http://deb.debian.org/debian-security bookworm-security main contrib non-free non-free-firmware" >> /etc/apt/sources.list && \
+	echo "deb http://deb.debian.org/debian bookworm main contrib non-free" > /etc/apt/sources.list && \
     echo "deb http://deb.debian.org/debian bookworm-updates main contrib non-free non-free-firmware" >> /etc/apt/sources.list
 
 # Устанавливаем альтернативные репозитории для Debian
@@ -17,7 +18,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
         netcat-openbsd \
         p7zip-full \
         p7zip-rar \
-        unrar-free \
+        # unrar-free \
 		unrar \
         build-essential \
         wget \

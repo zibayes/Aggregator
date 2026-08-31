@@ -4,6 +4,8 @@ import traceback
 
 import fitz  # PyMuPDF
 import ocrmypdf
+import pypdfium2 as pdfium
+import img2pdf
 import logging
 
 import queue
@@ -15,7 +17,7 @@ logger = logging.getLogger(__name__)
 PLUGIN_PATH = 'agregator/processing/ocrmypdf_progress_plugin.py'
 
 
-def detect_rasterization_pdf(document, text_threshold=10, rasterization_threshold=0.8, pages_to_check=10):
+def detect_rasterization_pdf(document, text_threshold=10, rasterization_threshold=0.7, pages_to_check=10):
     """Функция распознавания растеризированных документов"""
     result = []
     len_test = min(len(document), pages_to_check)
@@ -76,24 +78,39 @@ def add_pdf_text_layer_ocr(input_path: str, output_path: str, progress_recorder_
                 state["done"] = True
 
     def run_ocr():
-        try:
-            ocrmypdf.ocr(
-                input_path,
-                output_path,
-                language="rus",
-                deskew=True,
-                force_ocr=True,
-                optimize=0,
-                plugins=PLUGIN_PATH,
-                invalidate_digital_signatures=True
-            )
-        except Exception as e:
-            with state_lock:
-                state["error"] = e
-        finally:
-            with state_lock:
-                state["done"] = True
-            q.put(None)
+        max_retries = 3
+        attempt = 0
+
+        while attempt < max_retries:
+            try:
+                ocrmypdf.ocr(
+                    input_path,
+                    output_path,
+                    language="rus",
+                    deskew=True,
+                    force_ocr=True,
+                    optimize=0,
+                    plugins=PLUGIN_PATH,
+                    invalidate_digital_signatures=True,
+                    continue_on_soft_render_error=True,
+                    output_type="pdf"
+                )
+                attempt += 3
+            except ocrmypdf.exceptions.SubprocessOutputError as e:
+                fix_pdf(input_path, input_path)
+                attempt += 1
+                if attempt >= max_retries:
+                    with state_lock:
+                        state["error"] = e
+                    raise e
+                continue
+            except Exception as e:
+                attempt += 1
+                with state_lock:
+                    state["error"] = e
+        with state_lock:
+            state["done"] = True
+        q.put(None)
 
     consumer_thread = threading.Thread(target=consumer, daemon=True)
     ocr_thread = threading.Thread(target=run_ocr, daemon=True)
@@ -152,9 +169,43 @@ def is_likely_mojibake(text, threshold=0.5):
     return ratio > threshold
 
 
-def report_rasterization_check_and_process(file_path, progress_recorder, pages_to_check=8):
+def report_rasterization_check_and_process(file_path, progress_recorder, file_type, pages_to_check=8):
     document = fitz.open(file_path)
-    if file_path.endswith('.pdf') and type != 'images' and (
+    if file_path.endswith('.pdf') and file_type != 'images' and (
             detect_rasterization_pdf(document, pages_to_check) or is_likely_mojibake(
         ''.join([page.get_text() for page in document[:pages_to_check]]))):
         add_pdf_text_layer_ocr(file_path, file_path, progress_recorder)
+
+
+def fix_pdf(input_path: str, output_path: str, dpi: int = 200) -> None:
+    """
+    Конвертирует PDF в изображения и обратно в PDF,
+    удаляя все проблемные объекты (формы, шрифты, битую структуру).
+    """
+    # Рендерим страницы
+    pdf = pdfium.PdfDocument(input_path)
+    images = []
+
+    for i in range(len(pdf)):
+        page = pdf[i]
+        bitmap = page.render(
+            scale=dpi / 72,  # 72 dpi = 1x, scale считаем от 72
+            rotation=0,
+            fill_color=(255, 255, 255, 255),
+            no_smoothtext=False,
+            no_smoothpath=False,
+            no_smoothimage=False,
+        )
+        pil_image = bitmap.to_pil()
+        # Сохраняем во временный байтовый буфер
+        import io
+        buf = io.BytesIO()
+        pil_image.save(buf, format="PNG")
+        images.append(buf.getvalue())
+        buf.close()
+
+    pdf.close()
+
+    # Собираем изображения в PDF
+    with open(output_path, "wb") as f:
+        f.write(img2pdf.convert(images))

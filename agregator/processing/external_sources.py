@@ -621,14 +621,15 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
                     logger.error(traceback.format_exc())
                     for info in task_state.data['files_info']:
                         if info.get('filename') == original_filename:
-                            info.update({'status': 'ошибка', 'reason': f'Ошибка скачивания: {str(e)}'})
+                            info.update({'status': 'ошибка', 'reason': f'Ошибка разархивирования: {str(e)}'})
                     continue
 
             files_to_save = []
             file_groups = {}
             if archive_files:
                 file_groups['fully'] = []
-                types_convert = {'текст': 'text', 'приложение': 'images', 'иллюстрации': 'images'}
+                types_convert = {'текст': 'text', 'приложение': 'images', 'иллюстрации': 'images', 'прил.': 'images',
+                                 'альбом': 'images', 'илл.': 'images'}
                 for file in archive_files:
                     filename = file.lower()
                     report_type = 'all'
@@ -673,8 +674,9 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
 
 
 def is_act_file(filename: str) -> bool:
-    if (not (re.search(r'проверк[\s\S]+подп\S+', filename) or re.search(r'электр\S+\s*подп\S+',
-                                                                        filename))) and not (
+    if (not (re.search(r'проверк[\s\S]+[подп]?\S+', filename, re.IGNORECASE) or re.search(r'электр\S+\s*подп\S+',
+                                                                                          filename,
+                                                                                          re.IGNORECASE))) and not (
             'протокол' in filename or 'report' in filename):
         return True
     return False

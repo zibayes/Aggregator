@@ -77,6 +77,7 @@ def process_documents(
     progress_recorder.set_progress(0, ALL_PARTS, progress_json)
 
     progress_json['status'] = 'convertation'
+    progress_json['is_reprocess'] = is_reprocess
 
     # Загрузка документов
     if document_type in ['scientific_reports', 'acts', 'tech_reports']:

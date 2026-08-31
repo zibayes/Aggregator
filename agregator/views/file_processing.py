@@ -66,7 +66,8 @@ def deconstructor(request):
                         is_public = False
                 else:
                     return render(request, 'deconstructor.html', {'form': form, 'tasks_id': tasks_id})
-                types_convert = {'текст': 'text', 'приложение': 'images', 'иллюстрации': 'images'}
+                types_convert = {'текст': 'text', 'приложение': 'images', 'иллюстрации': 'images', 'прил.': 'images',
+                                 'альбом': 'images', 'илл.': 'images'}
                 if upload_type == 'fully':
                     file_groups['fully'] = []
                     for file in uploaded_files:
@@ -234,18 +235,18 @@ def external_sources(request):
                     file_age = time() - file_mtime
 
                     # ЕСЛИ ФАЙЛ СВЕЖИЙ (МЕНЕЕ 1 ЧАСА), ТО ПОКАЗЫВАЕМ ЕГО
-                    if file_age < 3600:  # 3600 секунд = 1 час
-                        if report_file == 'download_report.html':
-                            download_report = True
-                        elif report_file == 'final_report.html':
-                            final_report = True
-                        elif report_file == 'interrupted_report.html':
-                            interrupted_report = True
-                        elif report_file == 'intermediate_report.html':
-                            intermediate_report = True
-                        logger.info(f"📄 Актуальный отчет найден: {report_file}, возраст: {file_age:.0f} сек")
-                    else:
-                        logger.info(f"🗑️ Устаревший отчет (возраст {file_age:.0f} сек): {report_file}")
+                    # if file_age < 3600:  # 3600 секунд = 1 час
+                    if report_file == 'download_report.html':
+                        download_report = True
+                    elif report_file == 'final_report.html':
+                        final_report = True
+                    elif report_file == 'interrupted_report.html':
+                        interrupted_report = True
+                    elif report_file == 'intermediate_report.html':
+                        intermediate_report = True
+                    logger.info(f"📄 Актуальный отчет найден: {report_file}, возраст: {file_age:.0f} сек")
+                    # else:
+                    #    logger.info(f"🗑️ Устаревший отчет (возраст {file_age:.0f} сек): {report_file}")
                 except (OSError, FileNotFoundError) as e:
                     logger.warning(f"⚠️ Не удалось получить время модификации файла {report_path}: {e}")
                     # Если не удалось получить время, всё равно показываем файл

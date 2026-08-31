@@ -404,7 +404,8 @@ def load_raw_reports(reports_ids, report_type, progress_recorder, progress_json,
                     pages_count[source.path] = len(pdf_doc)
                 try:
                     report_rasterization_check_and_process(path, (progress_recorder, task_id, progress_json,
-                                                                  processed / total * CONVERTATION_PART, ALL_PARTS))
+                                                                  processed / total * CONVERTATION_PART, ALL_PARTS),
+                                                           source.file_type)
                 except Exception as e:
                     logger.error(f'Ошибка OCR: {e}')
                     logger.error(traceback.format_exc())

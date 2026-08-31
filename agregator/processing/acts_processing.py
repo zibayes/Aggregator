@@ -21,7 +21,7 @@ from agregator.processing.files_saving import load_raw_reports
 from agregator.processing.hash_utils import check_duplicates
 from agregator.processing.images_extraction import extract_images_with_captions, insert_supplement_links, \
     SUPPLEMENT_CONTENT
-from agregator.models import Act
+from agregator.models import Act, DocumentFile
 from agregator.redis_config import get_progress_json, create_progress_json
 from agregator.celery_task_template import process_documents, progress_update, get_expected_time, CONVERTATION_PART, \
     PROCESSING_PART, ALL_PARTS
@@ -151,11 +151,13 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     # Разделы
     SECTIONS = OrderedDict([
         ('act', r'А\s*к\s*т'),
-        ('start_date', r'(?<!\d)(\d\.\s*)?Дата\s*начала\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
+        ('start_date', r'(?<!\d)(\d\.\s*)?(Дата)?\s*начал[ао]\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
         # (?<!\d)(\d\.\s*)?Дата\s*начала\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*
-        ('end_date', r'(?<!\d)(\d\.\s*)?(?<!начала и )Дата\s*окончания\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
+        ('end_date',
+         r'(?<!\d)(\d\.\s*)?(?<!начала и )(Дата)?\s*окончани[яе]\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
         ('place', r'(?<!\d)(\d\.\s*)?Место\s*проведения\s*(экспертизы)?[\s:\-–-]*'),
-        ('customer', r'(\d\.\s*)?(Заказчик\s*экспертизы|Сведения\s*о\s*заказчике\s*экспертизы)[\s:\-–-]*'),
+        ('customer',
+         r'(\d\.\s*)?(Заказчик[\S\s]{0,20}экспертизы|Сведения\s*о\s*заказчике[\S\s]{0,20}экспертизы)[\s:\-–-]*'),
         ('expert', r'(\d\.\s*)?(Сведения\s*об)?\s*эксперт[еах]+[\s:\-–-]*'),
         ('relation', r'(\d\.\s*)?Отношени[яе]+\s*.*\s*к?\s*заказчик[у]?'),
         ('purpose', r'(\d\.\s*)?Цель\s*экспертизы[\s:\-–-]*'),
@@ -277,6 +279,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                             extract_customer(broken_structure, SECTION_PATTERN_MAP['expert'], table_info, text,
                                              text_to_write)
                         elif current_section_name == 'expert':
+                            if match and re.search(r'Сведения\s*об\s*экспертах', match.group(0), re.IGNORECASE):
+                                several_experts = True
                             several_experts, full_name, broken_structure = extract_expert(text_to_write,
                                                                                           several_experts, full_name,
                                                                                           table_info, document,
@@ -389,32 +393,69 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     try:
         logger.info("--- Заполнение БД / Время выполнения: %s секунд ---" % round((time.time() - start_time), 2))
         if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('text', 'all'):
-            current_act.year = df_new['ГОД'][0]
-            current_act.finish_date = df_new['Дата окончания проведения ГИКЭ'][0]
-            current_act.type = df_new['Вид ГИКЭ'][0]
-            current_act.name_number = df_new['Номер (если имеется) и наименование Акта ГИКЭ'][0]
-            current_act.place = df_new['Место проведения экспертизы'][0]
-            current_act.customer = df_new['Заказчик работ (*если не указан, то заказчик экспертизы)'][0]
-            current_act.area = df_new['Площадь, протяжённость и/или др. параменты объекта'][0]
-            current_act.expert = df_new['Эксперт (физ. или юр.лицо)'][0]
-            current_act.executioner = df_new['Исполнитель полевых работ (юр. лицо)'][0]
-            current_act.open_list = df_new['ОЛ'][0]
-            current_act.conclusion = df_new['Заключение. Выявленые объекты.'][0]
-            current_act.border_objects = df_new['Объекты расположенные в непосредственной близости. Для границ'][0]
+            current_act.year = df_new['ГОД'][0] if is_reprocess or not current_act.year else current_act.year
+            current_act.finish_date = df_new['Дата окончания проведения ГИКЭ'][
+                0] if is_reprocess or not current_act.finish_date else current_act.finish_date
+            current_act.type = df_new['Вид ГИКЭ'][0] if is_reprocess or not current_act.type else current_act.type
+            current_act.name_number = df_new['Номер (если имеется) и наименование Акта ГИКЭ'][
+                0] if is_reprocess or not current_act.name_number else current_act.name_number
+            current_act.place = df_new['Место проведения экспертизы'][
+                0] if is_reprocess or not current_act.place else current_act.place
+            current_act.customer = df_new['Заказчик работ (*если не указан, то заказчик экспертизы)'][
+                0] if is_reprocess or not current_act.customer else current_act.customer
+            current_act.area = df_new['Площадь, протяжённость и/или др. параменты объекта'][
+                0] if is_reprocess or not current_act.area else current_act.area
+            current_act.expert = df_new['Эксперт (физ. или юр.лицо)'][
+                0] if is_reprocess or not current_act.expert else current_act.expert
+            current_act.executioner = df_new['Исполнитель полевых работ (юр. лицо)'][
+                0] if is_reprocess or not current_act.executioner else current_act.executioner
+            current_act.open_list = df_new['ОЛ'][
+                0] if is_reprocess or not current_act.open_list else current_act.open_list
+            current_act.conclusion = df_new['Заключение. Выявленые объекты.'][
+                0] if is_reprocess or not current_act.conclusion else current_act.conclusion
+            current_act.border_objects = df_new['Объекты расположенные в непосредственной близости. Для границ'][
+                0] if is_reprocess or not current_act.border_objects else current_act.border_objects
 
-            current_act.act = act_parts_info['act']
-            current_act.start_date = act_parts_info['start_date']
-            current_act.exp_place = act_parts_info[r'place']
-            current_act.exp_customer = act_parts_info[r'customer']
-            current_act.exp_expert = act_parts_info[r'expert']
-            current_act.relationship = act_parts_info['relation']
-            current_act.goal = act_parts_info['purpose']
-            current_act.object = act_parts_info['object']
-            current_act.docs = act_parts_info['doc_list']
-            current_act.exp_info = act_parts_info['research_info']
-            current_act.exp_facts = act_parts_info['facts']
-            current_act.literature = act_parts_info['literature']
-            current_act.exp_conclusion = act_parts_info['conclusion']
+            current_act.act = act_parts_info['act'] if is_reprocess or not current_act.act else current_act.act
+            current_act.start_date = act_parts_info[
+                'start_date'] if is_reprocess or not current_act.start_date else current_act.start_date
+            current_act.exp_place = act_parts_info[
+                r'place'] if is_reprocess or not current_act.exp_place else current_act.exp_place
+            current_act.exp_customer = act_parts_info[
+                r'customer'] if is_reprocess or not current_act.exp_customer else current_act.exp_customer
+            current_act.exp_expert = act_parts_info[
+                r'expert'] if is_reprocess or not current_act.exp_expert else current_act.exp_expert
+            current_act.relationship = act_parts_info[
+                'relation'] if is_reprocess or not current_act.relationship else current_act.relationship
+            current_act.goal = act_parts_info['purpose'] if is_reprocess or not current_act.goal else current_act.goal
+            current_act.object = act_parts_info[
+                'object'] if is_reprocess or not current_act.object else current_act.object
+            current_act.docs = act_parts_info['doc_list'] if is_reprocess or not current_act.docs else current_act.docs
+            current_act.exp_info = act_parts_info[
+                'research_info'] if is_reprocess or not current_act.exp_info else current_act.exp_info
+            current_act.exp_facts = act_parts_info[
+                'facts'] if is_reprocess or not current_act.exp_facts else current_act.exp_facts
+            current_act.literature = act_parts_info[
+                'literature'] if is_reprocess or not current_act.literature else current_act.literature
+            current_act.exp_conclusion = act_parts_info[
+                'conclusion'] if is_reprocess or not current_act.exp_conclusion else current_act.exp_conclusion
+
+            if not re.search(r'\+Акт \d{1,2}\.\d{1,2}\.\d{2,4} [А-ЯЁ][а-яё]+',
+                             current_act.source_dict[source_index].path) and (
+                    'акт' in current_act.source_dict[source_index].path.lower() or 'гикэ' in current_act.source_dict[
+                source_index].path.lower()):
+                expert = current_act.expert[:current_act.expert.find(' ')]
+                expert = expert if len(expert) < 45 else ''
+                new_filename = file[:file.rfind(
+                    '/') + 1] + f'+Акт {current_act.finish_date} {expert}, {current_act.type}, ' + file[
+                                                                                                   file.rfind('.'):]
+                if not os.path.exists(new_filename):
+                    os.rename(file, new_filename)
+                    source = DocumentFile.objects.get(path=file)
+                    source.path = new_filename
+                    progress_json['file_groups'][str(act_id)][source_index][
+                        'path'] = new_filename
+                    source.save()
         if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('images', 'all'):
             current_act.supplement = supplement_content
         print(coordinates)
