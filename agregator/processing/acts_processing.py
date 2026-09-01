@@ -154,18 +154,18 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         ('start_date', r'(?<!\d)(\d\.\s*)?(Дата)?\s*начал[ао]\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
         # (?<!\d)(\d\.\s*)?Дата\s*начала\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*
         ('end_date',
-         r'(?<!\d)(\d\.\s*)?(?<!начала и )(Дата)?\s*окончани[яе]\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
+         r'(?<!\d)(\d\.\s*)?(?<!начала и )(Дата)?\s*(окончани[яе]+|конец)\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
         ('place', r'(?<!\d)(\d\.\s*)?Место\s*проведения\s*(экспертизы)?[\s:\-–-]*'),
         ('customer',
          r'(\d\.\s*)?(Заказчик[\S\s]{0,20}экспертизы|Сведения\s*о\s*заказчике[\S\s]{0,20}экспертизы)[\s:\-–-]*'),
-        ('expert', r'(\d\.\s*)?(Сведения\s*об)?\s*эксперт[еах]+[\s:\-–-]*'),
+        ('expert', r'(\d\.\s*)?((Сведения\s*)?об\s*эксперт[еах]+|Работник,?\s*проводивший\s*экспертизу)[\s:\-–-]*'),
         ('relation', r'(\d\.\s*)?Отношени[яе]+\s*.*\s*к?\s*заказчик[у]?'),
         ('purpose', r'(\d\.\s*)?Цель\s*экспертизы[\s:\-–-]*'),
         ('object', r'(\d\.\s*)?Объект\s*.*?экспертизы[\s:\-–-]*'),
         ('doc_list', r'Перечень\s*документов,\s*представленных\s*(на)?\s*(экспертизу)?[\s:\-–-]*'),
         ('research_info', r'Сведения\s*о\s*проведенных\s*исследованиях'),
         ('facts', r'Факты\s*и\s*сведения,\s*выявленные\s*.*\n*.*исследований'),
-        ('literature', r'Перечень[а-яА-ЯёЁ \n,]*литературы'),
+        ('literature', r'Перечень[\s\S]{0,30}литературы'),
         ('conclusion', r'Вывод[ы]?\s*экспертизы'),
         ('appendix', r'Перечень\s*приложений')
     ])
@@ -251,7 +251,7 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                         text_to_write = '' if text_to_write is None else text_to_write
 
                         if current_section_name == 'start_date':
-                            full_time_interval, interval_type, text_to_write = extract_start_date(text_to_write,
+                            full_time_interval, interval_type, text_to_write = extract_start_date(text, text_to_write,
                                                                                                   table_info)
 
                         text_file.write(

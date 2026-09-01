@@ -571,7 +571,9 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
         try:
             archive_files = []
             folder = None
-            path_to_download_lower = path_to_download.lower()
+            path_to_download_lower = path_to_download.lower()[:path_to_download.rfind('.')][
+                                     :120] + path_to_download.lower()[path_to_download.rfind('.'):] if len(
+                path_to_download) >= 120 else path_to_download.lower()
 
             if path_to_download_lower.endswith(
                     ('.zip', '.rar', '.7z', '.tar.gz', '.tgz', '.tar.xz', '.txz', '.tar.bz2', '.tbz2', '.tar')):
@@ -696,6 +698,8 @@ def convert_file_to_uploaded_file(file_path):
     with open(file_path, 'rb') as f:
         file_content = f.read()
         file_name = os.path.basename(file_path)
+        file_name = file_name[:file_name.rfind('.')][:120] + file_name[file_name.rfind('.'):] if len(
+            file_name) >= 120 else file_name
         content_file = ContentFile(file_content, name=file_name)
         uploaded_file = InMemoryUploadedFile(
             file=content_file,

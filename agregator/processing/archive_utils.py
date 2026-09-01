@@ -11,9 +11,12 @@ rarfile.PRIORITY = (rarfile.UNRAR_TOOL,)
 def fix_name(name):
     for enc_from, enc_to in [('cp437', 'cp866'), ('cp437', 'cp1251')]:
         try:
-            return name.encode(enc_from).decode(enc_to)
+            name = name.encode(enc_from).decode(enc_to)
+            # name = name[:name.rfind('.')][:120] + name[name.rfind('.'):] if len(name) >= 120 else name
+            return name
         except:
             continue
+    # name = name[:name.rfind('.')][:120] + name[name.rfind('.'):] if len(name) >= 120 else name
     return name
 
 
