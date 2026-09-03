@@ -154,11 +154,12 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         ('start_date', r'(?<!\d)(\d\.\s*)?(Дата)?\s*начал[ао]\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
         # (?<!\d)(\d\.\s*)?Дата\s*начала\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*
         ('end_date',
-         r'(?<!\d)(\d\.\s*)?(?<!начала и )(Дата)?\s*(окончани[яе]+|конец)\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
+         r'^(?!.*\bначала\b).*?(\d\.\s*)?(Дата)?\s*(окончани[яе]+|конец)\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*'),
         ('place', r'(?<!\d)(\d\.\s*)?Место\s*проведения\s*(экспертизы)?[\s:\-–-]*'),
         ('customer',
-         r'(\d\.\s*)?(Заказчик[\S\s]{0,20}экспертизы|Сведения\s*о\s*заказчике[\S\s]{0,20}экспертизы)[\s:\-–-]*'),
-        ('expert', r'(\d\.\s*)?((Сведения\s*)?об\s*эксперт[еах]+|Работник,?\s*проводивший\s*экспертизу)[\s:\-–-]*'),
+         r'(\d\.\s*)?(Заказчик[\S\s]{0,50}?экспертизы|Сведения\s*о\s*заказчике[\S\s]{0,50}?экспертизы)[\s:\-–-]*'),
+        ('expert',
+         r'(\d\.\s*)?((Сведения\s*)?об\s*эксперт[еах]+|Работник,?\s*проводивший\s*экспертизу|(фамилия|имя|отчество|образование|должность)[\s\S]{1,50}?эксперта:?)[\s:\-–-]*'),
         ('relation', r'(\d\.\s*)?Отношени[яе]+\s*.*\s*к?\s*заказчик[у]?'),
         ('purpose', r'(\d\.\s*)?Цель\s*экспертизы[\s:\-–-]*'),
         ('object', r'(\d\.\s*)?Объект\s*.*?экспертизы[\s:\-–-]*'),
@@ -172,17 +173,20 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     first_five_pages = replace_encoded_parts('\n'.join([x.get_text() for x in document[:5]]))
     print(f'SECTIONS = {SECTIONS}')
     SECTIONS = {**dict(sorted(list(SECTIONS.items())[:7],
-                              key=lambda x: re.search(x[1], first_five_pages, re.IGNORECASE).start() if re.search(x[1],
-                                                                                                                  first_five_pages,
-                                                                                                                  re.IGNORECASE) else float(
+                              key=lambda x: re.search(x[1], first_five_pages,
+                                                      re.IGNORECASE | re.MULTILINE).start() if re.search(x[1],
+                                                                                                         first_five_pages,
+                                                                                                         re.IGNORECASE | re.MULTILINE) else float(
                                   'inf'))), **dict(list(SECTIONS.items())[7:])}
     print(f'after SECTIONS = {SECTIONS}')
 
     # Список имен секций в порядке следования (сохраняем порядок)
     SECTION_NAMES = list(SECTIONS.keys())
-    SECTION_PATTERNS = [re.compile(pattern, re.IGNORECASE) for name, pattern in SECTIONS.items()]  # скомпилированные
+    SECTION_PATTERNS = [re.compile(pattern, re.IGNORECASE | re.MULTILINE) for name, pattern in
+                        SECTIONS.items()]  # скомпилированные
     # Для обратного поиска по шаблону (если нужно) можно оставить словарь
-    SECTION_PATTERN_MAP = {name: re.compile(pattern, re.IGNORECASE) for name, pattern in SECTIONS.items()}
+    SECTION_PATTERN_MAP = {name: re.compile(pattern, re.IGNORECASE | re.MULTILINE) for name, pattern in
+                           SECTIONS.items()}
 
     act_parts_info = {i: '' for i in SECTION_NAMES}
     object_info = ''
