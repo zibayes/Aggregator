@@ -60,6 +60,10 @@ class FilePreviewMiddleware(MiddlewareMixin):
         elif ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg']:
             return None
 
+        # Для архивов
+        elif ext in ['.zip', '.rar', '.7z', '.tar.gz', '.tgz', '.tar.xz', '.txz', '.tar.bz2', '.tbz2', '.tar']:
+            return None
+
         # Для текстовых файлов
         elif ext in ['.txt', '.csv', '.log', '.xml', '.htm', '.css', '.js', '.py']:
             return self._serve_office(file_path, filename, request)

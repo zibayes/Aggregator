@@ -17,6 +17,8 @@ def calculate_file_hash(file_path, hash_algorithm='sha256'):
         with open(file_path, 'rb') as f:
             file_content = f.read()
             hash_func.update(file_content)
+    elif isinstance(file_path, bytes):
+        hash_func.update(file_path)
     else:
         return None
 

@@ -18,7 +18,7 @@ function redirectPost(url, data) {
     form.submit();
 }
 
-let files_types = {'all': 'Отчёт', 'text': 'Текст', 'images': 'Приложение', 'scan': 'Скан'};
+let files_types = {'all': 'Отчёт', 'text': 'Текст', 'images': 'Приложение', 'scan': 'Скан', 'archive': 'Архив'};
 let report_types = {
     'acts': 'актов',
     'scientific_reports': 'научных отчётов',

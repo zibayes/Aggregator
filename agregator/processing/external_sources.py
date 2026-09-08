@@ -37,14 +37,15 @@ from .files_saving import raw_reports_save
 from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, \
     DocumentFile, ObjectAccountCard
 from agregator.processing.utils import clean_path_component, get_file_size
-from agregator.processing.hash_utils import calculate_file_hash
 from agregator.processing.external_acts_download_report import generate_download_report, generate_interrupted_report, \
     generate_final_report, generate_intermediate_report, handle_interrupts
 from agregator.processing.utils import get_unique_filename
-from agregator.processing.archive_utils import unzip_rar, unzip_7z, unzip_zip, untar_tgz
+from agregator.processing.archive_utils import unzip_rar, unzip_7z, unzip_zip, untar_tgz, ARCHIVES_EXT
 from agregator.processing.hash_utils import has_duplicates_in_db
+from agregator.hash import calculate_file_hash
 from agregator.views.utils import get_heritage_list_path
 from archeology.settings import HERITAGES_LISTS_PATH
+from agregator.processing.utils import is_safety_remove
 
 logger = logging.getLogger(__name__)
 
@@ -380,99 +381,97 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                 'page': page,
                 'title': title,
                 'subtitle': subtitle,
-                'filename': '',
-                'url': '',
+                'files': [],
                 'status': 'в обработке',
                 'reason': ''
             }
 
             try:
                 # Поиск ссылки
-                link = item.find('a', href=True)
-                if not link or '/upload/iblock/' not in link['href']:
-                    file_info.update({'status': 'пропущен', 'reason': 'Не найдена подходящая ссылка'})
-                    task_state.add_file_info(file_info)
-                    continue
-
-                origin_file = link['href'][link['href'].rfind('/') + 1:]
-                file = get_unique_filename(ACTS_SAVING_PATH, origin_file, [file for path, url, file in page_files])
-                file_lower = file.lower()
-
-                # Формируем URL
-                href = link['href'][:link['href'].rfind('/')]
-                params = urllib.parse.urlencode({'address': origin_file})
-                url = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace(
-                    '%29',
-                    ')')
-                url = f"https://ookn.ru{url}"
-
-                file_info.update({
-                    'filename': file,
-                    'url': url,
-                })
-
-                # Проверка исключений
-                if any(query in item.text for query in ACTS_QUERY_EXCLUDE):
-                    file_info.update({'status': 'пропущен', 'reason': 'Исключение по фильтру'})
-                    task_state.add_file_info(file_info)
-                    continue
-
-                # Проверка даты
-                if start_date and end_date:
-                    match = ORDER_DATE_PATTERN.search(item.text)
-                    if not match:
-                        file_info.update({'status': 'пропущен', 'reason': 'Не подходит по дате (дата не найдена)'})
+                links = item.find_all('a', href=True)  # item.find('a', href=True)
+                for link in links:
+                    if not link or '/upload/iblock/' not in link['href']:
+                        file_info.update({'status': 'пропущен', 'reason': 'Не найдена подходящая ссылка'})
                         task_state.add_file_info(file_info)
                         continue
 
-                    date_str = match.group(0)
-                    try:
-                        day, month, year = map(int, date_str.split('.'))
-                        current_date = [year, month, day]
-                        if not (start_date <= current_date <= end_date):
-                            file_info.update({'status': 'пропущен', 'reason': 'Не подходит по дате'})
+                    origin_file = link['href'][link['href'].rfind('/') + 1:]
+                    file = get_unique_filename(ACTS_SAVING_PATH, origin_file, [file for path, url, file in page_files])
+                    file_lower = file.lower()
+
+                    # Формируем URL
+                    href = link['href'][:link['href'].rfind('/')]
+                    params = urllib.parse.urlencode({'address': origin_file})
+                    url = (href + params).replace('address=', '/').replace('+', '%20').replace('%28', '(').replace(
+                        '%29',
+                        ')')
+                    url = f"https://ookn.ru{url}"
+
+                    file_info['files'].append({
+                        'filename': file,
+                        'url': url,
+                    })
+
+                    # Проверка исключений
+                    if any(query in item.text for query in ACTS_QUERY_EXCLUDE):
+                        file_info.update({'status': 'пропущен', 'reason': 'Исключение по фильтру'})
+                        task_state.add_file_info(file_info)
+                        continue
+
+                    # Проверка даты
+                    if start_date and end_date:
+                        match = ORDER_DATE_PATTERN.search(item.text)
+                        if not match:
+                            file_info.update({'status': 'пропущен', 'reason': 'Не подходит по дате (дата не найдена)'})
                             task_state.add_file_info(file_info)
                             continue
-                    except (ValueError, IndexError):
-                        file_info.update({'status': 'пропущен', 'reason': 'Ошибка парсинга даты'})
+
+                        date_str = match.group(0)
+                        try:
+                            day, month, year = map(int, date_str.split('.'))
+                            current_date = [year, month, day]
+                            if not (start_date <= current_date <= end_date):
+                                file_info.update({'status': 'пропущен', 'reason': 'Не подходит по дате'})
+                                task_state.add_file_info(file_info)
+                                continue
+                        except (ValueError, IndexError):
+                            file_info.update({'status': 'пропущен', 'reason': 'Ошибка парсинга даты'})
+                            task_state.add_file_info(file_info)
+                            continue
+
+                    if not ('акт' in link['href'].lower() or 'гикэ' in link['href'].lower()) and not (
+                            'акт' in item.text.lower() or 'гикэ' in item.text.lower()):
+                        file_info.update({'status': 'пропущен', 'reason': 'Не является актом ГИКЭ'})
                         task_state.add_file_info(file_info)
                         continue
 
-                if not ('акт' in link['href'].lower() or 'гикэ' in link['href'].lower()) and not (
-                        'акт' in item.text.lower() or 'гикэ' in item.text.lower()):
-                    file_info.update({'status': 'пропущен', 'reason': 'Не является актом ГИКЭ'})
-                    task_state.add_file_info(file_info)
-                    continue
+                    # Пропускаем уже скачанные или ненужные файлы
+                    if file in downloaded_files:
+                        file_info.update({'status': 'пропущен', 'reason': 'Файл уже скачан'})
+                        task_state.add_file_info(file_info)
+                        continue
+                    if file_lower.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff')):
+                        file_info.update(
+                            {'status': 'пропущен', 'reason': 'У файла неподходящий формат: .sig/.png/.jpg/.bmp/.tiff'})
+                        task_state.add_file_info(file_info)
+                        continue
+                    if not is_act_file(file_lower):
+                        file_info.update(
+                            {'status': 'пропущен', 'reason': 'Файл электронной подписи'})
+                        task_state.add_file_info(file_info)
+                        continue
 
-                # Пропускаем уже скачанные или ненужные файлы
-                if file in downloaded_files:
-                    file_info.update({'status': 'пропущен', 'reason': 'Файл уже скачан'})
+                    # Обновляем информацию о файле
+                    file_info.update({
+                        'status': 'в очереди на скачивание',
+                        'reason': 'Добавлен в очередь скачивания'
+                    })
                     task_state.add_file_info(file_info)
-                    continue
-                if file_lower.endswith(('.sig', '.png', '.jpg', '.bmp', '.tiff')):
-                    file_info.update(
-                        {'status': 'пропущен', 'reason': 'У файла неподходящий формат: .sig/.png/.jpg/.bmp/.tiff'})
-                    task_state.add_file_info(file_info)
-                    continue
-                if not is_act_file(file_lower):
-                    file_info.update(
-                        {'status': 'пропущен', 'reason': 'Файл электронной подписи'})
-                    task_state.add_file_info(file_info)
-                    continue
 
-                # Обновляем информацию о файле
-                file_info.update({
-                    'filename': file,
-                    'url': url,
-                    'status': 'в очереди на скачивание',
-                    'reason': 'Добавлен в очередь скачивания'
-                })
-                task_state.add_file_info(file_info)
-
-                # Добавление файла в очередь
-                ACTS_SAVING_PATH.mkdir(exist_ok=True)
-                path_to_download = f'{ACTS_SAVING_PATH}/{file}'
-                page_files.append((path_to_download, url, file))
+                    # Добавление файла в очередь
+                    ACTS_SAVING_PATH.mkdir(exist_ok=True)
+                    path_to_download = f'{ACTS_SAVING_PATH}/{file}'
+                    page_files.append((path_to_download, url, file))
 
             except Exception as e:
                 logger.error(f"Ошибка при обработке элемента: {e}")
@@ -486,10 +485,11 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
         generate_intermediate_report(task_state.get_data())
 
         # Параллельное скачивание файлов с одной страницы
+        document_type = 'Act'
         if page_files:
             with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
                 future_to_file = {
-                    executor.submit(download_file, url, path): (path, url, file)
+                    executor.submit(download_file, url, path, document_type): (path, url, file)
                     for path, url, file in page_files
                 }
 
@@ -497,28 +497,21 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                 for future in as_completed(future_to_file):
                     path, url, file = future_to_file[future]
                     try:
-                        result = future.result()
+                        result, msg = future.result()
                         if result:
                             downloaded_page_files.append((path, url, file))
                             # Обновляем статус в task_state
-                            for info in task_state.data['files_info']:
-                                if info.get('filename') == file and info.get('page') == page:
-                                    info.update({'status': 'скачан', 'reason': 'Успешно скачан'})
-                                    break
+                            update_file_status(task_state, file, 'скачан', 'Успешно скачан', page)
+                        elif 'Найден дубликат файла' in msg:
+                            update_file_status(task_state, file, 'пропущен', 'Файл уже скачан', page)
                         else:
                             # Обновляем статус на ошибку
-                            for info in task_state.data['files_info']:
-                                if info.get('filename') == file and info.get('page') == page:
-                                    info.update({'status': 'ошибка', 'reason': 'Ошибка при скачивании'})
-                                    break
+                            update_file_status(task_state, file, 'ошибка', 'Ошибка при скачивании', page)
                     except Exception as e:
                         logger.error(f"Ошибка при скачивании файла: {e}")
                         logger.error(traceback.format_exc())
                         # Обновляем статус на ошибку
-                        for info in task_state.data['files_info']:
-                            if info.get('filename') == file and info.get('page') == page:
-                                info.update({'status': 'ошибка', 'reason': f'Ошибка скачивания: {str(e)}'})
-                                break
+                        update_file_status(task_state, file, 'ошибка', f'Ошибка скачивания: {str(e)}', page)
 
                 # Обрабатываем скачанные файлы
                 if downloaded_page_files:
@@ -526,8 +519,9 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                                                               select_image,
                                                               select_coord, task_state)
                     for info in task_state.data['files_info']:
-                        if info.get('filename') in processed_acts and processed_acts[info['filename']]:
-                            info['act_id'] = processed_acts[info['filename']]
+                        for file_st in info['files']:
+                            if file_st.get('filename') in processed_acts and processed_acts[file_st['filename']]:
+                                info['act_id'] = processed_acts[file_st['filename']]
 
         # Снова генерируем промежуточный отчет после обработки файлов страницы
         logger.info(f"🔄 ГЕНЕРАЦИЯ ПРОМЕЖУТОЧНОГО ОТЧЕТА ПОСЛЕ ОБРАБОТКИ ФАЙЛОВ СТРАНИЦЫ {page}")
@@ -575,8 +569,7 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
                                      :120] + path_to_download.lower()[path_to_download.rfind('.'):] if len(
                 path_to_download) >= 120 else path_to_download.lower()
 
-            if path_to_download_lower.endswith(
-                    ('.zip', '.rar', '.7z', '.tar.gz', '.tgz', '.tar.xz', '.txz', '.tar.bz2', '.tbz2', '.tar')):
+            if path_to_download_lower.endswith(ARCHIVES_EXT):
                 folder = path_to_download[:path_to_download.rfind('.')]
                 while folder.endswith('.'):
                     folder = folder[:-1]
@@ -614,16 +607,13 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
                             except Exception as e:
                                 logger.error(f"Ошибка при поиске PDF в {root}: {e}")
                                 logger.error(traceback.format_exc())
-                                for info in task_state.data['files_info']:
-                                    if info.get('filename') == original_filename:
-                                        info.update({'status': 'ошибка', 'reason': f'Ошибка скачивания: {str(e)}'})
+                                update_file_status(task_state, original_filename, 'ошибка',
+                                                   f'Ошибка скачивания: {str(e)}')
 
                 except Exception as e:
                     logger.error(f'Ошибка при разархивировании {path_to_download}: {e}')
                     logger.error(traceback.format_exc())
-                    for info in task_state.data['files_info']:
-                        if info.get('filename') == original_filename:
-                            info.update({'status': 'ошибка', 'reason': f'Ошибка разархивирования: {str(e)}'})
+                    update_file_status(task_state, original_filename, 'ошибка', f'Ошибка разархивирования: {str(e)}')
                     continue
 
             files_to_save = []
@@ -651,17 +641,41 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
                 all_acts_ids.extend(acts_ids)
             else:
                 processed_acts[original_filename] = None
-            if folder is not None:
+            if os.path.isfile(path_to_download):
+                if path_to_download.endswith(ARCHIVES_EXT) and acts_ids and len(acts_ids) > 0:
+                    act = Act.objects.get(id=acts_ids[0])
+                    act_source = act.source_dict[0]
+                    new_path = act_source.path[:act_source.path.rfind('/')] + path_to_download[
+                                                                              path_to_download.rfind('/'):]
+                    logger.info(f'act_source.path = {act_source.path}')
+                    logger.info(f'path_to_download = {path_to_download}')
+                    logger.info(
+                        f'path_to_download[act_source.path.rfind(/):] = {path_to_download[path_to_download.rfind('/'):]}')
+                    logger.info(f'new_path = {new_path}')
+                    if shutil.move(path_to_download, new_path):
+                        document_source = DocumentFile(
+                            document_id=act.id,
+                            document_type='Act',
+                            file_type='archive',
+                            path=new_path,
+                            origin_filename=original_filename,
+                        )
+                        document_source.save()
+                    else:
+                        os.remove(path_to_download)
+                else:
+                    os.remove(path_to_download)
+            if folder is not None and os.path.isdir(folder) and is_safety_remove(folder):
                 shutil.rmtree(folder)
-            os.remove(path_to_download)
 
         except Exception as e:
             logger.error(f"Ошибка при обработке файла {path_to_download}: {e}")
             logger.error(traceback.format_exc())
             processed_acts[original_filename] = None
             for info in task_state.data['files_info']:
-                if info.get('filename') == original_filename:
-                    info.update({'status': 'ошибка', 'reason': f'Ошибка обработки: {str(e)}'})
+                for file in info['files']:
+                    if file.get('filename') == original_filename:
+                        info.update({'status': 'ошибка', 'reason': f'Ошибка обработки: {str(e)}'})
             continue
     if all_acts_ids:
         task = process_acts.apply_async(
@@ -673,6 +687,14 @@ def process_downloaded_files(files_data, admin, select_text, select_enrich, sele
         user_task.save()
 
     return processed_acts
+
+
+def update_file_status(task_state, file, status, reason, page=None):
+    for info in task_state.data['files_info']:
+        for file_st in info['files']:
+            if file_st.get('filename') == file and (page is not None and info.get('page') == page or page is None):
+                info.update({'status': status, 'reason': reason})
+                break
 
 
 def is_act_file(filename: str) -> bool:
@@ -1565,7 +1587,8 @@ def external_orders_download(query: str, output_path: str, document_source: List
             break
 
 
-def download_file(url, path_to_download):
+def download_file(url, path_to_download, document_type=None):
+    msg = ''
     max_retries = 5
     for attempt in range(max_retries):
         try:
@@ -1577,18 +1600,27 @@ def download_file(url, path_to_download):
                     time.sleep(retry_after)
                     continue
                 response.raise_for_status()
+                if document_type is not None:
+                    has_duplicates, objects, _ = has_duplicates_in_db(response.content, document_type)
+                    if has_duplicates:
+                        msg = f"Найден дубликат файла: {objects}"
+                        logger.error(msg)
+                        return False, msg
                 with open(path_to_download, 'wb') as out_file:
                     out_file.write(response.content)
-                return True
+                    msg = f"Успешно скачан"
+                return True, msg
         except requests.exceptions.RetryError as e:
-            logger.error(f"Превышено число повторных попыток: {e}")
-            return False
+            msg = f"Превышено число повторных попыток: {e}"
+            logger.error(msg)
+            return False, msg
         except Exception as e:
-            logger.error(f"Ошибка скачивания {url}: {e}")
+            msg = f"Ошибка скачивания {url}: {e}"
+            logger.error(msg)
             logger.error(traceback.format_exc())
             # Экспоненциальная задержка перед повторной попыткой
             time.sleep(2 ** attempt)
-    return False
+    return False, msg
 
 
 def save_document_source(obj_id, document_type, file_type, document_source):

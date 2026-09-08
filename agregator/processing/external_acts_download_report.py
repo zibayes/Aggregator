@@ -358,11 +358,6 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
                 status_class = 'error'
                 status_text = '❌ ОШИБКА'
 
-            # Обрезаем длинные URL
-            url_display = file_info['url']
-            if len(url_display) > 80:
-                url_display = url_display[:80] + '...'
-
             # Формируем ссылку на акт в системе, если есть act_id
             act_link = ""
             if file_info.get('act_id'):
@@ -382,10 +377,19 @@ def generate_download_report(all_files_info: List[Dict], report_path: str = None
                             <div class="file-status status-{status_class}">{status_text}</div>
                         </div>
                         <div class="file-details">
-                            <strong>Файл:</strong> {file_info['filename'] or '—'}<br>
-                            <strong>Ссылка:</strong> <a href="{file_info['url']}" class="file-link" target="_blank">
-                                <span class="url-truncated" title="{file_info['url']}">{url_display}</span>
-                            </a><br>
+                        """
+            for file in file_info.get('files', []):
+                # Обрезаем длинные URL
+                url_display = file['url']
+                if len(url_display) > 80:
+                    url_display = url_display[:80] + '...'
+                html_content += f"""
+                                <strong>Файл:</strong> {file['filename'] or '—'}<br>
+                                <strong>Ссылка:</strong> <a href="{file['url']}" class="file-link" target="_blank">
+                                    <span class="url-truncated" title="{file['url']}">{url_display}</span>
+                                </a><br>
+                                """
+            html_content += f"""
                             <strong>Причина:</strong> {file_info.get('reason', '—')}
                             {act_link}
                         </div>
@@ -710,7 +714,7 @@ class TaskState:
         self.data.update(kwargs)
 
     def add_file_info(self, file_info):
-        logger.info(f"📝 Добавление информации о файле: {file_info.get('filename', 'без имени')}")
+        logger.info(f"📝 Добавление информации о файле: {file_info.get('title', 'без имени')}")  # 'filename' -> 'title'
         self.data['files_info'].append(file_info)
 
     def get_data(self):

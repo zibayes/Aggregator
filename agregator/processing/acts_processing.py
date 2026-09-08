@@ -107,6 +107,10 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     if not os.path.exists(pdf_file):
         logger.error(f'Файл для акта id = {current_act.id} не найден! Обработка остановлена!')
         return
+    if not pdf_file.lower().endswith('.pdf'):
+        logger.error(
+            f'Файл для акта id = {current_act.id} имеет не подходящее расширение: {pdf_file[pdf_file.rfind('.'):]}! Обработка остановлена!')
+        return
 
     try:
         document = fitz.open(pdf_file)
@@ -455,7 +459,9 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
                                                                                                    file.rfind('.'):]
                 if not os.path.exists(new_filename):
                     os.rename(file, new_filename)
-                    source = DocumentFile.objects.get(path=file)
+                    source = DocumentFile.objects.filter(document_type='Act', document_id=current_act.id, path=file)
+                    if source and len(source) > 0:
+                        source = source[0]
                     source.path = new_filename
                     progress_json['file_groups'][str(act_id)][source_index][
                         'path'] = new_filename

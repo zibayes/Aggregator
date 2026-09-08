@@ -9,6 +9,7 @@ from django.contrib.auth.signals import user_logged_in
 from django.db.models.signals import post_save, post_delete, pre_save
 from django.dispatch import receiver
 from django.conf import settings
+from agregator.processing.utils import is_safety_remove
 
 # Путь к данным KodExplorer
 User = settings.AUTH_USER_MODEL
@@ -236,7 +237,7 @@ def delete_kod_user(username):
 
         # Удаляем папку пользователя
         user_dir = os.path.join(KOD_DATA_DIR, 'User', username)
-        if os.path.exists(user_dir):
+        if os.path.exists(user_dir) and is_safety_remove(user_dir):
             import shutil
             shutil.rmtree(user_dir)
             print(f"✅ Папка пользователя удалена: {user_dir}")

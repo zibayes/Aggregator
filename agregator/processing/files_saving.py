@@ -399,9 +399,10 @@ def load_raw_reports(reports_ids, report_type, progress_recorder, progress_json,
                 source.path = new_filename
                 report.save()
             path = os.path.abspath(source.path)
+            source.save()
             if source.path.lower().endswith('.pdf'):
                 with fitz.open(path) as pdf_doc:
-                    pages_count[source.path] = len(pdf_doc)
+                    pages_count[source.origin_filename] = len(pdf_doc)
                 try:
                     report_rasterization_check_and_process(path, (progress_recorder, task_id, progress_json,
                                                                   processed / total * CONVERTATION_PART, ALL_PARTS),
@@ -409,7 +410,6 @@ def load_raw_reports(reports_ids, report_type, progress_recorder, progress_json,
                 except Exception as e:
                     logger.error(f'Ошибка OCR: {e}')
                     logger.error(traceback.format_exc())
-            source.save()
 
             i += 1
         report.save()

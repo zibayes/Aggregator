@@ -10,6 +10,8 @@ import hashlib
 rarfile.UNRAR_TOOL = '/usr/bin/unrar'  # /usr/bin/7z
 rarfile.PRIORITY = (rarfile.UNRAR_TOOL,)
 
+ARCHIVES_EXT = ('.zip', '.rar', '.7z', '.tar.gz', '.tgz', '.tar.xz', '.txz', '.tar.bz2', '.tbz2', '.tar')
+
 
 def fix_name(name):
     for enc_from, enc_to in [('cp437', 'cp866'), ('cp437', 'cp1251')]:

@@ -8,6 +8,7 @@ from django_celery_results.models import TaskResult
 from django.db.models.query import QuerySet
 from agregator.hash import calculate_file_hash
 from agregator.processing.utils import get_file_size
+from agregator.processing.utils import is_safety_remove
 from django.apps import apps
 import os
 import shutil
@@ -38,7 +39,7 @@ def delete_files(file_path):
         else:
             deter = '/'
         folder_path = file_path[:file_path.rfind(deter)]
-        if os.path.isdir(folder_path):
+        if os.path.isdir(folder_path) and is_safety_remove(folder_path):
             try:
                 shutil.rmtree(folder_path)
             except OSError:
@@ -183,7 +184,7 @@ class DocumentFile(models.Model):
         return f"DocumentFile {self.id} / {self.document_type} = {self.document_id}"
 
     def save(self, *args, **kwargs):
-        if self.file_type != 'folder':
+        if self.file_type != 'folder' and (not self.file_hash or not self.file_size):
             self.file_hash = calculate_file_hash(self.path)
             self.file_size = get_file_size(self.path)
         super().save(*args, **kwargs)

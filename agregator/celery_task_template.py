@@ -94,8 +94,9 @@ def process_documents(
         if document_type in ['scientific_reports', 'acts', 'tech_reports']:
             for doc in documents:
                 for source in doc.source_dict:
+                    pg_count = pages_count[source.origin_filename] if source.origin_filename in pages_count else 1
                     file = {'path': source.path, 'type': source.file_type, 'origin_filename': source.origin_filename,
-                            'processed': 'False', 'pages': {'processed': '0', 'all': pages_count[source.path]}}
+                            'processed': 'False', 'pages': {'processed': '0', 'all': pg_count}}
                     print('file=' + str(file))
                     if str(doc.id) in file_groups:
                         file_groups[str(doc.id)].append(file)
@@ -149,6 +150,8 @@ def process_documents(
             try:
                 if process_function:
                     if document_type == 'acts':
+                        if not path.lower().endswith('.pdf'):
+                            continue
                         process_function(
                             path, progress_recorder, pages_count, total_processed,
                             progress_json, doc.id, i, task_id, user_id,

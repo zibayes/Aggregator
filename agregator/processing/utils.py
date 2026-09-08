@@ -46,6 +46,21 @@ def get_unique_filename(directory: Path, filename: str, except_list: List[str] =
         counter += 1
 
 
+def is_safety_remove(path: str) -> bool:
+    path = path.replace('\\', '/')
+    up_folder = 'uploaded_files'
+    if any(path.endswith(folder) for folder in
+           ['/app', '/agregator', f'{up_folder}', f'{up_folder}/avatars', f'{up_folder}/regions_polygons',
+            f'{up_folder}/Акты ГИКЭ',
+            f'{up_folder}/Географические объекты',
+            f'{up_folder}/Коммерческие предложения', f'{up_folder}/Научно-технические отчёты',
+            f'{up_folder}/Научные отчёты', f'{up_folder}/Открытые листы',
+            f'{up_folder}/Памятники', f'{up_folder}/Учётные карты', '/ООКН']) or (
+            up_folder not in path and 'kodexplorer_data/data/User' not in path):
+        return False
+    return True
+
+
 def str_is_float(string):
     try:
         float(string)
