@@ -46,6 +46,7 @@ class AgregatorConfig(AppConfig):
                 logger.info(f'task_id = {task_id}')
                 try:
                     progress_json = redis_client.get(json.loads(task_id)[0]['headers']['id'])
+                    logger.info(f'progress_json = {progress_json}')
                     if progress_json is not None:
                         progress_json = json.loads(progress_json)
                         logger.info(f'TASK IS IN WORK')

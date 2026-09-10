@@ -12,14 +12,14 @@ months = {'января': '01', 'февраля': '02', 'марта': '03', 'а�
           'июля': '07',
           'августа': '08', 'сентября': '09', 'октября': '10', 'ноября': '11', 'декабря': '12', }
 
-RE_ACT_HEADER_NUM = re.compile(r'А\s*К\s*Т *(?!.*(?:государственной|электр.+подпис.+))№ *[\S\d\/\-–— ]*',
+RE_ACT_HEADER_NUM = re.compile(r'А\s*К\s*Т +(?!.*(?:государственной|электр.+подпис.+))№ *[\S\d\/\-–— ]*',
                                re.I)  # А *К *Т *№* *\d*/*\d*(?!.*подписан).*
-RE_ACT_HEADER = re.compile(r'А\s*К\s*Т *(?!.*(?:государственной|электр.+подпис.+))№? *[\S\d\/\-–— ]*',
+RE_ACT_HEADER = re.compile(r'А\s*К\s*Т +(?!.*(?:государственной|электр.+подпис.+))№? *[\S\d\/\-–— ]*',
                            re.I)  # А *К *Т *№* *\d*/*\d*(?!.*подписан).*
 RE_ACT_NUM_AFTER_HEADER = re.compile(
     r'А\s*К\s*Т\s*(ГОСУДАРСТВЕННОЙ\s*ИСТОРИКО[-–— ]?КУЛЬТУРНОЙ\s*ЭКСПЕРТИЗЫ)?[\s\S]{0,10}?(№\s*[\S\d\/\-– ]*)', re.I)
-RE_ACT_SECTION = re.compile(r'Акт', re.I)
-RE_ACT_NAST = re.compile(r'Настоящий Акт', re.I)
+RE_ACT_SECTION = re.compile(r'\bАкт\b', re.I)
+RE_ACT_NAST = re.compile(r'Настоящий \bАкт\b', re.I)
 RE_START_DATE = re.compile(r'(?<!\d)(\d\.\s*)?(Дата)?\s*начал[ао]\s*(проведения)?\s*(экспертизы)?[\s:\-–-]*', re.I)
 RE_ACT_OBJECT = re.compile(r'«[\s\S]+?»', re.I)
 
@@ -48,8 +48,9 @@ def extract_act_name(text, current_section_idx, text_file, page_number, table_in
     if act:
         text_to_write = act.group(0)
         obj = RE_ACT_OBJECT.search(text)
-    text_file.write(
-        f"--- АКТ --- (стр. {page_number + 1}):\n{text_to_write}\n")
+    if text_file:
+        text_file.write(
+            f"--- АКТ --- (стр. {page_number + 1}):\n{text_to_write}\n")
     current_section_idx += 1
     if all(x not in text_to_write.lower() for x in ['№', 'б/н', 'n']):
         text_to_write += " б/н"
@@ -66,19 +67,19 @@ FULL_TIME_INTERVAL_PATTERN_VAR_1 = re.compile(
     r'период\s+с\s+([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d{2,4})\s+[г.\s]*[-–—по]+\s+([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d{2,4})\s*[г\.]*',
     re.IGNORECASE)  # r'период с \d{2}.\d{2}.\d{4}\s+[г.\s]*по\s+(\d{2}.\d{2}.\d{4})\s*[г\.]*'
 FULL_TIME_INTERVAL_PATTERN_VAR_2 = re.compile(
-    r'период\s+с\s+(«*[0-3]?\s*[0-9]»*\s*[А-Яа-яёЁ]+\s*\d{4})\s*[\sгода\.]*.*?\s+[-–—по]+\s+(«*[0-3]?\s*[0-9]»*\s*[А-Яа-яёЁ]+\s*\d{4})[\sгода\.]*',
+    r'период\s+с\s+(«*[0-3]?\s*[0-9]»*\s*[А-Яа-яёЁ]+\s*\d{4})\s*[\sгода\.]*.{0,5}?\s+[-–—по]+\s+(«*[0-3]?\s*[0-9]»*\s*[А-Яа-яёЁ]+\s*\d{4})[\sгода\.]*',
     re.IGNORECASE)  # r'период с «*\d+»* [А-Яа-яёЁ]+ \d+ г\.*.*\s+по\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)[\sг\.]*'
 FULL_TIME_INTERVAL_PATTERN_VAR_3 = re.compile(
     r'[сc]\s+([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d{2,4})\s+[г.\s]*[-–—по]+\s+([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d{2,4})\s*[г\.]*',
     re.IGNORECASE)  # r'период с «*\d+»* [А-Яа-яёЁ]+ \d+ г\.*.*\s+по\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)[\sг\.]*'
 FULL_TIME_INTERVAL_PATTERN_VAR_4 = re.compile(
-    r'окончания[\s\S]{0,15}экспертизы[\s\S]{0,10}[сc]?\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d*)\s*[\sгода\.]*.*?[-–—по]*\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)\s*[\sгода\.]*',
+    r'окончания[\s\S]{0,15}экспертизы[\s\S]{0,10}[сc]?\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d*)\s*[\sгода\.]*.{0,5}?[-–—по]*\s+(«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)\s*[\sгода\.]*',
     re.IGNORECASE | re.MULTILINE)  # Дата\s*начала\s*и\s*
 FULL_TIME_INTERVAL_PATTERN_VAR_5 = re.compile(
-    r'окончания[\s\S]{0,15}экспертизы[\s\S]{0,10}[сc]?\s+([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d{2,4}|«*\d+»*\s*[А-Яа-яёЁ]+\s*\d*)\s*[\sгода\.]*.*[-–—по]*\s+([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d{2,4}|«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)\s*[\sгода\.]*',
+    r'окончания[\s\S]{0,15}экспертизы[\s\S]{0,10}[сc]?\s+([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d{2,4}|«*\d+»*\s*[А-Яа-яёЁ]+\s*\d*)\s*[\sгода\.]*.{0,5}?[-–—по]*\s+([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d{2,4}|«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)\s*[\sгода\.]*',
     re.IGNORECASE | re.MULTILINE)  # Дата\s*начала\s*и\s*
 FULL_TIME_INTERVAL_PATTERN_VAR_6 = re.compile(
-    r'([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d*|«*\d+»*\s*[А-Яа-яёЁ]+\s*\d*)\s*[\sгода\.]*.*?[-–—по]+\s+([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d{2,4}|«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)\s*[\sгода\.]*',
+    r'([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d*|«*\d+»*\s*[А-Яа-яёЁ]+\s*\d*)\s*[\sгода\.]*.{0,5}?[-–—по]+\s+([0-3]?\s*[0-9]\s*[\. ]+\s*[0-1]?[0-9]\s*[\. ]+\s*\d{2,4}|«*\d+»*\s*[А-Яа-яёЁ]+\s*\d+)\s*[\sгода\.]*',
     re.IGNORECASE | re.MULTILINE)  # Дата\s*начала\s*и\s*
 
 
@@ -353,8 +354,8 @@ def extract_place_info(place_info, text, text_to_write, table_info, broken_struc
         if not text_to_write:
             text_to_write = ''
     if 'Место проведения экспертизы' not in table_info or not table_info['Место проведения экспертизы']:
-        table_info['Место проведения экспертизы'] = text_to_write.replace(':',
-                                                                          '').replace(
+        table_info['Место проведения экспертизы'] = re.sub(r'\s[-–—]\s', '', text_to_write).replace(':',
+                                                                                                    '').replace(
             '\n', ' ')  # .replace('–', '')
     return broken_structure, place_info
 
@@ -506,7 +507,7 @@ def extract_expert(text_to_write, several_experts, full_name, table_info, docume
                     if search_name:
                         name = search_name.group(0).replace('\n', '').replace('  ', ' ')
                         table_info['Эксперт (физ. или юр.лицо)'] = name
-                    print(f'table_info = {table_info['Эксперт (физ. или юр.лицо)']}')
+                        print(f'table_info = {table_info['Эксперт (физ. или юр.лицо)']}')
     return several_experts, full_name, broken_structure
 
 

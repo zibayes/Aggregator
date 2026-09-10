@@ -5,89 +5,169 @@
 
 {% block content %}
 
-    <br>
-    <h2 align="center">{% block manager_header %}{% endblock %}</h2>
-    <br>
+<br>
+<h2 align="center">{% block manager_header %}{% endblock %}</h2>
+<br>
 
-    <div class="container upload-section-container">
-        <form method="post" enctype="multipart/form-data">
-            {% csrf_token %}
-            {% block upload_options %}{% endblock %}
-            <div id="storage-choice">
-                <a>Выберите хранилище:</a>
-                <br>
-                <input required id="storage_type_private" type="radio" name="storage_type" value="private"
-                        {% if not user.is_superuser %}
-                       disabled checked
-                        {% endif %}
-                >
-                <label style="padding-right: 8px;" for="storage_type_private">Частное</label>
-                <input required id="storage_type_public" type="radio" name="storage_type" value="public"
-                        {% if not user.is_superuser %}
-                       disabled
-                        {% endif %}
-                >
-                <label style="padding-right: 8px;" for="storage_type_public">Публичное</label>
-            </div>
+<div class="container upload-section-container">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% block upload_options %}{% endblock %}
+        <div id="storage-choice">
+            <a>Выберите хранилище:</a>
             <br>
-            <br>
-            <div id="file-choice">
-                {{ form.as_p }}
-            </div>
-            {% block additional_options %}{% endblock %}
-            <button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить
-            </button>
-        </form>
-
-        <br>
-        <h3 align="center">Журнал загрузок</h3>
-        <br>
-
-        <div class="container upload-section">
-            <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
-            <script>
-                let i = 0;
-                let progress_bars;
-            </script>
-            {% if tasks_id %}
-                {% for task_id in tasks_id %}
-                    <div id="download-{{ task_id }}">
-                        <div class="border border-secondary" style="padding: 5px;">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div></div>
-                                <button class="btn btn-link"
-                                        style="padding: 0; border: none; background: none; color: orangered; font-size: 25px; font-weight: bold; text-decoration: none;"
-                                        type="button" data-bs-target="#delete_download_{{ task_id }}"
-                                        data-bs-toggle="modal">
-                                    &times;
-                                </button>
-                            </div>
-                            <div class='progress-wrapper-{{ task_id }} progress'
-                                 style=" height: 100%; border-radius: 15px;">
-                                <div id='progress-bar-{{ task_id }}'
-                                     class='progress-bar progress-bar-striped'
-                                     role="progressbar"
-                                     style="background-color: #68a9ef; width: 0%; background-size: 2rem 2rem;">&nbsp;
-                                </div>
-                            </div>
-                            <div id="progress-bar-message-{{ task_id }}">Ожидание загрузки файла...</div>
-                            <div id="progress-result-{{ task_id }}"></div>
-                            <div id="pb-progress-{{ task_id }}"></div>
-                            <div id="pb-time-start-{{ task_id }}"></div>
-                            <div id="pb-time-end-{{ task_id }}"></div>
-                            <div id="pb-files-{{ task_id }}"></div>
-                        </div>
-                        <br>
-                    </div>
-                {% endfor %}
-            {% else %}
-                <a>Здесь будет отображён прогресс загрузки файлов</a>
-            {% endif %}
+            <input required id="storage_type_private" type="radio" name="storage_type" value="private"
+                   {% if not user.is_superuser %}
+                   disabled checked
+                   {% endif %}
+            >
+            <label style="padding-right: 8px;" for="storage_type_private">Частное</label>
+            <input required id="storage_type_public" type="radio" name="storage_type" value="public"
+                   {% if not user.is_superuser %}
+                   disabled
+                   {% endif %}
+            >
+            <label style="padding-right: 8px;" for="storage_type_public">Публичное</label>
         </div>
+        <br>
+        <br>
+        <div id="file-choice">
+            {{ form.as_p }}
+        </div>
+        {% block additional_options %}{% endblock %}
+        <button type="submit" class="btn btn-primary" style="border-radius: 12px; margin-right:10px;">Загрузить
+        </button>
+    </form>
 
-        {% block modal_dialogs %}
-            {% for task_id in tasks_id %}
-                <div class="modal fade" id="delete_download_{{ task_id }}" tabindex="-1">
+    <br>
+    <h3 align="center">Журнал загрузок</h3>
+    <br>
+
+    <div class="container upload-section">
+        <script src="{% static 'celery_progress/celery_progress.js' %}"></script>
+        <script>
+            let i = 0;
+            let progress_bars;
+        </script>
+        {% if tasks_id %}
+        {% for task_id in tasks_id %}
+        <div class="task-block" id="download-{{ task_id }}" data-task-id="{{ task_id }}">
+            <div class="border border-secondary" style="padding: 5px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div></div>
+                    <button class="btn btn-link"
+                            style="padding: 0; border: none; background: none; color: orangered; font-size: 25px; font-weight: bold; text-decoration: none;"
+                            type="button" data-bs-target="#delete_download_{{ task_id }}"
+                            data-bs-toggle="modal">
+                        &times;
+                    </button>
+                </div>
+                <div class='progress-wrapper-{{ task_id }} progress'
+                     style=" height: 100%; border-radius: 15px;">
+                    <div id='progress-bar-{{ task_id }}'
+                         class='progress-bar progress-bar-striped'
+                         role="progressbar"
+                         style="background-color: #68a9ef; width: 0%; background-size: 2rem 2rem;">&nbsp;
+                    </div>
+                </div>
+                <div id="progress-bar-message-{{ task_id }}">Ожидание загрузки файла...</div>
+                <div id="progress-result-{{ task_id }}"></div>
+                <div id="pb-progress-{{ task_id }}"></div>
+                <div id="pb-time-start-{{ task_id }}"></div>
+                <div id="pb-time-end-{{ task_id }}"></div>
+                <div id="pb-files-{{ task_id }}"></div>
+            </div>
+            <br>
+        </div>
+        {% endfor %}
+        {% else %}
+        <a>Здесь будет отображён прогресс загрузки файлов</a>
+        {% endif %}
+    </div>
+
+    {% block modal_dialogs %}
+    {% for task_id in tasks_id %}
+    <div class="modal fade" id="delete_download_{{ task_id }}" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Вы уверены, что хотите удалить данную загрузку?</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
+                            onclick="confirmDelete(`{{ task_id }}`)">Удалить
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% endblock %}
+
+    <script src="{% static 'celery_progress/celery_progress_custom_funcs.js' %}"></script>
+    <script>
+        let defaultMessages = {
+            waiting: 'Ожидание загрузки...',
+            started: 'Загрузка началась...',
+        }
+
+        function fetchTasks() {
+            $.ajax({
+                url: '{% block tasks_api_url %}{% endblock %}',
+                type: 'GET',
+                success: function (data) {
+                    data = data.tasks_id
+                    data.forEach(function (task) {
+                        if (task !== undefined && !document.getElementById('download-' + task)) {
+                            addTaskToInterface(task);
+                        } else {
+                            {% if tasks_id %}
+                                {% for task_id in tasks_id %}
+                                    if (!data.includes(`{{ task_id }}`)) {
+                                        document.querySelector('#download-' + `{{ task_id }}`).style.display = 'none';
+                                    }
+                                {% endfor  %}
+                            {% endif  %}
+                        }
+                    });
+                },
+                error: function (error) {
+                    console.error("Ошибка при получении задач:", error);
+                }
+            });
+        }
+
+        function addTaskToInterface(task) {
+            const taskElement = document.createElement('div');
+            taskElement.id = 'download-' + task;
+            taskElement.className = 'task-block';
+            taskElement.dataset.taskId = task;
+            taskElement.innerHTML = `
+                <div class="border border-secondary" style="padding: 5px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div></div>
+                        <button class="btn btn-link"
+                                style="padding: 0; border: none; background: none; color: orangered; font-size: 25px; font-weight: bold; text-decoration: none;"
+                                type="button" data-bs-target="#delete_download_${task}"
+                                data-bs-toggle="modal">
+                            &times;
+                        </button>
+                    </div>
+                    <div class='progress-wrapper-${task}'>
+                        <div id='progress-bar-${task}' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
+                    </div>
+                    <div id="progress-bar-message-${task}">Задача добавлена...</div>
+                    <div id="progress-result-${task}"></div>
+                    <div id="pb-progress-${task}"></div>
+                    <div id="pb-time-start-${task}"></div>
+                    <div id="pb-time-end-${task}"></div>
+                    <div id="pb-files-${task}"></div>
+                </div>
+                <br>
+                <div class="modal fade" id="delete_download_${task}" tabindex="-1">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
@@ -98,96 +178,54 @@
                             <div class="modal-footer">
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
                                 <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
-                                        onclick="confirmDelete(`{{ task_id }}`)">Удалить
+                                        onclick="confirmDelete(\`${task}\`)">Удалить
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
-            {% endfor %}
-        {% endblock %}
+            `;
+            document.querySelector('.upload-section').prepend(taskElement);
+            taskObserver.observe(taskElement);
+            /*
+            CeleryProgressBar.initProgressBar("/celery-progress/" + task, {
+                progressBarId: "progress-bar-" + task,
+                progressBarMessageId: "progress-bar-message-" + task,
+                resultElementId: "progress-result-" + task,
+                defaultMessages: defaultMessages,
+                onSuccess: onSuccessCustom,
+                onResult: onResultCustom,
+                onError: onErrorCustom,
+                onTaskError: onTaskErrorCustom,
+                onRetry: onRetryCustom,
+                onIgnored: onIgnoredCustom,
+                onProgress: onProgressCustom,
+            });
+            */
+        }
 
-        <script src="{% static 'celery_progress/celery_progress_custom_funcs.js' %}"></script>
-        <script>
-            let defaultMessages = {
-                waiting: 'Ожидание загрузки...',
-                started: 'Загрузка началась...',
-            }
+        function confirmDelete(task_id) {
+            $.ajax({
+                url: '/api/download_delete/' + task_id + '/',
+                type: 'GET',
+                success: function (response) {
+                    document.querySelector('#download-' + task_id).style.display = 'none';
+                }
+            });
+        }
 
-            function fetchTasks() {
-                $.ajax({
-                    url: '{% block tasks_api_url %}{% endblock %}',
-                    type: 'GET',
-                    success: function (data) {
-                        data = data.tasks_id
-                        data.forEach(function (task) {
-                            if (task !== undefined && !document.getElementById('download-' + task)) {
-                                addTaskToInterface(task);
-                            } else {
-                                {% if tasks_id %}
-                                    {% for task_id in tasks_id %}
-                                        if (!data.includes(`{{ task_id }}`)) {
-                                            document.querySelector('#download-' + `{{ task_id }}`).style.display = 'none';
-                                        }
-                                    {% endfor  %}
-                                {% endif  %}
-                            }
-                        });
-                    },
-                    error: function (error) {
-                        console.error("Ошибка при получении задач:", error);
-                    }
-                });
-            }
-
-            function addTaskToInterface(task) {
-                const taskElement = document.createElement('div');
-                taskElement.id = 'download-' + task;
-                taskElement.innerHTML = `
-                    <div class="border border-secondary" style="padding: 5px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div></div>
-                            <button class="btn btn-link"
-                                    style="padding: 0; border: none; background: none; color: orangered; font-size: 25px; font-weight: bold; text-decoration: none;"
-                                    type="button" data-bs-target="#delete_download_${task}"
-                                    data-bs-toggle="modal">
-                                &times;
-                            </button>
-                        </div>
-                        <div class='progress-wrapper-${task}'>
-                            <div id='progress-bar-${task}' class='progress-bar' style="background-color: #68a9ef; width: 0%;">&nbsp;</div>
-                        </div>
-                        <div id="progress-bar-message-${task}">Задача добавлена...</div>
-                        <div id="progress-result-${task}"></div>
-                        <div id="pb-progress-${task}"></div>
-                        <div id="pb-time-start-${task}"></div>
-                        <div id="pb-time-end-${task}"></div>
-                        <div id="pb-files-${task}"></div>
-                    </div>
-                    <br>
-                    <div class="modal fade" id="delete_download_${task}" tabindex="-1">
-                        <div class="modal-dialog">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title">Вы уверены, что хотите удалить данную загрузку?</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                            aria-label="Close"></button>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal"
-                                            onclick="confirmDelete(\`${task}\`)">Удалить
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-                document.querySelector('.upload-section').prepend(taskElement);
-                CeleryProgressBar.initProgressBar("/celery-progress/" + task, {
-                    progressBarId: "progress-bar-" + task,
-                    progressBarMessageId: "progress-bar-message-" + task,
-                    resultElementId: "progress-result-" + task,
+        document.addEventListener("DOMContentLoaded", function () {
+            setInterval(fetchTasks, 5000);
+            const task_urls = [
+                {% for task_id in tasks_id %}
+                    "/celery-progress/" + `{{ task_id }}`,
+                {% endfor %}];
+            {% for task_id in tasks_id %}
+                /*
+                CeleryProgressBar.initProgressBar(task_urls[{{ forloop.counter }}-1], {
+                    progressBarId: "progress-bar-" + `{{ task_id }}`,
+                    progressBarMessageId: "progress-bar-message-" + `{{ task_id }}`,
+                    resultElementId: "progress-result-" + `{{ task_id }}`,
                     defaultMessages: defaultMessages,
                     onSuccess: onSuccessCustom,
                     onResult: onResultCustom,
@@ -197,42 +235,45 @@
                     onIgnored: onIgnoredCustom,
                     onProgress: onProgressCustom,
                 });
-            }
+                */
+            {% endfor %}
 
-            function confirmDelete(task_id) {
-                $.ajax({
-                    url: '/api/download_delete/' + task_id + '/',
-                    type: 'GET',
-                    success: function (response) {
-                        document.querySelector('#download-' + task_id).style.display = 'none';
-                    }
-                });
-            }
-
-            document.addEventListener("DOMContentLoaded", function () {
-                setInterval(fetchTasks, 5000);
-                const task_urls = [
-                    {% for task_id in tasks_id %}
-                        "/celery-progress/" + `{{ task_id }}`,
-                    {% endfor %}];
-                {% for task_id in tasks_id %}
-                    CeleryProgressBar.initProgressBar(task_urls[{{ forloop.counter }}-1], {
-                        progressBarId: "progress-bar-" + `{{ task_id }}`,
-                        progressBarMessageId: "progress-bar-message-" + `{{ task_id }}`,
-                        resultElementId: "progress-result-" + `{{ task_id }}`,
-                        defaultMessages: defaultMessages,
-                        onSuccess: onSuccessCustom,
-                        onResult: onResultCustom,
-                        onError: onErrorCustom,
-                        onTaskError: onTaskErrorCustom,
-                        onRetry: onRetryCustom,
-                        onIgnored: onIgnoredCustom,
-                        onProgress: onProgressCustom,
-                    });
-                {% endfor %}
+            document.querySelectorAll('.task-block').forEach(block => {
+                console.log(block);
+                taskObserver.observe(block);
             });
-        </script>
-    </div>
+        });
+
+        const taskObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+            console.log('Обнаружено пересечение:', entry.target.dataset.taskId, entry.isIntersecting);
+                if (entry.isIntersecting) {
+                    const block = entry.target;
+                    const taskId = block.dataset.taskId;
+                    if (taskId && !block.dataset.initialized) {
+                        // Инициализируем прогресс-бар для этой задачи
+                        CeleryProgressBar.initProgressBar(`/celery-progress/${taskId}`, {
+                            progressBarId: `progress-bar-${taskId}`,
+                            progressBarMessageId: `progress-bar-message-${taskId}`,
+                            resultElementId: `progress-result-${taskId}`,
+                            defaultMessages: defaultMessages,
+                            onSuccess: onSuccessCustom,
+                            onResult: onResultCustom,
+                            onError: onErrorCustom,
+                            onTaskError: onTaskErrorCustom,
+                            onRetry: onRetryCustom,
+                            onIgnored: onIgnoredCustom,
+                            onProgress: onProgressCustom,
+                        });
+                        block.dataset.initialized = 'true';
+                        // После инициализации можно отключить наблюдение, чтобы не тратить ресурсы
+                        taskObserver.unobserve(block);
+                    }
+                }
+            });
+        }, { threshold: 0.1 }); // сработает, когда 10% блока видны
+    </script>
+</div>
 {% endblock %}
 
 <script>

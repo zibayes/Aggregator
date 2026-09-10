@@ -112,7 +112,7 @@
         </script>
         {% if tasks_id %}
         {% for task_id in tasks_id %}
-        <div id="download-{{ task_id }}">
+        <div class="task-block" id="download-{{ task_id }}" data-task-id="{{ task_id }}">
             <div class="border border-secondary" style="padding: 5px;">
                 {% if user.is_superuser %}
                 <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -205,6 +205,8 @@
             // Создайте HTML-элемент для новой задачи
             const taskElement = document.createElement('div');
             taskElement.id = 'download-' + task;
+            taskElement.className = 'task-block';
+            taskElement.dataset.taskId = task;
             taskElement.innerHTML = `
                 <div class="border border-secondary" style="padding: 5px;">
                     {% if user.is_superuser %}
@@ -252,6 +254,8 @@
                 {% endblock modal_dialog_additional %}
             `;
             document.querySelector('.upload-section').prepend(taskElement);
+            taskObserver.observe(taskElement);
+            /*
             CeleryProgressBar.initProgressBar("/celery-progress/" + task, {
                 progressBarId: "progress-bar-" + task,
                 progressBarMessageId: "progress-bar-message-" + task,
@@ -265,6 +269,7 @@
                 onIgnored: onIgnoredCustom,
                 onProgress: onProgressCustom,
             });
+            */
         }
 
         function confirmDelete(task_id) {
@@ -284,6 +289,7 @@
                     "/celery-progress/" + `{{ task_id }}`,
                 {% endfor %}];
             {% for task_id in tasks_id %}
+                /*
                 CeleryProgressBar.initProgressBar(task_urls[{{ forloop.counter }}-1], {
                     progressBarId: "progress-bar-" + `{{ task_id }}`,
                     progressBarMessageId: "progress-bar-message-" + `{{ task_id }}`,
@@ -297,8 +303,43 @@
                     onIgnored: onIgnoredCustom,
                     onProgress: onProgressCustom,
                 });
+                */
             {% endfor %}
+
+            document.querySelectorAll('.task-block').forEach(block => {
+            console.log(block);
+                taskObserver.observe(block);
+            });
         });
+
+        const taskObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+            console.log('Обнаружено пересечение:', entry.target.dataset.taskId, entry.isIntersecting);
+                if (entry.isIntersecting) {
+                    const block = entry.target;
+                    const taskId = block.dataset.taskId;
+                    if (taskId && !block.dataset.initialized) {
+                        // Инициализируем прогресс-бар для этой задачи
+                        CeleryProgressBar.initProgressBar(`/celery-progress/${taskId}`, {
+                            progressBarId: `progress-bar-${taskId}`,
+                            progressBarMessageId: `progress-bar-message-${taskId}`,
+                            resultElementId: `progress-result-${taskId}`,
+                            defaultMessages: defaultMessages,
+                            onSuccess: onSuccessCustom,
+                            onResult: onResultCustom,
+                            onError: onErrorCustom,
+                            onTaskError: onTaskErrorCustom,
+                            onRetry: onRetryCustom,
+                            onIgnored: onIgnoredCustom,
+                            onProgress: onProgressCustom,
+                        });
+                        block.dataset.initialized = 'true';
+                        // После инициализации можно отключить наблюдение, чтобы не тратить ресурсы
+                        taskObserver.unobserve(block);
+                    }
+                }
+            });
+        }, { threshold: 0.1 }); // сработает, когда 10% блока видны
 
         document.getElementById('dateToggle').addEventListener('change', function () {
             const dateFields = document.getElementById('dateFields');

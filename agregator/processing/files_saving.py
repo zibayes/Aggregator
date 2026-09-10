@@ -237,7 +237,7 @@ def raw_open_lists_save(uploaded_files, user_id, is_public, origin_filename=None
             origin_filename_no_ext = origin_filename[:origin_filename.rfind('.')]
         else:
             origin_filename_no_ext = file.name[:file.name.rfind('.')]
-        path = f'Открытые листы/{origin_filename_no_ext}'
+        path = f'Открытые листы/{open_list.id}__{origin_filename_no_ext}'
         full_path = f'uploaded_files/' + path
         Path(full_path).mkdir(parents=True, exist_ok=True)
         if isinstance(file, PIL.Image.Image):
@@ -334,7 +334,7 @@ def save_report(files, reports_ids, report_type, user_id, is_public, report_dire
     while report_folder_name.endswith('.'):
         report_folder_name = report_folder_name[:-1]
     report_folder_name = report_folder_name[:report_folder_name.rfind('.')]
-    path = f'uploaded_files/{report_directory}/{report_folder_name}'
+    path = f'uploaded_files/{report_directory}/{report_id}__{report_folder_name}'
     Path(path).mkdir(parents=True, exist_ok=True)
     if isinstance(files, list):
         i = 0
@@ -426,7 +426,7 @@ def raw_account_cards_save(uploaded_files, user_id, is_public, upload_source=Non
         account_card.save()
         account_card_id = account_card.id
         account_cards_ids.append(account_card_id)
-        path = f'uploaded_files/Учётные карты/{file.name[:file.name.rfind('.')]}'
+        path = f'uploaded_files/Учётные карты/{account_card.id}__{file.name[:file.name.rfind('.')]}'
         Path(path).mkdir(parents=True, exist_ok=True)
         account_card.upload_source = {'source': 'Пользовательский файл'}
 
@@ -495,7 +495,7 @@ def raw_commercial_offers_save(uploaded_files, user_id, is_public, upload_source
         commercial_offer.save()
         commercial_offer_id = commercial_offer.id
         commercial_offers_ids.append(commercial_offer_id)
-        path = f'uploaded_files/Коммерческие предложения/{file.name[:file.name.rfind('.')]}'
+        path = f'uploaded_files/Коммерческие предложения/{commercial_offer_id}__{file.name[:file.name.rfind('.')]}'
         Path(path).mkdir(parents=True, exist_ok=True)
         commercial_offer.origin_filename = file.name
         commercial_offer.upload_source = {'source': 'Пользовательский файл'}
@@ -566,7 +566,7 @@ def raw_geo_objects_save(uploaded_files, user_id, is_public, upload_source=None)
         geo_object.save()
         geo_object_id = geo_object.id
         account_cards_ids.append(geo_object_id)
-        path = f'uploaded_files/Географические объекты/{file.name[:file.name.rfind('.')]}'
+        path = f'uploaded_files/Географические объекты/{geo_object_id}__{file.name[:file.name.rfind('.')]}'
         Path(path).mkdir(parents=True, exist_ok=True)
         geo_object.origin_filename = file.name
         geo_object.upload_source = {'source': 'Пользовательский файл'}

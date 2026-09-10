@@ -86,12 +86,13 @@ function onTaskErrorCustom(progressBarElement, progressBarMessageElement, result
 }
 
 function escapeDoubleQuotes(str) {
+    console.log('Тип str:', typeof str, 'Значение:', str);
     return str.replace(/"/g, '\\"');
 }
 
 function onResultCustom(resultElement, result) {
     try {
-        result = JSON.parse(escapeDoubleQuotes(result).replace(/'/g, '"'));
+        // result = JSON.parse(escapeDoubleQuotes(result).replace(/'/g, '"'));
         if (resultElement) {
             // resultElement.textContent = result.error_text;
         }

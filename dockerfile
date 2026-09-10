@@ -39,7 +39,7 @@ RUN --mount=type=cache,target=/var/cache/apt \
         tzdata && \
     rm -rf /var/lib/apt/lists/*
 	
-RUN ln -sf /usr/bin/unrar-free /usr/bin/unrar
+# RUN ln -sf /usr/bin/unrar-free /usr/bin/unrar
 
 # Устанавливаем временную зону на Красноярск
 ENV TZ=Asia/Krasnoyarsk

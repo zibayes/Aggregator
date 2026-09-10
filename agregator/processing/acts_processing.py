@@ -3,6 +3,7 @@ import json
 import math
 import os
 import re
+import shutil
 import time
 from datetime import datetime
 from pathlib import Path
@@ -35,6 +36,7 @@ from agregator.processing.acts_regex_extractors import (extract_act_name, extrac
                                                         extract_conclusion, extract_open_list, extract_voan,
                                                         extract_executor, broken_structure_process,
                                                         replace_encoded_parts)
+from agregator.processing.archive_utils import ARCHIVES_EXT
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +49,68 @@ def choose_pdf_file() -> str:
     file_path = filedialog.askdirectory(title="Выберите папку")
     if file_path:
         return file_path
+
+
+def from_safe_path(s, max_len=80, default=''):
+    if s is None:
+        return default
+    s = str(s).strip()
+    if not s:
+        return default
+    # убираем float-хвост у года
+    s = re.sub(r'\.0$', '', s)
+    # убираем запрещённые в путях символы
+    s = re.sub(r'[\\/:*?"<>|]+', '-', s)
+    s = re.sub(r'\s+', ' ', s).strip()
+    return s[:max_len] or default
+
+
+def _remap_paths(obj, old_prefix, new_prefix):
+    if isinstance(obj, dict):
+        return {k: _remap_paths(v, old_prefix, new_prefix) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_remap_paths(v, old_prefix, new_prefix) for v in obj]
+    if isinstance(obj, str) and obj.startswith(old_prefix):
+        return new_prefix + obj[len(old_prefix):]
+    return obj
+
+
+def acts_files_sort(source_dict):
+    logger.info('BEEEFOOREEE:')
+    for item in source_dict:
+        logger.info(f'item.path = {item.path}')
+    for source in source_dict:
+        file = source.path
+        table_info = {}
+        source.score = 0
+        if file.endswith(ARCHIVES_EXT):
+            source.score = -1
+            continue
+        if 'акт' in file.lower():
+            source.score += 1
+        if 'гикэ' in file.lower():
+            source.score += 1
+        try:
+            document = fitz.open(file)
+        except Exception as e:
+            print(f'Ошибка при открытии файла акта = {file}! {e}')
+            traceback.print_exc()
+            continue
+        if document is None:
+            continue
+        pages = len(document) if len(document) > 0 else 1
+        full_text = ''
+        for page_number in range(min(pages, 8)):
+            full_text += document[page_number].get_text()
+        extract_act_name(full_text, 0, None, 0, table_info, '')
+        if 'Номер (если имеется) и наименование Акта ГИКЭ' in table_info and table_info[
+            'Номер (если имеется) и наименование Акта ГИКЭ']:
+            source.score += 1
+    source_dict = sorted(source_dict, key=lambda item: item.score, reverse=True)
+    logger.info('RESSUUULT:')
+    for item in source_dict:
+        logger.info(f'item.path = {item.path}')
+    return source_dict
 
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
@@ -68,6 +132,7 @@ def process_acts(self, acts_ids, user_id, select_text, select_enrich, select_ima
                                           load_function=load_raw_reports,
                                           select_text=select_text, select_enrich=select_enrich,
                                           select_image=select_image, select_coord=select_coord,
+                                          sort_function=acts_files_sort,
                                           process_function=extract_text_and_images, progress_json=progress_json,
                                           is_reprocess=is_reprocess)
     except Exception as e:
@@ -152,6 +217,8 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
             logger.info("ℹ️ KML файл не найден, используем координаты из PDF")
         logger.info(f"После извлечения координат из KML: {round((time.time() - start_time), 2)} секунд")
 
+    first_five_pages = replace_encoded_parts('\n'.join([x.get_text() for x in document[:5]]))
+
     # Разделы
     SECTIONS = OrderedDict([
         ('act', r'А\s*к\s*т'),
@@ -174,7 +241,6 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
         ('conclusion', r'Вывод[ы]?\s*экспертизы'),
         ('appendix', r'Перечень\s*приложений')
     ])
-    first_five_pages = replace_encoded_parts('\n'.join([x.get_text() for x in document[:5]]))
     print(f'SECTIONS = {SECTIONS}')
     SECTIONS = {**dict(sorted(list(SECTIONS.items())[:7],
                               key=lambda x: re.search(x[1], first_five_pages,
@@ -401,7 +467,11 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
     try:
         logger.info("--- Заполнение БД / Время выполнения: %s секунд ---" % round((time.time() - start_time), 2))
         if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('text', 'all'):
+            logger.info('HERERERR')
+            logger.info(F'current_act.year = {current_act.year}')
+            logger.info(F'df_new[ГОД][0] = {df_new['ГОД'][0]}')
             current_act.year = df_new['ГОД'][0] if is_reprocess or not current_act.year else current_act.year
+            logger.info(F'current_act.year = {current_act.year}')
             current_act.finish_date = df_new['Дата окончания проведения ГИКЭ'][
                 0] if is_reprocess or not current_act.finish_date else current_act.finish_date
             current_act.type = df_new['Вид ГИКЭ'][0] if is_reprocess or not current_act.type else current_act.type
@@ -448,24 +518,56 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
             current_act.exp_conclusion = act_parts_info[
                 'conclusion'] if is_reprocess or not current_act.exp_conclusion else current_act.exp_conclusion
 
-            if not re.search(r'\+Акт \d{1,2}\.\d{1,2}\.\d{2,4} [А-ЯЁ][а-яё]+',
+            if not re.search(r'\+?Акт\s+\d{1,2}\.\d{1,2}\.\d{2,4}\s+.{0,10}?[А-ЯЁ][а-яё]*',
                              current_act.source_dict[source_index].path) and (
                     'акт' in current_act.source_dict[source_index].path.lower() or 'гикэ' in current_act.source_dict[
                 source_index].path.lower()):
-                expert = current_act.expert[:current_act.expert.find(' ')]
-                expert = expert if len(expert) < 45 else ''
-                new_filename = file[:file.rfind(
-                    '/') + 1] + f'+Акт {current_act.finish_date} {expert}, {current_act.type}, ' + file[
-                                                                                                   file.rfind('.'):]
-                if not os.path.exists(new_filename):
-                    os.rename(file, new_filename)
-                    source = DocumentFile.objects.filter(document_type='Act', document_id=current_act.id, path=file)
-                    if source and len(source) > 0:
-                        source = source[0]
-                    source.path = new_filename
-                    progress_json['file_groups'][str(act_id)][source_index][
-                        'path'] = new_filename
-                    source.save()
+                old_folder = os.path.dirname(file) + os.sep
+                if old_folder.rstrip('/') in ('uploaded_files/Акты ГИКЭ', 'uploaded_files') or not os.path.exists(
+                        old_folder):
+                    logger.warning(f'Отказ от переноса файлов: old_folder слишком общий ({old_folder})')
+                else:
+                    raw_expert = (current_act.expert or '').strip()
+                    expert = raw_expert.split(' ', 1)[0] if ' ' in raw_expert else raw_expert
+                    expert = from_safe_path(expert, max_len=45) if expert else ''
+                    year = from_safe_path(current_act.year, default='unknown')
+                    finish_date = from_safe_path(current_act.finish_date, default='no-date')
+                    act_type = from_safe_path(current_act.type, max_len=60)
+                    report_folder_name = f'Акт {finish_date} {expert}, {act_type}__{current_act.id}'
+                    new_folder = f'uploaded_files/Акты ГИКЭ/{year}/{report_folder_name}/'
+                    new_filename = new_folder + f'+Акт {finish_date} {expert}, {act_type}, ' + file[
+                                                                                               file.rfind(
+                                                                                                   '.'):]
+                    if not os.path.exists(new_filename):
+                        old_path_to_new = {}
+                        Path(new_folder).mkdir(parents=True, exist_ok=True)
+                        for source in current_act.source_dict:
+                            old_path = source.path
+                            if old_path == file:
+                                shutil.move(old_path, new_filename)
+                                new_name = new_filename
+                            else:
+                                new_name = new_folder + old_path[old_path.rfind('/') + 1:]
+                                shutil.move(old_path, new_name)
+                            old_path_to_new[old_path] = new_name
+                            source.path = new_name
+                            source.save()
+                        for idx, entry in enumerate(progress_json['file_groups'][str(act_id)]):
+                            if entry.get('path') in old_path_to_new:
+                                progress_json['file_groups'][str(act_id)][idx]['path'] = old_path_to_new[entry['path']]
+                        try:
+                            supplement_content = _remap_paths(supplement_content, old_folder, new_folder)
+                            for filename in os.listdir(old_folder):
+                                src_file_path = os.path.join(old_folder, filename)
+                                if os.path.exists(src_file_path):
+                                    dst_file_path = os.path.join(new_folder, filename)
+                                    shutil.move(src_file_path, dst_file_path)
+                            if not os.listdir(old_folder):
+                                os.rmdir(old_folder)
+                        except json.decoder.JSONDecodeError as e:
+                            logger.error(
+                                f"Ошибка при переносе приложения в новую папку акта id = {current_act.id}: {e}")
+                            logger.error(traceback.format_exc())
         if progress_json['file_groups'][str(act_id)][source_index]['type'] in ('images', 'all'):
             current_act.supplement = supplement_content
         print(coordinates)

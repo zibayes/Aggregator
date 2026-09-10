@@ -9,6 +9,7 @@ app = Celery('archeology')
 
 # Загружаем настройки Django и добавляем конфигурацию Celery
 app.config_from_object('django.conf:settings', namespace='CELERY')
+app.conf.broker_connection_retry_on_startup = True
 
 # Автоматически загружает задачи из всех зарегистрированных Django приложений
 app.autodiscover_tasks()

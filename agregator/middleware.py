@@ -17,6 +17,9 @@ from .wopi.views import generate_wopi_token
 
 class FilePreviewMiddleware(MiddlewareMixin):
     def process_request(self, request):
+        if request.method == 'HEAD':
+            return HttpResponse()
+
         # ИСКЛЮЧАЕМ URL-ы детальных страниц из обработки
         excluded_paths = [
             '/tech_reports/',

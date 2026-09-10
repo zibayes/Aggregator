@@ -21,6 +21,7 @@ def detect_rasterization_pdf(document, text_threshold=10, rasterization_threshol
     """Функция распознавания растеризированных документов"""
     result = []
     len_test = min(len(document), pages_to_check)
+    len_test = 1 if len_test < 1 else len_test
     for page_num in range(len_test):
         page = document[page_num]
 

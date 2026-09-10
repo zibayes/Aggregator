@@ -34,11 +34,8 @@ def from_json(value):
 
 def delete_files(file_path):
     if os.path.isfile(file_path):
-        if '\\' in file_path:
-            deter = '\\'
-        else:
-            deter = '/'
-        folder_path = file_path[:file_path.rfind(deter)]
+        file_path = file_path.replace('\\', '/')
+        folder_path = file_path[:file_path.rfind('/')]
         if os.path.isdir(folder_path) and is_safety_remove(folder_path):
             try:
                 shutil.rmtree(folder_path)
@@ -62,8 +59,11 @@ def delete_files(file_path):
         '''
 
 
-def delete_files_from_json_field(field_value):
+def delete_files_from_json_field(field_value, is_path=False):
     if not field_value:
+        return
+    if isinstance(field_value, str) and is_path:
+        delete_files(field_value)
         return
     if isinstance(field_value, str):
         try:
@@ -85,11 +85,12 @@ def delete_files_from_json_field(field_value):
             source.delete()
 
 
-def delete_document_file_instances(source_dict):
+def delete_document_file_instances(source_dict, raw_delete=False):
     logger.info('DELETEEEEE!!!')
     if isinstance(source_dict, QuerySet) and len(source_dict) > 0 and isinstance(source_dict[0], DocumentFile):
         for source in source_dict:
             logger.info(F'DELETEEEEE!!! {source}')
+            source._raw_delete = raw_delete
             source.delete()
 
 
@@ -189,6 +190,13 @@ class DocumentFile(models.Model):
             self.file_size = get_file_size(self.path)
         super().save(*args, **kwargs)
 
+    def delete(self, *args, **kwargs):
+        self._raw_delete = self._raw_delete if hasattr(self, '_raw_delete') else False
+        logger.info(f'_raw_delete: {self._raw_delete}')
+        if not hasattr(self, '_raw_delete') or not self._raw_delete:
+            delete_files_from_json_field(self.path, is_path=True)
+        super().delete(*args, **kwargs)
+
     @property
     def document(self):
         if self.document_instance is None:
@@ -256,15 +264,10 @@ class Act(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        logger.info(f'has attr: {hasattr(self, '_raw_delete')}')
-        if hasattr(self, '_raw_delete'):
-            logger.info(f'_raw_delete: {self._raw_delete}')
-        if hasattr(self, '_raw_delete') and self._raw_delete:
-            delete_document_file_instances(self.source_dict)
-            super().delete(*args, **kwargs)
-        else:
-            delete_files_from_json_field(self.source_dict)
-            super().delete(*args, **kwargs)
+        self._raw_delete = self._raw_delete if hasattr(self, '_raw_delete') else False
+        logger.info(f'_raw_delete: {self._raw_delete}')
+        delete_document_file_instances(self.source_dict, raw_delete=self._raw_delete)
+        super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -327,12 +330,10 @@ class ScientificReport(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if hasattr(self, '_raw_delete') and self._raw_delete:
-            delete_document_file_instances(self.source_dict)
-            super().delete(*args, **kwargs)
-        else:
-            delete_files_from_json_field(self.source_dict)
-            super().delete(*args, **kwargs)
+        self._raw_delete = self._raw_delete if hasattr(self, '_raw_delete') else False
+        logger.info(f'_raw_delete: {self._raw_delete}')
+        delete_document_file_instances(self.source_dict, raw_delete=self._raw_delete)
+        super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -399,12 +400,10 @@ class TechReport(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if hasattr(self, '_raw_delete') and self._raw_delete:
-            delete_document_file_instances(self.source_dict)
-            super().delete(*args, **kwargs)
-        else:
-            delete_files_from_json_field(self.source_dict)
-            super().delete(*args, **kwargs)
+        self._raw_delete = self._raw_delete if hasattr(self, '_raw_delete') else False
+        logger.info(f'_raw_delete: {self._raw_delete}')
+        delete_document_file_instances(self.source_dict, raw_delete=self._raw_delete)
+        super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -459,12 +458,10 @@ class OpenLists(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if hasattr(self, '_raw_delete') and self._raw_delete:
-            delete_document_file_instances(self.source_dict)
-            super().delete(*args, **kwargs)
-        else:
-            delete_files_from_json_field(self.source_dict)
-            super().delete(*args, **kwargs)
+        self._raw_delete = self._raw_delete if hasattr(self, '_raw_delete') else False
+        logger.info(f'_raw_delete: {self._raw_delete}')
+        delete_document_file_instances(self.source_dict, raw_delete=self._raw_delete)
+        super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -522,12 +519,10 @@ class ObjectAccountCard(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if hasattr(self, '_raw_delete') and self._raw_delete:
-            delete_document_file_instances(self.source_dict)
-            super().delete(*args, **kwargs)
-        else:
-            delete_files_from_json_field(self.source_dict)
-            super().delete(*args, **kwargs)
+        self._raw_delete = self._raw_delete if hasattr(self, '_raw_delete') else False
+        logger.info(f'_raw_delete: {self._raw_delete}')
+        delete_document_file_instances(self.source_dict, raw_delete=self._raw_delete)
+        super().delete(*args, **kwargs)
 
     @property
     def upload_source_dict(self):
@@ -579,14 +574,10 @@ class ArchaeologicalHeritageSite(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if hasattr(self, '_raw_delete') and self._raw_delete:
-            delete_document_file_instances(self.document_source_dict)
-            super().delete(*args, **kwargs)
-        else:
-            delete_files_from_json_field(self.document_source_dict)
-            if self.source and len(self.source) > 0:
-                delete_files(self.source)
-            super().delete(*args, **kwargs)
+        self._raw_delete = self._raw_delete if hasattr(self, '_raw_delete') else False
+        logger.info(f'_raw_delete: {self._raw_delete}')
+        delete_document_file_instances(self.source_dict, raw_delete=self._raw_delete)
+        super().delete(*args, **kwargs)
 
     @property
     def document_source_dict(self):
@@ -637,14 +628,10 @@ class IdentifiedArchaeologicalHeritageSite(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if hasattr(self, '_raw_delete') and self._raw_delete:
-            delete_document_file_instances(self.document_source_dict)
-            super().delete(*args, **kwargs)
-        else:
-            delete_files_from_json_field(self.document_source_dict)
-            if self.source and len(self.source) > 0:
-                delete_files(self.source)
-            super().delete(*args, **kwargs)
+        self._raw_delete = self._raw_delete if hasattr(self, '_raw_delete') else False
+        logger.info(f'_raw_delete: {self._raw_delete}')
+        delete_document_file_instances(self.source_dict, raw_delete=self._raw_delete)
+        super().delete(*args, **kwargs)
 
     @property
     def document_source_dict(self):
@@ -696,12 +683,10 @@ class CommercialOffers(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if hasattr(self, '_raw_delete') and self._raw_delete:
-            delete_document_file_instances(self.source_dict)
-            super().delete(*args, **kwargs)
-        else:
-            delete_files_from_json_field(self.source_dict)
-            super().delete(*args, **kwargs)
+        self._raw_delete = self._raw_delete if hasattr(self, '_raw_delete') else False
+        logger.info(f'_raw_delete: {self._raw_delete}')
+        delete_document_file_instances(self.source_dict, raw_delete=self._raw_delete)
+        super().delete(*args, **kwargs)
 
     @property
     def source_dict(self):
@@ -745,12 +730,10 @@ class GeoObject(models.Model):
         super().save(*args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        if hasattr(self, '_raw_delete') and self._raw_delete:
-            delete_document_file_instances(self.source_dict)
-            super().delete(*args, **kwargs)
-        else:
-            delete_files_from_json_field(self.source_dict)
-            super().delete(*args, **kwargs)
+        self._raw_delete = self._raw_delete if hasattr(self, '_raw_delete') else False
+        logger.info(f'_raw_delete: {self._raw_delete}')
+        delete_document_file_instances(self.source_dict, raw_delete=self._raw_delete)
+        super().delete(*args, **kwargs)
 
     @property
     def source_dict(self):

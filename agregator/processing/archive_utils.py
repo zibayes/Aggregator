@@ -3,6 +3,7 @@ import os
 import zipfile
 import rarfile
 import py7zr
+from py7zr.io import BytesIOFactory
 import tarfile
 import shutil
 import hashlib
@@ -123,20 +124,30 @@ def unzip_zip(zip_path, extract_to):
 
 
 def unzip_7z(seven_zip_path, extract_to):
+    # Создаём фабрику, которая будет сохранять файлы в память
+    factory = BytesIOFactory(limit=8192 * 1024 * 1024)  # 8 Гб
     with py7zr.SevenZipFile(seven_zip_path, mode='r') as archive:
-        # Получаем список имён файлов (не папок)
-        for name in archive.getnames():
-            if name.endswith('/'):
-                continue
-            # Читаем содержимое файла
-            data = archive.read([name])[name]  # возвращает bytes
-            base_name = os.path.basename(fix_name(name))
-            if not base_name:
-                continue
-            unique_name = get_unique_filename(extract_to, base_name)
-            dest_path = os.path.join(extract_to, unique_name)
-            with open(dest_path, 'wb') as f:
-                f.write(data)
+        # Получаем список всех файлов в архиве (не папок)
+        all_files = archive.getnames()
+        files_to_extract = [f for f in all_files if not f.endswith('/')]
+        if not files_to_extract:
+            return  # В архиве нет файлов
+        # После вызова archive.extract(), фабрика будет содержать извлечённые данные
+        archive.extract(targets=files_to_extract, factory=factory)
+    # Теперь проходим по всем извлечённым файлам в фабрике
+    for original_name, bio in factory.products.items():
+        # Получаем содержимое файла как байты
+        file_data = bio.read()
+        # Берем только имя файла, игнорируя путь
+        base_name = os.path.basename(original_name)
+        if not base_name:
+            continue
+        # Генерируем уникальное имя в папке назначения
+        unique_name = get_unique_filename(extract_to, base_name)
+        dest_path = os.path.join(extract_to, unique_name)
+        # Записываем байты в новый файл
+        with open(dest_path, 'wb') as f:
+            f.write(file_data)
     shorten_path_recursive(extract_to)
 
 

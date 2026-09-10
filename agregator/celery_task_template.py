@@ -38,6 +38,7 @@ def process_documents(
         document_type,
         model_class=None,
         load_function=None,
+        sort_function=None,
         process_function=None,
         select_text=None,
         select_enrich=None,
@@ -93,6 +94,8 @@ def process_documents(
     if 'file_groups' not in progress_json:
         if document_type in ['scientific_reports', 'acts', 'tech_reports']:
             for doc in documents:
+                if sort_function is not None:
+                    doc.source_files = sort_function(doc.source_dict)
                 for source in doc.source_dict:
                     pg_count = pages_count[source.origin_filename] if source.origin_filename in pages_count else 1
                     file = {'path': source.path, 'type': source.file_type, 'origin_filename': source.origin_filename,
@@ -127,10 +130,11 @@ def process_documents(
         i = 0
         for source in (doc.source_dict if hasattr(doc, 'source_dict') else [
             {'path': doc.source if hasattr(doc, 'source') else doc.source.name}]):
-            print('isinstance(source, dict): ' + str(isinstance(source, dict)))
+            logger.info(f'doc.source_dict TEEEST: {doc.source_dict}')
+            logger.info('isinstance(source, dict): ' + str(isinstance(source, dict)))
             path = source['path'] if isinstance(source, dict) else source.path
             path = path if isinstance(path, str) else path.path
-            print('PATH= ' + str(path))
+            logger.info('PATH= ' + str(path))
 
             # Проверка расширения файла
             if not path.lower().endswith(('.pdf', '.doc', '.docx', '.odt', '.xlsx', '.xls', '.kml', '.kmz')):

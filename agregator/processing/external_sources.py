@@ -1,4 +1,5 @@
 import copy
+import json
 import os
 import random
 import re
@@ -46,6 +47,9 @@ from agregator.hash import calculate_file_hash
 from agregator.views.utils import get_heritage_list_path
 from archeology.settings import HERITAGES_LISTS_PATH
 from agregator.processing.utils import is_safety_remove
+from agregator.redis_config import get_progress_json, create_progress_json
+from agregator.celery_task_template import progress_update, get_expected_time, ALL_PARTS
+from agregator.redis_config import redis_client
 
 logger = logging.getLogger(__name__)
 
@@ -239,6 +243,19 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
             'message': 'Начинаем сканирование',
         }
     )
+
+    progress_json = get_progress_json(self.request.id)
+    if progress_json is None:
+        progress_json = create_progress_json(
+            None,
+            None,
+            task_id=self.request.id,
+            task_name=self.name,
+            args=[start_date, end_date, start_page, end_page, select_text, select_enrich, select_image,
+                  select_coord],
+            kwargs={}
+        )
+    redis_client.set(self.request.id, json.dumps(progress_json))
 
     # Получаем данные один раз
     # admin = User.objects.get(is_superuser=True)
@@ -446,7 +463,7 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                         continue
 
                     # Пропускаем уже скачанные или ненужные файлы
-                    if file in downloaded_files:
+                    if not file.endswith(ARCHIVES_EXT) and file in downloaded_files:
                         file_info.update({'status': 'пропущен', 'reason': 'Файл уже скачан'})
                         task_state.add_file_info(file_info)
                         continue
