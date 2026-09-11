@@ -131,6 +131,24 @@ class User(AbstractUser):
         return False
 
 
+# Модель для уведомлений
+class Notification(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    title = models.CharField(max_length=100, null=True, blank=True)
+    message = models.CharField(max_length=255, null=True, blank=True)
+    url = models.CharField(max_length=500, null=True, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Notification {self.id} / User = {self.user.username} ({self.user.id})"
+
+    class Meta:
+        verbose_name = "Уведомление"
+        verbose_name_plural = "Уведомления"
+        db_table = 'notifications'
+
+
 # Модель для пользовательских загрузок
 class UserTasks(models.Model):
     user = models.ForeignKey(AUTH_USER_MODEL, on_delete=models.CASCADE)

@@ -11,6 +11,9 @@ docker-compose exec app python manage.py makemigrations
 REM --- Применяем миграции ---
 docker-compose exec app python manage.py migrate
 
+REM --- Создаём расписание для проверки сайта ООКН ---
+docker-compose exec app python manage.py setup_beat_schedule
+
 REM --- Создаем суперпользователя ---
 set USERNAME=admin
 set EMAIL=admin@example.com

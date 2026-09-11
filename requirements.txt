@@ -1,4 +1,5 @@
 django-debug-toolbar
+django-celery-beat
 
 pytesseract==0.3.13
 tesseract==0.1.3

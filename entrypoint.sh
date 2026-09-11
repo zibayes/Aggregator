@@ -116,7 +116,28 @@ if [ "$SERVICE_TYPE" = "app" ]; then
     # --access-logfile - \
     --error-logfile -
 elif [ "$SERVICE_TYPE" = "celery" ]; then
-    echo "=== Запуск Celery worker ==="
+    echo "=== Запуск Celery worker и beat ==="
+	
+	# Убираем возможный stale pid-файл
+    rm -f /tmp/celerybeat.pid
+
+    # Beat в фоне
+    celery -A archeology beat \
+        --loglevel=info \
+        --scheduler django_celery_beat.schedulers:DatabaseScheduler \
+        --pidfile=/tmp/celerybeat.pid &
+
+    BEAT_PID=$!
+
+    # Функция для корректного завершения обоих процессов
+    cleanup() {
+        echo "Останавливаем beat (PID $BEAT_PID)..."
+        kill "$BEAT_PID" 2>/dev/null || true
+        rm -f /tmp/celerybeat.pid
+    }
+    trap cleanup EXIT INT TERM
+
+    # Worker на переднем плане
     exec celery -A archeology worker --loglevel=info --concurrency=4
 else
     echo "ERROR: Неизвестный тип сервиса: $SERVICE_TYPE"

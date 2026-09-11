@@ -15,6 +15,7 @@ import os
 import sys
 import logging
 from agregator.redis_config import REDIS_URL
+from celery.schedules import crontab
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -54,6 +55,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'django_celery_results',
     'celery_progress',
+    'django_celery_beat',
     'debug_toolbar',
 ]
 
@@ -294,6 +296,8 @@ CELERY_BROKER_URL = REDIS_URL  # 'redis://redis:6379/0' / 'redis://localhost:637
 CELERY_ACCEPT_CONTENT = ['json']
 CELERY_TASK_SERIALIZER = 'json'
 CELERY_RESULT_BACKEND = 'django-db'  # 'redis://redis:6379/0' / REDIS_URL
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 CELERY_RESULT_EXTENDED = True
 CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_ACKS_LATE = True

@@ -126,6 +126,12 @@ urlpatterns = [
     path('batch/scan/', views.scan_directory, name='batch_scan'),
     path('batch/process/', views.process_batch_files, name='batch_process'),
 
+    path('api/notifications/', views.get_user_notifications, name='user_notifications'),
+    path('api/notifications/<int:notification_id>/read/', views.mark_notification_read, name='mark_notification_read'),
+    path('api/notifications/read-all/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
+    path('api/notifications/<int:notification_id>/delete/', views.delete_notification, name='delete_notification'),
+    path('api/notifications/delete-all/', views.delete_all_notifications, name='delete_all_notifications'),
+
     path('api/download_delete/<str:task_id>/', views.download_delete, name='download_delete'),
     path('api/get_user_tasks_reports/', views.get_user_tasks_reports,
          name='get_user_tasks_reports'),

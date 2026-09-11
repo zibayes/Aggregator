@@ -195,6 +195,53 @@
         </ul>
         <ul class="navbar-nav ms-auto">
             {% if user.is_authenticated %}
+            <li class="nav-item dropdown me-3" id="notifications-bell">
+                <a class="nav-link position-relative" href="#" id="notifDropdown"
+                   role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                   aria-expanded="false" style="padding: 6px 10px;">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"
+                         fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2zM8 1.918l-.797.161A4 4 0 0 0 4 6c0
+                                 .628-.134 2.197-.459 3.742-.16.767-.376 1.566-.663 2.258h10.244c-.287-.692-.502-1.49-.663-2.258C12.134
+                                 8.197 12 6.628 12 6a4 4 0 0 0-3.203-3.92L8 1.917zM14.22 12c.223.447.481.801.78
+                                 1H1c.299-.199.557-.553.78-1C2.68 10.2 3 6.88 3 6c0-2.42 1.72-4.44 4.005-4.901a1
+                                 1 0 1 1 1.99 0A5 5 0 0 1 13 6c0 .88.32 4.2 1.22 6z"/>
+                    </svg>
+                    <span id="notif-badge"
+                          class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                          style="display: none; font-size: 0.65rem;">
+                        0
+                    </span>
+                </a>
+                <ul class="dropdown-menu dropdown-menu-end shadow"
+                    aria-labelledby="notifDropdown"
+                    style="width: 360px; max-height: 420px; overflow-y: auto; padding: 0;">
+                    <li class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                        <strong style="font-size: 0.95rem;">Уведомления</strong>
+                        <div class="d-flex align-items-center" style="gap: 8px;">
+                            <button id="mark-all-read"
+                                    class="btn btn-sm btn-link text-decoration-none p-0"
+                                    style="font-size: 0.8rem;">Прочитать все
+                            </button>
+                            <button id="delete-all-notif"
+                                    class="btn btn-sm btn-link text-decoration-none p-0 text-danger"
+                                    title="Удалить все уведомления"
+                                    style="line-height: 1;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14"
+                                     fill="currentColor" viewBox="0 0 16 16">
+                                    <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1
+                                             .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646
+                                             2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </li>
+                    <li id="notif-empty" class="text-center text-muted py-4" style="font-size: 0.9rem;">
+                        Нет уведомлений
+                    </li>
+                    <div id="notif-list"></div>
+                </ul>
+            </li>
             <li class="nav-item d-flex align-items-center me-3" id="profile">
                 <a href="{% url 'profile' %}" style="margin-right:15px; white-space: nowrap;">
                     <img src="{{ user.avatar.url }}" class="rounded-circle" height="35" width="35" loading="lazy"
@@ -212,7 +259,7 @@
                    href="{% url 'login' %}">Вход</a>
             </li>
             <li>
-                <a class="btn btn-secondary lang" style="border-radius: 12px"
+                <a class="btn btn-secondary lang" style="border-radius: 12px; margin-right:10px;"
                    href="{% url 'register' %}">Регистрация</a>
             </li>
             {% endif %}
@@ -333,6 +380,8 @@
             });
         }, 50);
     });
+
+
 </script>
 
 </body>

@@ -339,55 +339,62 @@ class RegistryManager:
             clean_name = Path(filename).stem
             logger.info(f"📁 АНАЛИЗ НАЗВАНИЯ ФАЙЛА: {clean_name}")
 
-            # Извлекаем дату (формат: dd.mm.yyyy)
-            date_match = re.search(r'(\d{1,2}\.\d{1,2}\.\d{4})', clean_name)
-            if date_match:
-                extracted_date = date_match.group(1)
-                year = re.search(r'\d{4}', extracted_date)
-                if year:
-                    year = year.group(0)
-                else:
-                    year = None
-                current_date = table_info.get('Дата окончания проведения ГИКЭ', '')
-
-                # Если дата не заполнена или заполнена некорректно
-                if not current_date or str(current_date).strip() in ['', 'nan']:
-                    table_info['Дата окончания проведения ГИКЭ'] = extracted_date
+            if re.search(r'\+?Акт\s+\d{1,2}\.\d{1,2}\.\d{2,4}\s+.{0,10}?[А-ЯЁ][а-яё]*', clean_name):
+                # Извлекаем дату (формат: dd.mm.yyyy)
+                date_match = re.search(r'(\d{1,2}\.\d{1,2}\.\d{4})', clean_name)
+                if date_match:
+                    extracted_date = date_match.group(1)
+                    year = re.search(r'\d{4}', extracted_date)
                     if year:
-                        table_info['ГОД'] = year
-                    logger.info(f"   📅 ИЗВЛЕЧЕНА ДАТА ИЗ ФАЙЛА: {extracted_date}")
+                        year = year.group(0)
+                    else:
+                        year = None
+                    current_date = table_info.get('Дата окончания проведения ГИКЭ', '')
 
-            # Извлекаем фамилию эксперта (после даты, до запятой)
-            # Паттерн: дата пробел фамилия запятая
-            expert_match = re.search(r'\d{1,2}\.\d{1,2}\.\d{4}\s+([^,]+),', clean_name)
-            if expert_match:
-                extracted_expert = expert_match.group(1).strip()
-                current_expert = table_info.get('Эксперт (физ. или юр.лицо)', '')
+                    # Если дата не заполнена или заполнена некорректно
+                    if not current_date or str(current_date).strip() in ['', 'nan']:
+                        table_info['Дата окончания проведения ГИКЭ'] = extracted_date
+                        if year:
+                            table_info['ГОД'] = year
+                        logger.info(f"   📅 ИЗВЛЕЧЕНА ДАТА ИЗ ФАЙЛА: {extracted_date}")
 
-                # Если эксперт не заполнен
-                if not current_expert or str(current_expert).strip() in ['', 'nan']:
-                    table_info['Эксперт (физ. или юр.лицо)'] = extracted_expert
-                    logger.info(f"   👤 ИЗВЛЕЧЕН ЭКСПЕРТ ИЗ ФАЙЛА: {extracted_expert}")
+                # Извлекаем фамилию эксперта (после даты, до запятой)
+                # Паттерн: дата пробел фамилия запятая
+                expert_match = re.search(r'\d{1,2}\.\d{1,2}\.\d{4}\s+([^,]+),', clean_name)
+                if expert_match:
+                    extracted_expert = expert_match.group(1).strip()
+                    current_expert = table_info.get('Эксперт (физ. или юр.лицо)', '')
 
-            # Извлекаем место проведения (после запятой, до точки или конца)
-            location_match = re.search(r',\s*(.+?)(?:\.pdf|\.kmz|$)', clean_name)
-            if location_match:
-                extracted_location = location_match.group(1).strip()
-                current_location = table_info.get('Место проведения экспертизы', '')
+                    # Если эксперт не заполнен
+                    if not current_expert or str(current_expert).strip() in ['', 'nan']:
+                        table_info['Эксперт (физ. или юр.лицо)'] = extracted_expert
+                        logger.info(f"   👤 ИЗВЛЕЧЕН ЭКСПЕРТ ИЗ ФАЙЛА: {extracted_expert}")
 
-                # Если место не заполнено
-                if not current_location or str(current_location).strip() in ['', 'nan']:
-                    table_info['Место проведения экспертизы'] = extracted_location
-                    logger.info(f"   📍 ИЗВЛЕЧЕНО МЕСТО ИЗ ФАЙЛА: {extracted_location}")
+                # Извлекаем место проведения (после запятой, до точки или конца)
+                location_match = re.search(r',\s*(.+?)(?:\.pdf|\.kmz|$)', clean_name)
+                if location_match:
+                    extracted_location = location_match.group(1).strip()
+                    current_location = table_info.get('Место проведения экспертизы', '')
 
-            # Извлекаем тип ГИКЭ по ключевым словам
-            if not table_info.get('Вид ГИКЭ', '').strip():
-                if 'ЗУ' in clean_name.upper():
-                    table_info['Вид ГИКЭ'] = 'ЗУ'
-                    logger.info(f"   🏷️ ОПРЕДЕЛЕН ВИД ГИКЭ: ЗУ")
-                elif 'НПД' in clean_name.upper():
-                    table_info['Вид ГИКЭ'] = 'НПД'
-                    logger.info(f"   🏷️ ОПРЕДЕЛЕН ВИД ГИКЭ: НПД")
+                    # Если место не заполнено
+                    if not current_location or str(current_location).strip() in ['', 'nan']:
+                        table_info['Место проведения экспертизы'] = extracted_location
+                        logger.info(f"   📍 ИЗВЛЕЧЕНО МЕСТО ИЗ ФАЙЛА: {extracted_location}")
+
+                # Извлекаем тип ГИКЭ по ключевым словам
+                if not table_info.get('Вид ГИКЭ', '').strip():
+                    if 'ЗУ' in clean_name.upper():
+                        table_info['Вид ГИКЭ'] = 'ЗУ'
+                        logger.info(f"   🏷️ ОПРЕДЕЛЕН ВИД ГИКЭ: ЗУ")
+                    elif 'НПД' in clean_name.upper():
+                        table_info['Вид ГИКЭ'] = 'НПД'
+                        logger.info(f"   🏷️ ОПРЕДЕЛЕН ВИД ГИКЭ: НПД")
+                    elif 'док-я' in clean_name.lower():
+                        table_info['Вид ГИКЭ'] = 'Док-я'
+                        logger.info(f"   🏷️ ОПРЕДЕЛЕН ВИД ГИКЭ: Док-я")
+                    elif 'границы' in clean_name.lower():
+                        table_info['Вид ГИКЭ'] = 'Границы'
+                        logger.info(f"   🏷️ ОПРЕДЕЛЕН ВИД ГИКЭ: Границы")
 
         except Exception as e:
             logger.warning(f"Ошибка при извлечении данных из названия файла: {e}")

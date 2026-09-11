@@ -251,30 +251,181 @@ $(document).ready(function () {
     });
     */
 
-    $('.column-toggle').each(function () {
-        var column = window.dataTable.column($(this).data('column'));
-        var storedState = localStorage.getItem('column-' + $(this).data('column'));
-        if (storedState !== null) {
-            var isChecked = (storedState === 'true');
-            $(this).prop('checked', isChecked);
-            column.visible(isChecked);
-        } else {
-            // По умолчанию показываем все колонки
-            $(this).prop('checked', true);
-            column.visible(true);
+    if (window.dataTable) {
+        $('.column-toggle').each(function () {
+            var column = window.dataTable.column($(this).data('column'));
+            var storedState = localStorage.getItem('column-' + $(this).data('column'));
+            if (storedState !== null) {
+                var isChecked = (storedState === 'true');
+                $(this).prop('checked', isChecked);
+                column.visible(isChecked);
+            } else {
+                // По умолчанию показываем все колонки
+                $(this).prop('checked', true);
+                column.visible(true);
+            }
+        });
+
+        // Обработка события изменения состояния чекбоксов
+        $('.column-toggle').change(function () {
+            var column = window.dataTable.column($(this).data('column'));
+            var isVisible = $(this).is(':checked');
+            column.visible(isVisible);
+            // Сохранение состояния в localStorage
+            localStorage.setItem('column-' + $(this).data('column'), isVisible);
+        });
+    }
+
+    if ($.fn.modal) {
+        $('.modal').modal({
+            show: false
+        });
+    }
+
+    (function () {
+        const POLL_INTERVAL = 30000;  // 30 сек
+        const badgeEl = document.getElementById('notif-badge');
+        const listEl  = document.getElementById('notif-list');
+        const emptyEl = document.getElementById('notif-empty');
+        const markAllBtn = document.getElementById('mark-all-read');
+
+        if (!badgeEl) return;  // не авторизован — выходим
+
+        function getCookie(name) {
+            const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+            return v ? v.pop() : '';
         }
-    });
 
-    // Обработка события изменения состояния чекбоксов
-    $('.column-toggle').change(function () {
-        var column = window.dataTable.column($(this).data('column'));
-        var isVisible = $(this).is(':checked');
-        column.visible(isVisible);
-        // Сохранение состояния в localStorage
-        localStorage.setItem('column-' + $(this).data('column'), isVisible);
-    });
+        function renderNotifications(data) {
+            // Бейдж
+            if (data.unread_count > 0) {
+                badgeEl.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+                badgeEl.style.display = '';
+            } else {
+                badgeEl.style.display = 'none';
+            }
 
-    $('.modal').modal({
-        show: false
-    });
+            // Список
+            listEl.innerHTML = '';
+            if (!data.notifications.length) {
+                emptyEl.style.display = '';
+                return;
+            }
+            emptyEl.style.display = 'none';
+
+            data.notifications.forEach(n => {
+                const a = document.createElement('a');
+                a.className = 'notif-item' + (n.is_read ? '' : ' unread');
+                a.href = n.url || '#';
+                a.dataset.id = n.id;
+
+                const title = document.createElement('div');
+                title.className = 'notif-title';
+                if (!n.is_read) {
+                    const dot = document.createElement('span');
+                    dot.className = 'notif-dot';
+                    title.appendChild(dot);
+                }
+                title.appendChild(document.createTextNode(n.title || 'Уведомление'));
+                a.appendChild(title);
+
+                if (n.message) {
+                    const msg = document.createElement('div');
+                    msg.className = 'notif-msg';
+                    msg.textContent = n.message;
+                    a.appendChild(msg);
+                }
+
+                const time = document.createElement('div');
+                time.className = 'notif-time';
+                time.textContent = n.created_at;
+                a.appendChild(time);
+
+                a.addEventListener('click', function (e) {
+                    // Помечаем прочитанным, потом переходим
+                    if (!n.is_read) {
+                        fetch(`/api/notifications/${n.id}/read/`, {
+                            method: 'POST',
+                            headers: {'X-CSRFToken': getCookie('csrftoken')},
+                        }).catch(() => {});
+                        a.classList.remove('unread');
+                        const dot = a.querySelector('.notif-dot');
+                        if (dot) dot.remove();
+                    }
+                    if (!n.url) {
+                        e.preventDefault();  // если ссылки нет — не переходим
+                    }
+                });
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'notif-wrapper position-relative';
+
+                wrapper.appendChild(a);
+
+                const delBtn = document.createElement('button');
+                delBtn.className = 'notif-delete-btn';
+                delBtn.title = 'Удалить';
+                delBtn.innerHTML = '&times;';
+                delBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    fetch(`/api/notifications/${n.id}/delete/`, {
+                        method: 'POST',
+                        headers: {'X-CSRFToken': getCookie('csrftoken')},
+                    })
+                    .then(() => loadNotifications())
+                    .catch(() => {});
+                });
+                wrapper.appendChild(delBtn);
+
+                listEl.appendChild(wrapper);
+            });
+        }
+
+        function loadNotifications() {
+            fetch('/api/notifications/')
+                .then(r => r.json())
+                .then(renderNotifications)
+                .catch(() => {});  // тихо игнорим сетевые ошибки
+        }
+
+        markAllBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+            fetch('/api/notifications/read-all/', {
+                method: 'POST',
+                headers: {'X-CSRFToken': getCookie('csrftoken')},
+            })
+            .then(() => loadNotifications())
+            .catch(() => {});
+        });
+
+        // Первый запрос сразу, потом опрос по таймеру
+        loadNotifications();
+        setInterval(loadNotifications, POLL_INTERVAL);
+
+        // Обновляем, когда пользователь открывает дропдаун (чтобы было свежее)
+        document.getElementById('notifDropdown')
+            ?.addEventListener('shown.bs.dropdown', loadNotifications);
+
+        const deleteAllBtn = document.getElementById('delete-all-notif');
+
+        if (deleteAllBtn) {
+            deleteAllBtn.addEventListener('click', function (e) {
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (!confirm('Удалить все уведомления?')) return;
+
+                fetch('/api/notifications/delete-all/', {
+                    method: 'POST',
+                    headers: {'X-CSRFToken': getCookie('csrftoken')},
+                })
+                .then(r => r.json())
+                .then(() => loadNotifications())
+                .catch(() => {});
+            });
+        }
+    })();
 });
+

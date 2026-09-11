@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import (
-    User, UserTasks, DocumentFile, Act, ScientificReport, TechReport, OpenLists,
+    User, UserTasks, Notification, DocumentFile, Act, ScientificReport, TechReport, OpenLists,
     ObjectAccountCard, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite,
     CommercialOffers, GeoObject, GeojsonData, Chat, Message
 )
@@ -38,6 +38,12 @@ class UserTasksAdmin(admin.ModelAdmin):
 class DocumentFileAdmin(admin.ModelAdmin):
     list_display = ('id', 'path', 'document_type', 'document_id', 'file_type', 'file_hash', 'date_uploaded')
     search_fields = ('path', 'file_type', 'file_hash')
+
+
+@admin.register(Notification)
+class NotificationAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'title', 'message', 'url', 'is_read', 'created_at')
+    search_fields = ('user', 'title', 'message', 'url')
 
 
 @admin.register(Act)

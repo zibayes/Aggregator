@@ -36,7 +36,7 @@ from agregator.processing.error_handler import error_handler
 from .batch_kml_utils import KMLParser
 from .files_saving import raw_reports_save
 from agregator.models import User, Act, UserTasks, ArchaeologicalHeritageSite, IdentifiedArchaeologicalHeritageSite, \
-    DocumentFile, ObjectAccountCard
+    DocumentFile, ObjectAccountCard, Notification
 from agregator.processing.utils import clean_path_component, get_file_size
 from agregator.processing.external_acts_download_report import generate_download_report, generate_interrupted_report, \
     generate_final_report, generate_intermediate_report, handle_interrupts
@@ -230,7 +230,7 @@ def create_note_file(output_path: str, order_text: str = None) -> None:
 @handle_interrupts
 def external_sources_processing(self, task_state, start_date, end_date, start_page, end_page, select_text,
                                 select_enrich, select_image,
-                                select_coord):
+                                select_coord, scheduled=False):
     logger.info(
         f"🎬 НАЧАЛО СКАНИРОВАНИЯ. Параметры: start_date={start_date}, end_date={end_date}, start_page={start_page}, end_page={end_page}")
 
@@ -416,6 +416,11 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
                     file = get_unique_filename(ACTS_SAVING_PATH, origin_file, [file for path, url, file in page_files])
                     file_lower = file.lower()
 
+                    # Пропуск приложения (как правило - электронная подпись)
+                    if file_info['status'] == 'в очереди на скачивание' and file_lower.endswith(
+                            ('.sig', '.png', '.jpg', '.bmp', '.tiff')):
+                        continue
+
                     # Формируем URL
                     href = link['href'][:link['href'].rfind('/')]
                     params = urllib.parse.urlencode({'address': origin_file})
@@ -546,6 +551,14 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
         time.sleep(random.uniform(2, 5))  # Задержка для снижения нагрузки на сайт ООКН
 
     logger.info("✅ СКАНИРОВАНИЕ ЗАВЕРШЕНО")
+    if scheduled is True:
+        new_acts_count = len([f for f in task_state.get_data()['files_info'] if f['status'] == 'скачан'])
+        Notification.objects.create(
+            user=admin,
+            title=f'На сайте ООКН новые акты!',
+            message=f'Найдено {new_acts_count} новых актов',
+            url='/external_sources/',
+        )
     return {
         'current': actual_pages_to_process,
         'total': actual_pages_to_process,
@@ -567,7 +580,7 @@ def get_downloaded_files_cache(admin_id):
                 for source in act.source_dict:
                     if source.origin_filename:
                         downloaded_files.add(source.origin_filename)
-        cache.set(cache_key, downloaded_files, timeout=3600)  # 1 час
+        cache.set(cache_key, downloaded_files, timeout=7200)  # 2 часа
 
     return downloaded_files
 
@@ -773,7 +786,7 @@ def tables_to_dataframes(tables):
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
 def process_voan_list(self, orders_download=False, use_local_register=False, search_account_cards=False,
-                      progress_key=None):
+                      progress_key=None, scheduled=False):
     """Обработка перечня выявленных объектов культурного наследия"""
     current_folder = f'uploaded_files/Памятники/ВОАН/'
     Path(current_folder).mkdir(parents=True, exist_ok=True)
@@ -795,13 +808,11 @@ def process_voan_list(self, orders_download=False, use_local_register=False, sea
         # Шаг 2: Парсинг
         soup = BeautifulSoup(r.text, 'html.parser')
 
+        local_path = get_heritage_list_path('voan')
         if use_local_register is True:
-            file_path = get_heritage_list_path('voan')
+            file_path = local_path
         else:
-            # Шаг 3: Очистка старых файлов
-            _clean_old_files('list_voan')
-
-            # Шаг 4: Поиск и скачивание файла
+            # Шаг 3: Поиск и скачивание файла
             file_path = None
             for item in soup.find_all('p', class_='news-item'):
                 title = item.find('b').get_text(strip=True) if item.find('b') else ''
@@ -810,6 +821,14 @@ def process_voan_list(self, orders_download=False, use_local_register=False, sea
 
                 link = item.find('a', href=True)
                 if link and '/upload/iblock/' in link['href']:
+                    if link['href'][link['href'].rfind('/') + 1:] in local_path:
+                        return {
+                            'current': 0,
+                            'total': 0,
+                            'type': 'page_progress',
+                            'message': f'Перечень ВОАН на сайте ООКН не обновлялся'
+                        }
+                    _clean_old_files('list_voan')
                     file_path = _download_file(link['href'], title)
                     break
 
@@ -870,7 +889,13 @@ def process_voan_list(self, orders_download=False, use_local_register=False, sea
                 marked_excluded += 1
 
         logger.info(f"Помечено как исключенных: {marked_excluded} объектов ВОАН")
-
+        if scheduled is True:
+            Notification.objects.create(
+                user=get_admin(),
+                title=f'На сайте ООКН обновился перечень ВОАН!',
+                message=f'Найдено {processed} новых ВОАН',
+                url='/identified_archaeological_heritage_sites_register/',
+            )
         return {
             'current': processed,
             'total': total_rows,
@@ -891,14 +916,15 @@ def process_voan_list(self, orders_download=False, use_local_register=False, sea
 
 @shared_task(bind=True, acks_late=True, max_retries=3)
 def process_oan_list(self, orders_download=False, use_local_register=False, search_account_cards=False,
-                     progress_key=None):
+                     progress_key=None, scheduled=False):
     """Обработка перечня объектов археологического наследия"""
     heritage_type = 'ArchaeologicalHeritageSite'
     current_folder = f'uploaded_files/Памятники/ОАН/'
     Path(current_folder).mkdir(parents=True, exist_ok=True)
     try:
+        local_path = get_heritage_list_path('oan')
         if use_local_register is True:
-            file_path = get_heritage_list_path('oan')
+            file_path = local_path
         else:
             # Шаг 1: Получение данных с сайта
             try:
@@ -917,10 +943,7 @@ def process_oan_list(self, orders_download=False, use_local_register=False, sear
             # Шаг 2: Парсинг HTML
             soup = BeautifulSoup(r.text, 'html.parser')
 
-            # Шаг 3: Очистка старых файлов ОАН
-            _clean_old_files('list_oan')
-
-            # Шаг 4: Поиск и скачивание файла перечня ОАН
+            # Шаг 3: Поиск и скачивание файла перечня ОАН
             file_path = None
             for item in soup.find_all('p', class_='news-item'):
                 title = item.find('b').get_text(strip=True) if item.find('b') else ''
@@ -929,6 +952,14 @@ def process_oan_list(self, orders_download=False, use_local_register=False, sear
 
                 link = item.find('a', href=True)
                 if link and '/upload/iblock/' in link['href']:
+                    if link['href'][link['href'].rfind('/') + 1:] in local_path:
+                        return {
+                            'current': 0,
+                            'total': 0,
+                            'type': 'page_progress',
+                            'message': f'Перечень ОАН на сайте ООКН не обновлялся'
+                        }
+                    _clean_old_files('list_oan')
                     file_path = _download_file(link['href'], title)
                     break
 
@@ -964,6 +995,7 @@ def process_oan_list(self, orders_download=False, use_local_register=False, sear
 
         processed = 0
         total_rows = sum(len(df) for df in dataframes)
+        admin = get_admin()
 
         # Шаг 7: Обработка каждой таблицы и строки
         for i, df in enumerate(dataframes):
@@ -1059,7 +1091,6 @@ def process_oan_list(self, orders_download=False, use_local_register=False, sear
                     # Связываем с учетной карточкой
                     # connect_account_card_to_heritage(archaeological_site.doc_name)
                     if search_account_cards:
-                        admin = get_admin()
                         account_cards_connection(archaeological_site.source, admin,
                                                  archaeological_site.doc_name,
                                                  heritage_type,
@@ -1103,6 +1134,13 @@ def process_oan_list(self, orders_download=False, use_local_register=False, sear
 
         # Шаг 9: Финализация
         logger.info(f"Обработка перечня ОАН завершена успешно. Обработано: {processed} объектов")
+        if scheduled is True:
+            Notification.objects.create(
+                user=admin,
+                title=f'На сайте ООКН обновился перечень ОАН!',
+                message=f'Найдено {processed} новых ОАН',
+                url='/archaeological_heritage_sites_register/',
+            )
         return {
             'current': processed,
             'total': total_rows,
