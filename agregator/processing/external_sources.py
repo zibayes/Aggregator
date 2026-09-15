@@ -553,12 +553,13 @@ def external_sources_processing(self, task_state, start_date, end_date, start_pa
     logger.info("✅ СКАНИРОВАНИЕ ЗАВЕРШЕНО")
     if scheduled is True:
         new_acts_count = len([f for f in task_state.get_data()['files_info'] if f['status'] == 'скачан'])
-        Notification.objects.create(
-            user=admin,
-            title=f'На сайте ООКН новые акты!',
-            message=f'Найдено {new_acts_count} новых актов',
-            url='/external_sources/',
-        )
+        if new_acts_count > 0:
+            Notification.objects.create(
+                user=admin,
+                title=f'На сайте ООКН новые акты!',
+                message=f'Найдено {new_acts_count} новых актов',
+                url='/external_sources/',
+            )
     return {
         'current': actual_pages_to_process,
         'total': actual_pages_to_process,

@@ -451,6 +451,10 @@ def extract_text_and_images(file, progress_recorder, pages_count, total_processe
             registry_matcher = RegistryManager(
                 "uploaded_files/Акты ГИКЭ/!! Текущий РЕЕСТР актов ГИКЭ КК 2015-2026 (на осн. 01.09.2023).xlsx")
             table_info = registry_matcher.enrich_from_registry(table_info, pdf_file)
+            for key, value in registry_matcher.GLOBAL_RESULT.items():
+                print(f'{key}:')
+                print(f'№{value}')
+                print(f'-' * 50)
         except Exception as e:
             logger.error(f"Ошибка при обогащении данных из реестра для акта id = {current_act.id}: {e}")
             logger.error(traceback.format_exc())

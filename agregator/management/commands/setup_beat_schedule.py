@@ -13,8 +13,8 @@ class Command(BaseCommand):
         # --- 1. Создаём crontab: каждый час с 8 до 17, минута 0 ---
         crontab_schedule, created = CrontabSchedule.objects.get_or_create(
             minute='0',
-            hour='8-17',
-            day_of_week='*',
+            hour='8-17/2',
+            day_of_week='1-6',
             day_of_month='*',
             month_of_year='*',
             timezone='Asia/Krasnoyarsk',  # поменяй на свой, если нужно
@@ -65,8 +65,8 @@ class Command(BaseCommand):
         # --- 1. Создаём crontab: каждый час с 8 до 17, минута 0 ---
         crontab_schedule, created = CrontabSchedule.objects.get_or_create(
             minute='20',
-            hour='8-17',
-            day_of_week='*',
+            hour='9',
+            day_of_week='1-6',
             day_of_month='*',
             month_of_year='*',
             timezone='Asia/Krasnoyarsk',  # поменяй на свой, если нужно
@@ -112,8 +112,8 @@ class Command(BaseCommand):
         # --- 1. Создаём crontab: каждый час с 8 до 17, минута 0 ---
         crontab_schedule, created = CrontabSchedule.objects.get_or_create(
             minute='40',
-            hour='8-17',
-            day_of_week='*',
+            hour='9',
+            day_of_week='1-6',
             day_of_month='*',
             month_of_year='*',
             timezone='Asia/Krasnoyarsk',  # поменяй на свой, если нужно

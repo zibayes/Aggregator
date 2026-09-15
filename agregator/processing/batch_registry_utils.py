@@ -3,9 +3,8 @@ import os
 import re
 import logging
 from typing import Dict, Optional, Any, Tuple
-from difflib import SequenceMatcher
+from rapidfuzz import fuzz
 from pathlib import Path
-import xml.etree.ElementTree as ET
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +14,7 @@ class RegistryManager:
 
     def __init__(self, registry_path: str):
         self.registry_path = registry_path
+        self.GLOBAL_RESULT = {}
         self.df = None
         self._load_registry()
 
@@ -68,21 +68,26 @@ class RegistryManager:
             logger.warning(f"Ошибка конвертации даты '{date_str}': {e}")
             return date_str
 
-    def find_best_match_by_content(self, extracted_data: Dict, min_similarity: float = 0.8) -> Tuple[
-        Optional[Dict], float]:
+    def find_best_match_by_content(self, extracted_data: Dict, min_similarity: float = 0.5) -> Tuple[
+        Optional[Dict], float, int]:
         """
         ПРАКТИЧНЫЙ алгоритм поиска в реестре:
         """
         if self.df is None or self.df.empty:
             logger.warning("Реестр пуст или не загружен")
-            return None, 0.0
+            return None, 0.0, -1
+
+        year_field = 'ГОД'
+        date_field = 'Дата окончания проведения ГИКЭ'
+        expert_field = 'Эксперт (физ. или юр.лицо)'
 
         # Извлекаем год и НОРМАЛИЗУЕМ его для сравнения
-        extracted_year_raw = extracted_data.get('ГОД', '')
+        extracted_year_raw = extracted_data.get(year_field, '')
         extracted_year = self._normalize_year(extracted_year_raw)
+        extracted_date = str(extracted_data.get(date_field, '')).strip()
 
-        best_match = None
-        best_similarity = 0.0
+        best_match = best_match_idx = sec_best_match_idx = None
+        best_similarity = sec_best_similarity = 0.0
         processed_count = 0
 
         logger.info(f"   Извлеченный год (сырой): '{extracted_year_raw}'")
@@ -90,7 +95,7 @@ class RegistryManager:
 
         # Считаем количество отсутствующих приоритетных полей для корректировки порога
         missing_priority_fields = 0
-        priority_fields = ['Дата окончания проведения ГИКЭ', 'Эксперт (физ. или юр.лицо)']
+        priority_fields = [expert_field]
 
         for field in priority_fields:
             extracted_val = str(extracted_data.get(field, '')).strip()
@@ -98,20 +103,16 @@ class RegistryManager:
                 missing_priority_fields += 1
                 logger.info(f"   Отсутствует приоритетное поле: {field}")
 
-        # КОРРЕКТИРУЕМ ПОРОГ СХОДСТВА
-        adjusted_min_similarity = min_similarity - (missing_priority_fields * 0.05)
-        adjusted_min_similarity = max(0.5, adjusted_min_similarity)
-
-        logger.info(f"   Исходный порог: {min_similarity:.0%}, скорректированный: {adjusted_min_similarity:.0%}")
-
         # ПЕРЕБИРАЕМ ВСЕ ЗАПИСИ РЕЕСТРА
         for index, registry_record in self.df.iterrows():
             # НОРМАЛИЗУЕМ ГОД ИЗ РЕЕСТРА ДЛЯ СРАВНЕНИЯ
             registry_year_raw = registry_record.get('ГОД', '')
             registry_year = self._normalize_year(registry_year_raw)
+            registry_date = str(registry_record.get(date_field, '')).strip()
 
-            # ЕСЛИ ГОД НЕ СОВПАДАЕТ - ПРОПУСКАЕМ
-            if extracted_year and registry_year and extracted_year != registry_year:
+            # ЕСЛИ ГОД И ДАТА НЕ СОВПАДАЕТ - ПРОПУСКАЕМ
+            if (not extracted_year or not registry_year or extracted_year != registry_year) or (
+                    not extracted_date or not registry_date or extracted_date != registry_date):
                 continue
 
             processed_count += 1
@@ -119,43 +120,35 @@ class RegistryManager:
             similarity = self._calculate_practical_similarity(extracted_data, registry_record)
 
             if similarity > best_similarity:
+                sec_best_match_idx = best_match_idx
+                sec_best_similarity = best_similarity
                 best_similarity = similarity
                 best_match = registry_record.to_dict()
-                logger.info(f"   🎯 НОВОЕ ЛУЧШЕЕ СОВПАДЕНИЕ: {similarity:.2%} (запись {index})")
+                best_match_idx = index
+                logger.info(f"   🎯 НОВОЕ ЛУЧШЕЕ СОВПАДЕНИЕ: {similarity:.2%} (запись {best_match_idx})")
 
         logger.info(f"   Обработано записей с совпадающим годом: {processed_count}")
 
-        if best_match and best_similarity >= adjusted_min_similarity:
-            date_field = 'Дата окончания проведения ГИКЭ'
-            expert_field = 'Эксперт (физ. или юр.лицо)'
-            # Извлекаем значения из извлеченных данных
-            extracted_date = str(extracted_data.get(date_field, '')).strip()
-            extracted_expert = str(extracted_data.get(expert_field, '')).strip()
-            # Извлекаем значения из лучшего совпадения
-            registry_date = str(best_match.get(date_field, '')).strip()
-            registry_expert = str(best_match.get(expert_field, '')).strip()
-
-            date_similarity = self._calculate_field_similarity(extracted_date, registry_date)
-            expert_similarity = self._calculate_field_similarity(extracted_expert, registry_expert)
-
-            if date_similarity < 0.7 or expert_similarity < 0.7:
-                logger.warning(
-                    f"❌ Ключевые поля не совпадают на 70%: Дата {date_similarity:.2%}, Эксперт {expert_similarity:.2%}. Совпадение отклонено."
-                )
-                return None, 0.0
-
-            logger.info(f"✅ НАЙДЕНО СОВПАДЕНИЕ В РЕЕСТРЕ: {best_similarity:.2%}")
-            logger.info(f"   Номер акта: {best_match.get('Номер (если имеется) и наименование Акта ГИКЭ', 'N/A')}")
-            logger.info(f"   Дата: {best_match.get('Дата окончания проведения ГИКЭ', 'N/A')}")
-            logger.info(f"   Эксперт: {best_match.get('Эксперт (физ. или юр.лицо)', 'N/A')}")
+        if best_match and best_similarity >= min_similarity:
+            if abs(sec_best_similarity - best_similarity) < 1:
+                logger.info(
+                    f"✅❌ НАЙДЕНО СОВПАДЕНИЕ В РЕЕСТРЕ: {best_similarity:.2%}, (строка №{best_match_idx + 2}) / Ближайший конкурент - {sec_best_similarity:.2%}, (строка №{sec_best_match_idx + 2 if sec_best_match_idx else -1})")
+                logger.info(f"❌ ОДНАКО РАЗНИЦА МЕЖДУ КОНКУРЕНТАМИ НЕБОЛЬШАЯ! ЛУЧШЕ ПРОПУСТИМ!")
+                return None, 0.0, -1
+            else:
+                logger.info(
+                    f"✅ НАЙДЕНО СОВПАДЕНИЕ В РЕЕСТРЕ: {best_similarity:.2%}, (строка №{best_match_idx + 2}) / Ближайший конкурент - {sec_best_similarity:.2%}, (строка №{sec_best_match_idx + 2 if sec_best_match_idx else -1})")
+                logger.info(f"   Номер акта: {best_match.get('Номер (если имеется) и наименование Акта ГИКЭ', 'N/A')}")
+                logger.info(f"   Дата: {best_match.get('Дата окончания проведения ГИКЭ', 'N/A')}")
+                logger.info(f"   Эксперт: {best_match.get('Эксперт (физ. или юр.лицо)', 'N/A')}")
+                return best_match, best_similarity, best_match_idx
         else:
             if best_match:
                 logger.warning(
-                    f"❌ Совпадение не достигло порога. Лучшая схожесть: {best_similarity:.2%} (требуется: {adjusted_min_similarity:.0%})")
+                    f"❌ Совпадение не достигло порога. Лучшая схожесть: {best_similarity:.2%} (требуется: {min_similarity:.0%})")
             else:
                 logger.warning("❌ Не найдено ни одного подходящего совпадения")
-
-        return best_match, best_similarity
+            return None, 0.0, -1
 
     def _normalize_year(self, year_value) -> str:
         """
@@ -192,7 +185,7 @@ class RegistryManager:
         if not normalized_str1 or normalized_str1 == 'nan' or not normalized_str2 or normalized_str2 == 'nan':
             return 0.0
 
-        return SequenceMatcher(None, normalized_str1, normalized_str2).ratio()
+        return fuzz.token_set_ratio(normalized_str1, normalized_str2) / 100
 
     def _calculate_practical_similarity(self, extracted_data: Dict, registry_record: pd.Series) -> float:
         """
@@ -221,27 +214,41 @@ class RegistryManager:
         field_details = []
 
         # Обрабатываем все поля согласно маппингу
-        for extracted_field, (registry_field, weight) in field_mapping.items():
+        for extracted_field, (_, cur_weight) in field_mapping.items():
             extracted_value = str(extracted_data.get(extracted_field, '')).strip().lower()
-            registry_value = str(registry_record.get(registry_field, '')).strip().lower()
+            if not extracted_value or extracted_field in ('Эксперт (физ. или юр.лицо)',
+                                                          'Номер (если имеется) и наименование Акта ГИКЭ'):  #
 
-            # Пропускаем пустые значения
-            if not extracted_value or extracted_value == 'nan' or not registry_value or registry_value == 'nan':
                 continue
 
-            # Вычисляем схожесть для поля
-            field_similarity = SequenceMatcher(None, extracted_value, registry_value).ratio()
-            weighted_similarity = field_similarity * weight
+            best_field_sim = 0.0
+            reg_val = None
+            for _, (registry_field, _) in field_mapping.items():
+                registry_value = str(registry_record.get(registry_field, '')).strip().lower()
+                if not registry_value:
+                    continue
+                sim = fuzz.token_set_ratio(extracted_value, registry_value)
+                if sim > best_field_sim:
+                    best_field_sim = sim
+                    reg_val = registry_value
+            '''
+            print(f'extracted_value = {extracted_value}')
+            print(f'reg_val = {reg_val}')
+            print(f'best_field_sim = {best_field_sim}')
+            print(f'*'*50)
+            '''
+
+            weighted_similarity = best_field_sim * cur_weight
             total_similarity += weighted_similarity
-            total_weight += weight
+            total_weight += cur_weight
 
             # Сохраняем детали для логирования
             field_details.append({
                 'field': extracted_field,
-                'similarity': field_similarity,
+                'similarity': best_field_sim,
                 'weighted': weighted_similarity,
                 'extracted': extracted_value,
-                'registry': registry_value
+                'registry': reg_val
             })
 
         # ДЕТАЛЬНОЕ ЛОГИРОВАНИЕ ВСЕХ ПОЛЕЙ С СХОЖЕСТЬЮ > 0.3
@@ -263,7 +270,7 @@ class RegistryManager:
         final_similarity = total_similarity / total_weight
         # logger.debug(f"   ИТОГОВАЯ СХОЖЕСТЬ: {final_similarity:.2%}")
 
-        return final_similarity
+        return final_similarity / 100
 
     def enrich_from_registry(self, table_info: Dict, filename: str) -> Dict:
         """
@@ -284,10 +291,11 @@ class RegistryManager:
             if value and str(value).strip() and str(value).strip() != 'nan':
                 logger.info(f"     {key}: '{value}'")
 
-        best_match, similarity = self.find_best_match_by_content(table_info)
+        best_match, similarity, best_match_idx = self.find_best_match_by_content(table_info)
+        self.GLOBAL_RESULT[filename] = best_match_idx
 
-        if best_match and best_match.get('ГОД', 'N/A') == table_info.get('ГОД', 'N//A') and best_match.get(
-                'Дата окончания проведения ГИКЭ', 'N/A') == table_info.get('Дата окончания проведения ГИКЭ', 'N//A'):
+        if best_match and best_match.get('ГОД') == table_info.get('ГОД') and best_match.get(
+                'Дата окончания проведения ГИКЭ') == table_info.get('Дата окончания проведения ГИКЭ'):
             logger.info(f"🎯 ЗАМЕНЯЕМ ДАННЫЕ НА ДОСТОВЕРНЫЕ ИЗ РЕЕСТРА (схожесть: {similarity:.2%})")
 
             # ОБРАТНЫЙ МАППИНГ
@@ -352,7 +360,8 @@ class RegistryManager:
                     current_date = table_info.get('Дата окончания проведения ГИКЭ', '')
 
                     # Если дата не заполнена или заполнена некорректно
-                    if not current_date or str(current_date).strip() in ['', 'nan']:
+                    if not current_date or str(current_date).strip() in ['', 'nan'] or str(
+                            current_date).strip() != extracted_date:
                         table_info['Дата окончания проведения ГИКЭ'] = extracted_date
                         if year:
                             table_info['ГОД'] = year
